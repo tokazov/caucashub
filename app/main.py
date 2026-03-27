@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import loads, trucks, auth, ai, users
 from app.database import engine, Base
+import os
 
 app = FastAPI(
     title="CaucasHub API",
