@@ -4,3 +4,6 @@ frontend/out/
 *.pyc
 __pycache__/
 .env
+frontend/node_modules/
+frontend/.next/
+frontend/out/
