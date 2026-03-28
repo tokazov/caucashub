@@ -54,3 +54,4 @@ frontend/            # Next.js (в разработке)
 | POST | /api/ai/chat | AI ассистент |
 | POST | /api/ai/rate | Расчёт ставки |
 | POST | /api/ai/parse-load | Парсинг груза из текста |
+# redeploy Sat Mar 28 12:29:17 PM UTC 2026
