@@ -55,3 +55,34 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
+
+@router.get("/debug-register")
+async def debug_register(db: AsyncSession = Depends(get_db)):
+    """Debug — проверяем что таблица users существует и регистрация работает"""
+    import traceback
+    try:
+        from sqlalchemy import text
+        result = await db.execute(text("SELECT COUNT(*) FROM users"))
+        count = result.scalar()
+        
+        # Пробуем создать тестового пользователя
+        from datetime import datetime
+        test_email = f"debug_{int(datetime.utcnow().timestamp())}@test.ge"
+        test_user = User(
+            email=test_email,
+            hashed_password=pwd_context.hash("test123"),
+            company_name="Debug Test",
+            phone=None,
+            role=UserRole.carrier
+        )
+        db.add(test_user)
+        await db.commit()
+        await db.refresh(test_user)
+        
+        # Удаляем тестового пользователя
+        await db.delete(test_user)
+        await db.commit()
+        
+        return {"status": "ok", "users_count": count, "register_test": "passed"}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
