@@ -24,6 +24,10 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+def hash_password(password: str) -> str:
+    """bcrypt ограничен 72 байтами — обрезаем заранее."""
+    return pwd_context.hash(password[:72])
+
 def create_token(user_id: int):
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -37,7 +41,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
     user = User(
         email=data.email,
-        hashed_password=pwd_context.hash(data.password),
+        hashed_password=hash_password(data.password),
         company_name=data.company_name,
         phone=data.phone,
         role=UserRole(data.role),
@@ -52,7 +56,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not pwd_context.verify(data.password, user.hashed_password):
+    if not user or not pwd_context.verify(data.password[:72], user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
 
