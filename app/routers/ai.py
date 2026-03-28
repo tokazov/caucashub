@@ -143,32 +143,14 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 ИСТОРИЯ:
 {history_text}
 
-ИНСТРУКЦИЯ ПО ОТВЕТУ:
-Ответь в формате JSON (только JSON, без markdown):
-{{
-  "reply": "твой живой ответ пользователю",
-  "state": {{
-    "role": "carrier" | "shipper" | null,
-    "from": "город или null",
-    "to": "город или null",
-    "weight_cap": число_кг или null,
-    "weight": число_кг или null,
-    "truck": "тент/рефриж/борт/фургон/термос/контейнер или null",
-    "date": "дата или null",
-    "date2": "конец интервала или null",
-    "cargo_desc": "описание груза или null",
-    "price": число или null,
-    "ready_to_search": true/false,
-    "ready_to_post": true/false
-  }},
-  "search_filters": {{
-    "from": "...", "to": "...", "max_kg": число или null
-  }} | null
-}}
+ФОРМАТ ОТВЕТА — строго JSON, без markdown, без ```json, без пояснений вне JSON:
+{{"reply":"...","state":{{"role":null,"from":null,"to":null,"weight_cap":null,"weight":null,"truck":null,"date":null,"date2":null,"cargo_desc":null,"price":null,"ready_to_search":false,"ready_to_post":false}},"search_filters":null}}
 
-Сохраняй все данные из предыдущего state которые уже были заполнены.
-ready_to_search = true когда у перевозчика есть from + to.
-ready_to_post = true когда у грузовладельца есть from + to + weight.
+Правила заполнения state:
+- Сохраняй все ранее заполненные поля из предыдущего state
+- ready_to_search=true когда role=carrier и from и to заполнены
+- ready_to_post=true когда role=shipper и from и to и weight заполнены
+- search_filters заполняй когда ready_to_search=true: {{"from":"...","to":"...","max_kg":число_или_null}}
 """
 
     try:
