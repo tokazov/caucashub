@@ -196,13 +196,17 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
             "loads": matched_loads
         }
     except Exception as e:
+        import traceback
+        err_detail = traceback.format_exc()
+        print(f"[DISPATCHER ERROR]: {err_detail}", flush=True)
         # Возвращаем пустой reply чтобы фронт ушёл в офлайн логику
         return {
             "reply": "",
             "state": req.state,
             "search_filters": None,
             "loads": [],
-            "error": str(e)
+            "error": str(e),
+            "traceback": err_detail[-500:]
         }
 
 
