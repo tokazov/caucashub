@@ -10,7 +10,7 @@ from jose import jwt
 from datetime import datetime, timedelta
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
 class RegisterRequest(BaseModel):
     email: str
@@ -25,8 +25,7 @@ class LoginRequest(BaseModel):
     password: str
 
 def hash_password(password: str) -> str:
-    """bcrypt ограничен 72 байтами — обрезаем заранее."""
-    return pwd_context.hash(password[:72])
+    return pwd_context.hash(password)
 
 def create_token(user_id: int):
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -56,7 +55,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not pwd_context.verify(data.password[:72], user.hashed_password):
+    if not user or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
 
