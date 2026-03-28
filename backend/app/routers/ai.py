@@ -12,10 +12,7 @@ import json, re
 router = APIRouter()
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
-try:
-    model = genai.GenerativeModel("gemini-2.5-flash")
-except Exception:
-    model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 SYSTEM_PROMPT = """
 Ты AI ассистент биржи грузов CaucasHub.ge — первой грузовой биржи Кавказа.
@@ -89,8 +86,7 @@ class DispatcherMessage(BaseModel):
 async def dispatcher_test():
     """Quick test — проверяем Gemini"""
     try:
-        test_model = genai.GenerativeModel("gemini-1.5-flash")
-        r = test_model.generate_content("Скажи 'ОК' одним словом")
+        r = model.generate_content("Скажи 'ОК' одним словом")
         return {"status": "ok", "gemini": r.text.strip(), "key_prefix": settings.GEMINI_API_KEY[:8]}
     except Exception as e:
         return {"status": "error", "error": str(e), "key_prefix": settings.GEMINI_API_KEY[:8]}
