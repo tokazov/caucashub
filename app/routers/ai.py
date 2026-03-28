@@ -107,7 +107,7 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 
     state_json = json.dumps(req.state, ensure_ascii=False)
 
-    system_prompt = f"""Ты Алекс — AI диспетчер биржи грузов CaucasHub.ge.
+    system_prompt = f"""Ты Мари — AI диспетчер биржи грузов CaucasHub.ge.
 Биржа для Кавказа: Грузия, Армения, Азербайджан, Турция, Россия.
 
 ТВОЯ ЗАДАЧА:
