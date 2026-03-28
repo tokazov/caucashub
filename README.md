@@ -55,3 +55,4 @@ frontend/            # Next.js (в разработке)
 | POST | /api/ai/rate | Расчёт ставки |
 | POST | /api/ai/parse-load | Парсинг груза из текста |
 # redeploy Sat Mar 28 12:29:17 PM UTC 2026
+# force redeploy Sat Mar 28 05:00:40 PM UTC 2026
