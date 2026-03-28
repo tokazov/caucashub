@@ -85,6 +85,16 @@ class DispatcherMessage(BaseModel):
     history: List[dict] = []   # [{role: "user"|"assistant", text: "..."}]
     state: dict = {}            # накопленные данные {role, from, to, weight_cap, truck, date, ...}
 
+@router.get("/dispatcher/test")
+async def dispatcher_test():
+    """Quick test — проверяем Gemini"""
+    try:
+        test_model = genai.GenerativeModel("gemini-1.5-flash")
+        r = test_model.generate_content("Скажи 'ОК' одним словом")
+        return {"status": "ok", "gemini": r.text.strip(), "key_prefix": settings.GEMINI_API_KEY[:8]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "key_prefix": settings.GEMINI_API_KEY[:8]}
+
 @router.post("/dispatcher")
 async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db)):
     """
