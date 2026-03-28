@@ -118,14 +118,19 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
     """
 
     # Загружаем активные грузы из БД для контекста
-    result = await db.execute(
-        select(Load).where(Load.status == LoadStatus.active).limit(20)
-    )
-    loads = result.scalars().all()
-    loads_ctx = "\n".join([
-        f"ID:{l.id} | {l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.truck_type.value if hasattr(l.truck_type,'value') else l.truck_type} | {l.price_usd or l.price_gel or '?'}{'$' if l.scope==LoadScope.intl else '₾'}"
-        for l in loads
-    ]) or "Грузов пока нет"
+    loads = []
+    loads_ctx = "Грузов пока нет"
+    try:
+        result = await db.execute(
+            select(Load).where(Load.status == LoadStatus.active).limit(20)
+        )
+        loads = result.scalars().all()
+        loads_ctx = "\n".join([
+            f"{l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.price_usd or l.price_gel or '?'}{'$' if l.scope==LoadScope.intl else '₾'}"
+            for l in loads
+        ]) or "Грузов пока нет"
+    except Exception:
+        pass  # БД недоступна — продолжаем без грузов
 
     # История диалога для контекста
     history_text = ""
