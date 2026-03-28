@@ -5,7 +5,9 @@ from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.config import settings
 from pydantic import BaseModel
+from typing import Optional, List
 import google.generativeai as genai
+import json, re
 
 router = APIRouter()
 
@@ -74,6 +76,147 @@ async def calculate_rate(req: RateRequest):
     """
     response = model.generate_content(prompt)
     return {"rate_analysis": response.text}
+
+class DispatcherMessage(BaseModel):
+    message: str
+    history: List[dict] = []   # [{role: "user"|"assistant", text: "..."}]
+    state: dict = {}            # накопленные данные {role, from, to, weight_cap, truck, date, ...}
+
+@router.post("/dispatcher")
+async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db)):
+    """
+    Живой AI диспетчер — Gemini понимает контекст, отвечает естественно,
+    параллельно извлекает структурированные данные для поиска/размещения груза.
+    """
+
+    # Загружаем активные грузы из БД для контекста
+    result = await db.execute(
+        select(Load).where(Load.status == LoadStatus.active).limit(20)
+    )
+    loads = result.scalars().all()
+    loads_ctx = "\n".join([
+        f"ID:{l.id} | {l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.truck_type} | {l.price_usd}{'$' if l.scope=='intl' else '₾'} | {l.company_name}"
+        for l in loads
+    ]) or "Грузов пока нет"
+
+    # История диалога для контекста
+    history_text = ""
+    for msg in req.history[-6:]:  # последние 6 сообщений
+        role = "Пользователь" if msg["role"] == "user" else "Диспетчер"
+        history_text += f"{role}: {msg['text']}\n"
+
+    state_json = json.dumps(req.state, ensure_ascii=False)
+
+    system_prompt = f"""Ты Алекс — AI диспетчер биржи грузов CaucasHub.ge.
+Биржа для Кавказа: Грузия, Армения, Азербайджан, Турция, Россия.
+
+ТВОЯ ЗАДАЧА:
+1. Общайся живо и естественно — как опытный диспетчер, не как бот
+2. Понимай любой формат: сокращения, опечатки, смешанный язык
+3. Параллельно извлекай данные для поиска/размещения
+
+ПРАВИЛА ОБЩЕНИЯ:
+- Не задавай больше одного вопроса за раз
+- Не повторяй то что уже знаешь из контекста
+- Короткие живые ответы, без воды
+- Если пользователь написал маршрут — сразу ищи, не переспрашивай
+
+РОЛИ:
+- Перевозчик: ищет грузы. Нужно: from, to, тоннаж (опц), кузов (опц), дата (опц)
+- Грузовладелец: размещает груз. Нужно: from, to, вес, что везём, дата
+
+АКТИВНЫЕ ГРУЗЫ НА БИРЖЕ:
+{loads_ctx}
+
+ТЕКУЩЕЕ СОСТОЯНИЕ ДИАЛОГА:
+{state_json}
+
+ИСТОРИЯ:
+{history_text}
+
+ИНСТРУКЦИЯ ПО ОТВЕТУ:
+Ответь в формате JSON (только JSON, без markdown):
+{{
+  "reply": "твой живой ответ пользователю",
+  "state": {{
+    "role": "carrier" | "shipper" | null,
+    "from": "город или null",
+    "to": "город или null",
+    "weight_cap": число_кг или null,
+    "weight": число_кг или null,
+    "truck": "тент/рефриж/борт/фургон/термос/контейнер или null",
+    "date": "дата или null",
+    "date2": "конец интервала или null",
+    "cargo_desc": "описание груза или null",
+    "price": число или null,
+    "ready_to_search": true/false,
+    "ready_to_post": true/false
+  }},
+  "search_filters": {{
+    "from": "...", "to": "...", "max_kg": число или null
+  }} | null
+}}
+
+Сохраняй все данные из предыдущего state которые уже были заполнены.
+ready_to_search = true когда у перевозчика есть from + to.
+ready_to_post = true когда у грузовладельца есть from + to + weight.
+"""
+
+    try:
+        response = model.generate_content(
+            system_prompt + f"\n\nПользователь: {req.message}"
+        )
+        raw = response.text.strip()
+
+        # Чистим markdown-обёртку если есть
+        raw = re.sub(r'^```json\s*', '', raw)
+        raw = re.sub(r'\s*```$', '', raw)
+
+        data = json.loads(raw)
+        return {
+            "reply": data.get("reply", "Понял, продолжаем..."),
+            "state": data.get("state", req.state),
+            "search_filters": data.get("search_filters"),
+            "loads": [
+                {
+                    "id": l.id,
+                    "from": l.from_city,
+                    "to": l.to_city,
+                    "kg": l.weight_kg,
+                    "truck": l.truck_type,
+                    "price": l.price_usd,
+                    "scope": l.scope,
+                    "company": l.company_name,
+                    "rating": "4.8",
+                }
+                for l in loads
+                if _load_matches(l, data.get("search_filters"))
+            ][:3] if data.get("state", {}).get("ready_to_search") else []
+        }
+    except Exception as e:
+        return {
+            "reply": "Секунду, повторите пожалуйста...",
+            "state": req.state,
+            "search_filters": None,
+            "loads": [],
+            "error": str(e)
+        }
+
+
+def _load_matches(load: Load, filters: Optional[dict]) -> bool:
+    if not filters:
+        return False
+    from_f = (filters.get("from") or "").lower()[:4]
+    to_f = (filters.get("to") or "").lower()[:4]
+    max_kg = filters.get("max_kg")
+    if from_f and from_f not in load.from_city.lower():
+        return False
+    if to_f and to_f not in load.to_city.lower():
+        return False
+    if max_kg and load.weight_kg > max_kg:
+        return False
+    return True
+
 
 @router.post("/parse-load")
 async def parse_load_from_text(text: str):
