@@ -110,14 +110,27 @@ export default function Home() {
       </div>
 
       {/* FILTERS */}
-      <div style={{background:"#fff",padding:"10px 16px",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",borderBottom:"1px solid #eee",position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
-        {[t.from, t.to, t.date, t.truckType].map((ph,i) => (
-          <select key={i} style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",cursor:"pointer",outline:"none"}}>
-            <option>{ph}</option>
-          </select>
-        ))}
-        <button style={{background:"#1a1a2e",color:"#fff",border:"none",padding:"7px 18px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>{t.search}</button>
-        <span style={{background:"#f7b731",color:"#1a1a2e",padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:700,marginLeft:"auto"}}>{scope==="local"?187:96} {t.stats.loads}</span>
+      <div style={{background:"#fff",padding:"10px 16px",borderBottom:"1px solid #eee",position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
+        {/* Row 1: inputs */}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
+          <input placeholder={t.from} style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input placeholder={t.to} style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          {[t.date, t.truckType, t.tonnage, t.cost].map((ph,i) => (
+            <select key={i} style={{flex:"1 1 100px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",cursor:"pointer",outline:"none"}}>
+              <option>{ph}</option>
+            </select>
+          ))}
+          <span style={{background:"#f7b731",color:"#1a1a2e",padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{scope==="local"?187:96} {t.stats.loads}</span>
+        </div>
+        {/* Row 2: action buttons — fixed width on desktop */}
+        <div style={{display:"flex",gap:8}}>
+          <button style={{flex:"0 0 auto",minWidth:160,background:"#1a1a2e",color:"#fff",border:"none",padding:"9px 24px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+            {t.search}
+          </button>
+          <button style={{flex:"0 0 auto",minWidth:160,background:"#2ecc71",color:"#fff",border:"none",padding:"9px 24px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+            + {t.postLoad}
+          </button>
+        </div>
       </div>
 
       {/* AI BAR */}
