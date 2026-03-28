@@ -1,13 +1,32 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from app.database import get_db
-from app.models.load import Load, LoadScope, LoadStatus
+from app.models.load import Load, LoadScope, LoadStatus, TruckType
+from app.config import settings
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from jose import jwt, JWTError
 
 router = APIRouter()
+
+def get_user_id(authorization: Optional[str] = Header(None)) -> Optional[int]:
+    """Извлекаем user_id из JWT токена. Возвращает None если нет токена."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    try:
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return int(payload.get("sub"))
+    except (JWTError, ValueError):
+        return None
+
+def require_user(authorization: Optional[str] = Header(None)) -> int:
+    uid = get_user_id(authorization)
+    if not uid:
+        raise HTTPException(status_code=401, detail="Authorization required")
+    return uid
 
 class LoadCreate(BaseModel):
     from_city: str
@@ -17,12 +36,59 @@ class LoadCreate(BaseModel):
     scope: str = "local"
     weight_kg: float
     volume_m3: Optional[float] = None
-    truck_type: str
+    truck_type: str = "tent"
     cargo_desc: Optional[str] = None
     price_usd: Optional[float] = None
+    price_gel: Optional[float] = None
     payment_type: Optional[str] = None
-    load_date: datetime
+    load_date: Optional[datetime] = None
+    load_date_end: Optional[str] = None   # дата конца интервала (строка dd.mm.yy)
     is_urgent: bool = False
+    company_name: Optional[str] = None   # название компании для отображения
+
+class LoadUpdate(BaseModel):
+    from_city: Optional[str] = None
+    from_address: Optional[str] = None
+    to_city: Optional[str] = None
+    to_address: Optional[str] = None
+    weight_kg: Optional[float] = None
+    truck_type: Optional[str] = None
+    cargo_desc: Optional[str] = None
+    price_usd: Optional[float] = None
+    price_gel: Optional[float] = None
+    payment_type: Optional[str] = None
+    load_date: Optional[datetime] = None
+    load_date_end: Optional[str] = None
+    is_urgent: Optional[bool] = None
+
+def load_to_dict(l: Load, company_name: str = None) -> dict:
+    """Конвертируем Load в dict для фронтенда."""
+    return {
+        "id": l.id,
+        "from": l.from_city,
+        "from2": l.from_address or l.from_city,
+        "to": l.to_city,
+        "to2": l.to_address or l.to_city,
+        "scope": l.scope.value if hasattr(l.scope, 'value') else str(l.scope),
+        "kg": l.weight_kg,
+        "type": l.truck_type.value if hasattr(l.truck_type, 'value') else str(l.truck_type),
+        "typeLabel": {"tent":"Тент","ref":"Рефриж.","bort":"Борт","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","other":"Другой"}.get(
+            l.truck_type.value if hasattr(l.truck_type,'value') else str(l.truck_type), "Тент"),
+        "price": l.price_gel or l.price_usd or 0,
+        "cur": "₾" if l.price_gel else "$",
+        "desc": l.cargo_desc or "",
+        "pay": l.payment_type or "Нал",
+        "urgent": l.is_urgent,
+        "status": l.status.value if hasattr(l.status,'value') else str(l.status),
+        "badge": "urgent" if l.is_urgent else None,
+        "date": l.load_date.strftime("%d.%m.%y") if l.load_date else None,
+        "co": company_name or "CaucasHub",
+        "rat": "5.0",
+        "trips": 0,
+        "user_id": l.user_id,
+        "views": l.views or 0,
+        "created_at": l.created_at.isoformat() if l.created_at else None,
+    }
 
 @router.get("/")
 async def get_loads(
@@ -51,16 +117,62 @@ async def get_loads(
 
     result = await db.execute(q)
     loads = result.scalars().all()
-    return {"loads": loads, "total": len(loads)}
+    return {"loads": [load_to_dict(l) for l in loads], "total": len(loads)}
 
 @router.post("/")
-async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db)):
-    # TODO: добавить авторизацию
-    load = Load(**data.model_dump())
+async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
+                      authorization: Optional[str] = Header(None)):
+    user_id = require_user(authorization)
+    load_data = data.model_dump(exclude={"company_name", "load_date_end"})
+    if not load_data.get("load_date"):
+        load_data["load_date"] = datetime.utcnow()
+    load = Load(**load_data, user_id=user_id)
     db.add(load)
     await db.commit()
     await db.refresh(load)
-    return load
+    return load_to_dict(load, data.company_name)
+
+@router.put("/{load_id}")
+async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends(get_db),
+                      authorization: Optional[str] = Header(None)):
+    user_id = require_user(authorization)
+    result = await db.execute(select(Load).where(Load.id == load_id))
+    load = result.scalar_one_or_none()
+    if not load:
+        raise HTTPException(status_code=404, detail="Not found")
+    if load.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not your load")
+    for k, v in data.model_dump(exclude_none=True).items():
+        if hasattr(load, k) and k != "load_date_end":
+            setattr(load, k, v)
+    await db.commit()
+    await db.refresh(load)
+    return load_to_dict(load)
+
+@router.delete("/{load_id}")
+async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
+                      authorization: Optional[str] = Header(None)):
+    user_id = require_user(authorization)
+    result = await db.execute(select(Load).where(Load.id == load_id))
+    load = result.scalar_one_or_none()
+    if not load:
+        raise HTTPException(status_code=404, detail="Not found")
+    if load.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not your load")
+    load.status = LoadStatus.canceled
+    await db.commit()
+    return {"ok": True}
+
+@router.get("/my/loads")
+async def get_my_loads(db: AsyncSession = Depends(get_db),
+                       authorization: Optional[str] = Header(None)):
+    user_id = require_user(authorization)
+    result = await db.execute(
+        select(Load).where(Load.user_id == user_id, Load.status != LoadStatus.canceled)
+        .order_by(Load.created_at.desc())
+    )
+    loads = result.scalars().all()
+    return {"loads": [load_to_dict(l) for l in loads]}
 
 @router.get("/{load_id}")
 async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
@@ -68,7 +180,6 @@ async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
     load = result.scalar_one_or_none()
     if not load:
         return {"error": "Not found"}
-    # Инкремент просмотров
     load.views += 1
     await db.commit()
-    return load
+    return load_to_dict(load)
