@@ -104,7 +104,7 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
     )
     loads = result.scalars().all()
     loads_ctx = "\n".join([
-        f"ID:{l.id} | {l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.truck_type} | {l.price_usd}{'$' if l.scope=='intl' else '₾'} | {l.company_name}"
+        f"ID:{l.id} | {l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.truck_type.value if hasattr(l.truck_type,'value') else l.truck_type} | {l.price_usd or l.price_gel or '?'}{'$' if l.scope==LoadScope.intl else '₾'}"
         for l in loads
     ]) or "Грузов пока нет"
 
