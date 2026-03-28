@@ -2,11 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import loads, trucks, auth, ai, users
 from app.database import engine, Base
+from app.models import user, load, truck  # noqa — регистрируем модели
+from contextlib import asynccontextmanager
+import os
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Создаём таблицы при старте
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 app = FastAPI(
     title="CaucasHub API",
     description="Caucasus Freight Exchange — API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
