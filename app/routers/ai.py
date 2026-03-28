@@ -12,7 +12,10 @@ import json, re
 router = APIRouter()
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+try:
+    model = genai.GenerativeModel("gemini-2.5-flash")
+except Exception:
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
 SYSTEM_PROMPT = """
 Ты AI ассистент биржи грузов CaucasHub.ge — первой грузовой биржи Кавказа.
@@ -168,16 +171,21 @@ ready_to_post = true когда у грузовладельца есть from + 
         )
         raw = response.text.strip()
 
-        # Чистим markdown-обёртку если есть
-        raw = re.sub(r'^```json\s*', '', raw)
-        raw = re.sub(r'\s*```$', '', raw)
+        # Чистим все варианты markdown-обёрток
+        raw = re.sub(r'^```json\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'^```\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
+        raw = raw.strip()
+
+        # Ищем JSON внутри ответа если он обёрнут в текст
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if json_match:
+            raw = json_match.group(0)
 
         data = json.loads(raw)
-        return {
-            "reply": data.get("reply", "Понял, продолжаем..."),
-            "state": data.get("state", req.state),
-            "search_filters": data.get("search_filters"),
-            "loads": [
+        matched_loads = []
+        if data.get("state", {}).get("ready_to_search"):
+            matched_loads = [
                 {
                     "id": l.id,
                     "from": l.from_city,
@@ -191,11 +199,18 @@ ready_to_post = true когда у грузовладельца есть from + 
                 }
                 for l in loads
                 if _load_matches(l, data.get("search_filters"))
-            ][:3] if data.get("state", {}).get("ready_to_search") else []
+            ][:3]
+
+        return {
+            "reply": data.get("reply", ""),
+            "state": data.get("state", req.state),
+            "search_filters": data.get("search_filters"),
+            "loads": matched_loads
         }
     except Exception as e:
+        # Возвращаем пустой reply чтобы фронт ушёл в офлайн логику
         return {
-            "reply": "Секунду, повторите пожалуйста...",
+            "reply": "",
             "state": req.state,
             "search_filters": None,
             "loads": [],
