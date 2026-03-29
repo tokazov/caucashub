@@ -8,12 +8,15 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     TELEGRAM_BOT_TOKEN: str = ""
 
-    # Email (Gmail SMTP)
+    # Email — Resend.com (приоритет) или Gmail SMTP (fallback)
+    RESEND_API_KEY: str = ""  # re_xxxxxxxxxxxx (из resend.com)
+    EMAIL_FROM: str = "CaucasHub <noreply@caucashub.ge>"
+
+    # Gmail SMTP fallback
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""   # your@gmail.com
-    SMTP_PASS: str = ""   # App Password (16 символов)
-    EMAIL_FROM: str = "CaucasHub <noreply@caucashub.ge>"
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
 
     class Config:
         env_file = ".env"
