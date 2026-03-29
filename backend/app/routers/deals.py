@@ -6,7 +6,65 @@ from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.deal import Deal, DealStatus
+from app.models.deal import Deal
+from app.models.user import User
+from typing import Optional
+
+STATUS_LABELS = {
+    "loading": "Начата загрузка",
+    "in_transit": "Груз в пути",
+    "delivered": "Груз доставлен",
+    "completed": "Сделка завершена",
+}
+
+async def notify_deal_status(deal, db, new_status: str):
+    """Email уведомление при смене статуса сделки"""
+    import httpx
+    RESEND_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+    label = STATUS_LABELS.get(new_status, new_status)
+    
+    # Получаем участников
+    shipper = await db.get(User, deal.shipper_id)
+    carrier = await db.get(User, deal.carrier_id)
+    
+    # Загружаем груз для маршрута
+    from app.models.load import Load
+    load = await db.get(Load, deal.load_id)
+    route = f"{load.from_city} → {load.to_city}" if load else "—"
+    
+    recipients = []
+    if shipper and shipper.email: recipients.append(shipper.email)
+    if carrier and carrier.email: recipients.append(carrier.email)
+    
+    for email in recipients:
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#1a1a2e;padding:20px;text-align:center">
+            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
+          </div>
+          <div style="padding:24px">
+            <h3>🔔 Статус сделки изменён</h3>
+            <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
+              <b>Сделка:</b> {deal.act_number}<br>
+              <b>Маршрут:</b> {route}<br>
+              <b>Новый статус:</b> <span style="color:#f7b731;font-weight:700">{label}</span>
+            </div>
+            <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> → Мои сделки для управления.</p>
+          </div>
+        </div>
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {RESEND_KEY}"},
+                    json={"from": "CaucasHub <onboarding@resend.dev>", "to": [email],
+                          "subject": f"🔔 {label} — {route} ({deal.act_number})", "html": html},
+                    timeout=8
+                )
+        except:
+            pass
+, DealStatus
 from app.models.load import Load, LoadStatus
 from app.models.response import Response as LoadResponse, ResponseStatus
 from app.models.user import User
@@ -104,6 +162,7 @@ async def create_deal(
     deal.act_number = _act_number(deal.id)
     await db.commit()
     await db.refresh(deal)
+    await notify_deal_status(deal, db, data.status)
     return deal_to_dict(deal)
 
 
@@ -154,6 +213,7 @@ async def update_status(
 
     await db.commit()
     await db.refresh(deal)
+    await notify_deal_status(deal, db, data.status)
     return deal_to_dict(deal)
 
 
@@ -183,6 +243,7 @@ async def confirm_delivery(
 
     await db.commit()
     await db.refresh(deal)
+    await notify_deal_status(deal, db, data.status)
     return deal_to_dict(deal)
 
 
@@ -389,3 +450,41 @@ async def export_deals(
         media_type="text/csv; charset=utf-8-sig",
         headers={"Content-Disposition": f'attachment; filename="caucashub_export_{_fmt(None) or "all"}.csv"'},
     )
+
+
+class RatingRequest(BaseModel):
+    score: int  # 1-5
+    comment: Optional[str] = None
+
+@router.post("/{deal_id}/rate")
+async def rate_deal(
+    deal_id: int,
+    data: RatingRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Оценить сделку после завершения"""
+    if data.score < 1 or data.score > 5:
+        raise HTTPException(400, "Score must be 1-5")
+    
+    result = await db.execute(select(Deal).where(Deal.id == deal_id))
+    deal = result.scalar_one_or_none()
+    if not deal or deal.status != "completed":
+        raise HTTPException(400, "Deal not found or not completed")
+    if current_user.id not in [deal.shipper_id, deal.carrier_id]:
+        raise HTTPException(403, "Not your deal")
+    
+    # Определяем кого оцениваем
+    rated_id = deal.carrier_id if current_user.id == deal.shipper_id else deal.shipper_id
+    rated_user = await db.get(User, rated_id)
+    if rated_user:
+        # Обновляем рейтинг (скользящее среднее)
+        old_rating = rated_user.rating or 50
+        old_trips = rated_user.trips_count or 0
+        # rating хранится как 0-50 (5.0 * 10)
+        new_rating = round((old_rating * old_trips + data.score * 10) / (old_trips + 1))
+        rated_user.rating = min(50, max(0, new_rating))
+        rated_user.trips_count = old_trips + 1
+        await db.commit()
+    
+    return {"ok": True, "rated_user_id": rated_id, "score": data.score}
