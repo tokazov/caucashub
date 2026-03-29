@@ -1,6 +1,9 @@
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.12"
 
+[phases.setup]
+nixPkgs = ["dejavu_fonts"]
+
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
 
