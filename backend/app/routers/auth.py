@@ -100,3 +100,22 @@ async def debug_register(db: AsyncSession = Depends(get_db)):
         return {"status": "ok", "users_count": count, "register_test": "passed"}
     except Exception as e:
         return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
+
+
+@router.post("/admin/reset-password")
+async def admin_reset_password(
+    email: str,
+    new_password: str,
+    secret: str,
+    db: AsyncSession = Depends(get_db)
+):
+    import os
+    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.hashed_password = hash_password(new_password)
+    await db.commit()
+    return {"ok": True, "email": email}
