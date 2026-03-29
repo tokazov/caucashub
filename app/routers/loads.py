@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import selectinload, joinedload
 from app.database import get_db
 from app.models.load import Load, LoadScope, LoadStatus, TruckType
 from app.models.user import User
@@ -63,21 +62,21 @@ class LoadUpdate(BaseModel):
     load_date_end: Optional[str] = None
     is_urgent: Optional[bool] = None
 
-def load_to_dict(l: Load, company_name: str = None) -> dict:
+def load_to_dict(l: Load, company_name: str = None, user: object = None) -> dict:
     """Конвертируем Load в dict для фронтенда."""
-    # Берём company_name: сначала явный параметр, потом из relationship user
+    # Берём company_name: явный параметр → user объект → fallback
     co = company_name
-    if not co and hasattr(l, 'user') and l.user:
-        co = l.user.company_name or l.user.email.split('@')[0]
+    if not co and user:
+        co = user.company_name or user.email.split('@')[0]
     if not co:
         co = "CaucasHub"
 
     # Рейтинг и рейсы из профиля
     rat = "5.0"
     trips = 0
-    if hasattr(l, 'user') and l.user:
-        rat  = f"{l.user.rating / 10:.1f}" if l.user.rating else "5.0"
-        trips = l.user.trips_count or 0
+    if user:
+        rat   = f"{user.rating / 10:.1f}" if user.rating else "5.0"
+        trips = user.trips_count or 0
 
     return {
         "id": l.id,
@@ -127,16 +126,22 @@ async def get_loads(
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
 
-    # Подтягиваем данные компании через JOIN
-    q = q.options(joinedload(Load.user))
-
     # Сначала срочные и продвинутые
     q = q.order_by(Load.is_urgent.desc(), Load.is_boosted.desc(), Load.created_at.desc())
     q = q.limit(limit).offset(offset)
 
     result = await db.execute(q)
     loads = result.scalars().all()
-    return {"loads": [load_to_dict(l) for l in loads], "total": len(loads)}
+
+    # Подгружаем пользователей одним запросом
+    user_ids = list({l.user_id for l in loads if l.user_id})
+    users_map: dict = {}
+    if user_ids:
+        uq = await db.execute(select(User).where(User.id.in_(user_ids)))
+        for u in uq.scalars().all():
+            users_map[u.id] = u
+
+    return {"loads": [load_to_dict(l, user=users_map.get(l.user_id)) for l in loads], "total": len(loads)}
 
 @router.post("/")
 async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
@@ -188,20 +193,23 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     user_id = require_user(authorization)
     result = await db.execute(
         select(Load).where(Load.user_id == user_id, Load.status != LoadStatus.canceled)
-        .options(joinedload(Load.user))
         .order_by(Load.created_at.desc())
     )
     loads = result.scalars().all()
-    return {"loads": [load_to_dict(l) for l in loads]}
+    # Загружаем профиль текущего пользователя
+    ur = await db.execute(select(User).where(User.id == user_id))
+    owner = ur.scalar_one_or_none()
+    return {"loads": [load_to_dict(l, user=owner) for l in loads]}
 
 @router.get("/{load_id}")
 async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Load).where(Load.id == load_id).options(joinedload(Load.user))
-    )
+    result = await db.execute(select(Load).where(Load.id == load_id))
     load = result.scalar_one_or_none()
     if not load:
         return {"error": "Not found"}
     load.views += 1
     await db.commit()
-    return load_to_dict(load)
+    # Загружаем профиль владельца
+    ur = await db.execute(select(User).where(User.id == load.user_id))
+    owner = ur.scalar_one_or_none()
+    return load_to_dict(load, user=owner)
