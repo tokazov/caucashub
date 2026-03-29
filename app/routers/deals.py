@@ -10,7 +10,7 @@ from app.models.deal import Deal, DealStatus
 from app.models.load import Load, LoadStatus
 from app.models.response import Response as LoadResponse, ResponseStatus
 from app.models.user import User
-from app.routers.auth import require_user
+from app.routers.loads import require_user
 from app.pdf_utils import generate_act_pdf
 from pydantic import BaseModel
 from typing import Optional
