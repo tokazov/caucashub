@@ -1,7 +1,7 @@
 """
 Роутер сделок: создание, смена статусов, генерация PDF акта.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -269,3 +269,121 @@ async def download_act(
         )
     except Exception as e:
         raise HTTPException(500, f"Ошибка генерации PDF: {e}")
+
+
+# ── Экспорт сделок для rs.ge ─────────────────────────────────────────
+from fastapi.responses import StreamingResponse
+import csv, io
+from datetime import timezone
+
+@router.get("/export")
+async def export_deals(
+    format: str = "json",   # json | csv
+    status: str = "completed",
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_user),
+):
+    """Экспорт сделок для бухгалтерии / rs.ge.
+    format=json → JSON  |  format=csv → CSV файл"""
+    result = await db.execute(
+        select(Deal).where(
+            (Deal.shipper_id == user_id) | (Deal.carrier_id == user_id)
+        ).order_by(Deal.completed_at.desc())
+    )
+    all_deals = result.scalars().all()
+
+    # Фильтрация по статусу
+    if status != "all":
+        try:
+            st = DealStatus(status)
+            all_deals = [d for d in all_deals if d.status == st]
+        except ValueError:
+            pass
+
+    # Загружаем данные о грузах батчем
+    load_ids = list({d.load_id for d in all_deals})
+    load_map = {}
+    if load_ids:
+        lr = await db.execute(select(Load).where(Load.id.in_(load_ids)))
+        for l in lr.scalars().all():
+            load_map[l.id] = l
+
+    # Загружаем данные пользователей
+    uids = list({d.shipper_id for d in all_deals} | {d.carrier_id for d in all_deals})
+    user_map = {}
+    if uids:
+        ur = await db.execute(select(User).where(User.id.in_(uids)))
+        for u in ur.scalars().all():
+            user_map[u.id] = u
+
+    def _fmt(dt):
+        if not dt: return ""
+        return dt.strftime("%d.%m.%Y") if hasattr(dt, 'strftime') else str(dt)[:10]
+
+    def _company(uid):
+        u = user_map.get(uid)
+        return (u.company_name or u.email) if u else "—"
+
+    rows = []
+    total_gel = 0.0
+    total_usd = 0.0
+    for d in all_deals:
+        load = load_map.get(d.load_id)
+        price = d.agreed_price or 0
+        cur = d.currency or "GEL"
+        row = {
+            "act_number":    d.act_number or f"CH-{d.id}",
+            "date":          _fmt(d.completed_at or d.created_at),
+            "shipper":       _company(d.shipper_id),
+            "carrier":       _company(d.carrier_id),
+            "from_city":     load.from_city if load else "—",
+            "to_city":       load.to_city   if load else "—",
+            "cargo_desc":    (load.cargo_desc or "") if load else "",
+            "weight_kg":     load.weight_kg if load else 0,
+            "amount":        price,
+            "currency":      cur,
+            "payment_type":  (load.payment_type or "") if load else "",
+            "status":        d.status.value if hasattr(d.status, 'value') else str(d.status),
+            "deal_id":       d.id,
+            "load_id":       d.load_id,
+            "loading_date":  _fmt(d.loading_at),
+            "delivery_date": _fmt(d.delivered_at),
+        }
+        rows.append(row)
+        if cur == "GEL": total_gel += price
+        else:            total_usd += price
+
+    # ── JSON ──
+    if format == "json":
+        from datetime import datetime
+        return {
+            "company":      _company(user_id),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "platform":     "CaucasHub.ge",
+            "status_filter": status,
+            "total_gel":    total_gel,
+            "total_usd":    total_usd,
+            "count":        len(rows),
+            "deals":        rows,
+        }
+
+    # ── CSV ──
+    buf = io.StringIO()
+    fields = ["act_number","date","shipper","carrier","from_city","to_city",
+              "cargo_desc","weight_kg","amount","currency","payment_type",
+              "status","deal_id","load_id","loading_date","delivery_date"]
+    w = csv.DictWriter(buf, fieldnames=fields, delimiter=";")
+    w.writeheader()
+    w.writerows(rows)
+
+    # Итоги
+    buf.write(f"\n;;;;;;;;;;;\n")
+    if total_gel: buf.write(f"ИТОГО GEL;;;;;;;;{total_gel:.2f};GEL;;;\n")
+    if total_usd: buf.write(f"ИТОГО USD;;;;;;;;{total_usd:.2f};USD;;;\n")
+
+    csv_bytes = buf.getvalue().encode("utf-8-sig")  # utf-8-sig для Excel/Windows
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv; charset=utf-8-sig",
+        headers={"Content-Disposition": f'attachment; filename="caucashub_export_{_fmt(None) or "all"}.csv"'},
+    )
