@@ -32,6 +32,38 @@ interface ApiLoad {
   views?: number;
 }
 
+
+interface Deal {
+  id: number;
+  deal_number: string;
+  status: string;
+  load_from: string;
+  load_to: string;
+  load_desc?: string;
+  load_kg: number;
+  price: number;
+  currency: string;
+  created_at: string;
+  loaded_at?: string;
+  delivered_at?: string;
+  shipper_confirmed: boolean;
+  carrier_confirmed: boolean;
+  shipper: {id: number; name: string; inn?: string; org_type?: string};
+  carrier: {id: number; name: string; inn?: string; org_type?: string};
+}
+
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  inn?: string;
+  org_type?: string;
+  city?: string;
+  telegram?: string;
+}
+
 function decodeJwtUserId(token: string): number | null {
   try {
     const p = token.split(".")[1];
@@ -62,6 +94,21 @@ export default function Home() {
   const [userId, setUserId]       = useState<number|null>(null);
   const [loads, setLoads]         = useState<ApiLoad[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+
+  const [activeTab, setActiveTab]   = useState<"loads"|"trucks"|"rates"|"orders"|"deals">("loads");
+  const [deals, setDeals]           = useState<Deal[]>([]);
+  const [dealsLoading, setDealsLoading] = useState(false);
+  const [profile, setProfile]       = useState<UserProfile|null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [pName, setPName]           = useState("");
+  const [pPhone, setPPhone]         = useState("");
+  const [pInn, setPInn]             = useState("");
+  const [pOrgType, setPOrgType]     = useState("");
+  const [pCity, setPCity]           = useState("");
+  const [pTelegram, setPTelegram]   = useState("");
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo]     = useState("");
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Modals
   const [selected, setSelected]     = useState<ApiLoad|null>(null);
@@ -111,7 +158,7 @@ export default function Home() {
     try {
       const hdrs: Record<string,string> = {};
       if (token) hdrs["Authorization"] = `Bearer ${token}`;
-      const res = await fetch(`${API}/api/loads?scope=${scope}&limit=100`, { headers: hdrs });
+      const res = await fetch(`${API}/api/loads/?scope=${scope}&limit=100`, { headers: hdrs });
       if (res.ok) { const d = await res.json(); setLoads(d.loads || []); }
     } catch { /* keep previous */ }
     setLoadingData(false);
@@ -121,7 +168,7 @@ export default function Home() {
   async function handleAuth() {
     setAErr(""); setALoading(true);
     try {
-      const url = showAuth === "login" ? `${API}/api/auth/login` : `${API}/api/auth/register`;
+      const url = showAuth === "login" ? `${API}/api/auth/login/` : `${API}/api/auth/register/`;
       const body = showAuth === "login"
         ? { email: aEmail, password: aPass }
         : { email: aEmail, password: aPass, company_name: aComp, phone: aPhone, role: aRole, lang };
@@ -172,7 +219,7 @@ export default function Home() {
         cargo_desc: fDesc || null, payment_type: fPay, is_urgent: fUrgent,
         load_date: new Date().toISOString(),
       };
-      const url = editLoad ? `${API}/api/loads/${editLoad.id}` : `${API}/api/loads`;
+      const url = editLoad ? `${API}/api/loads/${editLoad.id}` : `${API}/api/loads/`;
       const method = editLoad ? "PUT" : "POST";
       const res = await fetch(url, {
         method, headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
@@ -214,6 +261,123 @@ export default function Home() {
     } catch { setAiReply("Ошибка соединения"); }
     setAiLoading(false);
   }
+
+
+  /* ── deals ── */
+  async function fetchDeals() {
+    if (!token) return;
+    setDealsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/deals/`, {
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) { const d = await res.json(); setDeals(d.deals || d || []); }
+    } catch {}
+    setDealsLoading(false);
+  }
+
+  async function updateDealStatus(dealId: number, status: string) {
+    try {
+      const res = await fetch(`${API}/api/deals/${dealId}/status`, {
+        method: "PUT",
+        headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+        body: JSON.stringify({status})
+      });
+      if (res.ok) fetchDeals();
+    } catch {}
+  }
+
+  async function confirmDeal(dealId: number) {
+    try {
+      const res = await fetch(`${API}/api/deals/${dealId}/confirm`, {
+        method: "POST",
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) fetchDeals();
+    } catch {}
+  }
+
+  async function downloadPDF(dealId: number, dealNumber: string) {
+    try {
+      const res = await fetch(`${API}/api/deals/${dealId}/pdf`, {
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `${dealNumber}.pdf`;
+        a.click(); URL.revokeObjectURL(url);
+      }
+    } catch {}
+  }
+
+  async function exportDeals(format: "json"|"csv") {
+    setExportLoading(true);
+    try {
+      const params = new URLSearchParams({format});
+      if (exportFrom) params.set("date_from", exportFrom);
+      if (exportTo) params.set("date_to", exportTo);
+      const res = await fetch(`${API}/api/deals/export?${params}`, {
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = format === "csv" ? "caucashub_export.csv" : "caucashub_export.json";
+        a.click(); URL.revokeObjectURL(url);
+      }
+    } catch {}
+    setExportLoading(false);
+  }
+
+  async function loadProfile() {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/users/me`, {
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setProfile(d);
+        setPName(d.name||""); setPPhone(d.phone||"");
+        setPInn(d.inn||""); setPOrgType(d.org_type||"");
+        setPCity(d.city||""); setPTelegram(d.telegram||"");
+      }
+    } catch {}
+  }
+
+  async function saveProfile() {
+    try {
+      const res = await fetch(`${API}/api/users/me`, {
+        method: "PUT",
+        headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+        body: JSON.stringify({name:pName,phone:pPhone,inn:pInn,org_type:pOrgType,city:pCity,telegram:pTelegram})
+      });
+      if (res.ok) { alert("✅ Профиль сохранён"); setShowProfile(false); loadProfile(); }
+    } catch {}
+  }
+
+  const DEAL_STATUS_LABELS: Record<string, {label:string; color:string; bg:string}> = {
+    confirmed:  {label:"Подтверждена", color:"#1565c0", bg:"#e3f2fd"},
+    loading:    {label:"Загрузка",     color:"#bf360c", bg:"#fff3e0"},
+    in_transit: {label:"В пути",       color:"#f57f17", bg:"#fff9c4"},
+    delivered:  {label:"Доставлено",   color:"#2e7d32", bg:"#e8f5e9"},
+    completed:  {label:"Завершена",    color:"#555",    bg:"#f0f2f5"},
+  };
+
+  const DEAL_NEXT_STATUS: Record<string, string> = {
+    confirmed: "loading",
+    loading: "in_transit",
+    in_transit: "delivered",
+  };
+
+  useEffect(() => {
+    if (token && activeTab === "deals") fetchDeals();
+    if (token && activeTab === "deals" && !profile) loadProfile();
+  }, [activeTab, token]); // eslint-disable-line
 
   const isOwner = (l: ApiLoad) => userId !== null && l.user_id === userId;
   const dateColor = (d?: string|null) => d === "today"||d?.includes("сег") ? "#2ecc71" : d === "tomorrow"||d?.includes("завт") ? "#f7b731" : "#777";
@@ -271,13 +435,20 @@ export default function Home() {
 
       {/* ── NAV TABS ── */}
       <div style={{background:"#1a1a2e",display:"flex",padding:"0 16px",borderBottom:"1px solid #111"}}>
-        {[t.loads, t.trucks, t.rates, t.orders].map((tab,i) => (
-          <button key={i} style={{padding:"9px 14px",color:i===0?"#f7b731":"#555",background:"transparent",
-            border:"none",borderBottom:i===0?"2px solid #f7b731":"2px solid transparent",
-            fontSize:12,fontWeight:i===0?600:400,cursor:"pointer"}}>
-            {tab}
+        {([["loads",t.loads],["trucks",t.trucks],["rates",t.rates],["orders",t.orders],["deals","📋 Мои сделки"]] as [string,string][]).map(([key,label]) => (
+          <button key={key} onClick={()=>setActiveTab(key as "loads"|"trucks"|"rates"|"orders"|"deals")}
+            style={{padding:"9px 14px",color:activeTab===key?"#f7b731":"#555",background:"transparent",
+              border:"none",borderBottom:activeTab===key?"2px solid #f7b731":"2px solid transparent",
+              fontSize:12,fontWeight:activeTab===key?600:400,cursor:"pointer",whiteSpace:"nowrap"}}>
+            {label}
           </button>
         ))}
+        {token && (
+          <button onClick={()=>{loadProfile();setShowProfile(true);}}
+            style={{marginLeft:"auto",padding:"9px 14px",color:"#888",background:"transparent",border:"none",fontSize:12,cursor:"pointer"}}>
+            ⚙️
+          </button>
+        )}
       </div>
 
       {/* ── STATS ── */}
@@ -289,6 +460,7 @@ export default function Home() {
         <span><strong style={{color:"#aaa"}}>2,841</strong> {t.stats.companies}</span>
       </div>
 
+      {(activeTab as string) === "loads" && (<>
       {/* ── FILTERS ── */}
       <div style={{background:"#fff",padding:"10px 16px",borderBottom:"1px solid #eee",
         position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
@@ -411,6 +583,180 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+
+      {/* ── DEALS TAB ── */}
+      {(activeTab as string) === "deals" && (
+        <div style={{maxWidth:800,margin:"0 auto",padding:16}}>
+          {!token ? (
+            <div style={{textAlign:"center",padding:40,color:"#999"}}>
+              <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+              <div>Войдите чтобы увидеть сделки</div>
+              <button onClick={()=>setShowAuth("login")}
+                style={{marginTop:16,background:"#f7b731",color:"#1a1a2e",border:"none",padding:"10px 24px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                Войти
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:18,fontWeight:900}}>📋 Мои сделки</div>
+                <button onClick={fetchDeals}
+                  style={{background:"#f0f2f5",border:"none",padding:"7px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                  🔄 Обновить
+                </button>
+              </div>
+
+              {dealsLoading && <div style={{textAlign:"center",padding:32,color:"#999"}}>Загрузка...</div>}
+
+              {!dealsLoading && deals.length === 0 && (
+                <div style={{textAlign:"center",padding:40,background:"#fff",borderRadius:12,color:"#999"}}>
+                  <div style={{fontSize:32,marginBottom:8}}>📂</div>
+                  <div>Сделок пока нет</div>
+                  <div style={{fontSize:13,marginTop:4}}>Примите отклик на груз чтобы создать сделку</div>
+                </div>
+              )}
+
+              {deals.map(deal => {
+                const st = DEAL_STATUS_LABELS[deal.status] || {label:deal.status, color:"#555", bg:"#f0f2f5"};
+                const nextStatus = DEAL_NEXT_STATUS[deal.status];
+                const iAmShipper = userId === deal.shipper?.id;
+                const iAmCarrier = userId === deal.carrier?.id;
+                const myConfirmed = iAmShipper ? deal.shipper_confirmed : iAmCarrier ? deal.carrier_confirmed : false;
+
+                return (
+                  <div key={deal.id} style={{background:"#fff",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:16,fontWeight:900}}>{deal.load_from} → {deal.load_to}</div>
+                        <div style={{fontSize:12,color:"#999",marginTop:2}}>
+                          {deal.deal_number} · {new Date(deal.created_at).toLocaleDateString("ru")}
+                        </div>
+                      </div>
+                      <span style={{background:st.bg,color:st.color,padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:700}}>
+                        {st.label}
+                      </span>
+                    </div>
+
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12,fontSize:13}}>
+                      <div><span style={{color:"#aaa"}}>Груз: </span>{(deal.load_kg||0).toLocaleString()} кг</div>
+                      <div><span style={{color:"#aaa"}}>Сумма: </span><strong>{deal.currency}{(deal.price||0).toLocaleString()}</strong></div>
+                      <div><span style={{color:"#aaa"}}>Грузоотправитель: </span>{deal.shipper?.name}</div>
+                      <div><span style={{color:"#aaa"}}>Перевозчик: </span>{deal.carrier?.name}</div>
+                    </div>
+
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {nextStatus && (
+                        <button onClick={()=>updateDealStatus(deal.id, nextStatus)}
+                          style={{background:"#1a1a2e",color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                          → {DEAL_STATUS_LABELS[nextStatus]?.label||nextStatus}
+                        </button>
+                      )}
+                      {deal.status === "delivered" && !myConfirmed && (
+                        <button onClick={()=>confirmDeal(deal.id)}
+                          style={{background:"#2ecc71",color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                          ✅ Подтвердить завершение
+                        </button>
+                      )}
+                      <button onClick={()=>downloadPDF(deal.id, deal.deal_number)}
+                        style={{background:"#f0f2f5",color:"#333",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                        📄 Скачать акт
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* rs.ge Export Panel */}
+              <div style={{background:"#fff",borderRadius:12,padding:16,marginTop:24,border:"2px solid #e3f2fd"}}>
+                <div style={{fontSize:15,fontWeight:700,marginBottom:12,color:"#1565c0"}}>
+                  📊 Экспорт для rs.ge
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+                  <div>
+                    <div style={{fontSize:11,color:"#aaa",marginBottom:4}}>Дата с</div>
+                    <input type="date" value={exportFrom} onChange={e=>setExportFrom(e.target.value)}
+                      style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"#aaa",marginBottom:4}}>Дата по</div>
+                    <input type="date" value={exportTo} onChange={e=>setExportTo(e.target.value)}
+                      style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>exportDeals("json")} disabled={exportLoading}
+                    style={{background:"#1565c0",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                    📥 JSON
+                  </button>
+                  <button onClick={()=>exportDeals("csv")} disabled={exportLoading}
+                    style={{background:"#2e7d32",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                    📊 CSV (Excel)
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════
+          MODAL: PROFILE / SETTINGS
+      ════════════════════════════════════ */}
+      {showProfile && (
+        <div onClick={()=>setShowProfile(false)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:"#fff",width:"100%",maxWidth:440,borderRadius:16,padding:24,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontSize:20,fontWeight:900,marginBottom:16,textAlign:"center"}}>⚙️ Настройки аккаунта</div>
+
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <input value={pName} onChange={e=>setPName(e.target.value)}
+                placeholder="Имя / Название компании"
+                style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+              <input value={pPhone} onChange={e=>setPPhone(e.target.value)}
+                placeholder="Телефон"
+                style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+              <input value={pTelegram} onChange={e=>setPTelegram(e.target.value)}
+                placeholder="Telegram (@username)"
+                style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+
+              {/* Реквизиты компании */}
+              <div style={{borderTop:"1px solid #eee",paddingTop:12,marginTop:4}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#1a1a2e",marginBottom:8}}>📋 Реквизиты компании</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <input value={pInn} onChange={e=>setPInn(e.target.value)}
+                    placeholder="ИНН / ID код (Грузия)"
+                    style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+                  <select value={pOrgType} onChange={e=>setPOrgType(e.target.value)}
+                    style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none",cursor:"pointer",color:pOrgType?"#333":"#aaa"}}>
+                    <option value="">Форма организации</option>
+                    {["ООО","ИП","АО","შპს","ს/ს","Частное лицо"].map(o=>(
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                  <input value={pCity} onChange={e=>setPCity(e.target.value)}
+                    placeholder="Город / регион работы"
+                    style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8,marginTop:16}}>
+              <button onClick={saveProfile}
+                style={{flex:1,background:"#f7b731",color:"#1a1a2e",border:"none",padding:"13px",borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>
+                💾 Сохранить
+              </button>
+              <button onClick={()=>setShowProfile(false)}
+                style={{background:"#f0f2f5",color:"#555",border:"none",padding:"13px 20px",borderRadius:10,fontSize:14,cursor:"pointer"}}>
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      </>)}
 
       {/* ═══════════════════════════════════
           MODAL: LOAD DETAIL
