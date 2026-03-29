@@ -28,7 +28,17 @@ const DEMO_INTL = [
   { id:11, from_city:"Тбилиси", to_city:"Москва 🇷🇺",   weight_kg:14000, truck_type:"tent", price_usd:1800, load_date:"28 мар",   is_urgent:false, scope:"intl", cargo_desc:"Текстиль. TIR.",           payment_type:"Безнал 7 дней", company:"РосГруз",     rating:"4.5", trips:156, badge:"new"    },
 ];
 
-type DemoLoad = typeof DEMO_LOCAL[0];
+type DemoLoad = typeof DEMO_LOCAL[0] & { user_id?: number | null };
+
+/** Decode JWT payload without a library */
+function decodeJwtUserId(token: string): number | null {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    const sub = decoded.sub ?? decoded.user_id ?? decoded.id;
+    return sub ? Number(sub) : null;
+  } catch { return null; }
+}
 
 export default function Home() {
   const [lang, setLang] = useState<Lang>("ru");
@@ -37,8 +47,15 @@ export default function Home() {
   const [aiMsg, setAiMsg] = useState("");
   const [aiReply, setAiReply] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number|null>(null);
   const t = T[lang];
   const data = scope === "local" ? DEMO_LOCAL : DEMO_INTL;
+
+  // Read current user from JWT stored in localStorage
+  useEffect(() => {
+    const token = localStorage.getItem("token") || localStorage.getItem("access_token");
+    if (token) setCurrentUserId(decodeJwtUserId(token));
+  }, []);
 
   const dateLabel = (d: string) => {
     if (d === "today") return t.today;
@@ -185,7 +202,15 @@ export default function Home() {
                 {row.badge==="urgent"&&<span style={{fontSize:10,background:"#e74c3c",color:"#fff",padding:"2px 6px",borderRadius:10,fontWeight:700}}>{t.urgent}</span>}
                 {row.badge==="new"&&<span style={{fontSize:10,background:"#2ecc71",color:"#fff",padding:"2px 6px",borderRadius:10,fontWeight:700}}>{t.new}</span>}
               </div>
-              <div><button style={{background:"#f7b731",color:"#1a1a2e",border:"none",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={e=>{e.stopPropagation();alert("✅ Заявка отправлена!")}}>{t.respond}</button></div>
+              <div onClick={e=>e.stopPropagation()}>
+                {currentUserId && (row as DemoLoad).user_id === currentUserId ? (
+                  <button style={{background:"#e0e0e0",color:"#555",border:"none",padding:"6px 10px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer"}}
+                    onClick={()=>setSelected(row)}>✏️ Мой груз</button>
+                ) : (
+                  <button style={{background:"#f7b731",color:"#1a1a2e",border:"none",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}
+                    onClick={()=>alert("✅ Заявка отправлена!")}>{t.respond}</button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -224,8 +249,17 @@ export default function Home() {
               </div>
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{alert("✅ Заявка отправлена!");setSelected(null)}} style={{flex:1,background:"#f7b731",color:"#1a1a2e",border:"none",padding:14,borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>{t.respond}</button>
-              <button onClick={()=>alert("📞 Контакт будет доступен после регистрации")} style={{background:"#f0f2f5",border:"none",padding:14,borderRadius:10,fontSize:18,cursor:"pointer",width:54}}>📞</button>
+              {currentUserId && selected.user_id === currentUserId ? (
+                <>
+                  <button onClick={()=>alert("✏️ Редактирование — скоро")} style={{flex:1,background:"#1a1a2e",color:"#fff",border:"none",padding:14,borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>✏️ Редактировать</button>
+                  <button onClick={()=>{if(confirm("Удалить этот груз?"))alert("🗑️ Удалено");setSelected(null)}} style={{background:"#e74c3c",color:"#fff",border:"none",padding:14,borderRadius:10,fontSize:18,cursor:"pointer",width:54}}>🗑️</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={()=>{alert("✅ Заявка отправлена!");setSelected(null)}} style={{flex:1,background:"#f7b731",color:"#1a1a2e",border:"none",padding:14,borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>{t.respond}</button>
+                  <button onClick={()=>alert("📞 Контакт будет доступен после регистрации")} style={{background:"#f0f2f5",border:"none",padding:14,borderRadius:10,fontSize:18,cursor:"pointer",width:54}}>📞</button>
+                </>
+              )}
             </div>
           </div>
         </div>
