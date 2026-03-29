@@ -8,9 +8,14 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
+import secrets, time
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+
+# ── In-memory хранилище reset-кодов: {email: {code, expires}} ──
+# При рестарте сервиса сбрасывается — нормально для MVP
+_reset_codes: dict = {}
 
 class RegisterRequest(BaseModel):
     email: str
@@ -89,3 +94,60 @@ async def debug_register(db: AsyncSession = Depends(get_db)):
         return {"status": "ok", "users_count": count, "register_test": "passed"}
     except Exception as e:
         return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
+
+
+class ForgotRequest(BaseModel):
+    email: str
+
+class ResetRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
+    """Генерируем 6-значный код и возвращаем его (MVP — без email).
+    В продакшене здесь отправим email/Telegram."""
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    # Не раскрываем что юзер не существует — отвечаем одинаково
+    if user:
+        code = str(secrets.randbelow(900000) + 100000)  # 6-значный
+        _reset_codes[data.email] = {
+            "code": code,
+            "expires": time.time() + 900,  # 15 минут
+        }
+        # TODO: отправить на email или Telegram
+        # Пока возвращаем код напрямую для MVP (убрать в проде)
+        return {
+            "ok": True,
+            "message": "Код отправлен",
+            "dev_code": code,          # ← убрать когда подключим email
+            "expires_in": 900,
+        }
+    return {"ok": True, "message": "Если email зарегистрирован, вы получите код"}
+
+
+@router.post("/reset-password")
+async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
+    """Принимаем код и новый пароль, обновляем в БД."""
+    entry = _reset_codes.get(data.email)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Код не найден или устарел")
+    if time.time() > entry["expires"]:
+        del _reset_codes[data.email]
+        raise HTTPException(status_code=400, detail="Код истёк. Запросите новый")
+    if entry["code"] != data.code:
+        raise HTTPException(status_code=400, detail="Неверный код")
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Пароль минимум 6 символов")
+
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    user.hashed_password = pwd_context.hash(data.new_password)
+    await db.commit()
+    del _reset_codes[data.email]
+    return {"ok": True, "message": "Пароль успешно изменён"}
