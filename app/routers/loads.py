@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.load import Load, LoadScope, LoadStatus, TruckType
+from app.models.user import User
 from app.config import settings
 from pydantic import BaseModel
 from typing import Optional
@@ -63,6 +65,20 @@ class LoadUpdate(BaseModel):
 
 def load_to_dict(l: Load, company_name: str = None) -> dict:
     """Конвертируем Load в dict для фронтенда."""
+    # Берём company_name: сначала явный параметр, потом из relationship user
+    co = company_name
+    if not co and hasattr(l, 'user') and l.user:
+        co = l.user.company_name or l.user.email.split('@')[0]
+    if not co:
+        co = "CaucasHub"
+
+    # Рейтинг и рейсы из профиля
+    rat = "5.0"
+    trips = 0
+    if hasattr(l, 'user') and l.user:
+        rat  = f"{l.user.rating / 10:.1f}" if l.user.rating else "5.0"
+        trips = l.user.trips_count or 0
+
     return {
         "id": l.id,
         "from": l.from_city,
@@ -82,9 +98,9 @@ def load_to_dict(l: Load, company_name: str = None) -> dict:
         "status": l.status.value if hasattr(l.status,'value') else str(l.status),
         "badge": "urgent" if l.is_urgent else None,
         "date": l.load_date.strftime("%d.%m.%y") if l.load_date else None,
-        "co": company_name or "CaucasHub",
-        "rat": "5.0",
-        "trips": 0,
+        "co": co,
+        "rat": rat,
+        "trips": trips,
         "user_id": l.user_id,
         "views": l.views or 0,
         "created_at": l.created_at.isoformat() if l.created_at else None,
@@ -110,6 +126,9 @@ async def get_loads(
         q = q.where(Load.to_city.ilike(f"%{to_city}%"))
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
+
+    # Подтягиваем данные компании через JOIN
+    q = q.options(selectinload(Load.user))
 
     # Сначала срочные и продвинутые
     q = q.order_by(Load.is_urgent.desc(), Load.is_boosted.desc(), Load.created_at.desc())
@@ -169,6 +188,7 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     user_id = require_user(authorization)
     result = await db.execute(
         select(Load).where(Load.user_id == user_id, Load.status != LoadStatus.canceled)
+        .options(selectinload(Load.user))
         .order_by(Load.created_at.desc())
     )
     loads = result.scalars().all()
@@ -176,7 +196,9 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
 
 @router.get("/{load_id}")
 async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Load).where(Load.id == load_id))
+    result = await db.execute(
+        select(Load).where(Load.id == load_id).options(selectinload(Load.user))
+    )
     load = result.scalar_one_or_none()
     if not load:
         return {"error": "Not found"}
