@@ -8,7 +8,6 @@ from app.models.user import User
 from app.models.load import Load
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
-from app.routers.deals import create_deal_internal
 import httpx
 
 router = APIRouter(prefix="/api/responses", tags=["responses"])
@@ -206,11 +205,14 @@ async def accept_response(
 
     # Создаём сделку
     from app.models.deal import Deal
+    agreed = resp.price_usd
+    if not agreed and hasattr(load, 'price_usd'):
+        agreed = load.price_usd
     deal = Deal(
         load_id=resp.load_id,
         shipper_id=current_user.id,
         carrier_id=resp.user_id,
-        agreed_price=resp.price_usd or load.price_usd,
+        agreed_price=agreed or 0,
         currency="GEL",
     )
     db.add(deal)
