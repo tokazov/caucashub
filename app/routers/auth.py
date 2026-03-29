@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.user import User, UserRole
 from app.config import settings
 from pydantic import BaseModel
+from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
@@ -19,6 +20,9 @@ class RegisterRequest(BaseModel):
     phone: str
     role: str = "carrier"
     lang: str = "ru"
+    inn: Optional[str] = None       # ИНН / ID код
+    org_type: Optional[str] = None  # ООО / ИП / АО
+    city: Optional[str] = None      # Город
 
 class LoginRequest(BaseModel):
     email: str
@@ -44,7 +48,10 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         company_name=data.company_name,
         phone=data.phone,
         role=UserRole(data.role),
-        lang=data.lang
+        lang=data.lang,
+        inn=data.inn,
+        org_type=data.org_type,
+        city=data.city,
     )
     db.add(user)
     await db.commit()

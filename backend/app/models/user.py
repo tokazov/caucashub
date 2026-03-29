@@ -30,4 +30,8 @@ class User(Base):
     rating        = Column(Integer, default=50)  # 0-50 → display as 0-5.0
     trips_count   = Column(Integer, default=0)
     lang          = Column(String, default="ru")  # ru / ge / en
+    # Реквизиты (для документов / rs.ge)
+    inn           = Column(String, nullable=True)   # ИНН / ID код Грузия
+    org_type      = Column(String, nullable=True)   # ООО / ИП / АО
+    city          = Column(String, nullable=True)   # Город работы
     created_at    = Column(DateTime(timezone=True), server_default=func.now())

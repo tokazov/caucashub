@@ -237,12 +237,12 @@ async def download_act(
         "completed_at":    deal.completed_at or deal.delivered_at or deal.created_at,
         # Грузовладелец
         "shipper_name":    shipper.company_name or shipper.email if shipper else "—",
-        "shipper_inn":     getattr(shipper, "inn", "—") or "—",
+        "shipper_inn":     shipper.inn if shipper and shipper.inn else "—",
         "shipper_phone":   shipper.phone if shipper else "—",
         "shipper_email":   shipper.email if shipper else "—",
         # Перевозчик
         "carrier_name":    carrier.company_name or carrier.email if carrier else "—",
-        "carrier_inn":     getattr(carrier, "inn", "—") or "—",
+        "carrier_inn":     carrier.inn if carrier and carrier.inn else "—",
         "carrier_phone":   carrier.phone if carrier else "—",
         "carrier_email":   carrier.email if carrier else "—",
         # Груз
@@ -343,6 +343,8 @@ async def export_deals(
             "amount":        price,
             "currency":      cur,
             "payment_type":  (load.payment_type or "") if load else "",
+            "shipper_inn":   (user_map.get(d.shipper_id).inn or "") if user_map.get(d.shipper_id) else "",
+            "carrier_inn":   (user_map.get(d.carrier_id).inn or "") if user_map.get(d.carrier_id) else "",
             "status":        d.status.value if hasattr(d.status, 'value') else str(d.status),
             "deal_id":       d.id,
             "load_id":       d.load_id,
@@ -369,9 +371,9 @@ async def export_deals(
 
     # ── CSV ──
     buf = io.StringIO()
-    fields = ["act_number","date","shipper","carrier","from_city","to_city",
-              "cargo_desc","weight_kg","amount","currency","payment_type",
-              "status","deal_id","load_id","loading_date","delivery_date"]
+    fields = ["act_number","date","shipper","shipper_inn","carrier","carrier_inn",
+              "from_city","to_city","cargo_desc","weight_kg","amount","currency",
+              "payment_type","status","deal_id","load_id","loading_date","delivery_date"]
     w = csv.DictWriter(buf, fieldnames=fields, delimiter=";")
     w.writeheader()
     w.writerows(rows)
