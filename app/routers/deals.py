@@ -64,7 +64,6 @@ async def notify_deal_status(deal, db, new_status: str):
                 )
         except:
             pass
-, DealStatus
 from app.models.load import Load, LoadStatus
 from app.models.response import Response as LoadResponse, ResponseStatus
 from app.models.user import User
