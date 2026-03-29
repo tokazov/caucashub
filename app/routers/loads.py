@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from app.database import get_db
 from app.models.load import Load, LoadScope, LoadStatus, TruckType
 from app.models.user import User
@@ -128,7 +128,7 @@ async def get_loads(
         q = q.where(Load.truck_type == truck_type)
 
     # Подтягиваем данные компании через JOIN
-    q = q.options(selectinload(Load.user))
+    q = q.options(joinedload(Load.user))
 
     # Сначала срочные и продвинутые
     q = q.order_by(Load.is_urgent.desc(), Load.is_boosted.desc(), Load.created_at.desc())
@@ -188,7 +188,7 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     user_id = require_user(authorization)
     result = await db.execute(
         select(Load).where(Load.user_id == user_id, Load.status != LoadStatus.canceled)
-        .options(selectinload(Load.user))
+        .options(joinedload(Load.user))
         .order_by(Load.created_at.desc())
     )
     loads = result.scalars().all()
@@ -197,7 +197,7 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
 @router.get("/{load_id}")
 async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Load).where(Load.id == load_id).options(selectinload(Load.user))
+        select(Load).where(Load.id == load_id).options(joinedload(Load.user))
     )
     load = result.scalar_one_or_none()
     if not load:
