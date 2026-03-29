@@ -8,6 +8,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     TELEGRAM_BOT_TOKEN: str = ""
 
+    # Email (Gmail SMTP)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""   # your@gmail.com
+    SMTP_PASS: str = ""   # App Password (16 символов)
+    EMAIL_FROM: str = "CaucasHub <noreply@caucashub.ge>"
+
     class Config:
         env_file = ".env"
 

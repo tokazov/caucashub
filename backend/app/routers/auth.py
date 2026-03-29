@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
+from app.email_utils import send_reset_code
 import secrets, time
 
 router = APIRouter()
@@ -117,14 +118,12 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
             "code": code,
             "expires": time.time() + 900,  # 15 минут
         }
-        # TODO: отправить на email или Telegram
-        # Пока возвращаем код напрямую для MVP (убрать в проде)
-        return {
-            "ok": True,
-            "message": "Код отправлен",
-            "dev_code": code,          # ← убрать когда подключим email
-            "expires_in": 900,
-        }
+        sent = await send_reset_code(data.email, code)
+        response = {"ok": True, "message": "Код отправлен на email", "expires_in": 900}
+        if not sent:
+            # SMTP не настроен — возвращаем код (dev режим)
+            response["dev_code"] = code
+        return response
     return {"ok": True, "message": "Если email зарегистрирован, вы получите код"}
 
 
