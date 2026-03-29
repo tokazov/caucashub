@@ -213,3 +213,19 @@ async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
     ur = await db.execute(select(User).where(User.id == load.user_id))
     owner = ur.scalar_one_or_none()
     return load_to_dict(load, user=owner)
+
+
+@router.delete("/admin/bulk-delete")
+async def admin_bulk_delete(
+    ids: list[int],
+    secret: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: удалить несколько грузов"""
+    import os
+    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from sqlalchemy import delete as sql_delete
+    await db.execute(sql_delete(Load).where(Load.id.in_(ids)))
+    await db.commit()
+    return {"deleted": ids}
