@@ -112,6 +112,15 @@ async def debug_register(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
 
+@router.get("/admin/users")
+async def admin_list_users(secret: str, db: AsyncSession = Depends(get_db)):
+    import os
+    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    result = await db.execute(select(User).order_by(User.id.desc()).limit(30))
+    users = result.scalars().all()
+    return [{"id": u.id, "email": u.email, "company": u.company_name, "role": str(u.role)} for u in users]
+
 @router.post("/admin/reset-password")
 async def admin_reset_password(
     email: str,
