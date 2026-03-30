@@ -465,8 +465,8 @@ export default function Home() {
       <div style={{background:"#fff",padding:"10px 16px",borderBottom:"1px solid #eee",
         position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
-          <input placeholder={t.from} autoComplete="new-password" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
-          <input placeholder={t.to}   autoComplete="new-password" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input placeholder={t.from} name="search-origin-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input placeholder={t.to}   name="search-dest-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
           {[t.date, t.truckType, t.tonnage, t.cost].map((ph,i) => (
             <select key={i} style={{flex:"1 1 100px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",cursor:"pointer",outline:"none"}}>
               <option>{ph}</option>
