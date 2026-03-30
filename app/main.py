@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import loads, trucks, auth, ai, users, deals
+from app.routers import loads, trucks, auth, ai, users, deals, responses
 from app.database import engine, Base
 from app.models import user, load, truck, response, deal  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(loads.router,  prefix="/api/loads",  tags=["loads"])
 app.include_router(trucks.router, prefix="/api/trucks", tags=["trucks"])
 app.include_router(ai.router,     prefix="/api/ai",     tags=["ai"])
 app.include_router(deals.router,  prefix="/api/deals",  tags=["deals"])
+app.include_router(responses.router, tags=["responses"])
 
 @app.get("/")
 def root():
