@@ -163,7 +163,7 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
             async with httpx.AsyncClient() as client:
                 await client.post("https://api.resend.com/emails",
                     headers={"Authorization": f"Bearer {resend_key}"},
-                    json={"from": "CaucasHub <noreply@caucashub.ge>",
+                    json={"from": "CaucasHub <onboarding@resend.dev>",
                           "to": [data.email], "subject": "Код сброса пароля", "html": html},
                     timeout=10)
         except Exception:
