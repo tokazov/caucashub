@@ -152,14 +152,18 @@ class ResetRequest(BaseModel):
 async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
     import secrets, os
     from datetime import datetime, timedelta
+    from app.models.user import ResetCode
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
     code = str(secrets.randbelow(900000) + 100000)
     if user:
-        # Сохраняем код прямо в БД в поле пользователя
-        user.reset_code = code
-        user.reset_code_expires = datetime.utcnow() + timedelta(minutes=15)
+        # Удаляем старые коды для этого email
+        from sqlalchemy import delete as sa_delete
+        await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
+        # Сохраняем новый код в БД
+        rc = ResetCode(email=data.email, code=code, expires_at=datetime.utcnow() + timedelta(minutes=15))
+        db.add(rc)
         await db.commit()
         
         resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
@@ -186,14 +190,19 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
 @router.post("/reset-password")
 async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
     from datetime import datetime
+    from app.models.user import ResetCode
+    from sqlalchemy import delete as sa_delete
+    # Проверяем код в БД
+    rc_result = await db.execute(select(ResetCode).where(ResetCode.email == data.email, ResetCode.code == data.code))
+    rc = rc_result.scalar_one_or_none()
+    if not rc or datetime.utcnow() > rc.expires_at:
+        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    # Меняем пароль
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not user.reset_code or user.reset_code != data.code:
-        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
-    if user.reset_code_expires and datetime.utcnow() > user.reset_code_expires:
-        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
     user.hashed_password = hash_password(data.new_password)
-    user.reset_code = None
-    user.reset_code_expires = None
+    await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
     await db.commit()
     return {"message": "Пароль успешно изменён"}
