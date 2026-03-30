@@ -129,3 +129,60 @@ async def admin_reset_password(
     user.hashed_password = hash_password(new_password)
     await db.commit()
     return {"ok": True, "email": email}
+
+
+# ─── In-memory хранилище кодов сброса ───────────────────────────────────
+_reset_codes: dict = {}
+
+class ForgotRequest(BaseModel):
+    email: str
+
+class ResetRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
+    import secrets, time, os
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    code = str(secrets.randbelow(900000) + 100000)
+    if user:
+        _reset_codes[data.email] = {"code": code, "expires": time.time() + 900}
+        resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
+        html = f"""<div style="font-family:Arial;padding:20px">
+            <h2>Сброс пароля CaucasHub</h2>
+            <p>Код подтверждения:</p>
+            <div style="font-size:32px;font-weight:bold;background:#f0f0f0;padding:16px;text-align:center;border-radius:8px;letter-spacing:8px">{code}</div>
+            <p style="color:#888;font-size:12px">Действителен 15 минут</p>
+        </div>"""
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                await client.post("https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {resend_key}"},
+                    json={"from": "CaucasHub <noreply@caucashub.ge>",
+                          "to": [data.email], "subject": "Код сброса пароля", "html": html},
+                    timeout=10)
+        except Exception:
+            pass
+
+    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code if user else None}
+
+
+@router.post("/reset-password")
+async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
+    import time
+    entry = _reset_codes.get(data.email)
+    if not entry or entry["code"] != data.code or time.time() > entry["expires"]:
+        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+    del _reset_codes[data.email]
+    return {"message": "Пароль успешно изменён"}
