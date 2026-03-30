@@ -140,9 +140,6 @@ async def admin_reset_password(
     return {"ok": True, "email": email}
 
 
-# ─── In-memory хранилище кодов сброса ───────────────────────────────────
-_reset_codes: dict = {}
-
 class ForgotRequest(BaseModel):
     email: str
 
@@ -153,13 +150,18 @@ class ResetRequest(BaseModel):
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
-    import secrets, time, os
+    import secrets, os
+    from datetime import datetime, timedelta
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
 
     code = str(secrets.randbelow(900000) + 100000)
     if user:
-        _reset_codes[data.email] = {"code": code, "expires": time.time() + 900}
+        # Сохраняем код прямо в БД в поле пользователя
+        user.reset_code = code
+        user.reset_code_expires = datetime.utcnow() + timedelta(minutes=15)
+        await db.commit()
+        
         resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
         html = f"""<div style="font-family:Arial;padding:20px">
             <h2>Сброс пароля CaucasHub</h2>
@@ -178,20 +180,20 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception:
             pass
 
-    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code}  # temp: show code until Resend verified
+    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code if user else None}
 
 
 @router.post("/reset-password")
 async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
-    import time
-    entry = _reset_codes.get(data.email)
-    if not entry or entry["code"] != data.code or time.time() > entry["expires"]:
-        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    from datetime import datetime
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if not user or not user.reset_code or user.reset_code != data.code:
+        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    if user.reset_code_expires and datetime.utcnow() > user.reset_code_expires:
+        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
     user.hashed_password = hash_password(data.new_password)
+    user.reset_code = None
+    user.reset_code_expires = None
     await db.commit()
-    del _reset_codes[data.email]
     return {"message": "Пароль успешно изменён"}
