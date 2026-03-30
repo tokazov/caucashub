@@ -169,7 +169,7 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception:
             pass
 
-    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code if user else None}
+    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code}  # temp: show code until Resend verified
 
 
 @router.post("/reset-password")
