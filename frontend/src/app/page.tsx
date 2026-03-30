@@ -208,7 +208,7 @@ export default function Home() {
   async function doForgotStep1() {
     setForgotErr(""); setForgotLoading(true);
     try {
-      const r = await fetch(`${API}/api/auth/forgot-password/`, {
+      const r = await fetch(`${API}/api/auth/forgot-password`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({email: forgotEmail})
       });
@@ -223,7 +223,7 @@ export default function Home() {
     if (forgotPass !== forgotPass2) { setForgotErr("Пароли не совпадают"); return; }
     setForgotErr(""); setForgotLoading(true);
     try {
-      const r = await fetch(`${API}/api/auth/reset-password/`, {
+      const r = await fetch(`${API}/api/auth/reset-password`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({email: forgotEmail, code: forgotCode, new_password: forgotPass})
       });
@@ -236,7 +236,7 @@ export default function Home() {
   async function handleAuth() {
     setAErr(""); setALoading(true);
     try {
-      const url = showAuth === "login" ? `${API}/api/auth/login/` : `${API}/api/auth/register/`;
+      const url = showAuth === "login" ? `${API}/api/auth/login` : `${API}/api/auth/register`;
       const body = showAuth === "login"
         ? { email: aEmail, password: aPass }
         : { email: aEmail, password: aPass, company_name: aComp, phone: aPhone, role: aRole, lang };
