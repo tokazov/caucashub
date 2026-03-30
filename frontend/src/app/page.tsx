@@ -136,6 +136,8 @@ export default function Home() {
   const [fPay,     setFPay]         = useState("Нал");
   const [fUrgent,  setFUrgent]      = useState(false);
   const [fLoading, setFLoading]     = useState(false);
+  const [fromSuggests, setFromSuggests] = useState<string[]>([]);
+  const [toSuggests,   setToSuggests]   = useState<string[]>([]);
 
   // AI bar
   const [aiMsg,     setAiMsg]       = useState("");
@@ -152,6 +154,17 @@ export default function Home() {
 
   /* ── fetch loads on scope/token change ── */
   useEffect(() => { fetchLoads(); }, [scope, token]); // eslint-disable-line
+
+  async function fetchCitySuggests(q: string, setter: (v: string[]) => void) {
+    if (q.length < 2) { setter([]); return; }
+    try {
+      const res = await fetch(`https://suggest-maps.yandex.ru/v1/suggest?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&text=${encodeURIComponent(q)}&types=locality,province&lang=ru_RU&results=5`);
+      if (res.ok) {
+        const data = await res.json();
+        setter((data.results || []).map((r: {title:{text:string}}) => r.title.text));
+      }
+    } catch { setter([]); }
+  }
 
   async function fetchLoads() {
     setLoadingData(true);
@@ -938,10 +951,22 @@ export default function Home() {
 
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{display:"flex",gap:8}}>
-                <input value={fFrom} onChange={e=>setFFrom(e.target.value)}
-                  placeholder="Откуда (город)" autoComplete="new-password" style={inputStyle}/>
-                <input value={fTo} onChange={e=>setFTo(e.target.value)}
-                  placeholder="Куда (город)" autoComplete="new-password" style={inputStyle}/>
+                <div style={{position:"relative",flex:1}}>
+                  <input value={fFrom} onChange={e=>{setFFrom(e.target.value);fetchCitySuggests(e.target.value,setFromSuggests);}}
+                    onBlur={()=>setTimeout(()=>setFromSuggests([]),150)}
+                    placeholder="Откуда (город)" autoComplete="new-password" style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>
+                  {fromSuggests.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid #e0e0e0",borderRadius:8,zIndex:999,boxShadow:"0 4px 12px rgba(0,0,0,.1)"}}>
+                    {fromSuggests.map((s,i)=><div key={i} onMouseDown={()=>{setFFrom(s);setFromSuggests([]);}} style={{padding:"8px 12px",cursor:"pointer",fontSize:13,borderBottom:i<fromSuggests.length-1?"1px solid #f0f0f0":"none"}} onMouseEnter={e=>(e.currentTarget.style.background="#f5f5f5")} onMouseLeave={e=>(e.currentTarget.style.background="#fff")}>{s}</div>)}
+                  </div>}
+                </div>
+                <div style={{position:"relative",flex:1}}>
+                  <input value={fTo} onChange={e=>{setFTo(e.target.value);fetchCitySuggests(e.target.value,setToSuggests);}}
+                    onBlur={()=>setTimeout(()=>setToSuggests([]),150)}
+                    placeholder="Куда (город)" autoComplete="new-password" style={{...inputStyle,width:"100%",boxSizing:"border-box"}}/>
+                  {toSuggests.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid #e0e0e0",borderRadius:8,zIndex:999,boxShadow:"0 4px 12px rgba(0,0,0,.1)"}}>
+                    {toSuggests.map((s,i)=><div key={i} onMouseDown={()=>{setFTo(s);setToSuggests([]);}} style={{padding:"8px 12px",cursor:"pointer",fontSize:13,borderBottom:i<toSuggests.length-1?"1px solid #f0f0f0":"none"}} onMouseEnter={e=>(e.currentTarget.style.background="#f5f5f5")} onMouseLeave={e=>(e.currentTarget.style.background="#fff")}>{s}</div>)}
+                  </div>}
+                </div>
               </div>
 
               {!editLoad && (
