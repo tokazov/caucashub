@@ -641,7 +641,7 @@ export default function Home() {
                       style={{background:"#fce4ec",color:"#c62828",border:"none",padding:"5px 8px",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️</button>
                   </div>
                 ) : (
-                  <button onClick={()=>setSelected(row)}
+                  <button onClick={e=>{e.stopPropagation();setSelected(row);}}
                     style={{background:"#f7b731",color:"#1a1a2e",border:"none",padding:"6px 12px",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
                     {t.respond}
                   </button>
@@ -1034,7 +1034,7 @@ export default function Home() {
             )}
             {showAuth==="register" && (
               <div style={{textAlign:"center",marginTop:10}}>
-                <button onClick={()=>openPaywall("plans")}
+                <button onClick={()=>{ setShowAuth(null); setTimeout(()=>openPaywall("plans"),50); }}
                   style={{background:"none",border:"none",color:"#f7b731",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
                   📊 Посмотреть тарифы →
                 </button>
