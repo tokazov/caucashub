@@ -113,7 +113,7 @@ export default function Home() {
 
   // Modals
   const [selected, setSelected]     = useState<ApiLoad|null>(null);
-  const [showAuth, setShowAuth]     = useState<"login"|"register"|null>(null);
+  const [showAuth, setShowAuth]     = useState<"login"|"register"|"forgot"|null>(null);
   const [showPost, setShowPost]     = useState(false);
   const [editLoad, setEditLoad]     = useState<ApiLoad|null>(null);
 
@@ -1013,6 +1013,7 @@ export default function Home() {
               )}
             </>
             }
+            </div>
 
             {showAuth!=="forgot" && aErr && <div style={{color:"#e74c3c",fontSize:13,marginTop:8,textAlign:"center"}}>{aErr}</div>}
 
