@@ -142,6 +142,16 @@ export default function Home() {
   const [filterFrom,   setFilterFrom]   = useState("");
   const [filterTo,     setFilterTo]     = useState("");
 
+  // Paywall
+  const [showPaywall, setShowPaywall] = useState<string|null>(null);
+  // Forgot password
+  const [forgotStep,  setForgotStep]  = useState<"email"|"code"|"done">("email");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotCode,  setForgotCode]  = useState("");
+  const [forgotPass,  setForgotPass]  = useState("");
+  const [forgotPass2, setForgotPass2] = useState("");
+  const [forgotErr,   setForgotErr]   = useState("");
+  const [forgotLoading,setForgotLoading]=useState(false);
   // AI bar
   const [aiMsg,     setAiMsg]       = useState("");
   const [aiReply,   setAiReply]     = useState("");
@@ -194,6 +204,34 @@ export default function Home() {
     } catch { alert("Ошибка сети"); }
   }
 
+  function openPaywall(reason: string) { setShowPaywall(reason); }
+  async function doForgotStep1() {
+    setForgotErr(""); setForgotLoading(true);
+    try {
+      const r = await fetch(`${API}/api/auth/forgot-password/`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({email: forgotEmail})
+      });
+      const d = await r.json();
+      setForgotLoading(false);
+      if (!r.ok) { setForgotErr(d.detail || "Ошибка"); return; }
+      if (d.dev_code) setForgotCode(d.dev_code);
+      setForgotStep("code");
+    } catch { setForgotLoading(false); setForgotErr("Ошибка сети"); }
+  }
+  async function doForgotStep2() {
+    if (forgotPass !== forgotPass2) { setForgotErr("Пароли не совпадают"); return; }
+    setForgotErr(""); setForgotLoading(true);
+    try {
+      const r = await fetch(`${API}/api/auth/reset-password/`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({email: forgotEmail, code: forgotCode, new_password: forgotPass})
+      });
+      setForgotLoading(false);
+      if (!r.ok) { const d = await r.json(); setForgotErr(d.detail || "Ошибка"); return; }
+      setForgotStep("done");
+    } catch { setForgotLoading(false); setForgotErr("Ошибка сети"); }
+  }
   /* ── auth ── */
   async function handleAuth() {
     setAErr(""); setALoading(true);
@@ -875,11 +913,18 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <button onClick={()=>respondLoad(selected!.id)}
+                  <button onClick={()=>{ if(!token){ openPaywall("respond"); return; } respondLoad(selected!.id); }}
                     style={{flex:1,background:"#f7b731",color:"#1a1a2e",border:"none",padding:14,borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>
                     {t.respond}
                   </button>
-                  <button onClick={()=>{ if(token && selected?.phone) alert("📞 " + selected.phone); else alert("📞 Контакт доступен после регистрации"); }}
+                  <button onClick={async ()=>{
+                      if (!token) { openPaywall("contact"); return; }
+                      try {
+                        const r = await fetch(`${API}/api/loads/${selected!.id}/contact`, {headers:{"Authorization":`Bearer ${token}`}});
+                        if (r.ok) { const d = await r.json(); alert("📞 " + (d.phone || d.contact || "Телефон не указан")); }
+                        else openPaywall("contact");
+                      } catch { alert("Ошибка сети"); }
+                    }}
                     style={{background:"#f0f2f5",border:"none",padding:14,borderRadius:10,fontSize:18,cursor:"pointer",width:54}}>
                     📞
                   </button>
@@ -919,6 +964,26 @@ export default function Home() {
 
             {/* Fields */}
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {showAuth==="forgot" ? (
+                <>
+                  {forgotStep==="email" && <>
+                    <div style={{fontSize:13,color:"#888",textAlign:"center"}}>Введите email — пришлём код</div>
+                    <input value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} placeholder="your@email.com" type="email" style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+                    {forgotErr&&<div style={{color:"#e74c3c",fontSize:12,textAlign:"center"}}>{forgotErr}</div>}
+                    <button onClick={doForgotStep1} disabled={forgotLoading} style={{width:"100%",background:"#1a1a2e",color:"#fff",border:"none",padding:"13px",borderRadius:10,fontSize:16,fontWeight:800,cursor:"pointer"}}>{forgotLoading?"⏳...":"Получить код"}</button>
+                    <div style={{textAlign:"center",marginTop:8}}><button onClick={()=>{setShowAuth("login");setForgotStep("email");setForgotErr("");}} style={{background:"none",border:"none",color:"#888",fontSize:13,cursor:"pointer"}}>← Назад ко входу</button></div>
+                  </>}
+                  {forgotStep==="code" && <>
+                    <div style={{background:"#fff7e6",border:"1px solid #fde8a0",borderRadius:10,padding:12,fontSize:13,textAlign:"center"}}>📧 Код отправлен на <strong>{forgotEmail}</strong></div>
+                    <input value={forgotCode} onChange={e=>setForgotCode(e.target.value)} placeholder="000000" maxLength={6} style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:22,outline:"none",letterSpacing:6,textAlign:"center"}}/>
+                    <input value={forgotPass} onChange={e=>setForgotPass(e.target.value)} placeholder="Новый пароль" type="password" style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+                    <input value={forgotPass2} onChange={e=>setForgotPass2(e.target.value)} placeholder="Повторите пароль" type="password" style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
+                    {forgotErr&&<div style={{color:"#e74c3c",fontSize:12,textAlign:"center"}}>{forgotErr}</div>}
+                    <button onClick={doForgotStep2} disabled={forgotLoading} style={{width:"100%",background:"#1a1a2e",color:"#fff",border:"none",padding:"13px",borderRadius:10,fontSize:16,fontWeight:800,cursor:"pointer"}}>{forgotLoading?"⏳...":"Сменить пароль"}</button>
+                  </>}
+                  {forgotStep==="done" && <div style={{textAlign:"center",padding:20}}><div style={{fontSize:40,marginBottom:10}}>✅</div><div style={{fontSize:16,fontWeight:700,marginBottom:6}}>Пароль изменён!</div><div style={{fontSize:13,color:"#888",marginBottom:16}}>Войдите с новым паролем</div><button onClick={()=>{setShowAuth("login");setForgotStep("email");setForgotEmail("");setForgotPass("");setForgotPass2("");setForgotCode("");}} style={{width:"100%",background:"#f7b731",color:"#1a1a2e",border:"none",padding:"13px",borderRadius:10,fontSize:16,fontWeight:800,cursor:"pointer"}}>Войти</button></div>}
+                </>
+              ) : <>
               <input value={aEmail} onChange={e=>setAEmail(e.target.value)}
                 placeholder="Email" type="email"
                 style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"10px 12px",fontSize:14,outline:"none"}}/>
@@ -946,15 +1011,34 @@ export default function Home() {
                   </div>
                 </>
               )}
-            </div>
+            </>
+            }
 
-            {aErr && <div style={{color:"#e74c3c",fontSize:13,marginTop:8,textAlign:"center"}}>{aErr}</div>}
+            {showAuth!=="forgot" && aErr && <div style={{color:"#e74c3c",fontSize:13,marginTop:8,textAlign:"center"}}>{aErr}</div>}
 
-            <button onClick={handleAuth} disabled={aLoading}
-              style={{width:"100%",marginTop:16,background:"#f7b731",color:"#1a1a2e",border:"none",
-                padding:"13px",borderRadius:10,fontSize:16,fontWeight:800,cursor:"pointer"}}>
-              {aLoading ? "⏳..." : showAuth==="login" ? "Войти" : "Создать аккаунт"}
-            </button>
+            {showAuth!=="forgot" && (
+              <button onClick={handleAuth} disabled={aLoading}
+                style={{width:"100%",marginTop:16,background:"#f7b731",color:"#1a1a2e",border:"none",
+                  padding:"13px",borderRadius:10,fontSize:16,fontWeight:800,cursor:"pointer"}}>
+                {aLoading ? "⏳..." : showAuth==="login" ? "Войти" : "Создать аккаунт"}
+              </button>
+            )}
+            {showAuth==="login" && (
+              <div style={{textAlign:"center",marginTop:10}}>
+                <button onClick={()=>{setShowAuth("forgot");setForgotStep("email");setForgotErr("");}}
+                  style={{background:"none",border:"none",color:"#888",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
+                  Забыли пароль?
+                </button>
+              </div>
+            )}
+            {showAuth==="register" && (
+              <div style={{textAlign:"center",marginTop:10}}>
+                <button onClick={()=>openPaywall("plans")}
+                  style={{background:"none",border:"none",color:"#f7b731",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
+                  📊 Посмотреть тарифы →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1041,6 +1125,41 @@ export default function Home() {
                 cursor:fFrom&&fTo&&fKg?"pointer":"not-allowed"}}>
               {fLoading ? "⏳ Сохраняем..." : editLoad ? "💾 Сохранить изменения" : "📤 Разместить груз"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {showPaywall && (
+        <div onClick={()=>setShowPaywall(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",width:"100%",maxWidth:440,borderRadius:16,padding:24,position:"relative"}}>
+            <button onClick={()=>setShowPaywall(null)} style={{position:"absolute",top:16,right:16,background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#aaa"}}>✕</button>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:36,marginBottom:8}}>📋</div>
+              <div style={{fontSize:18,fontWeight:800,color:"#1a1a2e"}}>
+                {showPaywall==="contact"?"Чтобы видеть контакты — нужна подписка":showPaywall==="respond"?"Чтобы откликаться — нужна подписка":"Тарифные планы"}
+              </div>
+              <div style={{fontSize:13,color:"#888",marginTop:6}}>
+                {showPaywall==="contact"?"Откройте телефон и email грузовладельца":showPaywall==="respond"?"Отправляйте заявки перевозчикам напрямую":"Выберите план"}
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+              <div style={{border:"2px solid #3498db",borderRadius:12,padding:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div><div style={{fontWeight:800,fontSize:15,color:"#3498db"}}>Стандарт</div><div style={{fontSize:12,color:"#666",marginTop:4}}>✅ Контакты грузовладельцев<br/>✅ 50 откликов в месяц<br/>✅ Верификация компании</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800}}>₾35</div><div style={{fontSize:11,color:"#aaa"}}>/мес</div></div>
+                </div>
+                <button onClick={()=>setShowPaywall(null)} style={{marginTop:12,width:"100%",background:"#3498db",color:"#fff",border:"none",padding:10,borderRadius:8,fontWeight:700,cursor:"pointer"}}>Скоро доступно</button>
+              </div>
+              <div style={{border:"2px solid #f7b731",borderRadius:12,padding:16,position:"relative"}}>
+                <div style={{position:"absolute",top:-10,left:16,background:"#f7b731",color:"#1a1a2e",fontSize:10,fontWeight:800,padding:"2px 10px",borderRadius:10}}>ЛУЧШИЙ ВЫБОР</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div><div style={{fontWeight:800,fontSize:15,color:"#e6a820"}}>Про</div><div style={{fontSize:12,color:"#666",marginTop:4}}>✅ Всё из Стандарта<br/>✅ Безлимитные отклики<br/>✅ Приоритет в выдаче<br/>✅ Срочные грузы первым</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontSize:22,fontWeight:800}}>₾80</div><div style={{fontSize:11,color:"#aaa"}}>/мес</div></div>
+                </div>
+                <button onClick={()=>setShowPaywall(null)} style={{marginTop:12,width:"100%",background:"#f7b731",color:"#1a1a2e",border:"none",padding:10,borderRadius:8,fontWeight:700,cursor:"pointer"}}>Скоро доступно</button>
+              </div>
+            </div>
+            <div style={{textAlign:"center",fontSize:12,color:"#aaa"}}>Сейчас все функции бесплатны 🎁<br/>Подписки откроются позже</div>
           </div>
         </div>
       )}
