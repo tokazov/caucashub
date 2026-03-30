@@ -35,5 +35,12 @@ class User(Base):
     org_type      = Column(String, nullable=True)   # ООО / ИП / АО
     city          = Column(String, nullable=True)   # Город работы
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
-    reset_code    = Column(String, nullable=True)
-    reset_code_expires = Column(DateTime, nullable=True)
+
+
+class ResetCode(Base):
+    __tablename__ = "reset_codes"
+    id         = Column(Integer, primary_key=True)
+    email      = Column(String, index=True)
+    code       = Column(String)
+    expires_at = Column(DateTime)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
