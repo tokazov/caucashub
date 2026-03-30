@@ -30,6 +30,7 @@ interface ApiLoad {
   co?: string; rat?: string; trips?: number;
   user_id?: number | null;
   views?: number;
+  phone?: string;
 }
 
 
@@ -138,6 +139,8 @@ export default function Home() {
   const [fLoading, setFLoading]     = useState(false);
   const [fromSuggests, setFromSuggests] = useState<string[]>([]);
   const [toSuggests,   setToSuggests]   = useState<string[]>([]);
+  const [filterFrom,   setFilterFrom]   = useState("");
+  const [filterTo,     setFilterTo]     = useState("");
 
   // AI bar
   const [aiMsg,     setAiMsg]       = useState("");
@@ -158,7 +161,7 @@ export default function Home() {
   async function fetchCitySuggests(q: string, setter: (v: string[]) => void) {
     if (q.length < 2) { setter([]); return; }
     try {
-      const res = await fetch(`https://suggest-maps.yandex.ru/v1/suggest?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&text=${encodeURIComponent(q)}&types=locality,province&lang=ru_RU&results=5`);
+      const res = await fetch(`https://suggest-maps.yandex.ru/v1/suggest?apikey=${process.env.NEXT_PUBLIC_YANDEX_KEY||"aef19e33-8ea1-4039-8353-2f0df688664a"}&text=${encodeURIComponent(q)}&types=locality,province&lang=ru_RU&results=5`);
       if (res.ok) {
         const data = await res.json();
         setter((data.results || []).map((r: {title:{text:string}}) => r.title.text));
@@ -175,6 +178,20 @@ export default function Home() {
       if (res.ok) { const d = await res.json(); setLoads(d.loads || []); }
     } catch { /* keep previous */ }
     setLoadingData(false);
+  }
+
+  /* ── respond to load ── */
+  async function respondLoad(loadId: number) {
+    if (!token) { alert("Войдите, чтобы откликнуться"); return; }
+    try {
+      const res = await fetch(`${API}/api/responses/load/${loadId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ message: "Готов взять груз" })
+      });
+      if (res.ok) { alert("✅ Заявка отправлена! Грузовладелец получит уведомление."); setSelected(null); }
+      else { const d = await res.json(); alert("Ошибка: " + (d.detail || "попробуйте снова")); }
+    } catch { alert("Ошибка сети"); }
   }
 
   /* ── auth ── */
@@ -478,8 +495,8 @@ export default function Home() {
       <div style={{background:"#fff",padding:"10px 16px",borderBottom:"1px solid #eee",
         position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
-          <input placeholder={t.from} name="search-origin-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
-          <input placeholder={t.to}   name="search-dest-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input value={filterFrom} onChange={e=>setFilterFrom(e.target.value)} placeholder={t.from} name="search-origin-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input value={filterTo} onChange={e=>setFilterTo(e.target.value)} placeholder={t.to} name="search-dest-x7k" autoComplete="off" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
           {[t.date, t.truckType, t.tonnage, t.cost].map((ph,i) => (
             <select key={i} style={{flex:"1 1 100px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",cursor:"pointer",outline:"none"}}>
               <option>{ph}</option>
@@ -490,7 +507,7 @@ export default function Home() {
           </span>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={fetchLoads} style={{flex:"0 0 auto",minWidth:160,background:"#1a1a2e",color:"#fff",border:"none",padding:"9px 24px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+          <button onClick={()=>{ fetchLoads(); }} style={{flex:"0 0 auto",minWidth:160,background:"#1a1a2e",color:"#fff",border:"none",padding:"9px 24px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer"}}>
             {loadingData ? "⏳" : t.search}
           </button>
           <button onClick={openPostLoad} style={{flex:"0 0 auto",minWidth:160,background:"#2ecc71",color:"#fff",border:"none",padding:"9px 24px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer"}}>
@@ -533,7 +550,13 @@ export default function Home() {
           <div style={{textAlign:"center",padding:32,color:"#999"}}>Нет грузов. Разместите первый!</div>
         )}
 
-        {loads.map(row => {
+        {loads.filter(row => {
+          const ff = filterFrom.trim().toLowerCase();
+          const ft = filterTo.trim().toLowerCase();
+          if (ff && !row.from.toLowerCase().includes(ff)) return false;
+          if (ft && !row.to.toLowerCase().includes(ft)) return false;
+          return true;
+        }).map(row => {
           const borderColor = row.badge==="urgent"?"#e74c3c":row.badge==="new"?"#2ecc71":scope==="intl"?"#3498db":"transparent";
           const own = isOwner(row);
           return (
@@ -852,11 +875,11 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <button onClick={()=>{alert("✅ Заявка отправлена!");setSelected(null);}}
+                  <button onClick={()=>respondLoad(selected!.id)}
                     style={{flex:1,background:"#f7b731",color:"#1a1a2e",border:"none",padding:14,borderRadius:10,fontSize:15,fontWeight:800,cursor:"pointer"}}>
                     {t.respond}
                   </button>
-                  <button onClick={()=>alert("📞 Контакт доступен после регистрации")}
+                  <button onClick={()=>{ if(token && selected?.phone) alert("📞 " + selected.phone); else alert("📞 Контакт доступен после регистрации"); }}
                     style={{background:"#f0f2f5",border:"none",padding:14,borderRadius:10,fontSize:18,cursor:"pointer",width:54}}>
                     📞
                   </button>
