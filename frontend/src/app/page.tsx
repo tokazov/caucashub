@@ -465,8 +465,8 @@ export default function Home() {
       <div style={{background:"#fff",padding:"10px 16px",borderBottom:"1px solid #eee",
         position:"sticky",top:54,zIndex:98,boxShadow:"0 2px 4px rgba(0,0,0,.06)"}}>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:8}}>
-          <input placeholder={t.from} autoComplete="nope" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
-          <input placeholder={t.to}   autoComplete="nope" style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input placeholder={t.from} autoComplete="nope" readOnly onFocus={e=>e.currentTarget.removeAttribute("readOnly")} style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
+          <input placeholder={t.to}   autoComplete="nope" readOnly onFocus={e=>e.currentTarget.removeAttribute("readOnly")} style={{flex:"1 1 120px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",outline:"none"}}/>
           {[t.date, t.truckType, t.tonnage, t.cost].map((ph,i) => (
             <select key={i} style={{flex:"1 1 100px",minWidth:0,border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,color:"#333",background:"#fff",cursor:"pointer",outline:"none"}}>
               <option>{ph}</option>
@@ -939,9 +939,9 @@ export default function Home() {
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{display:"flex",gap:8}}>
                 <input value={fFrom} onChange={e=>setFFrom(e.target.value)}
-                  placeholder="Откуда (город)" autoComplete="nope" style={inputStyle}/>
+                  placeholder="Откуда (город)" autoComplete="nope" readOnly onFocus={e=>e.currentTarget.removeAttribute("readOnly")} style={inputStyle}/>
                 <input value={fTo} onChange={e=>setFTo(e.target.value)}
-                  placeholder="Куда (город)" autoComplete="nope" style={inputStyle}/>
+                  placeholder="Куда (город)" autoComplete="nope" readOnly onFocus={e=>e.currentTarget.removeAttribute("readOnly")} style={inputStyle}/>
               </div>
 
               {!editLoad && (
