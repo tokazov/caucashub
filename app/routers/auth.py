@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -7,11 +8,12 @@ from app.config import settings
 from pydantic import BaseModel
 from typing import Optional
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+bearer_scheme = HTTPBearer()
 
 class RegisterRequest(BaseModel):
     email: str
@@ -20,9 +22,9 @@ class RegisterRequest(BaseModel):
     phone: str
     role: str = "carrier"
     lang: str = "ru"
-    inn: Optional[str] = None       # ИНН / ID код
-    org_type: Optional[str] = None  # ООО / ИП / АО
-    city: Optional[str] = None      # Город
+    inn: Optional[str] = None
+    org_type: Optional[str] = None
+    city: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -35,9 +37,24 @@ def create_token(user_id: int):
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
+async def require_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
 @router.post("/register")
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    # Проверка дубликата
     existing = await db.execute(select(User).where(User.email == data.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -72,14 +89,11 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/debug-register")
 async def debug_register(db: AsyncSession = Depends(get_db)):
-    """Debug — проверяем что таблица users существует и регистрация работает"""
     import traceback
     try:
         from sqlalchemy import text
         result = await db.execute(text("SELECT COUNT(*) FROM users"))
         count = result.scalar()
-        
-        # Пробуем создать тестового пользователя
         from datetime import datetime
         test_email = f"debug_{int(datetime.utcnow().timestamp())}@test.ge"
         test_user = User(
@@ -92,15 +106,11 @@ async def debug_register(db: AsyncSession = Depends(get_db)):
         db.add(test_user)
         await db.commit()
         await db.refresh(test_user)
-        
-        # Удаляем тестового пользователя
         await db.delete(test_user)
         await db.commit()
-        
         return {"status": "ok", "users_count": count, "register_test": "passed"}
     except Exception as e:
         return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
-
 
 @router.post("/admin/reset-password")
 async def admin_reset_password(
