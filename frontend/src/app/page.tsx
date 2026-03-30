@@ -1034,7 +1034,7 @@ export default function Home() {
             )}
             {showAuth==="register" && (
               <div style={{textAlign:"center",marginTop:10}}>
-                <button onClick={()=>{ setShowAuth(null); setTimeout(()=>openPaywall("plans"),50); }}
+                <button onClick={()=>openPaywall("plans")}
                   style={{background:"none",border:"none",color:"#f7b731",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
                   📊 Посмотреть тарифы →
                 </button>
