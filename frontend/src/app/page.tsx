@@ -1033,11 +1033,22 @@ export default function Home() {
               </div>
             )}
             {showAuth==="register" && (
-              <div style={{textAlign:"center",marginTop:10}}>
-                <button onClick={()=>openPaywall("plans")}
-                  style={{background:"none",border:"none",color:"#f7b731",fontSize:13,cursor:"pointer",textDecoration:"underline"}}>
-                  📊 Посмотреть тарифы →
-                </button>
+              <div style={{marginTop:12,padding:"12px 16px",background:"#f8f9fa",borderRadius:10,fontSize:12}}>
+                <div style={{fontWeight:700,marginBottom:8,color:"#1a1a2e",fontSize:13}}>📊 Тарифные планы</div>
+                <div style={{display:"flex",gap:8}}>
+                  <div style={{flex:1,textAlign:"center",padding:"8px 4px",background:"#fff",borderRadius:8,border:"1px solid #e0e0e0"}}>
+                    <div style={{fontWeight:700,color:"#888"}}>Бесплатно</div>
+                    <div style={{fontSize:10,color:"#aaa"}}>6 месяцев</div>
+                  </div>
+                  <div style={{flex:1,textAlign:"center",padding:"8px 4px",background:"#fff",borderRadius:8,border:"1px solid #3498db"}}>
+                    <div style={{fontWeight:700,color:"#3498db"}}>Стандарт</div>
+                    <div style={{fontSize:11,fontWeight:800}}>₾35/мес</div>
+                  </div>
+                  <div style={{flex:1,textAlign:"center",padding:"8px 4px",background:"#fff",borderRadius:8,border:"1px solid #f7b731"}}>
+                    <div style={{fontWeight:700,color:"#e6a820"}}>⭐ Про</div>
+                    <div style={{fontSize:11,fontWeight:800}}>₾80/мес</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
