@@ -196,7 +196,11 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
                 msg["To"] = data.email
                 msg.attach(MIMEText(f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge", "plain", "utf-8"))
                 msg.attach(MIMEText(html, "html", "utf-8"))
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as srv:
+                smtp_host = os.getenv("SMTP_HOST", "smtp-relay.brevo.com")
+                smtp_port = int(os.getenv("SMTP_PORT", "587"))
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as srv:
+                    srv.ehlo()
+                    srv.starttls()
                     srv.login(smtp_user, smtp_pass)
                     srv.sendmail(smtp_user, data.email, msg.as_string())
                 email_sent = True
