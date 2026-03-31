@@ -173,18 +173,22 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
             <div style="font-size:32px;font-weight:bold;background:#f0f0f0;padding:16px;text-align:center;border-radius:8px;letter-spacing:8px">{code}</div>
             <p style="color:#888;font-size:12px">Действителен 15 минут</p>
         </div>"""
+        email_sent = False
         try:
             import httpx
             async with httpx.AsyncClient() as client:
-                await client.post("https://api.resend.com/emails",
+                r = await client.post("https://api.resend.com/emails",
                     headers={"Authorization": f"Bearer {resend_key}"},
                     json={"from": "CaucasHub <onboarding@resend.dev>",
                           "to": [data.email], "subject": "Код сброса пароля", "html": html},
                     timeout=10)
+                if r.status_code == 200:
+                    email_sent = True
         except Exception:
             pass
 
-    return {"message": "Если email зарегистрирован — код отправлен", "dev_code": code if user else None}
+    return {"message": "Если email зарегистрирован — код отправлен",
+            "dev_code": code if (user and not email_sent) else None}
 
 
 @router.post("/reset-password")
