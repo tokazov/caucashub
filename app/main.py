@@ -44,21 +44,4 @@ def root():
 def health():
     return {"status": "healthy"}
 
-@app.get("/debug-env")
-def debug_env():
-    import os
-    brevo = os.getenv("BREVO_API_KEY", "")
-    return {
-        "brevo_key_len": len(brevo),
-        "brevo_key_prefix": brevo[:10] if brevo else "EMPTY",
-        "smtp_user": os.getenv("SMTP_USER", "NOT_SET")
-    }
 
-@app.get("/debug-env2")
-def debug_env2():
-    import os
-    db_url = os.getenv("DATABASE_URL", "")
-    return {
-        "db_host": db_url.split("@")[1].split("/")[0] if "@" in db_url else "NOT_SET",
-        "db_name": db_url.split("/")[-1] if "/" in db_url else "NOT_SET"
-    }
