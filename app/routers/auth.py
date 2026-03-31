@@ -192,7 +192,7 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
                 from email.mime.text import MIMEText
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = "CaucasHub — код сброса пароля"
-                msg["From"] = f"CaucasHub <{smtp_user}>"
+                msg["From"] = "CaucasHub <noreply@caucashub.ge>"
                 msg["To"] = data.email
                 msg.attach(MIMEText(f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge", "plain", "utf-8"))
                 msg.attach(MIMEText(html, "html", "utf-8"))
