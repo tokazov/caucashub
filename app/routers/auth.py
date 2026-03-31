@@ -231,3 +231,17 @@ async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db))
     await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
     await db.commit()
     return {"message": "Пароль успешно изменён"}
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.post("/change-password")
+async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_user)):
+    if not pwd_context.verify(data.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Новый пароль минимум 8 символов")
+    current_user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+    return {"message": "Пароль успешно изменён"}
