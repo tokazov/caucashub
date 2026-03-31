@@ -183,7 +183,9 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         email_sent = False
 
         # Отправка через Brevo API (HTTP, работает на Railway)
+        import logging as _log
         brevo_key = os.getenv("BREVO_API_KEY", "")
+        _log.getLogger(__name__).info(f"[Email] Starting send to {data.email}, brevo_key={'SET' if brevo_key else 'EMPTY'}")
         email_sent = False
         try:
             import httpx
@@ -198,10 +200,11 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
                         "textContent": f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge"
                     },
                     timeout=15)
+                _log.getLogger(__name__).info(f"[Brevo] Response: {r.status_code} {r.text[:100]}")
                 if r.status_code == 201:
                     email_sent = True
                 else:
-                    import logging; logging.getLogger(__name__).error(f"[Brevo] {r.status_code} {r.text}")
+                    _log.getLogger(__name__).error(f"[Brevo] FAILED {r.status_code} {r.text}")
         except Exception as e:
             import logging; logging.getLogger(__name__).error(f"[Brevo] {e}")
 
