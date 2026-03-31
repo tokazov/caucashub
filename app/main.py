@@ -43,3 +43,13 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+@app.get("/debug-env")
+def debug_env():
+    import os
+    brevo = os.getenv("BREVO_API_KEY", "")
+    return {
+        "brevo_key_len": len(brevo),
+        "brevo_key_prefix": brevo[:10] if brevo else "EMPTY",
+        "smtp_user": os.getenv("SMTP_USER", "NOT_SET")
+    }
