@@ -208,22 +208,6 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception as e:
             import logging; logging.getLogger(__name__).error(f"[Brevo] {e}")
 
-        # Fallback: Resend
-        if not email_sent:
-            resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
-            try:
-                import httpx
-                async with httpx.AsyncClient() as client:
-                    r = await client.post("https://api.resend.com/emails",
-                        headers={"Authorization": f"Bearer {resend_key}"},
-                        json={"from": "CaucasHub <noreply@caucashub.ge>",
-                              "to": [data.email], "subject": "CaucasHub — код сброса пароля", "html": html},
-                        timeout=10)
-                    if r.status_code == 200:
-                        email_sent = True
-            except Exception:
-                pass
-
     return {"message": "Если email зарегистрирован — код отправлен",
             "dev_code": code if (user and not email_sent) else None}
 
