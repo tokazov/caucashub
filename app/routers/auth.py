@@ -166,26 +166,58 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         db.add(rc)
         await db.commit()
         
-        resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
-        html = f"""<div style="font-family:Arial;padding:20px">
-            <h2>Сброс пароля CaucasHub</h2>
-            <p>Код подтверждения:</p>
-            <div style="font-size:32px;font-weight:bold;background:#f0f0f0;padding:16px;text-align:center;border-radius:8px;letter-spacing:8px">{code}</div>
-            <p style="color:#888;font-size:12px">Действителен 15 минут</p>
+        html = f"""<div style="font-family:Arial;padding:20px;max-width:480px;margin:0 auto">
+            <div style="background:#1a1a2e;padding:20px;text-align:center;border-radius:12px 12px 0 0">
+              <span style="color:#fff;font-weight:900;font-size:22px">Caucas<span style="color:#f7b731">Hub</span></span>
+            </div>
+            <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;border:1px solid #eee">
+              <p style="margin:0 0 16px;font-size:16px;color:#333">Сброс пароля на <strong>CaucasHub.ge</strong></p>
+              <p style="margin:0 0 12px;font-size:14px;color:#666">Ваш код подтверждения:</p>
+              <div style="background:#f8f9fa;border:2px solid #f7b731;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px">
+                <div style="font-size:40px;font-weight:900;letter-spacing:12px;color:#1a1a2e">{code}</div>
+              </div>
+              <p style="margin:0;font-size:13px;color:#888">⏱ Код действует <strong>15 минут</strong></p>
+            </div>
         </div>"""
+
         email_sent = False
-        try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                r = await client.post("https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {resend_key}"},
-                    json={"from": "CaucasHub <onboarding@resend.dev>",
-                          "to": [data.email], "subject": "Код сброса пароля", "html": html},
-                    timeout=10)
-                if r.status_code == 200:
-                    email_sent = True
-        except Exception:
-            pass
+
+        # 1. Пробуем Gmail SMTP (если настроен)
+        smtp_user = os.getenv("SMTP_USER", "")
+        smtp_pass = os.getenv("SMTP_PASS", "")
+        if smtp_user and smtp_pass:
+            try:
+                import smtplib
+                from email.mime.multipart import MIMEMultipart
+                from email.mime.text import MIMEText
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = "CaucasHub — код сброса пароля"
+                msg["From"] = f"CaucasHub <{smtp_user}>"
+                msg["To"] = data.email
+                msg.attach(MIMEText(f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge", "plain", "utf-8"))
+                msg.attach(MIMEText(html, "html", "utf-8"))
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as srv:
+                    srv.login(smtp_user, smtp_pass)
+                    srv.sendmail(smtp_user, data.email, msg.as_string())
+                email_sent = True
+            except Exception as e:
+                import logging; logging.getLogger(__name__).error(f"[SMTP] {e}")
+
+        # 2. Пробуем Resend если SMTP не сработал
+        if not email_sent:
+            resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
+            try:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    r = await client.post("https://api.resend.com/emails",
+                        headers={"Authorization": f"Bearer {resend_key}"},
+                        json={"from": "CaucasHub <noreply@caucashub.ge>",
+                              "to": [data.email], "subject": "CaucasHub — код сброса пароля", "html": html},
+                        timeout=10)
+                    if r.status_code == 200:
+                        email_sent = True
+            except Exception:
+                pass
 
     return {"message": "Если email зарегистрирован — код отправлен",
             "dev_code": code if (user and not email_sent) else None}
