@@ -182,32 +182,30 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
 
         email_sent = False
 
-        # 1. Пробуем Gmail SMTP (если настроен)
-        smtp_user = os.getenv("SMTP_USER", "")
-        smtp_pass = os.getenv("SMTP_PASS", "")
-        if smtp_user and smtp_pass:
-            try:
-                import smtplib
-                from email.mime.multipart import MIMEMultipart
-                from email.mime.text import MIMEText
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = "CaucasHub — код сброса пароля"
-                msg["From"] = "CaucasHub <noreply@caucashub.ge>"
-                msg["To"] = data.email
-                msg.attach(MIMEText(f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge", "plain", "utf-8"))
-                msg.attach(MIMEText(html, "html", "utf-8"))
-                smtp_host = os.getenv("SMTP_HOST", "smtp-relay.brevo.com")
-                smtp_port = int(os.getenv("SMTP_PORT", "587"))
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as srv:
-                    srv.ehlo()
-                    srv.starttls()
-                    srv.login(smtp_user, smtp_pass)
-                    srv.sendmail(smtp_user, data.email, msg.as_string())
-                email_sent = True
-            except Exception as e:
-                import logging; logging.getLogger(__name__).error(f"[SMTP] {e}")
+        # Отправка через Brevo API (HTTP, работает на Railway)
+        brevo_key = os.getenv("BREVO_API_KEY", "")
+        email_sent = False
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                r = await client.post("https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": brevo_key, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "CaucasHub", "email": "noreply@caucashub.ge"},
+                        "to": [{"email": data.email}],
+                        "subject": "CaucasHub — код сброса пароля",
+                        "htmlContent": html,
+                        "textContent": f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge"
+                    },
+                    timeout=15)
+                if r.status_code == 201:
+                    email_sent = True
+                else:
+                    import logging; logging.getLogger(__name__).error(f"[Brevo] {r.status_code} {r.text}")
+        except Exception as e:
+            import logging; logging.getLogger(__name__).error(f"[Brevo] {e}")
 
-        # 2. Пробуем Resend если SMTP не сработал
+        # Fallback: Resend
         if not email_sent:
             resend_key = os.getenv("RESEND_API_KEY", "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1")
             try:
