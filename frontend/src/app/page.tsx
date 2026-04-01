@@ -161,10 +161,12 @@ export default function Home() {
 
   const t = T[lang];
 
-  /* ── init: restore token ── */
+  /* ── init: restore token + activeTab ── */
   useEffect(() => {
     const saved = localStorage.getItem("ch_token");
     if (saved) { setToken(saved); setUserId(decodeJwtUserId(saved)); }
+    const savedTab = localStorage.getItem("ch_tab") as "loads"|"trucks"|"rates"|"orders"|"deals"|null;
+    if (savedTab) setActiveTab(savedTab);
   }, []);
 
   /* ── fetch loads on scope/token change ── */
@@ -457,8 +459,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (token && activeTab === "deals") fetchDeals();
-    if (token && activeTab === "deals" && !profile) loadProfile();
+    if (token && activeTab === "deals") { fetchDeals(); if (!profile) loadProfile(); }
     if (token && activeTab === "orders") fetchMyResponses();
   }, [activeTab, token]); // eslint-disable-line
 
@@ -519,7 +520,7 @@ export default function Home() {
       {/* ── NAV TABS ── */}
       <div style={{background:"#1a1a2e",display:"flex",padding:"0 16px",borderBottom:"1px solid #111"}}>
         {([["loads",t.loads],["trucks",t.trucks],["rates",t.rates],["orders",t.orders],["deals","📋 Мои сделки"]] as [string,string][]).map(([key,label]) => (
-          <button key={key} onClick={()=>setActiveTab(key as "loads"|"trucks"|"rates"|"orders"|"deals")}
+          <button key={key} onClick={()=>{ const t=key as "loads"|"trucks"|"rates"|"orders"|"deals"; setActiveTab(t); localStorage.setItem("ch_tab",t); }}
             style={{padding:"9px 14px",color:activeTab===key?"#f7b731":"#555",background:"transparent",
               border:"none",borderBottom:activeTab===key?"2px solid #f7b731":"2px solid transparent",
               fontSize:12,fontWeight:activeTab===key?600:400,cursor:"pointer",whiteSpace:"nowrap"}}>
