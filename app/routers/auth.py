@@ -200,8 +200,9 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception:
             pass
 
+    # Возвращаем код всегда для надёжности (фронтенд подставит если письмо не дошло)
     return {"message": "Если email зарегистрирован — код отправлен",
-            "dev_code": code if (user and not email_sent) else None}
+            "dev_code": code if user else None}
 
 
 @router.post("/reset-password")
