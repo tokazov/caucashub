@@ -14,15 +14,20 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install & Build
-        run: |
-          cd frontend
-          npm install
-          npm run build
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api-production-f3ea.up.railway.app
+          NEXT_PUBLIC_YANDEX_KEY: aef19e33-8ea1-4039-8353-2f0df688664a
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: mr0Wxl306cD3SezN0DBimHG0w9JlgAzsbxqcyeoV
-          accountId: 42c8b5c5e608bab52771ec762edd61ff
-          command: pages deploy frontend/out --project-name=caucashub --branch=master
+        working-directory: frontend
+        run: npx wrangler pages deploy out/ --project-name=caucashub --branch=master
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 42c8b5c5e608bab52771ec762edd61ff
