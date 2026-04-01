@@ -164,9 +164,24 @@ export default function Home() {
   /* ── init: restore token + activeTab ── */
   useEffect(() => {
     const saved = localStorage.getItem("ch_token");
-    if (saved) { setToken(saved); setUserId(decodeJwtUserId(saved)); }
     const savedTab = localStorage.getItem("ch_tab") as "loads"|"trucks"|"rates"|"orders"|"deals"|null;
+    if (saved) { setToken(saved); setUserId(decodeJwtUserId(saved)); }
     if (savedTab) setActiveTab(savedTab);
+    // Если восстановили token + tab=orders/deals — загружаем данные сразу
+    if (saved && savedTab === "orders") {
+      setTimeout(() => {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api-production-f3ea.up.railway.app"}/api/responses/my`, {
+          headers: { "Authorization": `Bearer ${saved}` }
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d) setMyResponses(d.responses || []); }).catch(()=>{});
+      }, 0);
+    }
+    if (saved && savedTab === "deals") {
+      setTimeout(() => {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api-production-f3ea.up.railway.app"}/api/deals/`, {
+          headers: { "Authorization": `Bearer ${saved}` }
+        }).then(r => r.ok ? r.json() : null).then(d => { if (d) setDeals(d.deals || d || []); }).catch(()=>{});
+      }, 0);
+    }
   }, []);
 
   /* ── fetch loads on scope/token change ── */

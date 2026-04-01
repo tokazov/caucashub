@@ -1,10 +1,10 @@
 [
   {
     "route": "/",
-    "firstLoadUncompressedJsBytes": 566077,
+    "firstLoadUncompressedJsBytes": 566507,
     "firstLoadChunkPaths": [
       ".next/static/chunks/0dbhjjzl8qfwv.js",
-      ".next/static/chunks/06rcwb2h.b~jr.js",
+      ".next/static/chunks/0g5tcps-kl4_~.js",
       ".next/static/chunks/0ht900cau6_ur.js",
       ".next/static/chunks/00l-yd3t8dvwz.js",
       ".next/static/chunks/16g.ca89g7fib.js",
