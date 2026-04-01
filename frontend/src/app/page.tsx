@@ -560,10 +560,10 @@ export default function Home() {
           </span>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>{ fetchLoads(); }} style={{flex:1,background:"#1a1a2e",color:"#fff",border:"none",padding:"9px 16px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+          <button onClick={()=>{ fetchLoads(); }} style={{flex:1,background:"#1a1a2e",color:"#fff",border:"none",padding:"9px 8px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {loadingData ? "⏳" : t.search}
           </button>
-          <button onClick={openPostLoad} style={{flex:1,background:"#2ecc71",color:"#fff",border:"none",padding:"9px 16px",borderRadius:8,fontSize:14,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+          <button onClick={openPostLoad} style={{flex:1,background:"#2ecc71",color:"#fff",border:"none",padding:"9px 8px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             + {t.postLoad}
           </button>
         </div>
