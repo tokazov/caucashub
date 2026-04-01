@@ -99,6 +99,8 @@ export default function Home() {
   const [activeTab, setActiveTab]   = useState<"loads"|"trucks"|"rates"|"orders"|"deals">("loads");
   const [deals, setDeals]           = useState<Deal[]>([]);
   const [dealsLoading, setDealsLoading] = useState(false);
+  const [myResponses, setMyResponses] = useState<{id:number,load_id:number,from:string,to:string,price:number|null,message:string|null,status:string,created_at:string|null,company_name?:string}[]>([]);
+  const [responsesLoading, setResponsesLoading] = useState(false);
   const [profile, setProfile]       = useState<UserProfile|null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [pName, setPName]           = useState("");
@@ -332,6 +334,18 @@ export default function Home() {
 
 
   /* ── deals ── */
+  async function fetchMyResponses() {
+    if (!token) return;
+    setResponsesLoading(true);
+    try {
+      const res = await fetch(`${API}/api/responses/my`, {
+        headers: {"Authorization": `Bearer ${token}`}
+      });
+      if (res.ok) { const d = await res.json(); setMyResponses(d.responses || []); }
+    } catch {}
+    setResponsesLoading(false);
+  }
+
   async function fetchDeals() {
     if (!token) return;
     setDealsLoading(true);
@@ -445,6 +459,7 @@ export default function Home() {
   useEffect(() => {
     if (token && activeTab === "deals") fetchDeals();
     if (token && activeTab === "deals" && !profile) loadProfile();
+    if (token && activeTab === "orders") fetchMyResponses();
   }, [activeTab, token]); // eslint-disable-line
 
   const isOwner = (l: ApiLoad) => userId !== null && l.user_id === userId;
@@ -769,6 +784,73 @@ export default function Home() {
                   </button>
                 </div>
               </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── ORDERS TAB (Мои отклики) ── */}
+      {(activeTab as string) === "orders" && (
+        <div style={{maxWidth:800,margin:"0 auto",padding:16}}>
+          {!token ? (
+            <div style={{textAlign:"center",padding:40,color:"#999"}}>
+              <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+              <div>Войдите чтобы увидеть заказы</div>
+              <button onClick={()=>setShowAuth("login")}
+                style={{marginTop:16,background:"#f7b731",color:"#1a1a2e",border:"none",padding:"10px 24px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                Войти
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:18,fontWeight:900}}>📦 Мои отклики</div>
+                <button onClick={fetchMyResponses}
+                  style={{background:"#f0f2f5",border:"none",padding:"7px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                  🔄 Обновить
+                </button>
+              </div>
+
+              {responsesLoading && <div style={{textAlign:"center",padding:32,color:"#999"}}>Загрузка...</div>}
+
+              {!responsesLoading && myResponses.length === 0 && (
+                <div style={{textAlign:"center",padding:40,background:"#fff",borderRadius:12,color:"#999"}}>
+                  <div style={{fontSize:48,marginBottom:8}}>📋</div>
+                  <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>Нет активных заказов</div>
+                  <div style={{fontSize:13}}>Откликнитесь на грузы — они появятся здесь</div>
+                </div>
+              )}
+
+              {myResponses.map(r => {
+                const statusMap: Record<string,{label:string,color:string,bg:string}> = {
+                  pending:  {label:"⏳ Ожидание", color:"#e67e22", bg:"#fff3e0"},
+                  accepted: {label:"✅ Принят",   color:"#27ae60", bg:"#e8f5e9"},
+                  rejected: {label:"❌ Отклонён", color:"#e74c3c", bg:"#fdecea"},
+                };
+                const st = statusMap[r.status] || {label:r.status, color:"#555", bg:"#f0f2f5"};
+                const dt = r.created_at ? new Date(r.created_at).toLocaleDateString("ru") + ", " +
+                  new Date(r.created_at).toLocaleTimeString("ru",{hour:"2-digit",minute:"2-digit"}) : "";
+                return (
+                  <div key={r.id} style={{background:"#fff",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${st.color}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{fontSize:16,fontWeight:900}}>🚛 {r.from} → {r.to}</div>
+                        <div style={{fontSize:12,color:"#999",marginTop:2}}>
+                          {r.price ? `₾${r.price}` : ""}{r.price && r.company_name ? " · " : ""}{r.company_name || ""}{dt ? " · " + dt : ""}
+                        </div>
+                      </div>
+                      <span style={{background:st.bg,color:st.color,padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+                        {st.label}
+                      </span>
+                    </div>
+                    {r.message && (
+                      <div style={{marginTop:8,fontSize:13,color:"#555",background:"#f8f9fa",padding:"8px 12px",borderRadius:8}}>
+                        💬 {r.message}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
