@@ -293,3 +293,22 @@ async def reject_response(
         await send_email(carrier.email, f"ℹ️ Отклик на груз {route}", html)
 
     return {"ok": True}
+
+@router.delete("/cancel/{response_id}")
+async def cancel_response(
+    response_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Перевозчик отзывает свой отклик (только pending)"""
+    resp_res = await db.execute(select(Response).where(Response.id == response_id))
+    resp = resp_res.scalar_one_or_none()
+    if not resp:
+        raise HTTPException(status_code=404, detail="Response not found")
+    if resp.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your response")
+    if resp.status != ResponseStatus.pending:
+        raise HTTPException(status_code=400, detail="Cannot cancel accepted response")
+    await db.delete(resp)
+    await db.commit()
+    return {"ok": True}
