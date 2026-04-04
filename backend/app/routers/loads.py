@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, case
 from app.database import get_db
 from app.models.load import Load, LoadScope, LoadStatus, TruckType
 from app.models.user import User
 from app.config import settings
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 
 router = APIRouter()
@@ -126,8 +126,14 @@ async def get_loads(
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
 
-    # Сначала срочные и продвинутые
-    q = q.order_by(Load.is_urgent.desc(), Load.is_boosted.desc(), Load.created_at.desc())
+    # Срочные грузы поднимаются вверх только первые 24 часа после создания
+    urgent_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    is_urgent_active = and_(Load.is_urgent == True, Load.created_at >= urgent_cutoff)
+    q = q.order_by(
+        case((is_urgent_active, 1), else_=0).desc(),
+        Load.is_boosted.desc(),
+        Load.created_at.desc()
+    )
     q = q.limit(limit).offset(offset)
 
     result = await db.execute(q)
