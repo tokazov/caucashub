@@ -96,7 +96,10 @@ export default function Home() {
   const [loads, setLoads]         = useState<ApiLoad[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
-  const [activeTab, setActiveTab]   = useState<"loads"|"trucks"|"rates"|"orders"|"deals">("loads");
+  const [activeTab, setActiveTab]   = useState<"loads"|"trucks"|"rates"|"orders"|"deals"|"cabinet">("loads");
+  const [myLoads, setMyLoads]       = useState<ApiLoad[]>([]);
+  const [myLoadsLoading, setMyLoadsLoading] = useState(false);
+  const [cabinetSection, setCabinetSection] = useState<"my-loads"|"deals"|"orders">("my-loads");
   const [deals, setDeals]           = useState<Deal[]>([]);
   const [dealsLoading, setDealsLoading] = useState(false);
   const [myResponses, setMyResponses] = useState<{id:number,load_id:number,from:string,to:string,price:number|null,message:string|null,status:string,created_at:string|null,company_name?:string}[]>([]);
@@ -473,9 +476,22 @@ export default function Home() {
     in_transit: "delivered",
   };
 
+  async function fetchMyLoads() {
+    if (!token) return;
+    setMyLoadsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api-production-f3ea.up.railway.app"}/api/loads/my`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) { const d = await res.json(); setMyLoads(d.loads || d || []); }
+    } catch(e) { console.error(e); }
+    setMyLoadsLoading(false);
+  }
+
   useEffect(() => {
     if (token && activeTab === "deals") { fetchDeals(); if (!profile) loadProfile(); }
     if (token && activeTab === "orders") fetchMyResponses();
+    if (token && activeTab === "cabinet") { fetchMyLoads(); fetchDeals(); fetchMyResponses(); if (!profile) loadProfile(); }
   }, [activeTab, token]); // eslint-disable-line
 
   const isOwner = (l: ApiLoad) => userId !== null && l.user_id === userId;
@@ -534,8 +550,8 @@ export default function Home() {
 
       {/* ── NAV TABS ── */}
       <div style={{background:"#1a1a2e",display:"flex",padding:"0 16px",borderBottom:"1px solid #111"}}>
-        {([["loads",t.loads],["trucks",t.trucks],["rates",t.rates],["orders",t.orders],["deals","📋 Мои сделки"]] as [string,string][]).map(([key,label]) => (
-          <button key={key} onClick={()=>{ const t=key as "loads"|"trucks"|"rates"|"orders"|"deals"; setActiveTab(t); localStorage.setItem("ch_tab",t); }}
+        {([["loads",t.loads],["trucks",t.trucks],["rates",t.rates],["cabinet","🗂 Кабинет"]] as [string,string][]).map(([key,label]) => (
+          <button key={key} onClick={()=>{ const t=key as "loads"|"trucks"|"rates"|"cabinet"; setActiveTab(t); localStorage.setItem("ch_tab",t); }}
             style={{padding:"9px 14px",color:activeTab===key?"#f7b731":"#555",background:"transparent",
               border:"none",borderBottom:activeTab===key?"2px solid #f7b731":"2px solid transparent",
               fontSize:12,fontWeight:activeTab===key?600:400,cursor:"pointer",whiteSpace:"nowrap"}}>
@@ -691,6 +707,212 @@ export default function Home() {
 
 
       {/* ── DEALS TAB ── */}
+      {/* ── CABINET TAB ── */}
+      {(activeTab as string) === "cabinet" && (
+        <div style={{maxWidth:800,margin:"0 auto",padding:16}}>
+          {!token ? (
+            <div style={{textAlign:"center",padding:40,color:"#999"}}>
+              <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+              <div>Войдите чтобы открыть кабинет</div>
+              <button onClick={()=>setShowAuth("login")}
+                style={{marginTop:16,background:"#f7b731",color:"#1a1a2e",border:"none",padding:"10px 24px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                Войти
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Секции кабинета */}
+              <div style={{display:"flex",gap:8,marginBottom:20,borderBottom:"2px solid #f0f0f0",paddingBottom:4}}>
+                {([["my-loads","📦 Мои грузы"],["deals","📋 Сделки"],["orders","🚛 Мои отклики"]] as [string,string][]).map(([key,label])=>(
+                  <button key={key} onClick={()=>setCabinetSection(key as "my-loads"|"deals"|"orders")}
+                    style={{padding:"8px 16px",fontSize:13,fontWeight:cabinetSection===key?700:400,
+                      color:cabinetSection===key?"#f7b731":"#666",background:"transparent",border:"none",
+                      borderBottom:cabinetSection===key?"2px solid #f7b731":"2px solid transparent",cursor:"pointer"}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* МОИ ГРУЗЫ */}
+              {cabinetSection === "my-loads" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                    <div style={{fontSize:18,fontWeight:900}}>📦 Мои грузы</div>
+                    <button onClick={fetchMyLoads}
+                      style={{background:"#f0f2f5",border:"none",padding:"7px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                      🔄 Обновить
+                    </button>
+                  </div>
+                  {myLoadsLoading && <div style={{textAlign:"center",padding:32,color:"#999"}}>Загрузка...</div>}
+                  {!myLoadsLoading && myLoads.length === 0 && (
+                    <div style={{textAlign:"center",padding:40,background:"#fff",borderRadius:12,color:"#999"}}>
+                      <div style={{fontSize:32,marginBottom:8}}>📭</div>
+                      <div>У вас пока нет грузов</div>
+                      <button onClick={()=>setActiveTab("loads")}
+                        style={{marginTop:12,background:"#f7b731",color:"#1a1a2e",border:"none",padding:"10px 24px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                        + Добавить груз
+                      </button>
+                    </div>
+                  )}
+                  {myLoads.map(l => (
+                    <div key={l.id} style={{background:"#fff",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                        <div style={{fontSize:16,fontWeight:900}}>{l.from} → {l.to}</div>
+                        {l.urgent && <span style={{background:"#fff3e0",color:"#e67e22",padding:"3px 10px",borderRadius:20,fontSize:12,fontWeight:700}}>🔥 СРОЧНО</span>}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:13,color:"#555",marginBottom:10}}>
+                        <div><span style={{color:"#aaa"}}>Вес: </span>{l.kg?.toLocaleString()} кг</div>
+                        <div><span style={{color:"#aaa"}}>Цена: </span><strong>{l.cur}{l.price?.toLocaleString()}</strong></div>
+                        <div><span style={{color:"#aaa"}}>Тип: </span>{l.typeLabel}</div>
+                        <div><span style={{color:"#aaa"}}>Дата: </span>{l.date || "—"}</div>
+                      </div>
+                      {l.desc && <div style={{fontSize:13,color:"#777",marginBottom:10}}>💬 {l.desc}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* СДЕЛКИ */}
+              {cabinetSection === "deals" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                    <div style={{fontSize:18,fontWeight:900}}>📋 Мои сделки</div>
+                    <button onClick={fetchDeals}
+                      style={{background:"#f0f2f5",border:"none",padding:"7px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                      🔄 Обновить
+                    </button>
+                  </div>
+                  {dealsLoading && <div style={{textAlign:"center",padding:32,color:"#999"}}>Загрузка...</div>}
+                  {!dealsLoading && deals.length === 0 && (
+                    <div style={{textAlign:"center",padding:40,background:"#fff",borderRadius:12,color:"#999"}}>
+                      <div style={{fontSize:32,marginBottom:8}}>📂</div>
+                      <div>Сделок пока нет</div>
+                    </div>
+                  )}
+                  {deals.map(deal => {
+                    const st = DEAL_STATUS_LABELS[deal.status] || {label:deal.status, color:"#555", bg:"#f0f2f5"};
+                    const nextStatus = DEAL_NEXT_STATUS[deal.status];
+                    const iAmShipper = userId === deal.shipper?.id;
+                    const iAmCarrier = userId === deal.carrier?.id;
+                    const myConfirmed = iAmShipper ? deal.shipper_confirmed : iAmCarrier ? deal.carrier_confirmed : false;
+                    return (
+                      <div key={deal.id} style={{background:"#fff",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                          <div>
+                            <div style={{fontSize:16,fontWeight:900}}>{deal.load_from} → {deal.load_to}</div>
+                            <div style={{fontSize:12,color:"#999",marginTop:2}}>{deal.deal_number} · {new Date(deal.created_at).toLocaleDateString("ru")}</div>
+                          </div>
+                          <span style={{background:st.bg,color:st.color,padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:700}}>{st.label}</span>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12,fontSize:13}}>
+                          <div><span style={{color:"#aaa"}}>Груз: </span>{(deal.load_kg||0).toLocaleString()} кг</div>
+                          <div><span style={{color:"#aaa"}}>Сумма: </span><strong>{deal.currency}{(deal.price||0).toLocaleString()}</strong></div>
+                          <div><span style={{color:"#aaa"}}>Грузоотправитель: </span>{deal.shipper?.name}</div>
+                          <div><span style={{color:"#aaa"}}>Перевозчик: </span>{deal.carrier?.name}</div>
+                        </div>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {nextStatus && (
+                            <button onClick={()=>updateDealStatus(deal.id, nextStatus)}
+                              style={{background:"#1a1a2e",color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                              → {DEAL_STATUS_LABELS[nextStatus]?.label||nextStatus}
+                            </button>
+                          )}
+                          {deal.status === "delivered" && !myConfirmed && (
+                            <button onClick={()=>confirmDeal(deal.id)}
+                              style={{background:"#2ecc71",color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                              ✅ Подтвердить завершение
+                            </button>
+                          )}
+                          <button onClick={()=>downloadPDF(deal.id, deal.deal_number)}
+                            style={{background:"#f0f2f5",color:"#333",border:"none",padding:"8px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                            📄 Скачать акт
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Экспорт */}
+                  <div style={{background:"#fff",borderRadius:12,padding:16,marginTop:24,border:"2px solid #e3f2fd"}}>
+                    <div style={{fontSize:15,fontWeight:700,marginBottom:12,color:"#1565c0"}}>📊 Экспорт для rs.ge</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+                      <div>
+                        <div style={{fontSize:11,color:"#aaa",marginBottom:4}}>Дата с</div>
+                        <input type="date" value={exportFrom} onChange={e=>setExportFrom(e.target.value)}
+                          style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,color:"#aaa",marginBottom:4}}>Дата по</div>
+                        <input type="date" value={exportTo} onChange={e=>setExportTo(e.target.value)}
+                          style={{border:"1.5px solid #e0e0e0",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>exportDeals("json")} disabled={exportLoading}
+                        style={{background:"#1565c0",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                        📥 JSON
+                      </button>
+                      <button onClick={()=>exportDeals("csv")} disabled={exportLoading}
+                        style={{background:"#2e7d32",color:"#fff",border:"none",padding:"10px 20px",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                        📊 CSV (Excel)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* МОИ ОТКЛИКИ */}
+              {cabinetSection === "orders" && (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                    <div style={{fontSize:18,fontWeight:900}}>🚛 Мои отклики</div>
+                    <button onClick={fetchMyResponses}
+                      style={{background:"#f0f2f5",border:"none",padding:"7px 14px",borderRadius:8,fontSize:13,cursor:"pointer"}}>
+                      🔄 Обновить
+                    </button>
+                  </div>
+                  {responsesLoading && <div style={{textAlign:"center",padding:32,color:"#999"}}>Загрузка...</div>}
+                  {!responsesLoading && myResponses.length === 0 && (
+                    <div style={{textAlign:"center",padding:40,background:"#fff",borderRadius:12,color:"#999"}}>
+                      <div style={{fontSize:48,marginBottom:8}}>📋</div>
+                      <div style={{fontWeight:700,fontSize:16,marginBottom:4}}>Нет активных откликов</div>
+                      <div style={{fontSize:13}}>Откликнитесь на грузы — они появятся здесь</div>
+                    </div>
+                  )}
+                  {myResponses.map(r => {
+                    const statusMap: Record<string,{label:string,color:string,bg:string}> = {
+                      pending:  {label:"⏳ Ожидание", color:"#e67e22", bg:"#fff3e0"},
+                      accepted: {label:"✅ Принят",   color:"#27ae60", bg:"#e8f5e9"},
+                      rejected: {label:"❌ Отклонён", color:"#e74c3c", bg:"#fdecea"},
+                    };
+                    const st = statusMap[r.status] || {label:r.status, color:"#555", bg:"#f0f2f5"};
+                    const dt = r.created_at ? new Date(r.created_at).toLocaleDateString("ru") + ", " +
+                      new Date(r.created_at).toLocaleTimeString("ru",{hour:"2-digit",minute:"2-digit"}) : "";
+                    return (
+                      <div key={r.id} style={{background:"#fff",borderRadius:12,padding:16,marginBottom:12,boxShadow:"0 2px 8px rgba(0,0,0,.06)",borderLeft:`4px solid ${st.color}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                          <div>
+                            <div style={{fontSize:16,fontWeight:900}}>🚛 {r.from} → {r.to}</div>
+                            <div style={{fontSize:12,color:"#999",marginTop:2}}>
+                              {r.price ? `₾${r.price}` : ""}{r.price && r.company_name ? " · " : ""}{r.company_name || ""}{dt ? " · " + dt : ""}
+                            </div>
+                          </div>
+                          <span style={{background:st.bg,color:st.color,padding:"4px 10px",borderRadius:20,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
+                        </div>
+                        {r.message && (
+                          <div style={{marginTop:8,fontSize:13,color:"#555",background:"#f8f9fa",padding:"8px 12px",borderRadius:8}}>
+                            💬 {r.message}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {(activeTab as string) === "deals" && (
         <div style={{maxWidth:800,margin:"0 auto",padding:16}}>
           {!token ? (

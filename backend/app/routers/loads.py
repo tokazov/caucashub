@@ -149,6 +149,18 @@ async def get_loads(
 
     return {"loads": [load_to_dict(l, user=users_map.get(l.user_id)) for l in loads], "total": len(loads)}
 
+@router.get("/my")
+async def get_my_loads(db: AsyncSession = Depends(get_db),
+                       authorization: Optional[str] = Header(None)):
+    """Грузы текущего пользователя (все статусы)"""
+    user_id = require_user(authorization)
+    q = select(Load).where(Load.user_id == user_id).order_by(Load.created_at.desc())
+    result = await db.execute(q)
+    loads = result.scalars().all()
+    uq = await db.execute(select(User).where(User.id == user_id))
+    user = uq.scalar_one_or_none()
+    return {"loads": [load_to_dict(l, user=user) for l in loads], "total": len(loads)}
+
 @router.post("/")
 async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
                       authorization: Optional[str] = Header(None)):
