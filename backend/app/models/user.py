@@ -35,3 +35,6 @@ class User(Base):
     org_type      = Column(String, nullable=True)   # ООО / ИП / АО
     city          = Column(String, nullable=True)   # Город работы
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    # Сброс пароля
+    reset_code    = Column(String, nullable=True)
+    reset_code_expires = Column(DateTime(timezone=True), nullable=True)

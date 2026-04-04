@@ -11,9 +11,6 @@ from jose import jwt
 from datetime import datetime, timedelta
 import random, string
 
-# Временное хранилище кодов сброса {email: (code, expires_at)}
-_reset_codes: dict = {}
-
 router = APIRouter()
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
@@ -119,41 +116,43 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
     if not user:
-        # Не раскрываем что email не существует
-        return {"ok": True, "dev_code": None}
+        return {"ok": True, "message": "Если email зарегистрирован — код отправлен"}
 
     code = "".join(random.choices(string.digits, k=6))
     expires = datetime.utcnow() + timedelta(minutes=15)
-    _reset_codes[data.email] = (code, expires)
 
-    # Отправляем email (всегда возвращаем dev_code пока email не настроен)
+    # Сохраняем в БД (не в памяти!)
+    user.reset_code = code
+    user.reset_code_expires = expires
+    await db.commit()
+
+    # Отправляем email
     try:
         from app.email_utils import send_reset_code
         await send_reset_code(data.email, code)
     except Exception:
         pass
-    return {"ok": True, "dev_code": code, "message": "Если email зарегистрирован — код отправлен"}
+
+    return {"ok": True, "message": "Если email зарегистрирован — код отправлен"}
 
 @router.post("/reset-password")
 async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
-    entry = _reset_codes.get(data.email)
-    if not entry:
-        raise HTTPException(status_code=400, detail="Код не найден или истёк")
-    code, expires = entry
-    if datetime.utcnow() > expires:
-        _reset_codes.pop(data.email, None)
-        raise HTTPException(status_code=400, detail="Код истёк")
-    if code != data.code:
-        raise HTTPException(status_code=400, detail="Неверный код")
-
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if not user or not user.reset_code:
+        raise HTTPException(status_code=400, detail="Код не найден или истёк")
+    if datetime.utcnow() > user.reset_code_expires:
+        user.reset_code = None
+        user.reset_code_expires = None
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Код истёк")
+    if data.code != user.reset_code:
+        raise HTTPException(status_code=400, detail="Неверный код")
 
     user.hashed_password = hash_password(data.new_password)
+    user.reset_code = None
+    user.reset_code_expires = None
     await db.commit()
-    _reset_codes.pop(data.email, None)
     return {"ok": True, "message": "Пароль успешно изменён"}
 
 @router.post("/admin/reset-password")
