@@ -1,8 +1,35 @@
-"""Отправка email через Resend.com (приоритет) или Gmail SMTP (fallback)."""
+"""Отправка email через Brevo (приоритет) или Resend/SMTP (fallback)."""
 import logging
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ── Brevo HTTP API ────────────────────────────────────────────────
+async def _send_via_brevo(to_email: str, code: str) -> bool:
+    try:
+        import httpx
+        headers = {
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "sender": {"name": "CaucasHub", "email": "noreply@caucashub.ge"},
+            "to": [{"email": to_email}],
+            "subject": "CaucasHub — код для сброса пароля",
+            "htmlContent": _reset_html(code),
+            "textContent": f"Ваш код для сброса пароля: {code}\n\nКод действует 15 минут.\n\ncaucashub.ge",
+        }
+        async with httpx.AsyncClient() as client:
+            r = await client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=10)
+        if r.status_code == 201:
+            logger.info(f"[Brevo] Sent to {to_email}")
+            return True
+        logger.error(f"[Brevo] Error {r.status_code}: {r.text}")
+        return False
+    except Exception as e:
+        logger.error(f"[Brevo] Exception: {e}")
+        return False
 
 # ── HTML шаблон письма ────────────────────────────────────────────
 def _reset_html(code: str) -> str:
@@ -97,10 +124,12 @@ async def _send_via_smtp(to_email: str, code: str) -> bool:
 
 # ── Публичная функция ─────────────────────────────────────────────
 async def send_reset_code(to_email: str, code: str) -> bool:
-    """Отправляет код сброса. Resend если настроен, иначе SMTP."""
+    """Отправляет код сброса. Brevo → Resend → SMTP."""
+    if settings.BREVO_API_KEY:
+        return await _send_via_brevo(to_email, code)
     if settings.RESEND_API_KEY:
         return await _send_via_resend(to_email, code)
     if settings.SMTP_USER and settings.SMTP_PASS:
         return await _send_via_smtp(to_email, code)
-    logger.warning("Email не настроен (нет RESEND_API_KEY и SMTP_USER)")
+    logger.warning("Email не настроен")
     return False
