@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
 
     # Email — Resend.com (приоритет) или Gmail SMTP (fallback)
-    RESEND_API_KEY: str = ""  # re_xxxxxxxxxxxx (из resend.com)
+    RESEND_API_KEY: str = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
     EMAIL_FROM: str = "CaucasHub <noreply@caucashub.ge>"
 
     # Gmail SMTP fallback
