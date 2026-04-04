@@ -9,6 +9,10 @@ from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta
+import random, string
+
+# Временное хранилище кодов сброса {email: (code, expires_at)}
+_reset_codes: dict = {}
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
@@ -101,6 +105,57 @@ async def debug_register(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
 
+
+class ForgotRequest(BaseModel):
+    email: str
+
+class ResetRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        # Не раскрываем что email не существует
+        return {"ok": True, "dev_code": None}
+
+    code = "".join(random.choices(string.digits, k=6))
+    expires = datetime.utcnow() + timedelta(minutes=15)
+    _reset_codes[data.email] = (code, expires)
+
+    # Отправляем email
+    try:
+        from app.email_utils import send_reset_code
+        await send_reset_code(data.email, code)
+        return {"ok": True}
+    except Exception:
+        # Fallback: возвращаем код напрямую (для дебага)
+        return {"ok": True, "dev_code": code}
+
+@router.post("/reset-password")
+async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
+    entry = _reset_codes.get(data.email)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Код не найден или истёк")
+    code, expires = entry
+    if datetime.utcnow() > expires:
+        _reset_codes.pop(data.email, None)
+        raise HTTPException(status_code=400, detail="Код истёк")
+    if code != data.code:
+        raise HTTPException(status_code=400, detail="Неверный код")
+
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    user.hashed_password = hash_password(data.new_password)
+    await db.commit()
+    _reset_codes.pop(data.email, None)
+    return {"ok": True, "message": "Пароль успешно изменён"}
 
 @router.post("/admin/reset-password")
 async def admin_reset_password(
