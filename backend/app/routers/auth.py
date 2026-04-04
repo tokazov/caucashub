@@ -126,14 +126,13 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
     expires = datetime.utcnow() + timedelta(minutes=15)
     _reset_codes[data.email] = (code, expires)
 
-    # Отправляем email
+    # Отправляем email (всегда возвращаем dev_code пока email не настроен)
     try:
         from app.email_utils import send_reset_code
         await send_reset_code(data.email, code)
-        return {"ok": True}
     except Exception:
-        # Fallback: возвращаем код напрямую (для дебага)
-        return {"ok": True, "dev_code": code}
+        pass
+    return {"ok": True, "dev_code": code, "message": "Если email зарегистрирован — код отправлен"}
 
 @router.post("/reset-password")
 async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
