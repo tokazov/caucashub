@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=ru_RU" type="text/javascript" async></script>
+<title>CaucasHub.ge — Биржа грузов Кавказа</title>
+
+
+<link rel="stylesheet" href="styles.css?v=1775418307">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="logo" onclick="showSection('loads',document.querySelector('.nav-tab'));" style="cursor:pointer">Caucas<span>Hub</span><span style="font-size:11px;color:#888;font-weight:600;vertical-align:-1px">.ge</span></span>
+  </div>
+  <div class="hright">
+    <span class="online-dot" id="onlineDot" title="Вы онлайн"></span>
+    <div style="display:flex;gap:2px">
+      <button class="lang-btn active" onclick="setLang('ru',this)">RU</button>
+      <!-- GE/EN — переводы в разработке -->
+      <!-- <button class="lang-btn" onclick="setLang('ge',this)">GE</button> -->
+      <!-- <button class="lang-btn" onclick="setLang('en',this)">EN</button> -->
+    </div>
+    <button class="notif-btn" id="notifBtn" onclick="toggleNotifs()">
+      <span class="notif-icon">🔔</span>
+      <span class="notif-badge" id="notifBadge"></span>
+    </button>
+    <div id="authBtns" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px">Войти</button>
+      <button class="btn-reg" id="btnReg" onclick="openAuth('register')" style="font-size:11px;padding:4px 8px;border-radius:5px;background:#f7b731;color:#1a1a2e;border:none;font-weight:700;cursor:pointer">Регистрация</button>
+    </div>
+    <div class="user-avatar" id="userAvatar" style="display:none" onclick="openProfile()">ТК</div>
+  </div>
+</div>
+
+<!-- STICKY NAV -->
+<div style="position:sticky;top:54px;z-index:190;background:#1a1a2e">
+  <div class="scope-bar">
+    <div class="scope-tab active" onclick="setScope('local',this)" id="sLocal">🇬🇪 Локальные</div>
+    <div class="scope-tab" onclick="setScope('intl',this)" id="sIntl">🌍 Международные</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showSection('loads',this)">📦 Грузы</button>
+    <button class="nav-tab" onclick="showSection('trucks',this)">🚛 Транспорт</button>
+    <button class="nav-tab" onclick="showSection('rates',this)">📊 Ставки</button>
+    <button class="nav-tab" onclick="showSection('orders',this)">📋 Кабинет</button>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="city-input-wrap">
+    <input class="city-input" id="fFrom" placeholder="📍 Откуда" autocomplete="off" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+    <div class="city-dropdown" id="dropFrom"></div>
+  </div>
+  <div class="city-input-wrap">
+    <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="off" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+    <div class="city-dropdown" id="dropTo"></div>
+  </div>
+
+  <div style="position:relative">
+    <select class="fsel" id="fDate" onchange="filterByDate(this.value)">
+      <option value="">📅 Дата</option>
+      <option value="today">Сегодня</option>
+      <option value="tomorrow">Завтра</option>
+      <option value="week">На неделе</option>
+      <option value="pick">📆 Период...</option>
+    </select>
+    <!-- Попап выбора периода -->
+    <div id="datePeriodPop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:14px;z-index:500;min-width:230px;border:1px solid #e0e0e0">
+      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Выберите период</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:3px">С</div>
+          <input type="date" id="fDateFrom" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:3px">По</div>
+          <input type="date" id="fDateTo" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="applyDatePeriod()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:9px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">Найти</button>
+        <button onclick="clearDatePeriod()" style="background:#f0f0f0;color:#666;border:none;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer">✕</button>
+      </div>
+    </div>
+  </div>
+  <select class="fsel" id="fType"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
+  <select class="fsel" id="fWeight" onchange="filterLoads()">
+    <option value="">⚖️ Тоннаж</option>
+    <option value="0-1000">До 1 т</option>
+    <option value="1000-5000">1–5 т</option>
+    <option value="5000-10000">5–10 т</option>
+    <option value="10000-20000">10–20 т</option>
+    <option value="20000-99999">20+ т (фура)</option>
+  </select>
+  <select class="fsel" id="fPrice" onchange="filterLoads()">
+    <option value="">💰 Стоимость</option>
+    <option value="0-300">До ₾300 / $100</option>
+    <option value="300-700">₾300–700 / $100–250</option>
+    <option value="700-1500">₾700–1500 / $250–500</option>
+    <option value="1500-99999">₾1500+ / $500+</option>
+  </select>
+  <div class="fcount" id="fcount">— грузов</div>
+  <div style="width:100%;display:flex;gap:8px;margin-top:2px">
+    <button class="fbtn" onclick="filterLoads()">Найти</button>
+    <button class="post-btn" onclick="openPostLoad()">+ Разместить груз</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar" id="statsBar">
+  <span><span class="dot"></span><strong id="statLoads">—</strong> грузов</span>
+  <span><strong id="statTrucks">634</strong> машин онлайн</span>
+  <span><strong>2,841</strong> компаний</span>
+</div>
+
+<!-- MAP -->
+<div class="map-wrap" id="mapWrap">
+  <div class="map-info">
+    <div class="map-route-label" id="mapRouteLabel">Выберите маршрут</div>
+    <div class="map-dist" id="mapDist"></div>
+    <button class="map-close" onclick="closeMap()">✕</button>
+  </div>
+  <div id="routeMap"></div>
+</div>
+
+<!-- ═══ SECTION: LOADS ═══ -->
+<div class="section active" id="sec-loads">
+  <div class="thead">
+    <div>ОТКУДА → КУДА</div><div>ВЕС</div><div>КУЗОВ</div><div>ЦЕНА</div><div>ДАТА ЗАГРУЗКИ</div><div></div>
+  </div>
+  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div></div>
+</div>
+
+<!-- ═══ SECTION: TRUCKS ═══ -->
+<div class="section" id="sec-trucks">
+  <!-- Панель действий -->
+  <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;color:#888" id="truckCount">Свободные машины</span>
+    <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">+ Добавить машину</button>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
+    <div>МАШИНА / МАРШРУТ</div><div>КОМПАНИЯ</div><div>ТОННАЖ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
+  </div>
+  <div id="truckList"></div>
+</div>
+
+<!-- ═══ MODAL: POST TRUCK ═══ -->
+<div class="overlay" id="postTruckOverlay" onclick="closeOverlay('postTruckOverlay',event)">
+  <div class="modal">
+    <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
+    <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center">🚛 Добавить машину</div>
+    <div id="postTruckSuccess" class="success-msg">✅ Машина добавлена в список!</div>
+    <div class="form-group">
+      <label>Маршрут — Откуда</label>
+      <input class="form-input" id="tFrom" placeholder="Тбилиси">
+    </div>
+    <div class="form-group">
+      <label>Маршрут — Куда</label>
+      <input class="form-input" id="tTo" placeholder="Любое направление">
+    </div>
+    <div class="form-group">
+      <label>Тип кузова <span style="color:#999;font-size:12px">(выбери все свои)</span></label>
+      <div id="tTypeCheckboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Тент" style="width:16px;height:16px"> Тент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Рефрижератор" style="width:16px;height:16px"> Рефрижератор</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Рефтент" style="width:16px;height:16px"> Рефтент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Мегатент" style="width:16px;height:16px"> Мегатент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Бортовой" style="width:16px;height:16px"> Бортовой</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Термос" style="width:16px;height:16px"> Термос</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Фургон (до 3.5т)" style="width:16px;height:16px"> Фургон (до 3.5т)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Контейнер" style="width:16px;height:16px"> Контейнер</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Автовоз" style="width:16px;height:16px"> Автовоз</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Эвакуатор" style="width:16px;height:16px"> Эвакуатор</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Цистерна" style="width:16px;height:16px"> Цистерна</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Зерновоз" style="width:16px;height:16px"> Зерновоз</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Самосвал" style="width:16px;height:16px"> Самосвал</label>
+      </div>
+      <div id="tTypeError" style="display:none;color:#e74c3c;font-size:12px;margin-top:4px">Выберите хотя бы один тип</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label>Грузоподъёмность (кг)</label>
+        <input class="form-input" id="tKg" type="number" placeholder="20000">
+      </div>
+      <div class="form-group">
+        <label>Объём (м³)</label>
+        <input class="form-input" id="tVol" type="number" placeholder="82">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Номер машины</label>
+      <input class="form-input" id="tPlate" placeholder="GE-123-AB">
+    </div>
+    <div class="form-group">
+      <label>Когда готова</label>
+      <select class="form-input" id="tDate">
+        <option value="Сегодня">Сегодня</option>
+        <option value="Завтра">Завтра</option>
+        <option value="На неделе">На неделе</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Телефон для связи</label>
+      <input class="form-input" id="tPhone" placeholder="+995 555 ..." type="tel">
+    </div>
+    <button class="btn-primary" onclick="doPostTruck()">📤 Разместить машину</button>
+  </div>
+</div>
+
+<!-- ═══ SECTION: RATES ═══ -->
+<div class="section" id="sec-rates">
+  <div style="padding:16px;background:#fff;border-bottom:1px solid #eee">
+    <div style="font-size:13px;color:#888;margin-bottom:4px">Средние ставки на маршрутах · обновлено сегодня</div>
+  </div>
+  <table class="rates-table">
+    <thead><tr><th>МАРШРУТ</th><th>ТЕНТ $/км</th><th>РЕФРИЖ $/км</th><th>ТРЕНД</th><th>ОБЪЁМ/НЕД</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td>47 рейсов</td></tr>
+      <tr><td><strong>Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td>38 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td>29 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td>22 рейса</td></tr>
+      <tr><td><strong>Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td>18 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td>14 рейсов</td></tr>
+      <tr><td><strong>Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td>31 рейс</td></tr>
+      <tr><td><strong>Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td>11 рейсов</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ SECTION: ORDERS ═══ -->
+<div class="section" id="sec-orders">
+
+  <!-- Шапка кабинета — для незалогиненных -->
+  <div id="ordersEmpty" style="text-align:center;padding:60px 20px">
+    <div style="font-size:48px;margin-bottom:12px">📋</div>
+    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Личный кабинет</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:20px">Войдите чтобы видеть свои грузы, отклики и сделки</div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+  </div>
+
+   <!-- Кабинет для залогиненных -->
+ <div id="cabinetPanel" style="display:none" class="cab-wrap">
+
+ <!-- Шапка кабинета -->
+ <div class="cab-header-new">
+ <div style="display:flex;align-items:center;gap:12px">
+ <div class="cab-avatar" id="cabAvatar">?</div>
+ <div>
+ <div class="cab-user-name" id="cabUserName">Загрузка...</div>
+ <div class="cab-user-sub" id="cabUserSub"></div>
+ </div>
+ </div>
+ <div class="cab-stats">
+ <div class="cab-stat-pill"><b id="cabStatLoads">0</b> грузов</div>
+ <div class="cab-stat-pill"><b id="cabStatDeals">0</b> сделок</div>
+ <div class="cab-stat-pill"><b id="cabStatRevenue">₾0</b> оборот</div>
+ </div>
+ </div>
+
+ <!-- Вкладки -->
+ <div class="cab-tabs-new" id="cabinetTabs">
+ <button class="cab-tab-btn cab-tab active" onclick="switchCabTab('loads',this)">📦 Грузы</button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('responses',this)">🚛 Отклики <span class="cab-tab-badge" id="cabRespBadge" style="display:none">0</span></button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)">🤝 Сделки</button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)">📊 Отчёт</button>
+ </div>
+
+ <!-- Тело кабинета -->
+ <div class="cab-body">
+
+ <!-- Вкладка: МОИ ГРУЗЫ -->
+ <div id="cabTab-loads" class="cab-tab-content">
+ <div id="myLoadsList">
+ <div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">Загружаем грузы...</div></div>
+ </div>
+ </div>
+
+ <!-- Вкладка: ОТКЛИКИ -->
+ <div id="cabTab-responses" class="cab-tab-content" style="display:none">
+ <div id="myResponsesList">
+ <div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет активных откликов</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>
+ </div>
+ </div>
+
+ <!-- Вкладка: СДЕЛКИ -->
+ <div id="cabTab-deals" class="cab-tab-content" style="display:none">
+ <div id="myDealsList">
+ <div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>
+ </div>
+ </div>
+
+ <!-- Вкладка: ОТЧЁТ -->
+ <div id="cabTab-report" class="cab-tab-content" style="display:none">
+ <div class="cab-report-inner">
+ <div class="cab-report-box">
+ <div class="cab-report-title">Экспорт для rs.ge</div>
+ <div class="cab-report-sub">Данные о сделках для налоговой Грузии</div>
+ <div class="cab-date-row">
+ <div class="cab-date-field">
+ <div class="cab-date-label">Дата с</div>
+ <input type="date" id="exportFrom" class="cab-date-input" onchange="exportDateFrom=this.value"/>
+ </div>
+ <div class="cab-date-field">
+ <div class="cab-date-label">Дата по</div>
+ <input type="date" id="exportTo" class="cab-date-input" onchange="exportDateTo=this.value"/>
+ </div>
+ </div>
+ <div class="cab-export-row">
+ <button onclick="exportDealsData('json')" class="cab-export-btn json">📥 JSON</button>
+ <button onclick="exportDealsData('csv')" class="cab-export-btn csv">📊 CSV (Excel)</button>
+ </div>
+ <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center">Формат совместим с rs.ge · Грузия</div>
+ </div>
+ </div>
+ </div>
+
+ </div><!-- /cab-body -->
+
+ </div><!-- /cabinetPanel -->
+
+  <!-- Старые контейнеры (нужны для совместимости со старым кодом) -->
+  <div id="ordersList" style="display:none"></div>
+  <div id="exportPanel" style="display:none"></div>
+
+</div>
+
+<!-- ═══ MODAL: AUTH ═══ -->
+<div class="overlay" id="authOverlay" onclick="closeOverlay('authOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
+    <div style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
+      <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')">Войти</button>
+      <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')">Регистрация</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="formLogin">
+      <div class="success-msg" id="loginSuccess">✅ Вход выполнен успешно!</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="form-input" type="email" id="loginEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <div class="pass-wrap"><input class="form-input" type="password" id="loginPass" placeholder="••••••••" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('loginPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
+      </div>
+      <div style="text-align:right;margin-bottom:10px">
+        <a href="#" onclick="showForgotForm()" style="font-size:12px;color:#888;text-decoration:underline">Забыли пароль?</a>
+      </div>
+      <div id="loginErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
+      <button class="btn-primary" onclick="doLogin()">Войти в аккаунт</button>
+      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700">Зарегистрироваться</a></div>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div id="formForgot" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">🔑 Сброс пароля</div>
+        <div style="font-size:13px;color:#888">Введите ваш email — пришлём код</div>
+      </div>
+      <div id="forgotStep1">
+        <div class="form-group">
+          <label>Email</label>
+          <input class="form-input" type="email" id="forgotEmail" placeholder="your@email.com">
+        </div>
+        <div id="forgotError" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
+        <button class="btn-primary" onclick="doForgotStep1()">Получить код</button>
+      </div>
+      <div id="forgotStep2" style="display:none">
+        <div style="background:#fff7e6;border:1px solid #fde8a0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;text-align:center">
+          📧 Код отправлен на <strong id="forgotEmailShow"></strong>
+        </div>
+        <div class="form-group">
+          <label>Код подтверждения (6 цифр)</label>
+          <input class="form-input" type="text" id="forgotCode" placeholder="000000" maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Новый пароль</label>
+          <div class="pass-wrap"><input class="form-input" type="password" id="forgotNewPass" placeholder="Минимум 6 символов" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('forgotNewPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
+        </div>
+        <div class="form-group">
+          <label>Повторите пароль</label>
+          <input class="form-input" type="password" id="forgotNewPass2" placeholder="Повторите пароль">
+        </div>
+        <div id="forgotError2" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
+        <button class="btn-primary" onclick="doForgotStep2()">Сменить пароль</button>
+        <div style="text-align:center;margin-top:10px"><a href="#" onclick="doForgotStep1()" style="font-size:12px;color:#888">Отправить код повторно</a></div>
+      </div>
+      <div id="forgotSuccess" style="display:none;text-align:center;padding:20px">
+        <div style="font-size:40px;margin-bottom:10px">✅</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Пароль изменён!</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">Войдите с новым паролем</div>
+        <button class="btn-primary" onclick="switchAuth('login')">Войти</button>
+      </div>
+      <div style="text-align:center;margin-top:14px">
+        <a href="#" onclick="switchAuth('login')" style="font-size:13px;color:#888">← Назад ко входу</a>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="formRegister" style="display:none">
+      <div class="success-msg" id="regSuccess">✅ Аккаунт создан! Добро пожаловать!</div>
+
+      <!-- ШАГ 1: Тип аккаунта -->
+      <div id="regStep1">
+        <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px">Кто вы?</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button onclick="selectRegType('carrier')" class="reg-type-btn" id="rtCarrier">
+            <span style="font-size:22px">🚛</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Перевозчик</div>
+              <div style="font-size:12px;color:#888">Компания или ИП — ищу грузы</div>
+            </div>
+          </button>
+          <button onclick="selectRegType('shipper_company')" class="reg-type-btn" id="rtShipperCo">
+            <span style="font-size:22px">🏢</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Грузовладелец — компания / ИП</div>
+              <div style="font-size:12px;color:#888">Регулярные отправки, договор</div>
+            </div>
+          </button>
+          <button onclick="selectRegType('shipper_person')" class="reg-type-btn" id="rtShipperPerson">
+            <span style="font-size:22px">👤</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Грузовладелец — частное лицо</div>
+              <div style="font-size:12px;color:#888">Разовая отправка, без ИП</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- ШАГ 2: Форма (меняется по типу) -->
+      <div id="regStep2" style="display:none">
+        <button onclick="backToStep1()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;margin-bottom:14px;padding:0">← Назад</button>
+
+        <!-- Общие поля -->
+        <div class="form-group">
+          <label id="regNameLabel">Имя</label>
+          <input class="form-input" type="text" id="regName" placeholder="">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Телефон</label>
+            <input class="form-input" type="tel" id="regPhone" placeholder="+995 555 ___">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="form-input" type="email" id="regEmail" placeholder="your@email.com">
+          </div>
+        </div>
+
+        <!-- Поля для компании / ИП (перевозчик + грузовладелец-юрлицо) -->
+        <div id="regCompanyFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>ИНН / ID код</label>
+              <input class="form-input" type="text" id="regInn" placeholder="123456789">
+            </div>
+            <div class="form-group">
+              <label>Форма</label>
+              <select class="form-select" id="regOrgType">
+                <option>ООО</option><option>ИП</option><option>АО</option><option>Частный перевозчик</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Город / регион работы</label>
+            <input class="form-input" type="text" id="regCity" placeholder="Тбилиси">
+          </div>
+        </div>
+
+        <!-- Поля только для перевозчика -->
+        <div id="regCarrierFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Тип транспорта</label>
+              <select class="form-select" id="regTruckType">
+                <option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Грузоподъёмность (т)</label>
+              <input class="form-input" type="number" id="regTonnage" placeholder="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Пароль</label>
+          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов">
+        </div>
+
+        <input type="hidden" id="regRole">
+        <div id="regErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
+        <button class="btn-primary" onclick="doRegister()">Создать аккаунт</button>
+      </div>
+
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="closeModal('authOverlay');setTimeout(function(){document.getElementById('paywallOverlay').classList.add('on');},150)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline">📊 Посмотреть тарифы →</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:13px;color:#888">Уже есть аккаунт? <a href="#" onclick="switchAuth('login')" style="color:#f7b731;font-weight:700">Войти</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: POST LOAD ═══ -->
+<div class="overlay" id="postOverlay" onclick="closeOverlay('postOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('postOverlay')">✕</button>
+    <div class="modal-title">Разместить груз</div>
+    <div class="modal-sub">Заполните данные — перевозчики увидят ваш груз сразу</div>
+    <div class="success-msg" id="postSuccess">✅ Груз размещён! Перевозчики уже видят ваше объявление.</div>
+    <div class="form-group" id="countryFromWrap" style="display:none">
+      <label>🌍 Страна отправки</label>
+      <select class="form-select" id="pFromCountry" onchange="updateFormForIntl()">
+        <option value="GE">🇬🇪 Грузия</option>
+        <option value="TR">🇹🇷 Турция</option>
+        <option value="AM">🇦🇲 Армения</option>
+        <option value="AZ">🇦🇿 Азербайджан</option>
+        <option value="RU">🇷🇺 Россия</option>
+        <option value="UA">🇺🇦 Украина</option>
+        <option value="CN">🇨🇳 Китай</option>
+        <option value="DE">🇩🇪 Германия</option>
+        <option value="PL">🇵🇱 Польша</option>
+        <option value="IT">🇮🇹 Италия</option>
+        <option value="BG">🇧🇬 Болгария</option>
+        <option value="KZ">🇰🇿 Казахстан</option>
+        <option value="UZ">🇺🇿 Узбекистан</option>
+        <option value="TM">🇹🇲 Туркменистан</option>
+        <option value="KG">🇰🇬 Кыргызстан</option>
+        <option value="TJ">🇹🇯 Таджикистан</option>
+        <option value="MD">🇲🇩 Молдова</option>
+        <option value="BY">🇧🇾 Беларусь</option>
+        <option value="IL">🇮🇱 Израиль</option>
+        <option value="IR">🇮🇷 Иран</option>
+        <option value="IQ">🇮🇶 Ирак</option>
+        <option value="SA">🇸🇦 Саудовская Аравия</option>
+        <option value="AE">🇦🇪 ОАЭ</option>
+        <option value="GR">🇬🇷 Греция</option>
+        <option value="RO">🇷🇴 Румыния</option>
+      </select>
+    </div>
+    <div class="form-group" id="countryToWrap" style="display:none">
+      <label>🌍 Страна доставки</label>
+      <select class="form-select" id="pToCountry">
+        <option value="GE">🇬🇪 Грузия</option>
+        <option value="TR">🇹🇷 Турция</option>
+        <option value="AM">🇦🇲 Армения</option>
+        <option value="AZ">🇦🇿 Азербайджан</option>
+        <option value="RU">🇷🇺 Россия</option>
+        <option value="UA">🇺🇦 Украина</option>
+        <option value="CN">🇨🇳 Китай</option>
+        <option value="DE">🇩🇪 Германия</option>
+        <option value="PL">🇵🇱 Польша</option>
+        <option value="IT">🇮🇹 Италия</option>
+        <option value="BG">🇧🇬 Болгария</option>
+        <option value="KZ">🇰🇿 Казахстан</option>
+        <option value="UZ">🇺🇿 Узбекистан</option>
+        <option value="TM">🇹🇲 Туркменистан</option>
+        <option value="KG">🇰🇬 Кыргызстан</option>
+        <option value="TJ">🇹🇯 Таджикистан</option>
+        <option value="MD">🇲🇩 Молдова</option>
+        <option value="BY">🇧🇾 Беларусь</option>
+        <option value="IL">🇮🇱 Израиль</option>
+        <option value="IR">🇮🇷 Иран</option>
+        <option value="AE">🇦🇪 ОАЭ</option>
+        <option value="GR">🇬🇷 Греция</option>
+        <option value="RO">🇷🇴 Румыния</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>📍 Точный адрес отправки</label>
+      <div class="addr-wrap">
+        <span class="addr-icon">📍</span>
+        <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+          oninput="addrSearch('pFrom',this.value)"
+          onblur="setTimeout(()=>closeAddrDrop('pFrom'),200)">
+        <div class="addr-drop" id="dropPFrom"></div>
+        <div class="addr-coords" id="coordsPFrom"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>🏁 Точный адрес доставки</label>
+      <div class="addr-wrap">
+        <span class="addr-icon">🏁</span>
+        <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+          oninput="addrSearch('pTo',this.value)"
+          onblur="setTimeout(()=>closeAddrDrop('pTo'),200)">
+        <div class="addr-drop" id="dropPTo"></div>
+        <div class="addr-coords" id="coordsPTo"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Вес (кг)</label>
+        <input class="form-input" type="number" id="pWeight" placeholder="5000">
+      </div>
+      <div class="form-group">
+        <label>Тип кузова</label>
+        <select class="form-select" id="pTruck">
+          <option>Тент</option><option>Рефрижератор</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Рефтент</option><option>Мегатент</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Дата загрузки</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input class="form-input" type="date" id="pDate" style="flex:1;min-width:0" oninput="syncDateMin()">
+        <span style="font-size:12px;color:#aaa;white-space:nowrap">по</span>
+        <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0">
+      </div>
+      <div style="font-size:11px;color:#aaa;margin-top:3px">Если груз гибкий — укажите диапазон</div>
+    </div>
+    <div class="form-group">
+      <label id="priceCurLabel">Ставка (₾)</label>
+      <input class="form-input" type="number" id="pPrice" placeholder="350">
+    </div>
+    <div class="form-group">
+      <label>Описание груза</label>
+      <input class="form-input" type="text" id="pDesc" placeholder="Стройматериалы, паллеты, документы готовы...">
+    </div>
+    <div class="form-group">
+      <label>Тип оплаты</label>
+      <select class="form-select" id="pPay">
+        <option>Наличные сразу</option><option>Безнал 3 дня</option><option>Безнал 7 дней</option><option>50% предоплата</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="pUrgent"> <strong>Срочный груз</strong>
+      </label>
+    </div>
+    <button class="btn-primary" onclick="doPostLoad()">📦 Разместить груз</button>
+    <button class="btn-secondary" onclick="closeModal('postOverlay')">Отмена</button>
+  </div>
+</div>
+
+<!-- ═══ MODAL: PAYWALL ═══ -->
+<div class="overlay" id="paywallOverlay" onclick="closeOverlay('paywallOverlay',event)">
+  <div class="modal" style="max-width:480px">
+    <button class="close-btn" onclick="closeModal('paywallOverlay')">✕</button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:8px">📋</div>
+      <div id="paywallTitle" style="font-size:18px;font-weight:800;color:#1a1a2e">Тарифные планы</div>
+      <div id="paywallSub" style="font-size:13px;color:#888;margin-top:6px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <!-- Стандарт -->
+      <div style="border:2px solid #3498db;border-radius:12px;padding:16px;position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#3498db">Стандарт</div>
+            <div style="font-size:12px;color:#666;margin-top:4px">✅ Видите контакты грузовладельца<br>✅ 50 откликов в месяц<br>✅ Верификация компании</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾35</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('standard')" style="margin-top:12px;width:100%;background:#3498db;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+      <!-- Про -->
+      <div style="border:2px solid #f7b731;border-radius:12px;padding:16px;position:relative">
+        <div style="position:absolute;top:-10px;left:16px;background:#f7b731;color:#1a1a2e;font-size:10px;font-weight:800;padding:2px 10px;border-radius:10px">ЛУЧШИЙ ВЫБОР</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#e6a820">Про</div>
+            <div style="font-size:12px;color:#666;margin-top:4px">✅ Всё из Стандарта<br>✅ Безлимитные отклики<br>✅ Приоритет в выдаче<br>✅ Срочные грузы первым<br>✅ AI диспетчер без лимитов</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾80</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('pro')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+      <!-- Про+ -->
+      <div style="border:2px solid #6c3483;border-radius:12px;padding:16px;background:linear-gradient(135deg,#f9f0ff,#fff)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#6c3483">&#x1F451; Про+</div>
+            <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:6px">Грузы находят тебя сами</div>
+            <div style="font-size:12px;color:#555;line-height:1.8">&#x2705; Всё из Про<br>&#x2705; Мари мониторит биржу и присылает подходящие грузы<br>&#x2705; Уведомления о новых грузах по твоим маршрутам<br>&#x2705; Расширенная аналитика и ставки<br>&#x2705; Персональный менеджер</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap;margin-left:12px">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">&#x20BE;150</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('pro_plus')" style="margin-top:12px;width:100%;background:#6c3483;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#aaa">Сейчас все функции бесплатны 🎁<br>Подписки откроются позже</div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: CARGO DETAIL ═══ -->
+<div class="overlay" id="cargoOverlay" onclick="closeOverlay('cargoOverlay',event)" style="align-items:flex-end">
+  <div class="modal-bottom">
+    <div class="handle"></div>
+    <button class="close-btn" onclick="closeModal('cargoOverlay')">✕</button>
+    <div class="modal-title" id="mTitle"></div>
+    <div class="modal-sub" id="mSub"></div>
+    <div style="display:flex;align-items:center;gap:10px;background:#f8f9fa;border-radius:10px;padding:11px;margin-bottom:14px">
+      <div id="mAva" style="width:42px;height:42px;background:#1a1a2e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#f7b731;font-weight:900;font-size:14px;flex-shrink:0"></div>
+      <div>
+        <div id="mComp" style="font-weight:700;font-size:14px"></div>
+        <div id="mStats" style="font-size:12px;color:#888"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="mGrid"></div>
+    <div style="font-size:13px;color:#444;line-height:1.5;margin-bottom:14px;padding:10px;background:#f8f9fa;border-radius:8px" id="mDesc"></div>
+    <button onclick="openRouteMap()" style="width:100%;background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px">🗺️ Показать маршрут на карте</button>
+    <div id="routeMapBlock" style="display:none;border-radius:10px;overflow:hidden;margin-bottom:12px" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+      <div id="routeMapModal" style="height:220px;border-radius:10px;touch-action:none"></div>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Ставка</div>
+        <div id="mPrice" style="font-size:28px;font-weight:900"></div>
+      </div>
+      <div id="mKmBlock" style="text-align:right">
+        <div style="font-size:11px;color:#aaa">Расстояние</div>
+        <div id="mKm" style="font-size:15px;font-weight:700"></div>
+      </div>
+    </div>
+    <div class="success-msg" id="respondSuccess">✅ Заявка отправлена! Заказчик получит уведомление.</div>
+    <div id="respondActions" style="display:flex;gap:10px">
+      <button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button>
+      <button style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;width:54px" onclick="showPhone()">📞</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: PROFILE ═══ -->
+<div class="overlay" id="profileOverlay" onclick="closeOverlay('profileOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('profileOverlay')">✕</button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:64px;height:64px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a2e;font-weight:900;font-size:24px;margin:0 auto 10px" id="profileAva">ТК</div>
+      <div style="font-weight:700;font-size:18px" id="profileName">Тимур Токазов</div>
+      <div style="font-size:13px;color:#888" id="profileRole">Перевозчик · ⭐ 4.9 · 47 рейсов</div>
+      <div style="margin-top:8px" id="profilePlanBadge"></div>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="showSection('orders',document.querySelectorAll('.nav-tab')[3]);closeModal('profileOverlay')">📋 Мои заказы</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="openPostLoad();closeModal('profileOverlay')">📦 Разместить груз</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openSettings()">⚙️ Настройки аккаунта</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openAnalytics()">📊 Моя аналитика</button>
+    </div>
+    <button class="btn-secondary" onclick="doLogout()">🚪 Выйти</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+ <button class="bitem active" onclick="showSection('loads',null)"><div class="bicon">📦</div><div>Грузы</div></button>
+ <button class="bitem" onclick="showSection('trucks',null)"><div class="bicon">🚛</div><div>Машины</div></button>
+ <button class="bitem bitem-post" onclick="openPostLoad()"><div class="bicon">➕</div><div>Груз</div></button>
+ <button class="bitem" onclick="showSection('rates',null)"><div class="bicon">📊</div><div>Ставки</div></button>
+ <button class="bitem" onclick="showSection('orders',this)"><div class="bicon">📋</div><div>Кабинет</div></button>
+</div>
+
+
+<!-- ═══ SECTION: CABINET ═══ -->
+<div class="section" id="sec-cabinet">
+  <div class="orders-empty" id="cabinetEmpty" style="display:none">
+    <div class="icon">📋</div>
+    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div>
+    <div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+  </div>
+  <div id="cabinetList"></div>
+</div>
+<!-- SECTION: DEALS -->
+<div id="sDeals" class="section" style="display:none;padding:16px;max-width:600px;margin:0 auto"></div>
+
+<!-- MODAL: SETTINGS -->
+<div class="overlay" id="settingsOverlay" onclick="closeOverlay('settingsOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('settingsOverlay')">✕</button>
+    <div class="modal-title">⚙️ Настройки аккаунта</div>
+    <div class="modal-sub">Управление профилем и уведомлениями</div>
+    <div class="form-group">
+      <label>Имя / Название компании</label>
+      <input class="form-input" id="sName" placeholder="ООО ГрузТранс">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Телефон</label>
+        <input class="form-input" id="sPhone" placeholder="+995 555 ___">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="form-input" id="sEmail" type="email" placeholder="you@email.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Вы:</label>
+      <select class="form-select" id="sRole">
+        <option value="carrier">🚛 Перевозчик</option>
+        <option value="shipper">📦 Грузовладелец</option>
+        <option value="both">🔄 Перевозчик и грузовладелец</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Telegram (для уведомлений)</label>
+      <input class="form-input" id="sTelegram" placeholder="@username">
+    </div>
+
+    <!-- Поля для перевозчика -->
+    <div id="sCarrierFields">
+      <div class="divider"></div>
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">🚛 Данные перевозчика</div>
+      <input type="hidden" id="sInn">
+      <input type="hidden" id="sOrgType">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Тип кузова</label>
+          <select class="form-select" id="sTruckType">
+            <option value="">— выберите —</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Грузоподъёмность (т)</label>
+          <input class="form-input" type="number" id="sTonnage" placeholder="20">
+        </div>
+      </div>
+    </div>
+
+    <!-- Реквизиты — для всех -->
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">📋 Реквизиты компании</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ИНН / ID код Грузия</label>
+        <input class="form-input" id="sInnAll" placeholder="405XXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Форма организации</label>
+        <select class="form-select" id="sOrgTypeAll">
+          <option value="">— выберите —</option>
+          <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option>Частное лицо</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Город / регион работы</label>
+      <input class="form-input" id="sCityAll" placeholder="Тбилиси">
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">🔔 Уведомления</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Новые отклики на мои грузы</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Грузы по моим маршрутам</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> Изменение ставок на маршрутах</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Статус моих заявок</label>
+    </div>
+    <button class="btn-primary" onclick="saveSettings()">💾 Сохранить</button>
+    <button class="btn-secondary" onclick="closeModal('settingsOverlay')">Отмена</button>
+  </div>
+</div>
+
+<!-- MODAL: ANALYTICS -->
+<div class="overlay" id="analyticsOverlay" onclick="closeOverlay('analyticsOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('analyticsOverlay')">✕</button>
+    <div class="modal-title">📊 Моя аналитика</div>
+    <div class="modal-sub" id="analyticsUser">Статистика аккаунта</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#1a1a2e" id="aStat1">47</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Рейсов всего</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#2ecc71" id="aStat2">6</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">В этом месяце</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:#f7b731" id="aStat3">₾12,400</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Заработано (март)</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#3498db" id="aStat4">4.9 ⭐</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Рейтинг</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">🗺️ Популярные маршруты</div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes">
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Тбилиси → Батуми</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">18 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Поти → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">12 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Кутаиси → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">9 рейсов</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;color:#aaa;text-align:center">Полная аналитика будет доступна после первых реальных сделок на платформе</div>
+  </div>
+</div>
+
+<!-- AI DISPATCHER FAB -->
+<button class="ai-fab" onclick="toggleAI()" title="Твой AI Диспетчер" style="font-size:0;background:linear-gradient(135deg,#1a1a2e,#2980b9)">
+  <img src="dispatcher.jpg" width="56" height="56" style="border-radius:50%;object-fit:cover;object-position:center top">
+  <div class="ai-badge"></div>
+</button>
+<div class="ai-chat" id="aiChat">
+  <div class="ai-chat-header">
+    <div class="ai-avatar" style="background:transparent;overflow:hidden;width:40px;height:40px;border-radius:50%"><img src="dispatcher.jpg" width="40" height="40" style="object-fit:cover;object-position:center top;border-radius:50%"></div>
+    <div style="flex:1"><div class="ai-name">Мари — AI Диспетчер</div><div class="ai-status">● Онлайн 24/7</div></div>
+    <button onclick="aiReset()" style="background:none;border:none;color:#aaa;font-size:11px;cursor:pointer;padding:4px 8px;border-radius:6px;margin-right:4px;" title="Начать заново">↺</button>
+    <button class="ai-close" onclick="closeAI()">✕</button>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+  </div>
+  <div class="ai-template" id="aiTemplate" style="display:none">
+    <div class="ai-template-title">📋 Данные груза:</div>
+    <div class="ai-field"><span class="ai-field-label">Откуда</span><span class="ai-field-value" id="tFrom">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Куда</span><span class="ai-field-value" id="tTo">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Груз</span><span class="ai-field-value" id="tDesc">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Вес</span><span class="ai-field-value" id="tWeight">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Дата</span><span class="ai-field-value" id="tDate">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Кузов</span><span class="ai-field-value" id="tTruck">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Цена</span><span class="ai-field-value" id="tPrice">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Оплата</span><span class="ai-field-value" id="tPay">—</span></div>
+  </div>
+  <button class="ai-post-btn" id="aiPostBtn" onclick="aiPostLoad()">📦 Разместить груз на бирже</button>
+  <div class="ai-input-area">
+    <textarea class="ai-input" id="aiInput" placeholder="Напишите о грузе..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"></textarea>
+    <button class="ai-mic" onclick="aiStartVoice()" title="Голосовой ввод">🎤</button>
+    <button class="ai-send" onclick="aiSend()">➤</button>
+  </div>
+</div>
+
+<!-- NOTIF PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-header">
+    <span class="notif-title">🔔 Уведомления</span>
+    <button class="notif-mark" onclick="clearNotifs()">Прочитать все</button>
+  </div>
+  <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
+</div>
+
+<script src="api.js?v=1775401854"></script>
+<script src="main.js?v=1775419050"></script>
+<script src="ai-dispatcher.js?v=1775415853"></script>
+
+<div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
+  <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700;font-size:14px">🔔 Уведомления</div>
+    <button onclick="clearNotifs()" style="background:none;border:none;color:#aaa;font-size:12px;cursor:pointer">Очистить</button>
+  </div>
+  <div id="notifList" style="padding:8px 0">
+    <div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Уведомлений нет</div>
+  </div>
+</div>
+
+
+</body>
+</html>
