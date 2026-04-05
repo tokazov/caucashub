@@ -220,9 +220,16 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 
             # Если нашли грузы — переопределяем reply
             if matched_loads:
+                to_city = data.get("state", {}).get("to") or sf.get("to") or ""
+                # Проверяем есть ли точное совпадение по направлению
+                exact = [l for l in matched_loads if to_city and to_city.lower()[:4] in l["to"].lower()]
                 n = len(matched_loads)
                 routes = ", ".join(f"{l['from']} → {l['to']}" for l in matched_loads[:3])
-                reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Выбирайте 👆"
+                if exact:
+                    reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Выбирайте 👆"
+                else:
+                    # Точного маршрута нет, но есть другие грузы из этого города
+                    reply_text = f"Точного маршрута {from_city}→{to_city} нет, но есть {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city} в другие направления: {routes}. Смотрите 👆"
 
         return {
             "reply": reply_text,
