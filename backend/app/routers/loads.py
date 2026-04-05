@@ -217,7 +217,28 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     # Загружаем профиль текущего пользователя
     ur = await db.execute(select(User).where(User.id == user_id))
     owner = ur.scalar_one_or_none()
-    return {"loads": [load_to_dict(l, user=owner) for l in loads]}
+
+    # Подсчёт откликов для каждого груза
+    from app.models.response import Response as LoadResponse
+    from sqlalchemy import func
+    load_ids = [l.id for l in loads]
+    resp_counts = {}
+    if load_ids:
+        counts_result = await db.execute(
+            select(LoadResponse.load_id, func.count(LoadResponse.id).label("cnt"))
+            .where(LoadResponse.load_id.in_(load_ids))
+            .group_by(LoadResponse.load_id)
+        )
+        for row in counts_result.all():
+            resp_counts[row.load_id] = row.cnt
+
+    result_list = []
+    for l in loads:
+        d = load_to_dict(l, user=owner)
+        d["responses_count"] = resp_counts.get(l.id, 0)
+        result_list.append(d)
+
+    return {"loads": result_list}
 
 @router.get("/{load_id}")
 async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
