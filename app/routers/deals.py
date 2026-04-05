@@ -313,7 +313,7 @@ from datetime import timezone
 @router.get("/export")
 async def export_deals(
     format: str = "json",   # json | csv
-    status: str = "completed",
+    status: str = "all",
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_user),
 ):
