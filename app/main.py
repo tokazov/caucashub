@@ -8,9 +8,18 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Создаём таблицы при старте
+    # Создаём таблицы при старте (не удаляем существующие данные!)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # Проверка что данные на месте
+    try:
+        from sqlalchemy import text
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT COUNT(*) FROM loads"))
+            count = result.scalar()
+            print(f"[STARTUP] ✅ DB OK — loads: {count}", flush=True)
+    except Exception as e:
+        print(f"[STARTUP] ⚠️ DB check failed: {e}", flush=True)
     yield
 
 app = FastAPI(
