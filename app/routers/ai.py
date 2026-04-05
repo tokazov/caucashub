@@ -152,29 +152,31 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 - Не задавай больше одного вопроса за раз
 - Не повторяй то что уже знаешь из контекста
 - Короткие живые ответы, без воды
-- Если пользователь написал маршрут — сразу ищи, не переспрашивай
+- Если пользователь написал откуда едет — сразу ищи грузы из этого города, НЕ переспрашивай куда
+- Если перевозчик говорит "в любом направлении" или "куда угодно" — показывай все грузы из его города
+- Если в базе нет подходящих грузов — честно скажи и предложи подписаться на уведомления
 
 РОЛИ:
-- Перевозчик: ищет грузы. Нужно: from, to, тоннаж (опц), кузов (опц), дата (опц)
-- Грузовладелец: размещает груз. Нужно: from, to, вес, что везём, дата
+- carrier (перевозчик): ищет грузы. Если знаем from — уже можно искать (to необязательно)
+- shipper (грузовладелец): размещает груз. Нужно: from, to, вес, что везём, дата
 
 АКТИВНЫЕ ГРУЗЫ НА БИРЖЕ:
 {loads_ctx}
 
-ТЕКУЩЕЕ СОСТОЯНИЕ ДИАЛОГА:
+ТЕКУЩЕЕ СОСТОЯНИЕ ДИАЛОГА (сохраняй все поля!):
 {state_json}
 
-ИСТОРИЯ:
+ИСТОРИЯ ДИАЛОГА:
 {history_text}
 
-ФОРМАТ ОТВЕТА — строго JSON, без markdown, без ```json, без пояснений вне JSON:
-{{"reply":"...","state":{{"role":null,"from":null,"to":null,"weight_cap":null,"weight":null,"truck":null,"date":null,"date2":null,"cargo_desc":null,"price":null,"ready_to_search":false,"ready_to_post":false}},"search_filters":null}}
+ФОРМАТ ОТВЕТА — строго JSON, без markdown:
+{{"reply":"...","state":{{"role":null,"from":null,"to":null,"weight_cap":null,"truck":null,"date":null,"cargo_desc":null,"price":null,"ready_to_search":false,"ready_to_post":false}},"search_filters":null}}
 
-Правила заполнения state:
-- Сохраняй все ранее заполненные поля из предыдущего state
-- ready_to_search=true когда role=carrier и from и to заполнены
-- ready_to_post=true когда role=shipper и from и to и weight заполнены
-- search_filters заполняй когда ready_to_search=true: {{"from":"...","to":"...","max_kg":число_или_null}}
+Правила state:
+- ВСЕГДА копируй все заполненные поля из предыдущего state, не обнуляй их
+- ready_to_search=true когда role=carrier и from заполнен (to необязательно)
+- ready_to_post=true когда role=shipper и from, to, weight_cap заполнены
+- search_filters заполняй когда ready_to_search=true: {{"from":"...","to":null_или_строка,"max_kg":null}}
 """
 
     try:
