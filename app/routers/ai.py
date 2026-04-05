@@ -206,7 +206,7 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
                     "truck": l.truck_type,
                     "price": l.price_usd,
                     "scope": l.scope,
-                    "company": l.company_name,
+                    "company": getattr(l, 'company_name', None) or "—",
                     "rating": "4.8",
                 }
                 for l in loads
