@@ -198,7 +198,27 @@ async def get_my_deals(
         ).order_by(Deal.created_at.desc())
     )
     deals = result.scalars().all()
-    return {"deals": [deal_to_dict(d) for d in deals]}
+    enriched = []
+    for d in deals:
+        base = deal_to_dict(d)
+        # Загружаем груз
+        load_r = await db.execute(select(Load).where(Load.id == d.load_id))
+        load = load_r.scalar_one_or_none()
+        # Загружаем пользователей
+        sh_r = await db.execute(select(User).where(User.id == d.shipper_id))
+        sh = sh_r.scalar_one_or_none()
+        ca_r = await db.execute(select(User).where(User.id == d.carrier_id))
+        ca = ca_r.scalar_one_or_none()
+        base["deal_number"] = d.act_number or _act_number(d.id)
+        base["load_from"]   = load.from_city if load else "—"
+        base["load_to"]     = load.to_city if load else "—"
+        base["load_desc"]   = load.cargo_desc if load else ""
+        base["load_kg"]     = load.weight_kg if load else 0
+        base["price"]       = d.agreed_price
+        base["shipper"]     = {"id": sh.id, "name": sh.company_name or sh.email, "phone": sh.phone, "inn": sh.inn} if sh else {}
+        base["carrier"]     = {"id": ca.id, "name": ca.company_name or ca.email, "phone": ca.phone, "inn": ca.inn} if ca else {}
+        enriched.append(base)
+    return {"deals": enriched}
 
 
 # ── Скачать PDF акт ──────────────────────────────────────────────────
