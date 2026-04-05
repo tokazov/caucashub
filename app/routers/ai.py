@@ -198,25 +198,34 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 
         data = json.loads(raw)
         matched_loads = []
+        reply_text = data.get("reply", "")
         if data.get("state", {}).get("ready_to_search"):
-            matched_loads = [
-                {
-                    "id": l.id,
-                    "from": l.from_city,
-                    "to": l.to_city,
-                    "kg": l.weight_kg,
-                    "truck": l.truck_type,
-                    "price": l.price_usd,
-                    "scope": l.scope,
-                    "company": getattr(l, 'company_name', None) or "—",
-                    "rating": "4.8",
-                }
-                for l in loads
-                if _load_matches(l, data.get("search_filters"))
-            ][:3]
+            sf = data.get("search_filters") or {}
+            from_city = data.get("state", {}).get("from") or sf.get("from") or ""
+            # Ищем грузы по городу отправления (мягкое совпадение)
+            matched_loads = []
+            for l in loads:
+                if from_city and from_city.lower()[:4] in l.from_city.lower():
+                    matched_loads.append({
+                        "id": l.id,
+                        "from": l.from_city,
+                        "to": l.to_city,
+                        "kg": l.weight_kg,
+                        "truck": str(l.truck_type),
+                        "price": l.price_gel or l.price_usd,
+                        "cur": "₾" if l.price_gel else "$",
+                        "company": getattr(l, 'company_name', None) or "—",
+                    })
+            matched_loads = matched_loads[:5]
+
+            # Если нашли грузы — переопределяем reply
+            if matched_loads:
+                n = len(matched_loads)
+                routes = ", ".join(f"{l['from']} → {l['to']}" for l in matched_loads[:3])
+                reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Выбирайте 👆"
 
         return {
-            "reply": data.get("reply", ""),
+            "reply": reply_text,
             "state": data.get("state", req.state),
             "search_filters": data.get("search_filters"),
             "loads": matched_loads
