@@ -1,7 +1,7 @@
 """
 Роутер сделок: создание, смена статусов, генерация PDF акта.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -225,9 +225,23 @@ async def get_my_deals(
 @router.get("/{deal_id}/act.pdf")
 async def download_act(
     deal_id: int,
+    token: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    authorization: Optional[str] = None,
 ):
+    from app.config import settings
+    from jose import jwt, JWTError
+    # Принимаем токен из query param или из header
+    raw_token = token
+    if not raw_token and authorization and authorization.startswith("Bearer "):
+        raw_token = authorization.split(" ")[1]
+    if not raw_token:
+        raise HTTPException(401, "Authorization required")
+    try:
+        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except (JWTError, ValueError):
+        raise HTTPException(401, "Invalid token")
     result = await db.execute(select(Deal).where(Deal.id == deal_id))
     deal = result.scalar_one_or_none()
     if not deal:
