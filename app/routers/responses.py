@@ -12,10 +12,31 @@ import httpx
 
 router = APIRouter(prefix="/api/responses", tags=["responses"])
 
+import os
+
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
 
 async def send_email(to: str, subject: str, html: str):
-    """Отправка email через Resend"""
+    """Отправка email через Brevo (основной) или Resend (fallback)"""
+    if BREVO_API_KEY:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "CaucasHub", "email": "noreply@caucashub.ge"},
+                        "to": [{"email": to}],
+                        "subject": subject,
+                        "htmlContent": html,
+                    },
+                    timeout=10
+                )
+            return
+        except Exception:
+            pass
+    # Fallback: Resend
     try:
         async with httpx.AsyncClient() as client:
             await client.post(
@@ -237,6 +258,11 @@ async def accept_response(
               <b>Маршрут:</b> {route}<br>
               <b>Номер сделки:</b> {deal.act_number}<br>
               <b>Статус:</b> Подтверждена
+            </div>
+            <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
+              <b>Контакт грузоотправителя:</b><br>
+              {f"📞 {current_user.phone}<br>" if current_user.phone else ""}
+              📧 {current_user.email}
             </div>
             <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> 
             → "Мои сделки" для управления доставкой.</p>
