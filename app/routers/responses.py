@@ -226,15 +226,17 @@ async def accept_response(
 
     # Создаём сделку
     from app.models.deal import Deal
-    agreed = resp.price_usd
-    if not agreed and hasattr(load, 'price_usd'):
-        agreed = load.price_usd
+    # Берём цену: сначала из отклика, потом из груза (GEL приоритет)
+    agreed = resp.price_usd or 0
+    if not agreed:
+        agreed = load.price_gel or load.price_usd or 0
+    currency = "GEL"
     deal = Deal(
         load_id=resp.load_id,
         shipper_id=current_user.id,
         carrier_id=resp.user_id,
-        agreed_price=agreed or 0,
-        currency="GEL",
+        agreed_price=agreed,
+        currency=currency,
     )
     db.add(deal)
     await db.commit()
