@@ -1342,6 +1342,7 @@ async function dealAction(dealId, status){
 }
 
 async function confirmDelivery(dealId){
+  if(!dealId) return;
   if(!getToken()) return;
   try{
     const r = await fetch(`https://api-production-f3ea.up.railway.app/api/deals/${dealId}/confirm`, {
@@ -1723,7 +1724,7 @@ function renderCabDeals(){
  }
  var cabDeals = document.getElementById('cabStatDeals');
  if(cabDeals) cabDeals.textContent = _deals.length;
- var total = _deals.reduce(function(s,d){ return s + (d.agreed_price||0); }, 0);
+ var total = _deals.reduce(function(s,d){ return s + (d.price||d.agreed_price||0); }, 0);
  var cabRev = document.getElementById('cabStatRevenue');
  if(cabRev) cabRev.textContent = '₾' + total.toLocaleString();
  var ST = {
@@ -1742,7 +1743,7 @@ function renderCabDeals(){
  + '<div class="cab-deal-header">'
  + '<div><div class="cab-deal-num">' + (d.deal_number||'#'+d.id) + '</div>'
  + '<div class="cab-deal-route">' + (d.load_from||'?') + ' → ' + (d.load_to||'?') + '</div></div>'
- + '<div style="text-align:right"><div class="cab-deal-price">₾' + (d.agreed_price||0).toLocaleString() + '</div>'
+ + '<div style="text-align:right"><div class="cab-deal-price">₾' + (d.price||d.agreed_price||0).toLocaleString() + '</div>'
  + '<span class="cab-status-badge ' + st.cls + '">' + st.l + '</span></div>'
  + '</div>'
  + '<div class="cab-deal-meta">'
@@ -1752,7 +1753,7 @@ function renderCabDeals(){
  + '<div class="cab-deal-actions">'
  + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 Скачать акт PDF</a>'
  + (d.status === 'confirmed' || d.status === 'in_transit'
- ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ Подтвердить доставку</button>'
+ ? (d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ Подтвердить доставку</button>' : '')
  : '')
  + '</div>'
  + '</div>';
@@ -2018,8 +2019,39 @@ function openAnalytics(){
   closeModal('profileOverlay');
   if(user){
     document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
-    document.getElementById('aStat1').textContent=_orders.length+47||47;
-    document.getElementById('aStat2').textContent=_orders.filter(o=>o.status==='done'||o.status==='rated').length+6||6;
+    // Реальные данные из сделок
+    const _allDeals = (typeof _deals!=='undefined'&&_deals)||[];
+    const _completedDeals = _allDeals.filter(d=>d.status==='completed');
+    const _now = new Date();
+    const _thisMonth = _allDeals.filter(d=>{
+      const dt=new Date(d.created_at||d.updatedAt||0);
+      return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
+    });
+    const _revenue = _completedDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
+    document.getElementById('aStat1').textContent = user.trips || _allDeals.length || 0;
+    document.getElementById('aStat2').textContent = _thisMonth.length;
+    const _s3=document.getElementById('aStat3');
+    if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
+    const _s4=document.getElementById('aStat4');
+    if(_s4) _s4.textContent=(user.rat?Math.round(parseFloat(user.rat)):5)+' ⭐';
+    // Популярные маршруты
+    const _routes={};
+    _allDeals.forEach(function(d){
+      if(d.load_from&&d.load_to){
+        const k=d.load_from+' → '+d.load_to;
+        _routes[k]=(_routes[k]||0)+1;
+      }
+    });
+    const _topRoutes=Object.entries(_routes).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const _rEl=document.getElementById('aRoutes');
+    if(_rEl&&_topRoutes.length){
+      _rEl.innerHTML=_topRoutes.map(function(r){
+        return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">'
+          +'<span style="font-size:13px">'+r[0]+'</span>'
+          +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+(r[1]===1?'рейс':r[1]<5?'рейса':'рейсов')+'</span>'
+          +'</div>';
+      }).join('');
+    }
   }
   document.getElementById('analyticsOverlay').classList.add('on');
 }
