@@ -113,7 +113,15 @@ class UpdateStatusRequest(BaseModel):
     notes: Optional[str] = None
 
 
-@router.put("/{deal_id}/status")
+ALLOWED_STATUS_TRANSITIONS = {
+    "loading":            ["confirmed"],
+    "in_transit":         ["loading"],
+    "delivered_carrier":  ["in_transit"],
+    "delivered_shipper":  ["in_transit"],
+}
+
+
+@router.post("/{deal_id}/status")
 async def update_status(
     deal_id: int,
     data: UpdateStatusRequest,
@@ -127,27 +135,93 @@ async def update_status(
     if deal.shipper_id != user_id and deal.carrier_id != user_id:
         raise HTTPException(403, "Нет доступа к этой сделке")
 
-    try:
-        new_status = DealStatus(data.status)
-    except ValueError:
-        raise HTTPException(400, f"Неверный статус: {data.status}")
-
-    deal.status = new_status
+    current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
+    new_status_str = data.status
     now = datetime.now(timezone.utc)
 
-    if new_status == DealStatus.loading:
+    # Загружаем участников для email
+    shipper_res = await db.execute(select(User).where(User.id == deal.shipper_id))
+    shipper = shipper_res.scalar_one_or_none()
+    carrier_res = await db.execute(select(User).where(User.id == deal.carrier_id))
+    carrier = carrier_res.scalar_one_or_none()
+    deal_num = deal.act_number or f"#{deal.id}"
+
+    from app.email_utils import send_deal_status_email, _deal_email_html
+
+    if new_status_str == "loading":
+        # Перевозчик приступил к загрузке
+        if user_id != deal.carrier_id:
+            raise HTTPException(403, "Только перевозчик может изменить статус на загрузку")
+        if current_status != "confirmed":
+            raise HTTPException(400, f"Нельзя перейти в loading из статуса {current_status}")
+        deal.status = DealStatus.loading
         deal.loading_at = now
-    elif new_status == DealStatus.delivered:
-        deal.delivered_at = now
-        # Фиксируем подтверждение от той стороны кто нажал
-        if user_id == deal.carrier_id:
-            deal.carrier_confirmed = True
-        else:
-            deal.shipper_confirmed = True
-    elif new_status == DealStatus.completed:
-        deal.completed_at = now
-        deal.shipper_confirmed = True
+        # Email грузовладельцу
+        if shipper and shipper.email:
+            import asyncio
+            asyncio.create_task(send_deal_status_email(
+                shipper.email,
+                f"CaucasHub: Перевозчик приступил к загрузке — {deal_num}",
+                _deal_email_html(
+                    "🔄 Перевозчик приступил к загрузке",
+                    f"Перевозчик начал загрузку груза по вашей сделке <strong>{deal_num}</strong>. Груз скоро будет в пути.",
+                    deal_num
+                )
+            ))
+
+    elif new_status_str == "in_transit":
+        # Перевозчик отправил груз
+        if user_id != deal.carrier_id:
+            raise HTTPException(403, "Только перевозчик может изменить статус на в пути")
+        if current_status != "loading":
+            raise HTTPException(400, f"Нельзя перейти в in_transit из статуса {current_status}")
+        deal.status = DealStatus.in_transit
+        # Email грузовладельцу
+        if shipper and shipper.email:
+            import asyncio
+            asyncio.create_task(send_deal_status_email(
+                shipper.email,
+                f"CaucasHub: Груз в пути — {deal_num}",
+                _deal_email_html(
+                    "🚛 Груз отправлен и в пути",
+                    f"Перевозчик отправил груз по сделке <strong>{deal_num}</strong>. Ожидайте доставку.",
+                    deal_num
+                )
+            ))
+
+    elif new_status_str == "delivered_carrier":
+        # Перевозчик подтверждает доставку
+        if user_id != deal.carrier_id:
+            raise HTTPException(403, "Только перевозчик может подтвердить доставку")
+        if current_status not in ("in_transit", "delivered"):
+            raise HTTPException(400, f"Нельзя подтвердить доставку из статуса {current_status}")
         deal.carrier_confirmed = True
+        deal.delivered_at = now
+        # Если грузовладелец уже подтвердил → завершаем
+        if deal.shipper_confirmed:
+            deal.status = DealStatus.completed
+            deal.completed_at = now
+            _notify_completed(shipper, carrier, deal_num)
+        else:
+            deal.status = DealStatus.delivered
+
+    elif new_status_str == "delivered_shipper":
+        # Грузовладелец подтверждает получение
+        if user_id != deal.shipper_id:
+            raise HTTPException(403, "Только грузовладелец может подтвердить получение")
+        if current_status not in ("in_transit", "delivered"):
+            raise HTTPException(400, f"Нельзя подтвердить получение из статуса {current_status}")
+        deal.shipper_confirmed = True
+        # Если перевозчик уже подтвердил → завершаем
+        if deal.carrier_confirmed:
+            deal.status = DealStatus.completed
+            deal.completed_at = now
+            _notify_completed(shipper, carrier, deal_num)
+        else:
+            deal.status = DealStatus.delivered
+
+    else:
+        raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
 
     if data.notes:
         deal.notes = data.notes
@@ -155,6 +229,29 @@ async def update_status(
     await db.commit()
     await db.refresh(deal)
     return deal_to_dict(deal)
+
+
+def _notify_completed(shipper, carrier, deal_num: str):
+    """Запускает email обоим участникам о завершении сделки."""
+    import asyncio
+    from app.email_utils import send_deal_status_email, _deal_email_html
+    html = _deal_email_html(
+        "🏆 Сделка завершена!",
+        f"Сделка <strong>{deal_num}</strong> успешно завершена. Акт выполненных работ доступен в личном кабинете для скачивания.",
+        deal_num
+    )
+    if shipper and shipper.email:
+        asyncio.create_task(send_deal_status_email(
+            shipper.email,
+            f"CaucasHub: Сделка завершена — {deal_num}",
+            html
+        ))
+    if carrier and carrier.email:
+        asyncio.create_task(send_deal_status_email(
+            carrier.email,
+            f"CaucasHub: Сделка завершена — {deal_num}",
+            html
+        ))
 
 
 # ── Подтвердить доставку ─────────────────────────────────────────────
@@ -393,31 +490,42 @@ async def export_deals(
 
 class RatingRequest(BaseModel):
     score: int
-    comment: str = None
+    comment: Optional[str] = None
 
 @router.post("/{deal_id}/rate")
 async def rate_deal(
     deal_id: int,
     data: RatingRequest,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(require_user)
+    user_id: int = Depends(require_user),
 ):
-    """Оценить сделку"""
+    """Оценить сделку (только после completed)"""
     if data.score < 1 or data.score > 5:
-        raise HTTPException(400, "Score 1-5")
+        raise HTTPException(400, "Оценка должна быть от 1 до 5")
+
     result = await db.execute(select(Deal).where(Deal.id == deal_id))
     deal = result.scalar_one_or_none()
-    if not deal or deal.status != "completed":
-        raise HTTPException(400, "Deal not found or not completed")
-    if current_user.id not in [deal.shipper_id, deal.carrier_id]:
-        raise HTTPException(403, "Not your deal")
-    rated_id = deal.carrier_id if current_user.id == deal.shipper_id else deal.shipper_id
-    from app.models.user import User as UserModel
-    rated = await db.get(UserModel, rated_id)
+    if not deal:
+        raise HTTPException(404, "Сделка не найдена")
+
+    current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
+    if current_status != "completed":
+        raise HTTPException(400, f"Оценить можно только завершённую сделку (текущий статус: {current_status})")
+
+    if user_id not in [deal.shipper_id, deal.carrier_id]:
+        raise HTTPException(403, "Это не ваша сделка")
+
+    # Определяем кого оцениваем
+    rated_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
+    rated = await db.get(User, rated_id)
     if rated:
         old_r = rated.rating or 50
         old_t = rated.trips_count or 0
         rated.rating = min(50, max(0, round((old_r * old_t + data.score * 10) / (old_t + 1))))
         rated.trips_count = old_t + 1
-        await db.commit()
-    return {"ok": True, "score": data.score}
+
+    # Меняем статус сделки на rated
+    deal.status = DealStatus.rated
+
+    await db.commit()
+    return {"ok": True, "score": data.score, "deal_id": deal_id}

@@ -133,3 +133,64 @@ async def send_reset_code(to_email: str, code: str) -> bool:
         return await _send_via_smtp(to_email, code)
     logger.warning("Email не настроен")
     return False
+
+
+# ── Отправка email о статусе сделки ──────────────────────────────
+async def send_deal_status_email(to_email: str, subject: str, html_body: str) -> bool:
+    """Общая функция отправки email о статусе сделки через Brevo."""
+    if not settings.BREVO_API_KEY:
+        logger.warning("BREVO_API_KEY не настроен — email не отправлен")
+        return False
+    try:
+        import httpx
+        headers = {
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "sender": {"name": "CaucasHub", "email": "noreply@caucashub.ge"},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "htmlContent": html_body,
+        }
+        async with httpx.AsyncClient() as client:
+            r = await client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=10)
+        if r.status_code == 201:
+            logger.info(f"[Brevo] Deal email sent to {to_email}: {subject}")
+            return True
+        logger.error(f"[Brevo] Error {r.status_code}: {r.text}")
+        return False
+    except Exception as e:
+        logger.error(f"[Brevo] Deal email exception: {e}")
+        return False
+
+
+def _deal_email_html(title: str, body_text: str, deal_number: str) -> str:
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:40px 16px">
+      <table width="480" cellpadding="0" cellspacing="0"
+             style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08)">
+        <tr><td style="background:#1a1a2e;padding:24px;text-align:center">
+          <span style="color:#fff;font-weight:900;font-size:24px">Caucas<span style="color:#f7b731">Hub</span></span>
+          <span style="color:#888;font-size:13px;margin-left:4px">.ge</span>
+        </td></tr>
+        <tr><td style="padding:32px 28px">
+          <h2 style="margin:0 0 16px;font-size:20px;color:#1a1a2e">{title}</h2>
+          <p style="margin:0 0 20px;font-size:15px;color:#444;line-height:1.6">{body_text}</p>
+          <div style="background:#f8f9fa;border-left:4px solid #f7b731;border-radius:4px;padding:12px 16px;margin-bottom:20px">
+            <span style="font-size:13px;color:#666">Сделка: <strong style="color:#1a1a2e">{deal_number}</strong></span>
+          </div>
+          <a href="https://caucashub.ge" style="display:inline-block;background:#f7b731;color:#1a1a2e;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px;text-decoration:none">Открыть кабинет →</a>
+        </td></tr>
+        <tr><td style="background:#f8f9fa;padding:16px 28px;text-align:center">
+          <p style="margin:0;font-size:12px;color:#aaa">© 2026 CaucasHub.ge — Биржа грузов Кавказа</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""

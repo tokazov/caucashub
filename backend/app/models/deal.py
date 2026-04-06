@@ -13,8 +13,9 @@ class DealStatus(str, enum.Enum):
     confirmed  = "confirmed"   # перевозчик принят, сделка открыта
     loading    = "loading"     # загрузка
     in_transit = "in_transit"  # груз в пути
-    delivered  = "delivered"   # доставлен, ждём подтверждения
+    delivered  = "delivered"   # доставлен, ждём подтверждения второй стороны
     completed  = "completed"   # обе стороны подтвердили, акт выписан
+    rated      = "rated"       # оценка выставлена
     disputed   = "disputed"    # спор
     canceled   = "canceled"    # отменена
 
