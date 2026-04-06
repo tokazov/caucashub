@@ -527,6 +527,8 @@ async def rate_deal(
         old_t = rated.trips_count or 0
         rated.rating = min(50, max(0, round((old_r * old_t + data.score * 10) / (old_t + 1))))
         rated.trips_count = old_t + 1
-    deal.status = DealStatus.rated
+    # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
+    from sqlalchemy import text
+    await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
     await db.commit()
     return {"ok": True, "score": data.score, "deal_id": deal_id}
