@@ -15,22 +15,39 @@ def _get_canvas():
     from reportlab.pdfbase.ttfonts import TTFont
     import os
 
-    # Пробуем зарегистрировать шрифт с поддержкой кириллицы
+    # Шрифты с поддержкой кириллицы И грузинского
+    # Noto Sans поддерживает все скрипты включая грузинский
     font_paths = [
+        # Noto Sans (nixpacks: noto-fonts) — поддерживает Georgian + Cyrillic
+        "/nix/store",  # sentinel — сканируем ниже
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+        # DejaVu — кириллица есть, грузинского нет, но лучше чем Helvetica
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
     ]
-    font_name = "DejaVuSans"
-    for fp in font_paths:
+    font_name = "MainFont"
+    registered = False
+
+    # Сначала ищем Noto Sans (поддержка грузинского)
+    import glob
+    noto_candidates = glob.glob("/nix/store/*/share/fonts/truetype/noto/NotoSans-Regular.ttf") + \
+                      glob.glob("/nix/store/*/share/fonts/noto/NotoSans-Regular.ttf") + \
+                      glob.glob("/run/current-system/sw/share/fonts/*/NotoSans-Regular.ttf")
+    for fp in noto_candidates + font_paths[1:]:
+        if fp == "/nix/store":
+            continue
         if os.path.exists(fp):
             try:
                 pdfmetrics.registerFont(TTFont(font_name, fp))
+                registered = True
                 break
             except Exception:
                 pass
-    else:
-        font_name = "Helvetica"  # fallback без кириллицы
+
+    if not registered:
+        font_name = "Helvetica"  # fallback без кириллицы/грузинского
 
     return rl_canvas, A4, colors, font_name
 

@@ -226,10 +226,10 @@ async def accept_response(
 
     # Создаём сделку
     from app.models.deal import Deal
-    # Берём цену: сначала из отклика, потом из груза (GEL приоритет)
-    agreed = resp.price_usd or 0
+    # Берём цену: сначала из отклика (перевозчик предложил), потом из груза
+    agreed = float(resp.price_usd) if resp.price_usd else None
     if not agreed:
-        agreed = load.price_gel or load.price_usd or 0
+        agreed = float(load.price_gel or load.price_usd or 0)
     currency = "GEL"
     deal = Deal(
         load_id=resp.load_id,
