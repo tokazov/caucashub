@@ -1760,7 +1760,7 @@ function renderCabResponses(){
  : '';
  return '<div class="cab-resp-item">'
  + '<div><div class="cab-resp-route">🚛 ' + o.title + '</div>'
- + '<div class="cab-resp-meta">' + (o.price ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
+ + '<div class="cab-resp-meta">' + (o.price && o.price !== 'null' && o.price !== null ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
  + cancelBtn + '</div>'
  + '<span class="cab-status-badge ' + statusCls + '">' + statusLabel + '</span>'
  + '</div>';
@@ -2250,7 +2250,7 @@ function _renderOrders(){
     const s=_STATUS[o.status]||_STATUS.pending;
     let act='';
     if(o.status==='pending') act=`<button onclick="cancelMyResponse(${o.id},${o.serverId||0})" style="margin-top:8px;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">✕ Отменить заявку</button>`;
-    if(o.status==='accepted') act=`<button class="ni-done" onclick="_delivered(${o.id})" style="margin-top:8px;background:#3498db;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer">🚛 Груз доставлен</button>`;
+    if(o.status==='accepted') act=`<div style="margin-top:8px;font-size:12px;color:#2980b9;background:#e3f2fd;padding:6px 12px;border-radius:6px">✅ Принят — следите за статусом в разделе <strong>Сделки</strong></div>`;
     if(o.status==='done') act=`<button onclick="_rate(${o.id})" style="margin-top:8px;background:#f0f2f5;border:none;padding:5px 14px;border-radius:6px;font-size:13px;cursor:pointer">⭐ Оставить отзыв</button>`;
     const ts=new Date(o.created).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const bc=o.status==='accepted'?'#3498db':o.status==='done'?'#2ecc71':o.status==='transit'?'#9b59b6':'#f7b731';
