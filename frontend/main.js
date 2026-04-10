@@ -708,6 +708,8 @@ function doRespond(){
       document.getElementById('respondSuccess').style.display='block';
       btn.textContent='✅ Заявка отправлена';
       addToOrders(serverResponseId);
+      // Перерисовываем список грузов чтобы кнопка стала зелёной сразу
+      if(typeof renderLoads === 'function') renderLoads();
     }).catch(()=>{
       document.getElementById('respondSuccess').style.display='block';
       btn.textContent='✅ Заявка отправлена';
