@@ -454,7 +454,7 @@ async def export_deals(
         price = d.agreed_price or 0
         cur = d.currency or "GEL"
         row = {
-            "act_number":    d.act_number or f"CH-{d.id}",
+            "act_number":    d.act_number or _act_number(d.id),
             "date":          _fmt(d.completed_at or d.created_at),
             "shipper":       _company(d.shipper_id),
             "carrier":       _company(d.carrier_id),
@@ -532,19 +532,34 @@ async def rate_deal(
     if not deal:
         raise HTTPException(404, "Сделка не найдена")
     current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
-    if current_status != "completed":
+    if current_status not in ("completed", "rated"):
         raise HTTPException(400, f"Оценить можно только завершённую сделку (текущий статус: {current_status})")
     if user_id not in [deal.shipper_id, deal.carrier_id]:
         raise HTTPException(403, "Это не ваша сделка")
-    rated_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
+    # Check if this user already rated (prevent double rating)
+    from sqlalchemy import text
+    is_shipper = user_id == deal.shipper_id
+    if is_shipper:
+        already = await db.execute(text("SELECT shipper_confirmed FROM deals WHERE id = :id"), {"id": deal_id})
+        # Use notes field as rating tracker: "s:5,c:4" format
+        notes = deal.notes or ""
+        if "s_rated" in notes:
+            raise HTTPException(400, "Вы уже оставили оценку")
+        deal.notes = (notes + f"|s_rated:{data.score}").lstrip("|")
+    else:
+        notes = deal.notes or ""
+        if "c_rated" in notes:
+            raise HTTPException(400, "Вы уже оставили оценку")
+        deal.notes = (notes + f"|c_rated:{data.score}").lstrip("|")
+    # Update rated user's rating
+    rated_id = deal.carrier_id if is_shipper else deal.shipper_id
     rated = await db.get(User, rated_id)
     if rated:
         old_r = rated.rating or 50
         old_t = rated.trips_count or 0
         rated.rating = min(50, max(0, round((old_r * old_t + data.score * 10) / (old_t + 1))))
         rated.trips_count = old_t + 1
-    # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
-    from sqlalchemy import text
-    await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
+    # Mark as rated after first rating
+    await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id AND status = 'completed'"), {"id": deal_id})
     await db.commit()
     return {"ok": True, "score": data.score, "deal_id": deal_id}
