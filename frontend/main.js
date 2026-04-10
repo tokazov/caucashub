@@ -654,7 +654,10 @@ function openCargo(d){
     } else {
       const _modalResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
       if(_modalResponded){
-        _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>✅ Заявка отправлена</button><button onclick="showPhone()" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+        const _myOrder = typeof _orders !== 'undefined' && _orders.find(o => o.loadId === d.id);
+        const _myOrderId = _myOrder ? _myOrder.id : 0;
+        const _myServerId = _myOrder ? (_myOrder.serverId||0) : 0;
+        _actRow.innerHTML = `<div style="display:flex;gap:8px;flex:1"><button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>✅ Заявка отправлена</button><button onclick="cancelMyResponse(${_myOrderId},${_myServerId});closeModal('cargoOverlay')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✕ Отменить</button></div>`;
         document.getElementById('respondSuccess').style.display='block';
       } else {
         _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
