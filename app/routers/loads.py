@@ -147,6 +147,10 @@ async def get_loads(
 async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
                       authorization: Optional[str] = Header(None)):
     user_id = require_user(authorization)
+    # Проверяем что это грузовладелец (не перевозчик)
+    _creator = await db.get(User, user_id)
+    if _creator and hasattr(_creator, 'role') and str(_creator.role).endswith('carrier'):
+        raise HTTPException(status_code=403, detail="Перевозчики не могут размещать грузы")
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()
@@ -186,6 +190,17 @@ async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
         raise HTTPException(status_code=404, detail="Not found")
     if load.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not your load")
+    # Блокируем удаление если есть активная сделка
+    from app.models.deal import Deal, DealStatus as DS
+    from sqlalchemy import select as _sel
+    active_deal = await db.execute(
+        _sel(Deal).where(
+            Deal.load_id == load_id,
+            Deal.status.in_([DS.confirmed, DS.loading, DS.in_transit, DS.delivered])
+        )
+    )
+    if active_deal.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Нельзя удалить груз с активной сделкой")
     load.status = LoadStatus.canceled
     await db.commit()
     return {"ok": True}
