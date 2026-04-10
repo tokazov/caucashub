@@ -404,12 +404,15 @@ function renderLoads(data){
     const tc = typeColors[d.type] || typeColors.tent;
 
     // Кнопки справа
+    const _alreadyResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
     const rightBtns = isOwn
       ? `<div style="display:flex;gap:6px">
            <button class="card-btn-edit" onclick="event.stopPropagation();editMyLoad(${d.id})">✏️</button>
            <button class="card-btn-del" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑</button>
          </div>`
-      : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">Отклик</button>`;
+      : _alreadyResponded
+        ? `<button class="card-btn-resp" style="background:#2ecc71;color:#fff;font-size:12px;cursor:default" disabled onclick="event.stopPropagation()">✅ Отправлено</button>`
+        : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">Отклик</button>`;
 
     const row = document.createElement('div');
     row.className = cardCls;
@@ -649,7 +652,13 @@ function openCargo(d){
     if(_isOwn){
       _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">✏️ Редактировать</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
     } else {
-      _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+      const _modalResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
+      if(_modalResponded){
+        _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>✅ Заявка отправлена</button><button onclick="showPhone()" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+        document.getElementById('respondSuccess').style.display='block';
+      } else {
+        _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+      }
     }
   } else {
     const btn = document.getElementById('btnRespond');
