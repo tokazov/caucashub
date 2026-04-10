@@ -73,11 +73,19 @@ def generate_act_pdf(deal_data: dict) -> bytes:
     w, h = A4
 
     def draw_text(x, y, text, size=10, bold=False):
-        fn = (font_name + "-Bold") if bold and font_name not in ("Helvetica", "Helvetica-Bold") else (font_name if not bold else "Helvetica-Bold" if font_name == "Helvetica" else font_name)
-        try:
-            c.setFont(fn, size)
-        except Exception:
-            c.setFont(font_name, size)
+        if bold:
+            try:
+                c.setFont(font_name + "-Bold", size)
+            except Exception:
+                try:
+                    c.setFont(font_name, size)
+                except Exception:
+                    c.setFont("Helvetica-Bold", size)
+        else:
+            try:
+                c.setFont(font_name, size)
+            except Exception:
+                c.setFont("Helvetica", size)
         c.drawString(x, y, str(text))
 
     def draw_line(y):
