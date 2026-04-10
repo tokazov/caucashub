@@ -198,9 +198,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .fbtn, .post-btn { flex:1; }
   .filters { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px 12px; }
   .city-input-wrap { min-width:0; }
-  .city-input { font-size:12px; padding:6px 8px; }
+  .city-input { font-size:12px; padding:6px 8px; width:100%; box-sizing:border-box; }
   .fsel-wrap { min-width:0; }
-  .filters > div:last-child { grid-column: 1 / -1; }
+  .fcount { grid-column: 1 / -1; }
+  .filters > div[style*="width:100%"] { grid-column: 1 / -1; }
 }
 /* AI DISPATCHER */
 .ai-role-btns{display:flex;flex-direction:column;gap:6px;margin:4px 0;}
