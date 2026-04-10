@@ -215,6 +215,10 @@ async def accept_response(
     if not load or load.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your load")
 
+    # Блокируем повторное принятие уже принятого отклика
+    if resp.status.value == "accepted":
+        raise HTTPException(status_code=400, detail="Этот отклик уже принят")
+
     # Принимаем отклик, отклоняем остальные
     resp.status = ResponseStatus.accepted
     all_resp = await db.execute(
