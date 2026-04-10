@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -258,7 +259,7 @@ async def accept_response(
             <p>Грузоотправитель <b>{shipper_name}</b> принял ваш отклик.</p>
             <div style="background:#e8f5e9;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #2ecc71">
               <b>Маршрут:</b> {route}<br>
-              <b>Номер сделки:</b> {deal.act_number or f"CH-{deal.id:04d}"}<br>
+              <b>Номер сделки:</b> {deal.act_number or f"CH-{__import__('datetime').datetime.utcnow().year}-{deal.id:04d}"}<br>
               <b>Статус:</b> Подтверждена
             </div>
             <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
@@ -276,7 +277,7 @@ async def accept_response(
     return {
         "ok": True,
         "deal_id": deal.id,
-        "deal_number": deal.act_number or f"CH-{deal.id:04d}",
+        "deal_number": deal.act_number or f"CH-{datetime.utcnow().year}-{deal.id:04d}",
         "status": deal.status,
     }
 
