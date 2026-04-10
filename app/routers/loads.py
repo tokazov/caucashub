@@ -95,7 +95,7 @@ def load_to_dict(l: Load, company_name: str = None, user: object = None) -> dict
         "pay": l.payment_type or "Нал",
         "urgent": l.is_urgent,
         "status": l.status.value if hasattr(l.status,'value') else str(l.status),
-        "badge": "urgent" if l.is_urgent else None,
+        "badge": "urgent" if l.is_urgent else "new",
         "date": l.load_date.strftime("%d.%m.%y") if l.load_date else None,
         "co": co,
         "rat": rat,
