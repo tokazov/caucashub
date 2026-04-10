@@ -278,11 +278,15 @@ async def accept_response(
         """
         await send_email(carrier.email, f"✅ Ваш отклик принят — {route}", html)
 
+    # Получаем данные перевозчика для показа грузовладельцу
+    carrier_user = await db.get(User, resp.user_id)
     return {
         "ok": True,
         "deal_id": deal.id,
         "deal_number": deal.act_number or f"CH-{datetime.utcnow().year}-{deal.id:04d}",
         "status": deal.status,
+        "carrier_name": carrier_user.company_name if carrier_user else None,
+        "carrier_phone": carrier_user.phone if carrier_user else None,
     }
 
 @router.post("/reject/{response_id}")
