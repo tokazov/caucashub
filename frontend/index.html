@@ -63,7 +63,7 @@
     <div class="city-dropdown" id="dropTo"></div>
   </div>
 
-  <div class="fsel-wrap">
+  <div style="position:relative">
     <select class="fsel" id="fDate" onchange="filterByDate(this.value)">
       <option value="">📅 Дата</option>
       <option value="today">Сегодня</option>
@@ -90,7 +90,7 @@
       </div>
     </div>
   </div>
-  <select class="fsel" id="fType" onchange="filterLoads()"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
+  <select class="fsel" id="fType"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
   <select class="fsel" id="fWeight" onchange="filterLoads()">
     <option value="">⚖️ Тоннаж</option>
     <option value="0-1000">До 1 т</option>
@@ -98,14 +98,14 @@
     <option value="5000-10000">5–10 т</option>
     <option value="10000-20000">10–20 т</option>
     <option value="20000-99999">20+ т (фура)</option>
-  </select></div>
-  <div class="fsel-wrap"><select class="fsel" id="fPrice" onchange="filterLoads()">
+  </select>
+  <select class="fsel" id="fPrice" onchange="filterLoads()">
     <option value="">💰 Стоимость</option>
     <option value="0-300">До ₾300 / $100</option>
     <option value="300-700">₾300–700 / $100–250</option>
     <option value="700-1500">₾700–1500 / $250–500</option>
     <option value="1500-99999">₾1500+ / $500+</option>
-  </select></div>
+  </select>
   <div class="fcount" id="fcount">— грузов</div>
   <div style="width:100%;display:flex;gap:8px;margin-top:2px">
     <button class="fbtn" onclick="filterLoads()">Найти</button>
@@ -266,7 +266,7 @@
 
  <!-- Вкладки -->
  <div class="cab-tabs-new" id="cabinetTabs">
- <button class="cab-tab-btn cab-tab active" onclick="switchCabTab('loads',this)">📦 Грузы <span id="cabLoadsBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:3px;font-weight:700"></span></button>
+ <button class="cab-tab-btn cab-tab active" onclick="switchCabTab('loads',this)">📦 Грузы</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('responses',this)">🚛 Отклики <span class="cab-tab-badge" id="cabRespBadge" style="display:none">0</span></button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)">🤝 Сделки</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)">📊 Отчёт</button>
@@ -957,9 +957,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1775855349"></script>
-<script src="main.js?v=1775855349"></script>
-<script src="ai-dispatcher.js?v=1775855349"></script>
+<script src="api.js?v=1775855376"></script>
+<script src="main.js?v=1775855376"></script>
+<script src="ai-dispatcher.js?v=1775855376"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
