@@ -202,11 +202,14 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
         if data.get("state", {}).get("ready_to_search"):
             sf = data.get("search_filters") or {}
             from_city = data.get("state", {}).get("from") or sf.get("from") or ""
-            # Ищем грузы по городу отправления (мягкое совпадение)
-            matched_loads = []
+            to_city = data.get("state", {}).get("to") or sf.get("to") or ""
+
+            # Ищем грузы: если указан to — фильтруем по обоим городам
+            # Если to не указан — показываем все из from
+            all_from = []
             for l in loads:
                 if from_city and from_city.lower()[:4] in l.from_city.lower():
-                    matched_loads.append({
+                    all_from.append({
                         "id": l.id,
                         "from": l.from_city,
                         "to": l.to_city,
@@ -216,20 +219,23 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
                         "cur": "₾" if l.price_gel else "$",
                         "company": getattr(l, 'company_name', None) or "—",
                     })
-            matched_loads = matched_loads[:5]
+
+            # Если указан to — сначала показываем точные совпадения
+            if to_city:
+                exact = [l for l in all_from if to_city.lower()[:4] in l["to"].lower()]
+                matched_loads = (exact if exact else all_from)[:5]
+            else:
+                matched_loads = all_from[:5]
 
             # Если нашли грузы — переопределяем reply
             if matched_loads:
-                to_city = data.get("state", {}).get("to") or sf.get("to") or ""
-                # Проверяем есть ли точное совпадение по направлению
-                exact = [l for l in matched_loads if to_city and to_city.lower()[:4] in l["to"].lower()]
+                exact_match = to_city and any(to_city.lower()[:4] in l["to"].lower() for l in matched_loads)
                 n = len(matched_loads)
                 routes = ", ".join(f"{l['from']} → {l['to']}" for l in matched_loads[:3])
-                if exact:
-                    reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Выбирайте 👆"
+                if to_city and not exact_match:
+                    reply_text = f"Точного маршрута {from_city}→{to_city} сейчас нет, но есть {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Смотрите 👆"
                 else:
-                    # Точного маршрута нет, но есть другие грузы из этого города
-                    reply_text = f"Точного маршрута {from_city}→{to_city} нет, но есть {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city} в другие направления: {routes}. Смотрите 👆"
+                    reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''}{' ' + from_city + ' → ' + to_city if to_city else ' из ' + from_city}: {routes}. Выбирайте 👆"
 
         return {
             "reply": reply_text,
