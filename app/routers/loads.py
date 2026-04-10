@@ -154,7 +154,10 @@ async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
     db.add(load)
     await db.commit()
     await db.refresh(load)
-    return load_to_dict(load, data.company_name)
+    # Fetch user for company name
+    from sqlalchemy import select as _select
+    _usr = await db.get(User, user_id)
+    return load_to_dict(load, data.company_name, user=_usr)
 
 @router.put("/{load_id}")
 async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends(get_db),
