@@ -398,3 +398,5 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .row { display: grid !important; }
   .row-mobile-main, .row-mobile-footer { display: none !important; }
 }
+
+.fsel-wrap { position:relative; min-width:0; width:100%; }
