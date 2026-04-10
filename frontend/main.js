@@ -620,7 +620,7 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  document.getElementById('mTitle').textContent=`${d.from} → ${d.to}`;
+  document.getElementById('mTitle').textContent=`${d.from2||d.from} → ${d.to2||d.to}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `Добавлен ${_loadCreated}` : 'Добавлен сегодня';
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
