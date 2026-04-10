@@ -2449,7 +2449,7 @@ function renderNotifs(){
     +'<div style="font-weight:600;font-size:13px">'+n.title+'</div>'
     +'<div style="font-size:12px;color:#888;margin-top:2px">'+n.body+'</div>'
     +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+n.time+'</div>'
-    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button onclick="('+a.action.toString()+'()); event.stopPropagation()" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+a.label+'</button>').join('')+'</div>':'')
+    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button onclick="('+(typeof a.action==="function"?a.action.toString()+"()":a.fn||"")+'; event.stopPropagation()" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+a.label+'</button>').join('')+'</div>':'')
     +'</div>'
   ).join('');
 }
