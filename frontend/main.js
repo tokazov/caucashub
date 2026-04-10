@@ -660,7 +660,7 @@ function openCargo(d){
         _actRow.innerHTML = `<div style="display:flex;gap:8px;flex:1"><button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>✅ Заявка отправлена</button><button onclick="cancelMyResponse(${_myOrderId},${_myServerId});closeModal('cargoOverlay')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✕ Отменить</button></div>`;
         document.getElementById('respondSuccess').style.display='block';
       } else {
-        _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+        _actRow.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;flex:1"><div style="display:flex;gap:8px;align-items:center"><div style="flex:1;position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:#888">₾</span><input id="respondPrice" type="number" placeholder="Ваша цена (необязат.)" min="0" style="width:100%;padding:12px 12px 12px 26px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box" onfocus="this.style.borderColor='#f7b731'" onblur="this.style.borderColor='#e0e0e0'"></div><button id="btnRespond" style="background:#f7b731;color:#1a1a2e;border:none;padding:14px 18px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap" onclick="doRespond()">Откликнуться</button></div><div style="font-size:12px;color:#888;text-align:center">📞 После принятия отклика грузовладелец свяжется с вами</div></div>`;
       }
     }
   } else {
@@ -699,10 +699,12 @@ function doRespond(){
   const _d = window.currentCargoData || window.allLoads?.find(l=>l.id==currentCargoId);
   const _loadServerId = _d?.serverId || _d?.id;
   if(getToken() && _loadServerId){
+    const _priceInput = document.getElementById('respondPrice');
+    const _priceVal = _priceInput && _priceInput.value ? parseFloat(_priceInput.value) : null;
     fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+_loadServerId, {
       method:'POST',
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
-      body:JSON.stringify({})
+      body:JSON.stringify({price: _priceVal})
     }).then(r=>r.json()).then(r=>{
       const serverResponseId = r?.response_id || null;
       document.getElementById('respondSuccess').style.display='block';
@@ -769,12 +771,15 @@ async function acceptResponse(loadId, respId){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!tk){ alert('Войдите в аккаунт'); return; }
   try {
-    await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
+    const _accR = await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + tk }
     });
     // Считаем успехом и 200 и 422 (уже принят) — данные сохранены
-    pushNotif('✅ Принято!', 'Перевозчик уведомлён. Сделка создана.', []);
+    let _ad = null; try { _ad = await _accR.json(); } catch(e){}
+    const _cPhone = _ad?.carrier_phone || ''; const _cName = _ad?.carrier_name || ''; const _dNum = _ad?.deal_number || '';
+    if(_cPhone){ alert('✅ Отклик принят! Сделка ' + _dNum + ' создана.\n\n📞 Перевозчик: ' + _cName + '\nТелефон: ' + _cPhone); }
+    pushNotif('✅ Сделка ' + _dNum + ' создана', _cPhone ? '📞 ' + _cName + ': ' + _cPhone : 'Перевозчик уведомлён.', []);
     if(typeof loadCabinetData === 'function') loadCabinetData();
   } catch(e) {
     alert('Нет соединения с сервером');
@@ -1287,9 +1292,13 @@ function renderDealCard(d){
   // Кнопки действий в зависимости от статуса и роли
   let actions = '';
   if(d.status === 'confirmed' && isCarrier){
-    actions = `<button onclick="dealAction(${d.id},'loading')" style="background:#3498db;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">📦 Приступил к загрузке</button>`;
+    actions = `<div><button onclick="dealAction(${d.id},'loading')" style="background:#3498db;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">📦 Приступил к загрузке</button><div style="font-size:11px;color:#888;margin-top:4px">Нажмите когда начали грузить товар</div></div>`;
+  } else if(d.status === 'confirmed' && isShipper){
+    actions = `<div style="font-size:12px;color:#e67e22;background:#fff3e0;padding:8px 12px;border-radius:8px;margin-top:4px">⏳ Ожидаем перевозчика — он должен нажать "Приступил к загрузке"</div>`;
   } else if(d.status === 'loading' && isCarrier){
-    actions = `<button onclick="dealAction(${d.id},'in_transit')" style="background:#9b59b6;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🚛 Груз отправлен</button>`;
+    actions = `<div><button onclick="dealAction(${d.id},'in_transit')" style="background:#9b59b6;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🚛 Груз отправлен</button><div style="font-size:11px;color:#888;margin-top:4px">Нажмите когда машина выехала с грузом</div></div>`;
+  } else if(d.status === 'loading' && isShipper){
+    actions = `<div style="font-size:12px;color:#2980b9;background:#e3f2fd;padding:8px 12px;border-radius:8px;margin-top:4px">📦 Перевозчик грузит — ожидайте отправки</div>`;
   } else if(d.status === 'in_transit'){
     const _isCarrierDeal = user && d.carrier_id === user.userId;
     const _isShipperDeal = user && d.shipper_id === user.userId;
@@ -2158,7 +2167,13 @@ function _renderOrders(){
     if(oldEp) oldEp.style.display='none';
     // Обновляем новый кабинет
     var tab = window._currentCabTab || 'loads';
-    if(tab==='loads' && typeof renderCabLoads==='function') renderCabLoads();
+    if(tab==='loads' && typeof renderCabLoads==='function'){
+      renderCabLoads();
+      // Обновляем бейдж новых откликов
+      const _allNewResps = Object.values(_loadResponses||{}).flat().filter(r=>r.status==='pending').length;
+      const _loadsBadge = document.getElementById('cabLoadsBadge');
+      if(_loadsBadge){ if(_allNewResps>0){_loadsBadge.textContent=_allNewResps;_loadsBadge.style.display='inline';}else _loadsBadge.style.display='none'; }
+    }
     if(tab==='responses' && typeof renderCabResponses==='function') renderCabResponses();
     if(tab==='deals' && typeof renderCabDeals==='function') renderCabDeals();
     return;
