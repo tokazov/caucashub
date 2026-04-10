@@ -1263,6 +1263,7 @@ function doPostLoad(){
 
 // ── Статусы сделок ─────────────────────────────────────────────────
 const DEAL_STATUS = {
+  rated:      { label:'⭐ Оценено',       color:'#f7b731', border:'#f7b731' },
   confirmed:  { label:'✅ Подтверждена',  color:'#2ecc71', border:'#2ecc71' },
   loading:    { label:'📦 Загрузка',      color:'#3498db', border:'#3498db' },
   in_transit: { label:'🚛 В пути',        color:'#9b59b6', border:'#9b59b6' },
@@ -1292,6 +1293,11 @@ function renderDealCard(d){
       ? `<span style="font-size:12px;color:#2ecc71">✅ Вы подтвердили — ждём вторую сторону</span>`
       : `<button onclick="confirmDelivery(${d.id})" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">✅ Подтвердить получение</button>`;
   } else if(d.status === 'completed'){
+    actions = `<div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="rateDealPrompt(${d.id},'${d.act_number||d.id}')" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">⭐ Оценить</button>
+      <a href="${'https://api-production-f3ea.up.railway.app'}/api/deals/${d.id}/act.pdf?token=${getToken()}" target="_blank" style="display:inline-block;background:#1a1a2e;color:#fff;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">📄 Скачать акт</a>
+    </div>`;
+  } else if(d.status === 'rated'){
     actions = `<a href="${'https://api-production-f3ea.up.railway.app'}/api/deals/${d.id}/act.pdf?token=${getToken()}" target="_blank" style="display:inline-block;background:#1a1a2e;color:#fff;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">📄 Скачать акт</a>`;
   }
 
@@ -1308,6 +1314,25 @@ function renderDealCard(d){
   </div>`;
 }
 
+async function rateDealPrompt(dealId, num){
+  const stars = prompt('Оцените сделку ' + num + ' от 1 до 5 звёзд:', '5');
+  if(!stars || isNaN(stars) || stars < 1 || stars > 5) return;
+  const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  try{
+    const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/' + dealId + '/rate', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
+      body: JSON.stringify({score: parseInt(stars)})
+    });
+    if(r.ok){
+      pushNotif('⭐ Спасибо!', 'Оценка ' + stars + '/5 сохранена.', []);
+      loadDeals();
+    } else {
+      const e = await r.json();
+      alert('Ошибка: ' + (e.detail || 'не удалось сохранить оценку'));
+    }
+  }catch(e){ alert('Ошибка соединения'); }
+}
 async function loadDeals(){
   if(!user || !getToken()) return;
   try{
