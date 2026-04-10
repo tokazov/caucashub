@@ -90,22 +90,22 @@
       </div>
     </div>
   </div>
-  <select class="fsel" id="fType"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
-  <select class="fsel" id="fWeight" onchange="filterLoads()">
+  <div class="fsel-wrap"><select class="fsel" id="fType" onchange="filterLoads()"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select></div>
+  <div class="fsel-wrap"><select class="fsel" id="fWeight" onchange="filterLoads()">
     <option value="">⚖️ Тоннаж</option>
     <option value="0-1000">До 1 т</option>
     <option value="1000-5000">1–5 т</option>
     <option value="5000-10000">5–10 т</option>
     <option value="10000-20000">10–20 т</option>
     <option value="20000-99999">20+ т (фура)</option>
-  </select>
-  <select class="fsel" id="fPrice" onchange="filterLoads()">
+  </select></div>
+  <div class="fsel-wrap"><select class="fsel" id="fPrice" onchange="filterLoads()">
     <option value="">💰 Стоимость</option>
     <option value="0-300">До ₾300 / $100</option>
     <option value="300-700">₾300–700 / $100–250</option>
     <option value="700-1500">₾700–1500 / $250–500</option>
     <option value="1500-99999">₾1500+ / $500+</option>
-  </select>
+  </select></div>
   <div class="fcount" id="fcount">— грузов</div>
   <div style="width:100%;display:flex;gap:8px;margin-top:2px">
     <button class="fbtn" onclick="filterLoads()">Найти</button>
@@ -957,9 +957,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1775854636"></script>
-<script src="main.js?v=1775854636"></script>
-<script src="ai-dispatcher.js?v=1775854636"></script>
+<script src="api.js?v=1775854684"></script>
+<script src="main.js?v=1775854684"></script>
+<script src="ai-dispatcher.js?v=1775854684"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
