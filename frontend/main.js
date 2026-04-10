@@ -943,7 +943,7 @@ async function doForgotStep2(){
     });
     const d=await r.json();
     if(btn){btn.textContent='Сменить пароль';btn.disabled=false;}
-    if(r.ok&&d.ok){
+    if(r.ok&&(d.ok||d.message)){
       document.getElementById('forgotStep2').style.display='none';
       document.getElementById('forgotSuccess').style.display='block';
       document.getElementById('loginEmail').value=_forgotEmail;
