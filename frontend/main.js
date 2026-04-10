@@ -1369,7 +1369,8 @@ async function loadDeals(){
       _renderOrders();
       // Показываем панель экспорта если есть завершённые сделки
       const _ep = document.getElementById('exportPanel');
-      if(_ep) _ep.style.display = _deals.length > 0 ? 'flex' : 'none';
+      const _hasFinishedDeals = _deals.some(d => d.status==='completed'||d.status==='rated');
+      if(_ep) _ep.style.display = _hasFinishedDeals ? 'flex' : 'none';
     }
   }catch(e){ console.warn('[Deals]', e); }
 }
@@ -2180,10 +2181,11 @@ function _renderOrders(){
   }
   const empty=document.getElementById('ordersEmpty'),list=document.getElementById('ordersList');
   const hasContent=_orders.length||_myLoads.length||_deals.length;
-  // Показываем exportPanel для залогиненных ВСЕГДА (независимо от наличия заказов)
+  // Показываем exportPanel только если есть завершённые сделки
   const _ep=document.getElementById('exportPanel');
   const _tok = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(_ep) _ep.style.display = _tok ? 'flex' : 'none';
+  const _hasFinished = (_deals||[]).some(d => d.status==='completed'||d.status==='rated');
+  if(_ep) _ep.style.display = (_tok && _hasFinished) ? 'flex' : 'none';
   if(!hasContent){
     if(empty){
       empty.style.display='block';
