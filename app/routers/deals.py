@@ -204,6 +204,22 @@ async def update_status(
         else:
             deal.status = DealStatus.delivered
 
+    elif new_status_str == "delivered":
+        # Alias: carrier marks as delivered
+        if user_id != deal.carrier_id:
+            raise HTTPException(403, "Только перевозчик может отметить доставку")
+        if current_status not in ("in_transit", "delivered"):
+            raise HTTPException(400, f"Нельзя отметить доставку из {current_status}")
+        deal.carrier_confirmed = True
+        deal.delivered_at = now
+        if deal.shipper_confirmed:
+            deal.status = DealStatus.completed
+            deal.completed_at = now
+            if email_available:
+                _send_completed_emails(shipper, carrier, deal_num)
+        else:
+            deal.status = DealStatus.delivered
+
     else:
         raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
 
