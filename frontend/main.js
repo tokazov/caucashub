@@ -1978,6 +1978,15 @@ const TRANSLATIONS = {
     empty_myloads: 'Нет размещённых грузов',
     empty_deals: 'Нет сделок',
     login_for_deals: 'Войдите чтобы увидеть сделки',
+    rates_subtitle: 'Средние ставки на маршрутах · обновлено сегодня',
+    map_choose_route: 'Выберите маршрут',
+    pop_routes: '🗺️ Популярные маршруты',
+    loading_loads: '⏳ Загружаем грузы...',
+    btn_add_truck: '+ Добавить машину',
+    btn_add_truck2: '🚛 Добавить машину',
+    btn_post_truck: '📤 Разместить машину',
+    online_indicator: '● Онлайн 24/7',
+    trips_suffix: 'рейсов',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -2077,6 +2086,15 @@ const TRANSLATIONS = {
     empty_myloads: 'განთავსებული ტვირთი არ არის',
     empty_deals: 'გარიგებები არ არის',
     login_for_deals: 'შედით გარიგებების სანახავად',
+    rates_subtitle: 'საშუალო ტარიფები მარშრუტებზე · განახლდა დღეს',
+    map_choose_route: 'აირჩიეთ მარშრუტი',
+    pop_routes: '🗺️ პოპულარული მარშრუტები',
+    loading_loads: '⏳ იტვირთება...',
+    btn_add_truck: '+ მანქანის დამატება',
+    btn_add_truck2: '🚛 მანქანის დამატება',
+    btn_post_truck: '📤 მანქანის განთავსება',
+    online_indicator: '● ონლაინ 24/7',
+    trips_suffix: 'გზა',
   }
 };
 
@@ -2105,6 +2123,11 @@ function applyLang(l) {
   document.querySelectorAll('option[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (T[key]) el.textContent = T[key];
+  });
+  // рейсы/гзаt (data-i18n-trips="N")
+  document.querySelectorAll('[data-i18n-trips]').forEach(el => {
+    const n = el.getAttribute('data-i18n-trips');
+    el.textContent = n + ' ' + (T.trips_suffix || 'рейсов');
   });
   // Заголовок страницы
   const titleEl = document.querySelector('title');

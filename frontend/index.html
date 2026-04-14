@@ -10,7 +10,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1776186041">
+<link rel="stylesheet" href="styles.css?v=1776186666">
 </head>
 <body>
 
@@ -123,7 +123,7 @@
 <!-- MAP -->
 <div class="map-wrap" id="mapWrap">
   <div class="map-info">
-    <div class="map-route-label" id="mapRouteLabel">Выберите маршрут</div>
+    <div class="map-route-label" id="mapRouteLabel"><span data-i18n="map_choose_route">Выберите маршрут</span></div>
     <div class="map-dist" id="mapDist"></div>
     <button class="map-close" onclick="closeMap()">✕</button>
   </div>
@@ -135,7 +135,7 @@
   <div class="thead">
     <div data-i18n="th_route">ОТКУДА → КУДА</div><div data-i18n="th_weight">ВЕС</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_price">ЦЕНА</div><div data-i18n="th_date">ДАТА ЗАГРУЗКИ</div><div></div>
   </div>
-  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div></div>
+  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px"><span data-i18n="loading_loads">⏳ Загружаем грузы...</span></div></div>
 </div>
 
 <!-- ═══ SECTION: TRUCKS ═══ -->
@@ -143,7 +143,7 @@
   <!-- Панель действий -->
   <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
     <span style="font-size:13px;color:#888" id="truckCount">Свободные машины</span>
-    <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">+ Добавить машину</button>
+    <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer"><span data-i18n="btn_add_truck">+ Добавить машину</span></button>
   </div>
   <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
     <div data-i18n="th_truck_route">МАШИНА / МАРШРУТ</div><div data-i18n="th_company">КОМПАНИЯ</div><div data-i18n="th_tonnage">ТОННАЖ</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_date2">ДАТА</div><div></div>
@@ -155,7 +155,7 @@
 <div class="overlay" id="postTruckOverlay" onclick="closeOverlay('postTruckOverlay',event)">
   <div class="modal">
     <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
-    <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center">🚛 Добавить машину</div>
+    <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center"><span data-i18n="btn_add_truck2">🚛 Добавить машину</span></div>
     <div id="postTruckSuccess" class="success-msg">✅ Машина добавлена в список!</div>
     <div class="form-group">
       <label>Маршрут — Откуда</label>
@@ -210,26 +210,26 @@
       <label>Телефон для связи</label>
       <input class="form-input" id="tPhone" placeholder="+995 555 ..." type="tel">
     </div>
-    <button class="btn-primary" onclick="doPostTruck()">📤 Разместить машину</button>
+    <button class="btn-primary" onclick="doPostTruck()"><span data-i18n="btn_post_truck">📤 Разместить машину</span></button>
   </div>
 </div>
 
 <!-- ═══ SECTION: RATES ═══ -->
 <div class="section" id="sec-rates">
   <div style="padding:16px;background:#fff;border-bottom:1px solid #eee">
-    <div style="font-size:13px;color:#888;margin-bottom:4px">Средние ставки на маршрутах · обновлено сегодня</div>
+    <div style="font-size:13px;color:#888;margin-bottom:4px"><span data-i18n="rates_subtitle">Средние ставки на маршрутах · обновлено сегодня</span></div>
   </div>
   <table class="rates-table">
     <thead><tr><th data-i18n="th_route2">МАРШРУТ</th><th data-i18n="th_tent_rate">ТЕНТ $/км</th><th data-i18n="th_ref_rate">РЕФРИЖ $/км</th><th data-i18n="th_trend">ТРЕНД</th><th data-i18n="th_volume">ОБЪЁМ/НЕД</th></tr></thead>
     <tbody>
-      <tr><td><strong>Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td>47 рейсов</td></tr>
-      <tr><td><strong>Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td>38 рейсов</td></tr>
-      <tr><td><strong>Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td>29 рейсов</td></tr>
-      <tr><td><strong data-i18n-city="Тбилиси → Стамбул">Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td>22 рейса</td></tr>
-      <tr><td><strong>Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td>18 рейсов</td></tr>
-      <tr><td><strong>Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td>14 рейсов</td></tr>
-      <tr><td><strong data-i18n-city="Кутаиси → Тбилиси">Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td>31 рейс</td></tr>
-      <tr><td><strong>Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td>11 рейсов</td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Батуми">Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td><span data-i18n-trips="47">47 рейсов</span></td></tr>
+      <tr><td><strong data-i18n-city="Поти → Тбилиси">Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td><span data-i18n-trips="38">38 рейсов</span></td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Ереван">Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td><span data-i18n-trips="29">29 рейсов</span></td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Стамбул">Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td><span data-i18n-trips="22">22 рейса</span></td></tr>
+      <tr><td><strong data-i18n-city="Батуми → Стамбул">Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td><span data-i18n-trips="18"><span data-i18n-trips="18">18 рейсов</span></span></td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Баку">Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td><span data-i18n-trips="14">14 рейсов</span></td></tr>
+      <tr><td><strong data-i18n-city="Кутаиси → Тбилиси">Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td><span data-i18n-trips="31">31 рейс</span></td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Москва">Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td><span data-i18n-trips="11">11 рейсов</span></td></tr>
     </tbody>
   </table>
 </div>
@@ -895,19 +895,19 @@
       </div>
     </div>
     <div class="divider"></div>
-    <div style="font-size:13px;font-weight:700;margin-bottom:12px">🗺️ Популярные маршруты</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px"><span data-i18n="pop_routes">🗺️ Популярные маршруты</span></div>
     <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes">
       <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
         <span style="font-size:13px">Тбилиси → Батуми</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731">18 рейсов</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="18">18 рейсов</span></span>
       </div>
       <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
         <span style="font-size:13px">Поти → Тбилиси</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731">12 рейсов</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="12">12 рейсов</span></span>
       </div>
       <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
         <span style="font-size:13px">Кутаиси → Тбилиси</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731">9 рейсов</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="9">9 рейсов</span></span>
       </div>
     </div>
     <div class="divider"></div>
@@ -923,7 +923,7 @@
 <div class="ai-chat" id="aiChat">
   <div class="ai-chat-header">
     <div class="ai-avatar" style="background:transparent;overflow:hidden;width:40px;height:40px;border-radius:50%"><img src="dispatcher.jpg" width="40" height="40" style="object-fit:cover;object-position:center top;border-radius:50%"></div>
-    <div style="flex:1"><div class="ai-name">Мари — AI Диспетчер</div><div class="ai-status">● Онлайн 24/7</div></div>
+    <div style="flex:1"><div class="ai-name">Мари — AI Диспетчер</div><div class="ai-status"><span data-i18n="online_indicator">● Онлайн 24/7</span></div></div>
     <button onclick="aiReset()" style="background:none;border:none;color:#aaa;font-size:11px;cursor:pointer;padding:4px 8px;border-radius:6px;margin-right:4px;" title="Начать заново">↺</button>
     <button class="ai-close" onclick="closeAI()">✕</button>
   </div>
@@ -957,9 +957,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1776186041"></script>
-<script src="main.js?v=1776186041"></script>
-<script src="ai-dispatcher.js?v=1776186041"></script>
+<script src="api.js?v=1776186666"></script>
+<script src="main.js?v=1776186666"></script>
+<script src="ai-dispatcher.js?v=1776186666"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
