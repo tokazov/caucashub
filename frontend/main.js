@@ -936,7 +936,7 @@ function updateRespondCount(){
   const pr = document.getElementById('profileRole');
   if(pr && user){
     const role = user.role==='shipper' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик';
-    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} отклик${count===1?'':count<5?'а':'ов'}</span>`:''}`;
+    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -2080,7 +2080,7 @@ const TRANSLATIONS = {
     btn_post_load: '+ Разместить груз',
     btn_post_new: '+ Разместить новый груз',
     btn_respond_load: 'Откликнуться на груз',
-    role_carrier: 'Перевозчик',
+    role_carrier: 'Перевозчик', role_shipper: 'Грузовладелец', role_both: 'Перевозчик и грузовладелец',
     role_shipper: 'Грузовладелец',
     role_both: 'Оба',
     btn_rate: '⭐ Оценить',
@@ -2205,7 +2205,7 @@ const TRANSLATIONS = {
     truck_auto_full: 'Автовоз', truck_evac: 'Эвакуатор',
     truck_cistern: 'Цистерна', truck_grain: 'Зерновоз',
     truck_dump: 'Самосвал', truck_other_full: 'Другой',
-    role_carrier: 'Перевозчик', role_shipper_co: 'Грузовладелец — компания / ИП',
+    role_carrier: 'Перевозчик', role_shipper: 'Грузовладелец', role_both: 'Перевозчик и грузовладелец', role_shipper_co: 'Грузовладелец — компания / ИП',
     role_shipper_person: 'Грузовладелец — частное лицо',
     role_carrier_sub: 'Компания или ИП — ищу грузы',
     role_person_sub: 'Разовые отправки, без ИП',
@@ -2337,7 +2337,7 @@ const TRANSLATIONS = {
     btn_post_load: '+ ტვირთის განთავსება',
     btn_post_new: '+ ახალი ტვირთის განთავსება',
     btn_respond_load: 'ტვირთზე გამოხმაურება',
-    role_carrier: 'გადამზიდველი',
+    role_carrier: 'გადამზიდველი', role_shipper: 'ტვირთის მფლობელი', role_both: 'გადამზიდველი და ტვირთის მფლობელი',
     role_shipper: 'ტვირთის მფლობელი',
     role_both: 'ორივე',
     btn_rate: '⭐ შეფასება',
@@ -2462,7 +2462,7 @@ const TRANSLATIONS = {
     truck_auto_full: 'ავტოვოზი', truck_evac: 'ევაკუატორი',
     truck_cistern: 'ცისტერნა', truck_grain: 'მარცვლეულის',
     truck_dump: 'თვითმცლელი', truck_other_full: 'სხვა',
-    role_carrier: 'გადამზიდველი', role_shipper_co: 'ტვირთის მფლობელი — კომპანია / ი/მ',
+    role_carrier: 'გადამზიდველი', role_shipper: 'ტვირთის მფლობელი', role_both: 'გადამზიდველი და ტვირთის მფლობელი', role_shipper_co: 'ტვირთის მფლობელი — კომპანია / ი/მ',
     role_shipper_person: 'ტვირთის მფლობელი — ფიზიკური პირი',
     role_carrier_sub: 'კომპანია ან ი/მ — ვეძებ ტვირთებს',
     role_person_sub: 'ერთჯერადი გაგზავნები, ი/მ-ის გარეშე',

@@ -47,7 +47,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1776194292">
+<link rel="stylesheet" href="styles.css?v=1776194453">
 </head>
 <body>
 
@@ -381,7 +381,7 @@
     <div id="formLogin">
       <div class="success-msg" id="loginSuccess"><span data-i18n="None"><span data-i18n="msg_logged_in">✅ Вход выполнен успешно!</span></span></div>
       <div class="form-group">
-        <label>Email</label>
+        <label data-i18n="lbl_email">Email</label>
         <input class="form-input" type="email" id="loginEmail" placeholder="your@email.com">
       </div>
       <div class="form-group">
@@ -404,7 +404,7 @@
       </div>
       <div id="forgotStep1">
         <div class="form-group">
-          <label>Email</label>
+          <label data-i18n="lbl_email">Email</label>
           <input class="form-input" type="email" id="forgotEmail" placeholder="your@email.com">
         </div>
         <div id="forgotError" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
@@ -484,11 +484,11 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Телефон</label>
+            <label data-i18n="lbl_phone">Телефон</label>
             <input class="form-input" type="tel" id="regPhone" placeholder="+995 555 ___">
           </div>
           <div class="form-group">
-            <label>Email</label>
+            <label data-i18n="lbl_email">Email</label>
             <input class="form-input" type="email" id="regEmail" placeholder="your@email.com">
           </div>
         </div>
@@ -833,20 +833,20 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Телефон</label>
+        <label data-i18n="lbl_phone">Телефон</label>
         <input class="form-input" id="sPhone" placeholder="+995 555 ___">
       </div>
       <div class="form-group">
-        <label>Email</label>
+        <label data-i18n="lbl_email">Email</label>
         <input class="form-input" id="sEmail" type="email" placeholder="you@email.com">
       </div>
     </div>
     <div class="form-group">
-      <label>Вы:</label>
+      <label data-i18n="lbl_you">Вы:</label>
       <select class="form-select" id="sRole">
-        <option value="carrier">🚛 Перевозчик</option>
-        <option value="shipper">📦 Грузовладелец</option>
-        <option value="both">🔄 Перевозчик и грузовладелец</option>
+        <option value="carrier" data-i18n="role_carrier_opt">🚛 Перевозчик</option>
+        <option value="shipper" data-i18n="role_shipper_opt">📦 Грузовладелец</option>
+        <option value="both" data-i18n="role_both_opt">🔄 Перевозчик и грузовладелец</option>
       </select>
     </div>
     <div class="form-group">
@@ -864,7 +864,7 @@
         <div class="form-group">
           <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
           <select class="form-select" id="sTruckType">
-            <option value="">— выберите —</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option><option data-i18n="truck_other_full">Другой</option>
+            <option value="" data-i18n="opt_choose">— выберите —</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option><option data-i18n="truck_other_full">Другой</option>
           </select>
         </div>
         <div class="form-group">
@@ -897,10 +897,10 @@
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;margin-bottom:10px"><span data-i18n="None"><span data-i18n="cab_notifications">🔔 Уведомления</span></span></div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Новые отклики на мои грузы</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_new_responses">Новые отклики на мои грузы</span></label>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_my_routes">Грузы по моим маршрутам</span></label>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> <span data-i18n="notif_rate_changes">Изменение ставок на маршрутах</span></label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Статус моих заявок</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_my_status">Статус моих заявок</span></label>
     </div>
     <button class="btn-primary" onclick="saveSettings()"><span data-i18n="None"><span data-i18n="btn_save">💾 Сохранить</span></span></button>
     <button class="btn-secondary" onclick="closeModal('settingsOverlay')" data-i18n="btn_cancel_form">Отмена</button>
@@ -994,9 +994,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1776194292"></script>
-<script src="main.js?v=1776194292"></script>
-<script src="ai-dispatcher.js?v=1776194292"></script>
+<script src="api.js?v=1776194453"></script>
+<script src="main.js?v=1776194453"></script>
+<script src="ai-dispatcher.js?v=1776194453"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
