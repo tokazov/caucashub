@@ -230,13 +230,27 @@ function translatePay(pay) {
 
 function translateCity(name) {
   if (!name) return name;
-  if (lang !== 'ge') return name;
+  // На RU: если текст содержит грузинские символы — конвертируем обратно в RU
+  if (lang !== 'ge') {
+    if (/[\u10d0-\u10ff]/.test(name)) {
+      let result = name;
+      for (const city of CITIES) {
+        if (city.nameGe && result.includes(city.nameGe)) {
+          result = result.split(city.nameGe).join(city.name);
+        }
+      }
+      for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
+        if (result.includes(ge)) result = result.split(ge).join(ru);
+      }
+      return result;
+    }
+    return name;
+  }
+  // На GE: переводим RU → GE
   let result = name;
-  // Регионы
   for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
     if (result.includes(ru)) result = result.split(ru).join(ge);
   }
-  // Города
   for (const city of CITIES) {
     if (city.nameGe && result.includes(city.name)) {
       result = result.split(city.name).join(city.nameGe);
