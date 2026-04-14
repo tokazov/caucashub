@@ -390,7 +390,7 @@ function renderLoads(data){
 
     // Бейдж
     let badgeHtml = '';
-    if(d.badge==='urgent') badgeHtml = '<span class="badge-urgent-new">СРОЧНО</span>';
+    if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
     else if(d.badge==='new') badgeHtml = '<span class="badge-fresh-new">НОВЫЙ</span>';
     else if(d.scope==='intl') badgeHtml = '<span class="badge-intl-new">МЕЖД.</span>';
 
@@ -411,8 +411,8 @@ function renderLoads(data){
            <button class="card-btn-del" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑</button>
          </div>`
       : _alreadyResponded
-        ? `<button class="card-btn-resp" style="background:#2ecc71;color:#fff;font-size:12px;cursor:default" disabled onclick="event.stopPropagation()">✅ Отправлено</button>`
-        : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">Отклик</button>`;
+        ? `<button class="card-btn-resp" style="background:#2ecc71;color:#fff;font-size:12px;cursor:default" disabled onclick="event.stopPropagation()">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_sent||'✅ Отправлено'}</button>`
+        : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_respond||'Отклик'}</button>`;
 
     const row = document.createElement('div');
     row.className = cardCls;
@@ -1879,6 +1879,7 @@ const TRANSLATIONS = {
     btn_register: 'Регистрация',
     btn_place: 'Разместить',
     btn_filters: 'Фильтры',
+    btn_search: 'Найти',
     lbl_from: 'Откуда',
     lbl_to: 'Куда',
     lbl_weight: 'Вес (кг)',
@@ -1891,6 +1892,18 @@ const TRANSLATIONS = {
     status_in_transit: 'В пути',
     status_delivered: 'Доставлено',
     status_completed: 'Завершено',
+    opt_date: '📅 Дата',
+    opt_today: 'Сегодня',
+    opt_tomorrow: 'Завтра',
+    opt_week: 'На неделе',
+    opt_trucktype: '🚛 Кузов',
+    opt_tonnage: '⚖️ Тоннаж',
+    opt_price: '💰 Стоимость',
+    ph_from: '📍 Откуда',
+    ph_to: '🏁 Куда',
+    badge_urgent: 'СРОЧНО',
+    card_respond: 'Отклик',
+    card_sent: '✅ Отправлено',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -1910,6 +1923,7 @@ const TRANSLATIONS = {
     btn_register: 'რეგისტრაცია',
     btn_place: 'განთავსება',
     btn_filters: 'ფილტრები',
+    btn_search: 'ძებნა',
     lbl_from: 'საიდან',
     lbl_to: 'სად',
     lbl_weight: 'წონა (კგ)',
@@ -1922,15 +1936,36 @@ const TRANSLATIONS = {
     status_in_transit: 'გზაში',
     status_delivered: 'მიტანილია',
     status_completed: 'დასრულებული',
+    opt_date: '📅 თარიღი',
+    opt_today: 'დღეს',
+    opt_tomorrow: 'ხვალ',
+    opt_week: 'კვირაში',
+    opt_trucktype: '🚛 კუზოვი',
+    opt_tonnage: '⚖️ ტონაჟი',
+    opt_price: '💰 ღირებულება',
+    ph_from: '📍 საიდან',
+    ph_to: '🏁 სად',
+    badge_urgent: 'სასწრაფო',
+    card_respond: 'გამოხმაურება',
+    card_sent: '✅ გაგზავნილია',
   }
 };
 
 function applyLang(l) {
+  const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
+  // textContent по data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    if (TRANSLATIONS[l] && TRANSLATIONS[l][key]) el.textContent = TRANSLATIONS[l][key];
+    if (T[key]) el.textContent = T[key];
+  });
+  // placeholder по data-i18n-ph
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.dataset.i18nPh;
+    if (T[key]) el.placeholder = T[key];
   });
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
+  // Перерисовываем карточки грузов если они уже загружены
+  if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
 }
 
 function setLang(l, btn) {
