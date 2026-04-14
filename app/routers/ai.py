@@ -82,34 +82,6 @@ class DispatcherMessage(BaseModel):
     history: List[dict] = []   # [{role: "user"|"assistant", text: "..."}]
     state: dict = {}            # накопленные данные {role, from, to, weight_cap, truck, date, ...}
 
-@router.get("/dispatcher/test")
-async def dispatcher_test():
-    """Quick test — проверяем Gemini"""
-    try:
-        r = model.generate_content("Скажи 'ОК' одним словом")
-        return {"status": "ok", "gemini": r.text.strip(), "key_prefix": settings.GEMINI_API_KEY[:8]}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "key_prefix": settings.GEMINI_API_KEY[:8]}
-
-@router.post("/dispatcher/debug")
-async def dispatcher_debug(req: DispatcherMessage):
-    """Debug — тест без БД"""
-    try:
-        prompt = f"""Ты Мари — AI диспетчер CaucasHub. Ответь только JSON без markdown:
-{{"reply":"твой ответ","state":{{"role":null,"from":null,"to":null,"ready_to_search":false,"ready_to_post":false}},"search_filters":null}}
-
-Пользователь: {req.message}"""
-        r = model.generate_content(prompt)
-        raw = r.text.strip()
-        raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
-        jm = re.search(r'\{.*\}', raw, re.DOTALL)
-        if jm: raw = jm.group(0)
-        data = json.loads(raw)
-        return {"status": "ok", "raw": r.text[:200], "parsed": data}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-300:]}
-
 @router.post("/dispatcher")
 async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db)):
     """

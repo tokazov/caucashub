@@ -89,30 +89,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
 
-@router.get("/debug-register")
-async def debug_register(db: AsyncSession = Depends(get_db)):
-    import traceback
-    try:
-        from sqlalchemy import text
-        result = await db.execute(text("SELECT COUNT(*) FROM users"))
-        count = result.scalar()
-        from datetime import datetime
-        test_email = f"debug_{int(datetime.utcnow().timestamp())}@test.ge"
-        test_user = User(
-            email=test_email,
-            hashed_password=pwd_context.hash("test123"),
-            company_name="Debug Test",
-            phone=None,
-            role=UserRole.carrier
-        )
-        db.add(test_user)
-        await db.commit()
-        await db.refresh(test_user)
-        await db.delete(test_user)
-        await db.commit()
-        return {"status": "ok", "users_count": count, "register_test": "passed"}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
+
 
 @router.get("/admin/users")
 async def admin_list_users(secret: str, db: AsyncSession = Depends(get_db)):
@@ -191,7 +168,7 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
                 r = await client.post("https://api.resend.com/emails",
                     headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
                     json={
-                        "from": "CaucasHub <onboarding@resend.dev>",
+                        "from": "CaucasHub <noreply@caucashub.ge>",
                         "to": [data.email],
                         "subject": "CaucasHub — код сброса пароля",
                         "html": html,
@@ -202,9 +179,7 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception:
             pass
 
-    # Возвращаем код всегда для надёжности (фронтенд подставит если письмо не дошло)
-    return {"message": "Если email зарегистрирован — код отправлен",
-            "dev_code": code if user else None}
+    return {"message": "Если email зарегистрирован — код отправлен"}
 
 
 @router.post("/reset-password")

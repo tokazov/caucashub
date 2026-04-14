@@ -315,7 +315,7 @@ async def download_act(
     deal_id: int,
     token: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
 ):
     from app.config import settings
     from jose import jwt, JWTError

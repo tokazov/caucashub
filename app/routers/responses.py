@@ -219,6 +219,17 @@ async def accept_response(
     if resp.status.value == "accepted":
         raise HTTPException(status_code=400, detail="Этот отклик уже принят")
 
+    # Блокируем если у груза уже есть активная или завершённая сделка
+    from app.models.deal import Deal, DealStatus as DS
+    existing_deal = await db.execute(
+        select(Deal).where(
+            Deal.load_id == resp.load_id,
+            Deal.status.in_([DS.confirmed, DS.loading, DS.in_transit, DS.delivered, DS.completed])
+        )
+    )
+    if existing_deal.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="По этому грузу уже есть сделка")
+
     # Принимаем отклик, отклоняем остальные
     resp.status = ResponseStatus.accepted
     all_resp = await db.execute(
