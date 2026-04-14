@@ -391,8 +391,8 @@ function renderLoads(data){
     // Бейдж
     let badgeHtml = '';
     if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
-    else if(d.badge==='new') badgeHtml = '<span class="badge-fresh-new">НОВЫЙ</span>';
-    else if(d.scope==='intl') badgeHtml = '<span class="badge-intl-new">МЕЖД.</span>';
+    else if(d.badge==='new') badgeHtml = `<span class="badge-fresh-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_new||'НОВЫЙ'}</span>`;
+    else if(d.scope==='intl') badgeHtml = `<span class="badge-intl-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_intl||'МЕЖД.'}</span>`;
 
     // Тип кузова — цвет тега
     const typeColors = {
@@ -426,7 +426,7 @@ function renderLoads(data){
           <div class="sub">${d.co} ⭐${d.rat}</div>
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
-        <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} кг</div>
+        <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
         <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span></div>
         <div class="price">${d.cur||'₾'}${d.price.toLocaleString()}</div>
         <div style="font-size:12px;font-weight:600;color:#555">${dateStr||'—'}</div>
@@ -452,7 +452,7 @@ function renderLoads(data){
         </div>
         <div class="card-footer-row">
           <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span>
-          <span>${d.kg.toLocaleString()} кг</span>
+          <span>${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</span>
           ${dateStr ? `<span>${dateStr}</span>` : ''}
         </div>
       </div>
@@ -496,7 +496,7 @@ function renderTrucks(){
         <div style="font-size:13px;font-weight:600">${t.co}</div>
         <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' рейсов' : ''}</div>
       </div>
-      <div style="font-size:13px">${(t.kg||0).toLocaleString()} кг</div>
+      <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${t.type}</div>
       <div style="font-size:12px;color:#2ecc71;font-weight:600">${t.date}</div>
       <div style="display:flex;gap:4px">
@@ -1902,12 +1902,16 @@ const TRANSLATIONS = {
     ph_from: '📍 Откуда',
     ph_to: '🏁 Куда',
     badge_urgent: 'СРОЧНО',
+    badge_new: 'НОВЫЙ',
+    badge_intl: 'МЕЖД.',
+    unit_kg: 'кг',
     card_respond: 'Отклик',
     card_sent: '✅ Отправлено',
     bnav_loads: 'Грузы',
     bnav_trucks: 'Машины',
     bnav_rates: 'Ставки',
     bnav_cabinet: 'Кабинет',
+    bnav_post: 'Груз',
     nav_loads: '📦 Грузы',
     nav_rates2: '📊 Ставки',
     nav_cabinet: '📋 Кабинет',
@@ -1971,12 +1975,16 @@ const TRANSLATIONS = {
     ph_from: '📍 საიდან',
     ph_to: '🏁 სად',
     badge_urgent: 'სასწრაფო',
+    badge_new: 'ახალი',
+    badge_intl: 'საერთ.',
+    unit_kg: 'კგ',
     card_respond: 'გამოხმაურება',
     card_sent: '✅ გაგზავნილია',
     bnav_loads: 'ტვირთები',
     bnav_trucks: 'მანქანები',
     bnav_rates: 'ტარიფები',
     bnav_cabinet: 'კაბინეტი',
+    bnav_post: 'ტვირთი',
     nav_loads: '📦 ტვირთები',
     nav_rates2: '📊 ტარიფები',
     nav_cabinet: '📋 კაბინეტი',
