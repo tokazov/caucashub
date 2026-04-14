@@ -140,48 +140,79 @@ const CITIES = [
   {name:'Ереван', nameGe:'ერევანი', lat:40.1872, lng:44.5152, region:'Армения 🇦🇲'},
   {name:'Гюмри', nameGe:'გიუმრი', lat:40.7894, lng:43.8475, region:'Армения 🇦🇲'},
   // Азербайджан
-  {name:'Баку', lat:40.4093, lng:49.8671, region:'Азербайджан 🇦🇿'},
-  {name:'Гянджа', lat:40.6828, lng:46.3606, region:'Азербайджан 🇦🇿'},
+  {name:'Баку', nameGe:'ბაქო', lat:40.4093, lng:49.8671, region:'Азербайджан 🇦🇿'},
+  {name:'Гянджа', nameGe:'განჯა', lat:40.6828, lng:46.3606, region:'Азербайджан 🇦🇿'},
   // Россия
-  {name:'Москва', lat:55.7558, lng:37.6176, region:'Россия 🇷🇺'},
-  {name:'Санкт-Петербург', lat:59.9343, lng:30.3351, region:'Россия 🇷🇺'},
-  {name:'Сочи', lat:43.5992, lng:39.7257, region:'Россия 🇷🇺'},
-  {name:'Ростов-на-Дону', lat:47.2357, lng:39.7015, region:'Россия 🇷🇺'},
-  {name:'Краснодар', lat:45.0355, lng:38.9753, region:'Россия 🇷🇺'},
+  {name:'Москва', nameGe:'მოსკოვი', lat:55.7558, lng:37.6176, region:'Россия 🇷🇺'},
+  {name:'Санкт-Петербург', nameGe:'სანქტ-პეტერბურგი', lat:59.9343, lng:30.3351, region:'Россия 🇷🇺'},
+  {name:'Сочи', nameGe:'სოჭი', lat:43.5992, lng:39.7257, region:'Россия 🇷🇺'},
+  {name:'Ростов-на-Дону', nameGe:'როსტოვ-დონზე', lat:47.2357, lng:39.7015, region:'Россия 🇷🇺'},
+  {name:'Краснодар', nameGe:'კრასნოდარი', lat:45.0355, lng:38.9753, region:'Россия 🇷🇺'},
   // Казахстан
-  {name:'Алматы', lat:43.2220, lng:76.8512, region:'Казахстан 🇰🇿'},
-  {name:'Астана', lat:51.1801, lng:71.4460, region:'Казахстан 🇰🇿'},
-  {name:'Шымкент', lat:42.3000, lng:69.6000, region:'Казахстан 🇰🇿'},
+  {name:'Алматы', nameGe:'ალმათი', lat:43.2220, lng:76.8512, region:'Казахстан 🇰🇿'},
+  {name:'Астана', nameGe:'ასტანა', lat:51.1801, lng:71.4460, region:'Казахстан 🇰🇿'},
+  {name:'Шымкент', nameGe:'შიმქენთი', lat:42.3000, lng:69.6000, region:'Казахстан 🇰🇿'},
   // Узбекистан
-  {name:'Ташкент', lat:41.2995, lng:69.2401, region:'Узбекистан 🇺🇿'},
-  {name:'Самарканд', lat:39.6542, lng:66.9597, region:'Узбекистан 🇺🇿'},
+  {name:'Ташкент', nameGe:'ტაშქენტი', lat:41.2995, lng:69.2401, region:'Узбекистан 🇺🇿'},
+  {name:'Самарканд', nameGe:'სამარყანდი', lat:39.6542, lng:66.9597, region:'Узбекистан 🇺🇿'},
   // СНГ
-  {name:'Минск', lat:53.9045, lng:27.5615, region:'Беларусь 🇧🇾'},
-  {name:'Киев', lat:50.4501, lng:30.5234, region:'Украина 🇺🇦'},
-  {name:'Одесса', lat:46.4825, lng:30.7233, region:'Украина 🇺🇦'},
+  {name:'Минск', nameGe:'მინსკი', lat:53.9045, lng:27.5615, region:'Беларусь 🇧🇾'},
+  {name:'Киев', nameGe:'კიევი', lat:50.4501, lng:30.5234, region:'Украина 🇺🇦'},
+  {name:'Одесса', nameGe:'ოდესა', lat:46.4825, lng:30.7233, region:'Украина 🇺🇦'},
   // Средний Восток
-  {name:'Дубай', lat:25.2048, lng:55.2708, region:'ОАЭ 🇦🇪'},
-  {name:'Абу-Даби', lat:24.4539, lng:54.3773, region:'ОАЭ 🇦🇪'},
-  {name:'Тегеран', lat:35.6892, lng:51.3890, region:'Иран 🇮🇷'},
+  {name:'Дубай', nameGe:'დუბაი', lat:25.2048, lng:55.2708, region:'ОАЭ 🇦🇪'},
+  {name:'Абу-Даби', nameGe:'აბუ-დაბი', lat:24.4539, lng:54.3773, region:'ОАЭ 🇦🇪'},
+  {name:'Тегеран', nameGe:'თეირანი', lat:35.6892, lng:51.3890, region:'Иран 🇮🇷'},
   // Европа
-  {name:'Берлин', lat:52.5200, lng:13.4050, region:'Германия 🇩🇪'},
-  {name:'Варшава', lat:52.2297, lng:21.0122, region:'Польша 🇵🇱'},
-  {name:'Бухарест', lat:44.4268, lng:26.1025, region:'Румыния 🇷🇴'},
-  {name:'София', lat:42.6977, lng:23.3219, region:'Болгария 🇧🇬'},
-  {name:'Афины', lat:37.9838, lng:23.7275, region:'Греция 🇬🇷'},
+  {name:'Берлин', nameGe:'ბერლინი', lat:52.5200, lng:13.4050, region:'Германия 🇩🇪'},
+  {name:'Варшава', nameGe:'ვარშავა', lat:52.2297, lng:21.0122, region:'Польша 🇵🇱'},
+  {name:'Бухарест', nameGe:'ბუქარესტი', lat:44.4268, lng:26.1025, region:'Румыния 🇷🇴'},
+  {name:'София', nameGe:'სოფია', lat:42.6977, lng:23.3219, region:'Болгария 🇧🇬'},
+  {name:'Афины', nameGe:'ათენი', lat:37.9838, lng:23.7275, region:'Греция 🇬🇷'},
 ];
 
 let selectedFrom=null, selectedTo=null, map=null, routeLine=null, markers=[];
 
-// Перевод названия города на текущий язык
+// Перевод регионов Грузии
+const REGION_NAMES_GE = {
+  // Регионы Грузии
+  'край Имеретия': 'იმერეთის მხარე',
+  'край Кахетия': 'კახეთის მხარე',
+  'край Самегрело': 'სამეგრელოს მხარე',
+  'край Самцхе-Джавахети': 'სამცხე-ჯავახეთის მხარე',
+  'край Шида Картли': 'შიდა ქართლის მხარე',
+  'край Квемо Картли': 'ქვემო ქართლის მხარე',
+  'Автономная Республика Аджария': 'აჭარის ავტ. რესპ.',
+  'Квемо Картли': 'ქვემო ქართლი',
+  // Страны
+  'Грузия': 'საქართველო',
+  'Турция': 'თურქეთი',
+  'Армения': 'სომხეთი',
+  'Азербайджан': 'აზერბაიჯანი',
+  'Россия': 'რუსეთი',
+  'Украина': 'უკრაინა',
+  'Казахстан': 'ყაზახეთი',
+  'Узбекистан': 'უზბეკეთი',
+  'Беларусь': 'ბელარუსი',
+  'Германия': 'გერმანია',
+  'Польша': 'პოლონეთი',
+  'Румыния': 'რუმინეთი',
+  'Болгария': 'ბულგარეთი',
+  'Греция': 'საბერძნეთი',
+  'Иран': 'ირანი',
+  'ОАЭ': 'არაბ. საამ.',
+};
+
+// Перевод названия города/региона на текущий язык
 function translateCity(name) {
   if (!name) return name;
   if (lang !== 'ge') return name;
-  // Ищем точное совпадение
-  const c = CITIES.find(c => c.name === name || name.includes(c.name));
-  if (c && c.nameGe) return name.replace(c.name, c.nameGe);
-  // Частичная замена — проходим по всем городам
   let result = name;
+  // Регионы
+  for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
+    if (result.includes(ru)) result = result.split(ru).join(ge);
+  }
+  // Города
   for (const city of CITIES) {
     if (city.nameGe && result.includes(city.name)) {
       result = result.split(city.name).join(city.nameGe);
@@ -207,8 +238,12 @@ function filterCity(dir, val){
   }
 
   // Локальные — города Грузии
-  const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
-  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${lang==='ge'&&c.nameGe?c.nameGe:c.name} <span class="region">${c.region}</span></div>`).join('');
+  const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)||(c.nameGe&&c.nameGe.toLowerCase().includes(q))).slice(0,8);
+  let dropHtml=filtered.map(c=>{
+    const displayName = lang==='ge'&&c.nameGe ? c.nameGe : c.name;
+    const displayRegion = lang==='ge' ? translateCity(c.region) : c.region;
+    return `<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${displayName} <span class="region">${displayRegion}</span></div>`;
+  }).join('');
   const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null)">📍 Использовать: "${val.trim()}"</div>`;
   drop.innerHTML=dropHtml+(dropHtml?'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>':'')+freeOpt;
   drop.classList.add('open');
@@ -2162,6 +2197,7 @@ function closeOverlay(id,e){ if(e.target===document.getElementById(id)) closeMod
 // ── COUNTRY FILTER ────────────────────────────────────
 const COUNTRY_FLAGS={'GE':'🇬🇪','TR':'🇹🇷','AM':'🇦🇲','AZ':'🇦🇿','RU':'🇷🇺','UA':'🇺🇦','CN':'🇨🇳','DE':'🇩🇪','PL':'🇵🇱','IT':'🇮🇹','BG':'🇧🇬','KZ':'🇰🇿','UZ':'🇺🇿','TM':'🇹🇲','KG':'🇰🇬','TJ':'🇹🇯','MD':'🇲🇩','BY':'🇧🇾','IL':'🇮🇱','IR':'🇮🇷','AE':'🇦🇪','GR':'🇬🇷','RO':'🇷🇴'};
 const COUNTRY_NAMES={'GE':'Грузия','TR':'Турция','AM':'Армения','AZ':'Азербайджан','RU':'Россия','UA':'Украина','CN':'Китай','DE':'Германия','PL':'Польша','IT':'Италия','BG':'Болгария'};
+const COUNTRY_NAMES_GE={'GE':'საქართველო','TR':'თურქეთი','AM':'სომხეთი','AZ':'აზერბაიჯანი','RU':'რუსეთი','UA':'უკრაინა','CN':'ჩინეთი','DE':'გერმანია','PL':'პოლონეთი','IT':'იტალია','BG':'ბულგარეთი','KZ':'ყაზახეთი','UZ':'უზბეკეთი','BY':'ბელარუსი','IL':'ისრაელი','IR':'ირანი','AE':'არაბეთის გაერთიანებული საამიროები','GR':'საბერძნეთი','RO':'რუმინეთი'};
 
 // Показываем/скрываем фильтр стран при переключении Local/Intl
 // setScope расширен в оригинале
