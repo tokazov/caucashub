@@ -190,6 +190,10 @@ async function syncLoadsFromServer(){
       window.allLoads = [...LOCAL, ...INTL];
       window._serverTotal = serverLoads.length;
       if(typeof renderLoads === 'function') renderLoads(scope === 'local' ? LOCAL : INTL);
+      // Применяем сохранённый язык после рендера карточек
+      if (typeof lang !== 'undefined' && lang !== 'ru' && typeof applyLang === 'function') {
+        applyLang(lang);
+      }
       // Обновляем счётчик реальными данными
       const _statEl = document.getElementById('statLoads');
       if(_statEl) _statEl.textContent = serverLoads.length;

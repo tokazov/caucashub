@@ -2991,21 +2991,12 @@ if(_dateInput){
   const _today=new Date();
   _dateInput.min=_today.toISOString().split('T')[0];
 }
-// Восстанавливаем язык ДО рендера карточек
+// Восстанавливаем язык ДО рендера — сразу меняем переменную lang
 (function() {
   const saved = localStorage.getItem('ch_lang');
   if (saved && saved !== 'ru') {
     lang = saved;
     document.documentElement.lang = saved === 'ge' ? 'ka' : saved;
-    // Визуально активируем кнопку — DOM ещё может не быть готов, делаем после DOMContentLoaded
-    document.addEventListener('DOMContentLoaded', function() {
-      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
-      if (btn) {
-        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        applyLang(saved);
-      }
-    });
   }
 })();
 
@@ -3014,10 +3005,26 @@ if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',()=>{
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
+    // Применяем язык после загрузки DOM
+    const saved = localStorage.getItem('ch_lang');
+    if (saved && saved !== 'ru' && typeof applyLang === 'function') {
+      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
+      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+      applyLang(saved);
+    }
   });
 } else {
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
+  // DOM уже готов — применяем язык сразу после sync
+  const saved = localStorage.getItem('ch_lang');
+  if (saved && saved !== 'ru' && typeof applyLang === 'function') {
+    setTimeout(function() {
+      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
+      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+      applyLang(saved);
+    }, 100);
+  }
 }
 
 function openPlansModal(e){ 
