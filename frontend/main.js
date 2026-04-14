@@ -92,51 +92,53 @@ function closeAddrDrop(field){
 }
 
 // ── CITIES ───────────────────────────────────────────
+// nameGe — официальное грузинское название города
 const CITIES = [
   // Грузия
-  {name:'Тбилиси', lat:41.6938, lng:44.8015, region:'Грузия'},
-  {name:'Батуми', lat:41.6168, lng:41.6367, region:'Грузия'},
-  {name:'Кутаиси', lat:42.2679, lng:42.7181, region:'Грузия'},
-  {name:'Рустави', lat:41.5500, lng:45.0000, region:'Грузия'},
-  {name:'Поти', lat:42.1500, lng:41.6667, region:'Грузия'},
-  {name:'Зугдиди', lat:42.5082, lng:41.8709, region:'Грузия'},
-  {name:'Гори', lat:41.9850, lng:44.1114, region:'Грузия'},
-  {name:'Сенаки', lat:42.2667, lng:42.0667, region:'Грузия'},
-  {name:'Самтредиа', lat:42.1500, lng:42.3500, region:'Грузия'},
-  {name:'Хашури', lat:41.9908, lng:43.5975, region:'Грузия'},
-  {name:'Ткибули', lat:42.3500, lng:42.9833, region:'Грузия'},
-  {name:'Марнеули', lat:41.5000, lng:44.8000, region:'Грузия'},
-  {name:'Телави', lat:41.9200, lng:45.4800, region:'Грузия'},
-  {name:'Сигнахи', lat:41.6167, lng:45.9167, region:'Грузия'},
-  {name:'Мцхета', lat:41.8450, lng:44.7200, region:'Грузия'},
-  {name:'Боржоми', lat:41.8333, lng:43.4000, region:'Грузия'},
-  {name:'Кобулети', lat:41.8243, lng:41.7742, region:'Грузия'},
-  {name:'Озургети', lat:41.9213, lng:42.0019, region:'Грузия'},
-  {name:'Ахалцихе', lat:41.6397, lng:42.9844, region:'Грузия'},
-  {name:'Амбролаури', lat:42.5167, lng:43.1500, region:'Грузия'},
-  {name:'Ланчхути', lat:41.9753, lng:42.2003, region:'Грузия'},
-  {name:'Чохатаури', lat:41.9833, lng:42.2833, region:'Грузия'},
-  {name:'Цхалтубо', lat:42.3167, lng:42.6000, region:'Грузия'},
-  {name:'Сачхере', lat:42.3500, lng:43.4000, region:'Грузия'},
-  {name:'Хони', lat:42.2833, lng:42.8833, region:'Грузия'},
-  {name:'Карели', lat:41.8500, lng:44.1333, region:'Грузия'},
-  {name:'Каспи', lat:41.9333, lng:44.4167, region:'Грузия'},
-  {name:'Дманиси', lat:41.3333, lng:44.1667, region:'Грузия'},
-  {name:'Гардабани', lat:41.4619, lng:45.1167, region:'Грузия'},
-  {name:'Лагодехи', lat:41.8244, lng:46.2733, region:'Грузия'},
-  {name:'Дедоплисцкаро', lat:41.4667, lng:46.1000, region:'Грузия'},
-  {name:'Цнори', lat:41.6500, lng:45.6167, region:'Грузия'},
-  {name:'Кварели', lat:41.9667, lng:45.8167, region:'Грузия'},
-  {name:'Степанцминда', lat:42.6575, lng:44.4125, region:'Грузия'},
-  {name:'Местиа', lat:43.0464, lng:42.7228, region:'Грузия'},
+  {name:'Тбилиси', nameGe:'თბილისი', lat:41.6938, lng:44.8015, region:'Грузия'},
+  {name:'Батуми', nameGe:'ბათუმი', lat:41.6168, lng:41.6367, region:'Грузия'},
+  {name:'Кутаиси', nameGe:'ქუთაისი', lat:42.2679, lng:42.7181, region:'Грузия'},
+  {name:'Рустави', nameGe:'რუსთავი', lat:41.5500, lng:45.0000, region:'Грузия'},
+  {name:'Поти', nameGe:'ფოთი', lat:42.1500, lng:41.6667, region:'Грузия'},
+  {name:'Зугдиди', nameGe:'ზუგდიდი', lat:42.5082, lng:41.8709, region:'Грузия'},
+  {name:'Гори', nameGe:'გორი', lat:41.9850, lng:44.1114, region:'Грузия'},
+  {name:'Сенаки', nameGe:'სენაკი', lat:42.2667, lng:42.0667, region:'Грузия'},
+  {name:'Самтредиа', nameGe:'სამტრედია', lat:42.1500, lng:42.3500, region:'Грузия'},
+  {name:'Хашури', nameGe:'ხაშური', lat:41.9908, lng:43.5975, region:'Грузия'},
+  {name:'Ткибули', nameGe:'ტყიბული', lat:42.3500, lng:42.9833, region:'Грузия'},
+  {name:'Марнеули', nameGe:'მარნეული', lat:41.5000, lng:44.8000, region:'Грузия'},
+  {name:'Телави', nameGe:'თელავი', lat:41.9200, lng:45.4800, region:'Грузия'},
+  {name:'Сигнахи', nameGe:'სიღნაღი', lat:41.6167, lng:45.9167, region:'Грузия'},
+  {name:'Мцхета', nameGe:'მცხეთა', lat:41.8450, lng:44.7200, region:'Грузия'},
+  {name:'Боржоми', nameGe:'ბორჯომი', lat:41.8333, lng:43.4000, region:'Грузия'},
+  {name:'Кобулети', nameGe:'ქობულეთი', lat:41.8243, lng:41.7742, region:'Грузия'},
+  {name:'Озургети', nameGe:'ოზურგეთი', lat:41.9213, lng:42.0019, region:'Грузия'},
+  {name:'Ахалцихе', nameGe:'ახალციხე', lat:41.6397, lng:42.9844, region:'Грузия'},
+  {name:'Амбролаури', nameGe:'ამბროლაური', lat:42.5167, lng:43.1500, region:'Грузია'},
+  {name:'Ланчхути', nameGe:'ლანჩხუთი', lat:41.9753, lng:42.2003, region:'Грузия'},
+  {name:'Чохатаури', nameGe:'ჩოხატაური', lat:41.9833, lng:42.2833, region:'Грузия'},
+  {name:'Цхалтубо', nameGe:'წყალტუბო', lat:42.3167, lng:42.6000, region:'Грузия'},
+  {name:'Сачхере', nameGe:'საჩხერე', lat:42.3500, lng:43.4000, region:'Грузия'},
+  {name:'Хони', nameGe:'ხონი', lat:42.2833, lng:42.8833, region:'Грузия'},
+  {name:'Карели', nameGe:'კარელი', lat:41.8500, lng:44.1333, region:'Грузия'},
+  {name:'Каспи', nameGe:'კასპი', lat:41.9333, lng:44.4167, region:'Грузия'},
+  {name:'Дманиси', nameGe:'დმანისი', lat:41.3333, lng:44.1667, region:'Грузия'},
+  {name:'Гардабани', nameGe:'გარდაბანი', lat:41.4619, lng:45.1167, region:'Грузия'},
+  {name:'Лагодехи', nameGe:'ლაგოდეხი', lat:41.8244, lng:46.2733, region:'Грузия'},
+  {name:'Дедоплисцкаро', nameGe:'დედოფლისწყარო', lat:41.4667, lng:46.1000, region:'Грузия'},
+  {name:'Цнори', nameGe:'წნორი', lat:41.6500, lng:45.6167, region:'Грузия'},
+  {name:'Кварели', nameGe:'ყვარელი', lat:41.9667, lng:45.8167, region:'Грузия'},
+  {name:'Степанцминда', nameGe:'სტეფანწმინდა', lat:42.6575, lng:44.4125, region:'Грузия'},
+  {name:'Местиа', nameGe:'მესტია', lat:43.0464, lng:42.7228, region:'Грузия'},
+  {name:'Зестафони', nameGe:'ზესტაფონი', lat:42.1167, lng:43.0333, region:'Грузия'},
   // Международные — Турция
-  {name:'Стамбул', lat:41.0082, lng:28.9784, region:'Турция 🇹🇷'},
-  {name:'Анкара', lat:39.9334, lng:32.8597, region:'Турция 🇹🇷'},
-  {name:'Трабзон', lat:41.0015, lng:39.7178, region:'Турция 🇹🇷'},
-  {name:'Измир', lat:38.4192, lng:27.1287, region:'Турция 🇹🇷'},
+  {name:'Стамбул', nameGe:'სტამბული', lat:41.0082, lng:28.9784, region:'Турция 🇹🇷'},
+  {name:'Анкара', nameGe:'ანკარა', lat:39.9334, lng:32.8597, region:'Турция 🇹🇷'},
+  {name:'Трабзон', nameGe:'ტრაბზონი', lat:41.0015, lng:39.7178, region:'Турция 🇹🇷'},
+  {name:'Измир', nameGe:'იზმირი', lat:38.4192, lng:27.1287, region:'Турция 🇹🇷'},
   // Армения
-  {name:'Ереван', lat:40.1872, lng:44.5152, region:'Армения 🇦🇲'},
-  {name:'Гюмри', lat:40.7894, lng:43.8475, region:'Армения 🇦🇲'},
+  {name:'Ереван', nameGe:'ერევანი', lat:40.1872, lng:44.5152, region:'Армения 🇦🇲'},
+  {name:'Гюмри', nameGe:'გიუმრი', lat:40.7894, lng:43.8475, region:'Армения 🇦🇲'},
   // Азербайджан
   {name:'Баку', lat:40.4093, lng:49.8671, region:'Азербайджан 🇦🇿'},
   {name:'Гянджа', lat:40.6828, lng:46.3606, region:'Азербайджан 🇦🇿'},
@@ -171,6 +173,23 @@ const CITIES = [
 
 let selectedFrom=null, selectedTo=null, map=null, routeLine=null, markers=[];
 
+// Перевод названия города на текущий язык
+function translateCity(name) {
+  if (!name) return name;
+  if (lang !== 'ge') return name;
+  // Ищем точное совпадение
+  const c = CITIES.find(c => c.name === name || name.includes(c.name));
+  if (c && c.nameGe) return name.replace(c.name, c.nameGe);
+  // Частичная замена — проходим по всем городам
+  let result = name;
+  for (const city of CITIES) {
+    if (city.nameGe && result.includes(city.name)) {
+      result = result.split(city.name).join(city.nameGe);
+    }
+  }
+  return result;
+}
+
 function filterCity(dir, val){
   const q=val.trim().toLowerCase();
   const id=dir==='from'?'dropFrom':'dropTo';
@@ -189,7 +208,7 @@ function filterCity(dir, val){
 
   // Локальные — города Грузии
   const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
-  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${c.name} <span class="region">${c.region}</span></div>`).join('');
+  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${lang==='ge'${c.name} <span class="region">${c.region}</span>${c.name} <span class="region">${c.region}</span>c.nameGe?c.nameGe:c.name} <span class="region">${c.region}</span></div>`).join('');
   const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null)">📍 Использовать: "${val.trim()}"</div>`;
   drop.innerHTML=dropHtml+(dropHtml?'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>':'')+freeOpt;
   drop.classList.add('open');
@@ -203,11 +222,11 @@ function selectCity(dir, name, lat, lng, isCountry){
   const city=CITIES.find(c=>c.name===name)||{name,lat:lat?parseFloat(lat):null,lng:lng?parseFloat(lng):null,region:''};
   if(dir==='from'){
     selectedFrom=city;
-    document.getElementById('fFrom').value=name;
+    document.getElementById('fFrom').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
     document.getElementById('dropFrom').classList.remove('open');
   } else {
     selectedTo=city;
-    document.getElementById('fTo').value=name;
+    document.getElementById('fTo').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
     document.getElementById('dropTo').classList.remove('open');
   }
   if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
@@ -422,7 +441,7 @@ function renderLoads(data){
     const desktopHtml = `
       <div class="row-desktop">
         <div>
-          <div class="route">${d.from} <span class="arrow">→</span> ${d.to}</div>
+          <div class="route">${translateCity(d.from)} <span class="arrow">→</span> ${translateCity(d.to)}</div>
           <div class="sub">${d.co} ⭐${d.rat}</div>
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
@@ -439,7 +458,7 @@ function renderLoads(data){
       <div class="row-mobile">
         <div class="card-main-row">
           <div class="card-left">
-            <div class="card-route-new">${d.from} <span class="arr">→</span> ${d.to}</div>
+            <div class="card-route-new">${translateCity(d.from)} <span class="arr">→</span> ${translateCity(d.to)}</div>
             <div class="card-meta-row">
               ${badgeHtml}
               <span class="card-co-new">${d.co} ⭐${d.rat}</span>
@@ -620,7 +639,7 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  document.getElementById('mTitle').textContent=`${d.from2||d.from} → ${d.to2||d.to}`;
+  document.getElementById('mTitle').textContent=`${translateCity(d.from2||d.from)} → ${translateCity(d.to2||d.to)}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `Добавлен ${_loadCreated}` : 'Добавлен сегодня';
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
@@ -631,8 +650,8 @@ function openCargo(d){
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} отклик${respondCount===1?'':respondCount<5?'а':'ов'}` : '';
   document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " рейсов" : ""} · Верифицирован ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${d.from2}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${d.to2}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} კგ</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):d.typeLabel}</div></div>
