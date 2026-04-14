@@ -1800,7 +1800,7 @@ function renderCabLoads(){
  var cabStat = document.getElementById('cabStatLoads');
  if(cabStat) cabStat.textContent = _myLoads.length;
  if(!_myLoads.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">Нет размещённых грузов</div><div class="cab-empty-sub">Разместите груз и перевозчики сразу увидят его</div><div style="margin-top:14px"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:10px 24px;font-size:14px">+ Разместить груз</button></div></div>';
+ el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_myloads||'Нет размещённых грузов') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_myloads_sub||'Разместите груз и перевозчики сразу увидят его') + '</div><div style="margin-top:14px"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:10px 24px;font-size:14px">+ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_place||'Разместить') + '</button></div></div>';
  return;
  }
  el.innerHTML = _myLoads.map(function(l){
@@ -1808,15 +1808,15 @@ function renderCabLoads(){
  var isIntl = l.scope === 'intl';
  var borderCls = l.urgent ? 'urgent' : (isIntl ? 'intl' : '');
  var respBadge = responses.length
- ? '<span class="cab-resp-badge has">' + responses.length + ' откл.</span>'
+ ? '<span class="cab-resp-badge has">' + responses.length + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond_short||'откл.') + '</span>'
  : '<span class="cab-resp-badge none">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses||'Нет откликов') + '</span>';
  var respBlock = '';
  if(responses.length){
- respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">Отклики (' + responses.length + ')</div>'
+ respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_responses||'Отклики') + ' (' + responses.length + ')</div>'
  + responses.map(function(r){
  var actions = '';
  if(r.status === 'pending'){
- actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ Принять</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
+ actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_accept||'Принять') + '</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
  } else if(r.status === 'accepted'){
  actions = '<span class="cab-status-badge accepted">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят') + '</span>';
  } else {
@@ -1830,7 +1830,7 @@ function renderCabLoads(){
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
  + '<div style="flex:1"><div class="cab-load-route">' + (typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + (typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
- + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
+ + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (typeof getTypeLabel==='function'?getTypeLabel(l.type||'tent'):(l.typeLabel||'')) + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
  + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
