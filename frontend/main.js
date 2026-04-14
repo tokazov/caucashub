@@ -457,9 +457,13 @@ function formatDateRange(d1,d2){
 
 // ── RENDER LOADS ─────────────────────────────────────
 function renderLoads(data){
+  // Если data не передан — берём текущий список по scope
+  if (!data) data = (scope === 'intl' ? INTL : LOCAL);
+  if (!data) data = [];
   // Фильтруем занятые грузы
-  data=data.filter(d=>d.status!=='taken');
-  document.getElementById('fcount').textContent=data.length+' грузов';
+  data = data.filter(d=>d.status!=='taken');
+  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
+  document.getElementById('fcount').textContent = data.length + ' ' + (T.fcount_suffix || 'грузов');
   const list=document.getElementById('cargoList');
   list.innerHTML='';
   if(!data.length){
