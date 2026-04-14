@@ -1859,11 +1859,86 @@ function setScope(s, el){
   document.getElementById('mapWrap').classList.remove('open');
 }
 
-// ── LANG ──────────────────────────────────────────────
-function setLang(l,btn){
-  lang=l;
-  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+// ── LANG / i18n ───────────────────────────────────────
+const TRANSLATIONS = {
+  ru: {
+    nav_exchange: 'Биржа',
+    nav_orders: 'Мои заказы',
+    nav_transport: 'Транспорт',
+    nav_rates: 'Ставки',
+    nav_deals: 'Мои сделки',
+    hero_title: 'Биржа грузов',
+    hero_sub: 'Кавказа',
+    hero_desc: 'Грузы по Грузии и СНГ — быстро и надёжно',
+    btn_post: 'Разместить груз',
+    btn_find: 'Найти машину',
+    tab_local: 'Локальные',
+    tab_intl: 'Международные',
+    btn_respond: 'Откликнуться',
+    btn_login: 'Войти',
+    btn_register: 'Регистрация',
+    btn_place: 'Разместить',
+    btn_filters: 'Фильтры',
+    lbl_from: 'Откуда',
+    lbl_to: 'Куда',
+    lbl_weight: 'Вес (кг)',
+    lbl_trucktype: 'Тип кузова',
+    lbl_price: 'Стоимость',
+    lbl_desc: 'Описание груза',
+    lbl_urgent: 'Срочно',
+    status_confirmed: 'Подтверждено',
+    status_loading: 'Загрузка',
+    status_in_transit: 'В пути',
+    status_delivered: 'Доставлено',
+    status_completed: 'Завершено',
+  },
+  ge: {
+    nav_exchange: 'ბირჟა',
+    nav_orders: 'ჩემი შეკვეთები',
+    nav_transport: 'ტრანსპორტი',
+    nav_rates: 'ტარიფები',
+    nav_deals: 'ჩემი გარიგებები',
+    hero_title: 'სატვირთო ბირჟა',
+    hero_sub: 'კავკასიის',
+    hero_desc: 'ტვირთები საქართველოს მასშტაბით — სწრაფად და საიმედოდ',
+    btn_post: 'ტვირთის განთავსება',
+    btn_find: 'მანქანის პოვნა',
+    tab_local: 'ადგილობრივი',
+    tab_intl: 'საერთაშორისო',
+    btn_respond: 'გამოხმაურება',
+    btn_login: 'შესვლა',
+    btn_register: 'რეგისტრაცია',
+    btn_place: 'განთავსება',
+    btn_filters: 'ფილტრები',
+    lbl_from: 'საიდან',
+    lbl_to: 'სად',
+    lbl_weight: 'წონა (კგ)',
+    lbl_trucktype: 'კუზოვის ტიპი',
+    lbl_price: 'ღირებულება',
+    lbl_desc: 'ტვირთის აღწერა',
+    lbl_urgent: 'სასწრაფო',
+    status_confirmed: 'დადასტურებული',
+    status_loading: 'დატვირთვა',
+    status_in_transit: 'გზაში',
+    status_delivered: 'მიტანილია',
+    status_completed: 'დასრულებული',
+  }
+};
+
+function applyLang(l) {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (TRANSLATIONS[l] && TRANSLATIONS[l][key]) el.textContent = TRANSLATIONS[l][key];
+  });
+  document.documentElement.lang = l === 'ge' ? 'ka' : l;
+}
+
+function setLang(l, btn) {
+  lang = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  applyLang(l);
+  localStorage.setItem('ch_lang', l);
 }
 
 // ── MODALS ────────────────────────────────────────────
@@ -2606,3 +2681,12 @@ window.doForgotStep2 = doForgotStep2;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
+
+// ── ЯЗЫК — восстановление при загрузке ───────────────
+(function() {
+  const saved = localStorage.getItem('ch_lang');
+  if (saved && saved !== 'ru') {
+    const btn = document.querySelector(`.lang-btn[onclick*="'${saved}'"]`);
+    setLang(saved, btn);
+  }
+})();

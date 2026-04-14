@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap" rel="stylesheet">
+<style>:lang(ka){font-family:'Noto Sans Georgian',sans-serif;}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=ru_RU" type="text/javascript" async></script>
 <title>CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1775418307">
+<link rel="stylesheet" href="styles.css?v=1776184544">
 </head>
 <body>
 
@@ -22,8 +23,7 @@
     <span class="online-dot" id="onlineDot" title="Вы онлайн"></span>
     <div style="display:flex;gap:2px">
       <button class="lang-btn active" onclick="setLang('ru',this)">RU</button>
-      <!-- GE/EN — переводы в разработке -->
-      <!-- <button class="lang-btn" onclick="setLang('ge',this)">GE</button> -->
+      <button class="lang-btn" onclick="setLang('ge',this)">GE</button>
       <!-- <button class="lang-btn" onclick="setLang('en',this)">EN</button> -->
     </div>
     <button class="notif-btn" id="notifBtn" onclick="toggleNotifs()">
@@ -31,8 +31,8 @@
       <span class="notif-badge" id="notifBadge"></span>
     </button>
     <div id="authBtns" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
-      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px">Войти</button>
-      <button class="btn-reg" id="btnReg" onclick="openAuth('register')" style="font-size:11px;padding:4px 8px;border-radius:5px;background:#f7b731;color:#1a1a2e;border:none;font-weight:700;cursor:pointer">Регистрация</button>
+      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px"><span data-i18n="btn_login">Войти</span></button>
+      <button class="btn-reg" id="btnReg" onclick="openAuth('register')" style="font-size:11px;padding:4px 8px;border-radius:5px;background:#f7b731;color:#1a1a2e;border:none;font-weight:700;cursor:pointer"><span data-i18n="btn_register">Регистрация</span></button>
     </div>
     <div class="user-avatar" id="userAvatar" style="display:none" onclick="openProfile()">ТК</div>
   </div>
@@ -41,8 +41,8 @@
 <!-- STICKY NAV -->
 <div style="position:sticky;top:54px;z-index:190;background:#1a1a2e">
   <div class="scope-bar">
-    <div class="scope-tab active" onclick="setScope('local',this)" id="sLocal">🇬🇪 Локальные</div>
-    <div class="scope-tab" onclick="setScope('intl',this)" id="sIntl">🌍 Международные</div>
+    <div class="scope-tab active" onclick="setScope('local',this)" id="sLocal">🇬🇪 <span data-i18n="tab_local">Локальные</span></div>
+    <div class="scope-tab" onclick="setScope('intl',this)" id="sIntl">🌍 <span data-i18n="tab_intl">Международные</span></div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showSection('loads',this)">📦 Грузы</button>
@@ -109,7 +109,7 @@
   <div class="fcount" id="fcount">— грузов</div>
   <div style="width:100%;display:flex;gap:8px;margin-top:2px">
     <button class="fbtn" onclick="filterLoads()">Найти</button>
-    <button class="post-btn" onclick="openPostLoad()">+ Разместить груз</button>
+    <button class="post-btn" onclick="openPostLoad()">+ <span data-i18n="btn_post">Разместить груз</span></button>
   </div>
 </div>
 
@@ -957,9 +957,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1775855376"></script>
-<script src="main.js?v=1775855376"></script>
-<script src="ai-dispatcher.js?v=1775855376"></script>
+<script src="api.js?v=1776184544"></script>
+<script src="main.js?v=1776184544"></script>
+<script src="ai-dispatcher.js?v=1776184544"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
