@@ -365,9 +365,9 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .card-btn-del  { background: #fff0f0; color: #e74c3c; border: 1px solid #fcc; padding: 7px 10px; border-radius: 7px; font-size: 14px; cursor: pointer; line-height: 1; }
 /* Скрываем старый grid-заголовок */
 .cargo-header { display: none !important; }
-/* На десктопе — ограничиваем ширину */
+/* На десктопе — без ограничения ширины, таблица на всю ширину */
 @media(min-width: 769px) {
-  #cargoList { max-width: 700px; margin: 0 auto; padding-bottom: 20px; }
+  #cargoList { max-width: none; margin: 0; padding-bottom: 20px; }
 }
 
 /* ═══ АДАПТИВ КАРТОЧЕК ГРУЗОВ ═══ */
