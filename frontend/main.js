@@ -1809,7 +1809,7 @@ function renderCabLoads(){
  var borderCls = l.urgent ? 'urgent' : (isIntl ? 'intl' : '');
  var respBadge = responses.length
  ? '<span class="cab-resp-badge has">' + responses.length + ' откл.</span>'
- : '<span class="cab-resp-badge none">Нет откликов</span>';
+ : '<span class="cab-resp-badge none">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses||'Нет откликов') + '</span>';
  var respBlock = '';
  if(responses.length){
  respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">Отклики (' + responses.length + ')</div>'
@@ -1818,22 +1818,22 @@ function renderCabLoads(){
  if(r.status === 'pending'){
  actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ Принять</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
  } else if(r.status === 'accepted'){
- actions = '<span class="cab-status-badge accepted">Принят</span>';
+ actions = '<span class="cab-status-badge accepted">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят') + '</span>';
  } else {
- actions = '<span class="cab-status-badge rejected">Отклонён</span>';
+ actions = '<span class="cab-status-badge rejected">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_rejected||'Отклонён') + '</span>';
  }
  return '<div class="cab-inline-resp-row"><div><div class="cab-inline-resp-name">' + r.name + '</div>' + (r.price ? '<div class="cab-inline-resp-price">₾' + r.price + '</div>' : '') + (r.phone ? '<a href="tel:' + r.phone + '" style="font-size:11px;color:#1a6ec0;text-decoration:none;display:block">📞 ' + r.phone + '</a>' : '') + '</div>' + actions + '</div>';
  }).join('') + '</div>';
  } else {
- respBlock = '<div style="font-size:12px;color:#ccc;padding:6px 0;text-align:center">Откликов пока нет</div>';
+ respBlock = '<div style="font-size:12px;color:#ccc;padding:6px 0;text-align:center">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses_yet||'Откликов пока нет') + '</div>';
  }
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
  + '<div style="flex:1"><div class="cab-load-route">' + l.from + ' → ' + l.to + '</div>'
- + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' кг</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
+ + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
- + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ Изменить</button>'
- + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ Удалить</button>'
+ + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
+ + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
  + '</div></div>'
  + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
  + respBlock
@@ -2077,8 +2077,8 @@ const TRANSLATIONS = {
     empty_orders: 'Нет активных заказов',
     empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
     empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
-    btn_post_load: '+ Разместить груз',
-    btn_post_new: '+ Разместить новый груз',
+    btn_post_load: ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'+ Разместить груз'),
+    btn_post_new: ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_new||'+ Разместить новый груз'),
     btn_respond_load: 'Откликнуться на груз',
     role_carrier: 'Перевозчик', role_shipper: 'Грузовладелец', role_both: 'Перевозчик и грузовладелец',
     role_shipper: 'Грузовладелец',
