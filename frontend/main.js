@@ -585,7 +585,7 @@ function renderTrucks(){
     const phone = t.phone ? t.phone : '+995 555 *** ***';
     row.innerHTML=`
       <div>
-        <div class="route">${t.from} <span class="arrow">→</span> ${t.to}</div>
+        <div class="route">${typeof translateCity==="function"?translateCity(t.from):t.from} <span class="arrow">→</span> ${typeof translateCity==="function"?translateCity(t.to):t.to}</div>
         <div class="sub">${t.plate||'—'}</div>
       </div>
       <div>
@@ -594,7 +594,7 @@ function renderTrucks(){
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
-      <div style="font-size:12px;color:#2ecc71;font-weight:600">${t.date}</div>
+      <div style="font-size:12px;color:#2ecc71;font-weight:600">${(function(d){const T=(typeof TRANSLATIONS!=="undefined"&&TRANSLATIONS[lang])||{};return d==="Сегодня"?(T.opt_today||d):d==="Завтра"?(T.opt_tomorrow||d):d;})(t.date)}</div>
       <div style="display:flex;gap:4px">
         ${isOwn
           ? `<button class="btn-resp" style="background:#fce4ec;color:#c62828;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" onclick="deleteMyTruck('${t.id}')">🗑️</button>`
