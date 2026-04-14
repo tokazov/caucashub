@@ -78,7 +78,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .btn-resp:hover { background:#e6a820; }
 .row > div { padding:0 6px; }
 .row > div:first-child { padding-left:0; }
-.thead > div { padding:0 6px; }
+.thead > div { padding:0; }
 .thead > div:first-child { padding-left:0; }
 .load-more { text-align:center; padding:16px; background:#fff; }
 .load-more button { background:#f0f2f5; border:none; padding:10px 24px; border-radius:8px; font-size:13px; color:#555; cursor:pointer; }
