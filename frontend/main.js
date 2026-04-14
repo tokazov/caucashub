@@ -1343,16 +1343,20 @@ function doPostLoad(){
 // Массив своих грузов (отдельно от откликов)
 
 // ── Статусы сделок ─────────────────────────────────────────────────
-const DEAL_STATUS = {
-  rated:      { label:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rated||'⭐ Оценено',       color:'#f7b731', border:'#f7b731' },
-  confirmed:  { label:'✅ Подтверждена',  color:'#2ecc71', border:'#2ecc71' },
-  loading:    { label:'📦 Загрузка',      color:'#3498db', border:'#3498db' },
-  in_transit: { label:'🚛 В пути',        color:'#9b59b6', border:'#9b59b6' },
-  delivered:  { label:'🏁 Доставлен',     color:'#f7b731', border:'#f7b731' },
-  completed:  { label:'🎉 Завершена',     color:'#27ae60', border:'#27ae60' },
-  disputed:   { label:'⚠️ Спор',          color:'#e74c3c', border:'#e74c3c' },
-  canceled:   { label:'✕ Отменена',      color:'#aaa',    border:'#ddd'    },
-};
+function getDealStatus() {
+  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
+  return {
+    rated:      { label: T.status_rated||'⭐ Оценено',         color:'#f7b731', border:'#f7b731' },
+    confirmed:  { label: T.status_confirmed||'✅ Подтверждена', color:'#2ecc71', border:'#2ecc71' },
+    loading:    { label: T.status_loading||'📦 Загрузка',       color:'#3498db', border:'#3498db' },
+    in_transit: { label: T.status_in_transit||'🚛 В пути',      color:'#9b59b6', border:'#9b59b6' },
+    delivered:  { label: T.status_delivered||'🏁 Доставлен',    color:'#f7b731', border:'#f7b731' },
+    completed:  { label: T.status_completed||'🎉 Завершена',    color:'#27ae60', border:'#27ae60' },
+    disputed:   { label: '⚠️ Спор',                             color:'#e74c3c', border:'#e74c3c' },
+    canceled:   { label: '✕ Отменена',                          color:'#aaa',    border:'#ddd'    },
+  };
+}
+const DEAL_STATUS = new Proxy({}, { get: (_, key) => getDealStatus()[key] });
 
 function renderDealCard(d){
   const st = DEAL_STATUS[d.status] || DEAL_STATUS.confirmed;
@@ -1963,6 +1967,7 @@ const TRANSLATIONS = {
     status_in_transit: 'В пути',
     status_delivered: 'Доставлено',
     status_completed: 'Завершено',
+    status_rated: '⭐ Оценено',
     opt_date: '📅 Дата',
     opt_today: 'Сегодня',
     opt_tomorrow: 'Завтра',
@@ -2122,7 +2127,7 @@ const TRANSLATIONS = {
     msg_load_posted: '✅ Груз размещён! Перевозчики уже видят ваше объявление.',
     msg_respond_sent: '✅ Заявка отправлена! Заказчик получит уведомление.',
     msg_truck_added: '✅ Машина добавлена в список!',
-    login_for_orders: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).login_for_orders||'Войдите в аккаунт чтобы видеть свои заказы',
+    login_for_orders: 'Войдите в аккаунт чтобы видеть свои заказы',
     login_for_cab: 'Войдите чтобы видеть свои грузы, отклики и сделки',
     no_notifs: 'Уведомлений нет',
     sub_all_standard: '✅ Всё из Стандарта',
