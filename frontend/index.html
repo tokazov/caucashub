@@ -10,7 +10,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1776187263">
+<link rel="stylesheet" href="styles.css?v=1776188073">
 </head>
 <body>
 
@@ -31,7 +31,7 @@
       <span class="notif-badge" id="notifBadge"></span>
     </button>
     <div id="authBtns" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
-      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px"><span data-i18n="btn_login">Войти</span></button>
+      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px"><span data-i18n="btn_login"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></span></button>
       <button class="btn-reg" id="btnReg" onclick="openAuth('register')" style="font-size:11px;padding:4px 8px;border-radius:5px;background:#f7b731;color:#1a1a2e;border:none;font-weight:700;cursor:pointer"><span data-i18n="btn_register">Регистрация</span></button>
     </div>
     <div class="user-avatar" id="userAvatar" style="display:none" onclick="openProfile()">ТК</div>
@@ -73,7 +73,7 @@
     </select>
     <!-- Попап выбора периода -->
     <div id="datePeriodPop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:14px;z-index:500;min-width:230px;border:1px solid #e0e0e0">
-      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Выберите период</div>
+      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px"><span data-i18n="None"><span data-i18n="pick_period">Выберите период</span></span></div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         <div>
           <div style="font-size:11px;color:#aaa;margin-bottom:3px">С</div>
@@ -90,7 +90,7 @@
       </div>
     </div>
   </div>
-  <select class="fsel" id="fType"><option value="" data-i18n="opt_trucktype">🚛 Კუზოვი</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
+  <select class="fsel" id="fType"><option value="" data-i18n="opt_trucktype">🚛 Კუზოვი</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option></select>
   <select class="fsel" id="fWeight" onchange="filterLoads()">
     <option value="" data-i18n="opt_tonnage">⚖️ Тоннаж</option>
     <option value="0-1000">До 1 т</option>
@@ -135,7 +135,7 @@
   <div class="thead">
     <div data-i18n="th_route">ОТКУДА → КУДА</div><div data-i18n="th_weight">ВЕС</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_price">ЦЕНА</div><div data-i18n="th_date">ДАТА ЗАГРУЗКИ</div><div></div>
   </div>
-  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px"><span data-i18n="loading_loads">⏳ Загружаем грузы...</span></div></div>
+  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px"><span data-i18n="loading_loads"><span data-i18n="None">⏳ Загружаем грузы...</span></span></div></div>
 </div>
 
 <!-- ═══ SECTION: TRUCKS ═══ -->
@@ -156,7 +156,7 @@
   <div class="modal">
     <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
     <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center"><span data-i18n="btn_add_truck2">🚛 Добавить машину</span></div>
-    <div id="postTruckSuccess" class="success-msg">✅ Машина добавлена в список!</div>
+    <div id="postTruckSuccess" class="success-msg"><span data-i18n="None"><span data-i18n="msg_truck_added">✅ Машина добавлена в список!</span></span></div>
     <div class="form-group">
       <label>Маршрут — Откуда</label>
       <input class="form-input" id="tFrom" placeholder="Тбилиси">
@@ -166,7 +166,7 @@
       <input class="form-input" id="tTo" placeholder="Любое направление">
     </div>
     <div class="form-group">
-      <label>Тип кузова <span style="color:#999;font-size:12px">(выбери все свои)</span></label>
+      <label>Тип кузова <span style="color:#999;font-size:12px"><span data-i18n="None"><span data-i18n="reg_choose_all">(выбери все свои)</span></span></span></label>
       <div id="tTypeCheckboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Тент" style="width:16px;height:16px"> Тент</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Рефрижератор" style="width:16px;height:16px"> Рефрижератор</label>
@@ -182,11 +182,11 @@
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Зерновоз" style="width:16px;height:16px"> Зерновоз</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Самосвал" style="width:16px;height:16px"> Самосвал</label>
       </div>
-      <div id="tTypeError" style="display:none;color:#e74c3c;font-size:12px;margin-top:4px">Выберите хотя бы один тип</div>
+      <div id="tTypeError" style="display:none;color:#e74c3c;font-size:12px;margin-top:4px"><span data-i18n="None"><span data-i18n="reg_choose_type">Выберите хотя бы один тип</span></span></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="form-group">
-        <label>Грузоподъёмность (кг)</label>
+        <label><span data-i18n="None"><span data-i18n="reg_capacity_kg"><span data-i18n="lbl_capacity_kg">Грузоподъёмность (кг)</span></span></span></label>
         <input class="form-input" id="tKg" type="number" placeholder="20000">
       </div>
       <div class="form-group">
@@ -199,7 +199,7 @@
       <input class="form-input" id="tPlate" placeholder="GE-123-AB">
     </div>
     <div class="form-group">
-      <label>Когда готова</label>
+      <label><span data-i18n="None"><span data-i18n="post_when">Когда готова</span></span></label>
       <select class="form-input" id="tDate">
         <option value="Сегодня">Сегодня</option>
         <option value="Завтра">Завтра</option>
@@ -210,7 +210,7 @@
       <label>Телефон для связи</label>
       <input class="form-input" id="tPhone" placeholder="+995 555 ..." type="tel">
     </div>
-    <button class="btn-primary" onclick="doPostTruck()"><span data-i18n="btn_post_truck">📤 Разместить машину</span></button>
+    <button class="btn-primary" onclick="doPostTruck()"><span data-i18n="btn_post_truck"><span data-i18n="None">📤 Разместить машину</span></span></button>
   </div>
 </div>
 
@@ -241,8 +241,8 @@
   <div id="ordersEmpty" style="text-align:center;padding:60px 20px">
     <div style="font-size:48px;margin-bottom:12px">📋</div>
     <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Личный кабинет</div>
-    <div style="font-size:14px;color:#aaa;margin-bottom:20px">Войдите чтобы видеть свои грузы, отклики и сделки</div>
-    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+    <div style="font-size:14px;color:#aaa;margin-bottom:20px"><span data-i18n="None"><span data-i18n="login_for_cab">Войдите чтобы видеть свои грузы, отклики и сделки</span></span></div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
   </div>
 
    <!-- Кабинет для залогиненных -->
@@ -253,7 +253,7 @@
  <div style="display:flex;align-items:center;gap:12px">
  <div class="cab-avatar" id="cabAvatar">?</div>
  <div>
- <div class="cab-user-name" id="cabUserName">Загрузка...</div>
+ <div class="cab-user-name" id="cabUserName"><span data-i18n="None"><span data-i18n="loading_text">Загрузка...</span></span></div>
  <div class="cab-user-sub" id="cabUserSub"></div>
  </div>
  </div>
@@ -267,9 +267,9 @@
  <!-- Вкладки -->
  <div class="cab-tabs-new" id="cabinetTabs">
  <button class="cab-tab-btn cab-tab active" onclick="switchCabTab('loads',this)"><span data-i18n="nav_loads">📦 Грузы</span></button>
- <button class="cab-tab-btn cab-tab" onclick="switchCabTab('responses',this)">🚛 Отклики <span class="cab-tab-badge" id="cabRespBadge" style="display:none">0</span></button>
- <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)">🤝 Сделки</button>
- <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)">📊 Отчёт</button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('responses',this)"><span data-i18n="cab_responses">🚛 Отклики</span> <span class="cab-tab-badge" id="cabRespBadge" style="display:none">0</span></button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)"><span data-i18n="None"><span data-i18n="cab_deals">🤝 Сделки</span></span></button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)"><span data-i18n="None"><span data-i18n="cab_report">📊 Отчёт</span></span></button>
  </div>
 
  <!-- Тело кабинета -->
@@ -300,15 +300,15 @@
  <div id="cabTab-report" class="cab-tab-content" style="display:none">
  <div class="cab-report-inner">
  <div class="cab-report-box">
- <div class="cab-report-title">Экспорт для rs.ge</div>
- <div class="cab-report-sub">Данные о сделках для налоговой Грузии</div>
+ <div class="cab-report-title"><span data-i18n="None"><span data-i18n="cab_export">Экспорт для rs.ge</span></span></div>
+ <div class="cab-report-sub"><span data-i18n="None"><span data-i18n="cab_rs_hint">Данные о сделках для налоговой Грузии</span></span></div>
  <div class="cab-date-row">
  <div class="cab-date-field">
- <div class="cab-date-label">Дата с</div>
+ <div class="cab-date-label"><span data-i18n="None"><span data-i18n="date_from_label">Дата с</span></span></div>
  <input type="date" id="exportFrom" class="cab-date-input" onchange="exportDateFrom=this.value"/>
  </div>
  <div class="cab-date-field">
- <div class="cab-date-label">Дата по</div>
+ <div class="cab-date-label"><span data-i18n="None"><span data-i18n="date_to_label">Дата по</span></span></div>
  <input type="date" id="exportTo" class="cab-date-input" onchange="exportDateTo=this.value"/>
  </div>
  </div>
@@ -336,13 +336,13 @@
   <div class="modal">
     <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
     <div style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
-      <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')">Войти</button>
+      <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
       <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')">Регистрация</button>
     </div>
 
     <!-- LOGIN -->
     <div id="formLogin">
-      <div class="success-msg" id="loginSuccess">✅ Вход выполнен успешно!</div>
+      <div class="success-msg" id="loginSuccess"><span data-i18n="None"><span data-i18n="msg_logged_in">✅ Вход выполнен успешно!</span></span></div>
       <div class="form-group">
         <label>Email</label>
         <input class="form-input" type="email" id="loginEmail" placeholder="your@email.com">
@@ -352,18 +352,18 @@
         <div class="pass-wrap"><input class="form-input" type="password" id="loginPass" placeholder="••••••••" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('loginPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
       </div>
       <div style="text-align:right;margin-bottom:10px">
-        <a href="#" onclick="showForgotForm()" style="font-size:12px;color:#888;text-decoration:underline">Забыли пароль?</a>
+        <a href="#" onclick="showForgotForm()" style="font-size:12px;color:#888;text-decoration:underline"><span data-i18n="None"><span data-i18n="forgot_pwd"><span data-i18n="link_forgot">Забыли пароль?</span></span></span></a>
       </div>
       <div id="loginErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
-      <button class="btn-primary" onclick="doLogin()">Войти в аккаунт</button>
-      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700">Зарегистрироваться</a></div>
+      <button class="btn-primary" onclick="doLogin()"><span data-i18n="None"><span data-i18n="login_title"><span data-i18n="btn_login_submit">Войти в аккаунт</span></span></span></button>
+      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700"><span data-i18n="None"><span data-i18n="btn_register2"><span data-i18n="btn_register_submit">Зарегистрироваться</span></span></span></a></div>
     </div>
 
     <!-- FORGOT PASSWORD -->
     <div id="formForgot" style="display:none">
       <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:18px;font-weight:900;margin-bottom:4px">🔑 Сброс пароля</div>
-        <div style="font-size:13px;color:#888">Введите ваш email — пришлём код</div>
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px"><span data-i18n="None"><span data-i18n="pwd_reset_title">🔑 Сброс пароля</span></span></div>
+        <div style="font-size:13px;color:#888"><span data-i18n="None"><span data-i18n="forgot_hint"><span data-i18n="hint_forgot_email">Введите ваш email — пришлём код</span></span></span></div>
       </div>
       <div id="forgotStep1">
         <div class="form-group">
@@ -378,7 +378,7 @@
           📧 Код отправлен на <strong id="forgotEmailShow"></strong>
         </div>
         <div class="form-group">
-          <label>Код подтверждения (6 цифр)</label>
+          <label><span data-i18n="None"><span data-i18n="code_label"><span data-i18n="lbl_code">Код подтверждения (6 цифр)</span></span></span></label>
           <input class="form-input" type="text" id="forgotCode" placeholder="000000" maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center">
         </div>
         <div class="form-group">
@@ -396,40 +396,40 @@
       <div id="forgotSuccess" style="display:none;text-align:center;padding:20px">
         <div style="font-size:40px;margin-bottom:10px">✅</div>
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">Пароль изменён!</div>
-        <div style="font-size:13px;color:#888;margin-bottom:16px">Войдите с новым паролем</div>
-        <button class="btn-primary" onclick="switchAuth('login')">Войти</button>
+        <div style="font-size:13px;color:#888;margin-bottom:16px"><span data-i18n="None"><span data-i18n="login_new_pwd"><span data-i18n="hint_new_pass">Войдите с новым паролем</span></span></span></div>
+        <button class="btn-primary" onclick="switchAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
       </div>
       <div style="text-align:center;margin-top:14px">
-        <a href="#" onclick="switchAuth('login')" style="font-size:13px;color:#888">← Назад ко входу</a>
+        <a href="#" onclick="switchAuth('login')" style="font-size:13px;color:#888"><span data-i18n="None"><span data-i18n="btn_back_login">← Назад ко входу</span></span></a>
       </div>
     </div>
 
     <!-- REGISTER -->
     <div id="formRegister" style="display:none">
-      <div class="success-msg" id="regSuccess">✅ Аккаунт создан! Добро пожаловать!</div>
+      <div class="success-msg" id="regSuccess"><span data-i18n="None"><span data-i18n="msg_registered">✅ Аккаунт создан! Добро пожаловать!</span></span></div>
 
       <!-- ШАГ 1: Тип аккаунта -->
       <div id="regStep1">
-        <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px">Кто вы?</div>
+        <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px"><span data-i18n="<"><span data-i18n="reg_who">Кто вы?</span></span></div>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button onclick="selectRegType('carrier')" class="reg-type-btn" id="rtCarrier">
             <span style="font-size:22px">🚛</span>
             <div>
-              <div style="font-weight:700;font-size:14px">Перевозчик</div>
-              <div style="font-size:12px;color:#888">Компания или ИП — ищу грузы</div>
+              <div style="font-weight:700;font-size:14px"><span data-i18n="role_carrier">Перевозчик</span></div>
+              <div style="font-size:12px;color:#888"><span data-i18n="None"><span data-i18n="reg_sub_carrier"><span data-i18n="role_carrier_sub">Компания или ИП — ищу грузы</span></span></span></div>
             </div>
           </button>
           <button onclick="selectRegType('shipper_company')" class="reg-type-btn" id="rtShipperCo">
             <span style="font-size:22px">🏢</span>
             <div>
-              <div style="font-weight:700;font-size:14px">Грузовладелец — компания / ИП</div>
-              <div style="font-size:12px;color:#888">Регулярные отправки, договор</div>
+              <div style="font-weight:700;font-size:14px"><span data-i18n="None"><span data-i18n="reg_shipper_company"><span data-i18n="role_shipper_co">Грузовладелец — компания / ИП</span></span></span></div>
+              <div style="font-size:12px;color:#888"><span data-i18n="role_shipper_co_sub">Регулярные отправки, договор</span></div>
             </div>
           </button>
           <button onclick="selectRegType('shipper_person')" class="reg-type-btn" id="rtShipperPerson">
             <span style="font-size:22px">👤</span>
             <div>
-              <div style="font-weight:700;font-size:14px">Грузовладелец — частное лицо</div>
+              <div style="font-weight:700;font-size:14px"><span data-i18n="None"><span data-i18n="reg_shipper_private"><span data-i18n="role_shipper_person">Грузовладелец — частное лицо</span></span></span></div>
               <div style="font-size:12px;color:#888">Разовая отправка, без ИП</div>
             </div>
           </button>
@@ -438,11 +438,11 @@
 
       <!-- ШАГ 2: Форма (меняется по типу) -->
       <div id="regStep2" style="display:none">
-        <button onclick="backToStep1()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;margin-bottom:14px;padding:0">← Назад</button>
+        <button onclick="backToStep1()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;margin-bottom:14px;padding:0"><span data-i18n="None"><span data-i18n="btn_back">← Назад</span></span></button>
 
         <!-- Общие поля -->
         <div class="form-group">
-          <label id="regNameLabel">Имя</label>
+          <label id="regNameLabel"><span data-i18n="None"><span data-i18n="lbl_name">Имя</span></span></label>
           <input class="form-input" type="text" id="regName" placeholder="">
         </div>
         <div class="form-row">
@@ -460,18 +460,18 @@
         <div id="regCompanyFields" style="display:none">
           <div class="form-row">
             <div class="form-group">
-              <label>ИНН / ID код</label>
+              <label><span data-i18n="None"><span data-i18n="reg_inn"><span data-i18n="lbl_inn">ИНН / ID код</span></span></span></label>
               <input class="form-input" type="text" id="regInn" placeholder="123456789">
             </div>
             <div class="form-group">
-              <label>Форма</label>
+              <label><span data-i18n="None">Форма</span></label>
               <select class="form-select" id="regOrgType">
-                <option>ООО</option><option>ИП</option><option>АО</option><option>Частный перевозчик</option>
+                <option>ООО</option><option>ИП</option><option>АО</option><option><span data-i18n="None"><span data-i18n="reg_sub_carrier2">Частный перевозчик</span></span></option>
               </select>
             </div>
           </div>
           <div class="form-group">
-            <label>Город / регион работы</label>
+            <label><span data-i18n="None"><span data-i18n="reg_city_label"><span data-i18n="lbl_city">Город / регион работы</span></span></span></label>
             <input class="form-input" type="text" id="regCity" placeholder="Тбилиси">
           </div>
         </div>
@@ -480,13 +480,13 @@
         <div id="regCarrierFields" style="display:none">
           <div class="form-row">
             <div class="form-group">
-              <label>Тип транспорта</label>
+              <label><span data-i18n="None"><span data-i18n="reg_truck_type">Тип транспорта</span></span></label>
               <select class="form-select" id="regTruckType">
-                <option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+                <option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option><option data-i18n="truck_other_full">Другой</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Грузоподъёмность (т)</label>
+              <label><span data-i18n="None"><span data-i18n="reg_capacity_t"><span data-i18n="lbl_capacity">Грузоподъёмность (т)</span></span></span></label>
               <input class="form-input" type="number" id="regTonnage" placeholder="20">
             </div>
           </div>
@@ -499,13 +499,13 @@
 
         <input type="hidden" id="regRole">
         <div id="regErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
-        <button class="btn-primary" onclick="doRegister()">Создать аккаунт</button>
+        <button class="btn-primary" onclick="doRegister()"><span data-i18n="None"><span data-i18n="btn_create_account">Создать аккаунт</span></span></button>
       </div>
 
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeModal('authOverlay');setTimeout(function(){document.getElementById('paywallOverlay').classList.add('on');},150)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline">📊 Посмотреть тарифы →</button>
+        <button onclick="closeModal('authOverlay');setTimeout(function(){document.getElementById('paywallOverlay').classList.add('on');},150)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline"><span data-i18n="None"><span data-i18n="cab_see_rates">📊 Посмотреть тарифы →</span></span></button>
       </div>
-      <div style="text-align:center;margin-top:8px;font-size:13px;color:#888">Уже есть аккаунт? <a href="#" onclick="switchAuth('login')" style="color:#f7b731;font-weight:700">Войти</a></div>
+      <div style="text-align:center;margin-top:8px;font-size:13px;color:#888"><span data-i18n="already_account">Уже есть аккаунт?</span> <a href="#" onclick="switchAuth('login')" style="color:#f7b731;font-weight:700"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></a></div>
     </div>
   </div>
 </div>
@@ -514,11 +514,11 @@
 <div class="overlay" id="postOverlay" onclick="closeOverlay('postOverlay',event)">
   <div class="modal">
     <button class="close-btn" onclick="closeModal('postOverlay')">✕</button>
-    <div class="modal-title">Разместить груз</div>
-    <div class="modal-sub">Заполните данные — перевозчики увидят ваш груз сразу</div>
-    <div class="success-msg" id="postSuccess">✅ Груз размещён! Перевозчики уже видят ваше объявление.</div>
+    <div class="modal-title" data-i18n="modal_post_title">Разместить груз</div>
+    <div class="modal-sub"><span data-i18n="None"><span data-i18n="post_hint">Заполните данные — перевозчики увидят ваш груз сразу</span></span></div>
+    <div class="success-msg" id="postSuccess"><span data-i18n="None"><span data-i18n="msg_load_posted">✅ Груз размещён! Перевозчики уже видят ваше объявление.</span></span></div>
     <div class="form-group" id="countryFromWrap" style="display:none">
-      <label>🌍 Страна отправки</label>
+      <label><span data-i18n="None"><span data-i18n="post_country_from">🌍 Страна отправки</span></span></label>
       <select class="form-select" id="pFromCountry" onchange="updateFormForIntl()">
         <option value="GE">🇬🇪 Грузия</option>
         <option value="TR">🇹🇷 Турция</option>
@@ -548,7 +548,7 @@
       </select>
     </div>
     <div class="form-group" id="countryToWrap" style="display:none">
-      <label>🌍 Страна доставки</label>
+      <label><span data-i18n="None"><span data-i18n="post_country_to">🌍 Страна доставки</span></span></label>
       <select class="form-select" id="pToCountry">
         <option value="GE">🇬🇪 Грузия</option>
         <option value="TR">🇹🇷 Турция</option>
@@ -576,7 +576,7 @@
       </select>
     </div>
     <div class="form-group">
-      <label>📍 Точный адрес отправки</label>
+      <label><span data-i18n="None"><span data-i18n="post_addr_from">📍 Точный адрес отправки</span></span></label>
       <div class="addr-wrap">
         <span class="addr-icon">📍</span>
         <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
@@ -587,7 +587,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>🏁 Точный адрес доставки</label>
+      <label><span data-i18n="None"><span data-i18n="post_addr_to">🏁 Точный адрес доставки</span></span></label>
       <div class="addr-wrap">
         <span class="addr-icon">🏁</span>
         <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
@@ -599,46 +599,46 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Вес (кг)</label>
+        <label><span data-i18n="None"><span data-i18n="post_weight_label"><span data-i18n="lbl_weight_form">Вес (кг)</span></span></span></label>
         <input class="form-input" type="number" id="pWeight" placeholder="5000">
       </div>
       <div class="form-group">
-        <label>Тип кузова</label>
+        <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
         <select class="form-select" id="pTruck">
-          <option>Тент</option><option>Рефрижератор</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Рефтент</option><option>Мегатент</option>
+          <option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option>
         </select>
       </div>
     </div>
     <div class="form-group">
-      <label>Дата загрузки</label>
+      <label><span data-i18n="None"><span data-i18n="post_date_label"><span data-i18n="lbl_load_date">Дата загрузки</span></span></span></label>
       <div style="display:flex;align-items:center;gap:6px">
         <input class="form-input" type="date" id="pDate" style="flex:1;min-width:0" oninput="syncDateMin()">
         <span style="font-size:12px;color:#aaa;white-space:nowrap">по</span>
         <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0">
       </div>
-      <div style="font-size:11px;color:#aaa;margin-top:3px">Если груз гибкий — укажите диапазон</div>
+      <div style="font-size:11px;color:#aaa;margin-top:3px"><span data-i18n="None"><span data-i18n="post_date_hint"><span data-i18n="hint_flexible_date">Если груз гибкий — укажите диапазон</span></span></span></div>
     </div>
     <div class="form-group">
-      <label id="priceCurLabel">Ставка (₾)</label>
+      <label id="priceCurLabel"><span data-i18n="lbl_rate_form">Ставка (₾)</span></label>
       <input class="form-input" type="number" id="pPrice" placeholder="350">
     </div>
     <div class="form-group">
-      <label>Описание груза</label>
+      <label><span data-i18n="None"><span data-i18n="lbl_cargo_desc">Описание груза</span></span></label>
       <input class="form-input" type="text" id="pDesc" placeholder="Стройматериалы, паллеты, документы готовы...">
     </div>
     <div class="form-group">
-      <label>Тип оплаты</label>
+      <label><span data-i18n="None"><span data-i18n="lbl_pay_type"><span data-i18n="lbl_pay_type">Тип оплаты</span></span></span></label>
       <select class="form-select" id="pPay">
         <option data-i18n="pay_cash">Наличные сразу</option><option data-i18n="pay_cashless3">Безнал 3 дня</option><option data-i18n="pay_cashless7">Безнал 7 дней</option><option data-i18n="pay_prepay">50% предоплата</option>
       </select>
     </div>
     <div style="display:flex;gap:8px">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-        <input type="checkbox" id="pUrgent"> <strong>Срочный груз</strong>
+        <input type="checkbox" id="pUrgent"> <strong data-i18n="lbl_urgent_check">Срочный груз</strong>
       </label>
     </div>
-    <button class="btn-primary" onclick="doPostLoad()">📦 Разместить груз</button>
-    <button class="btn-secondary" onclick="closeModal('postOverlay')">Отмена</button>
+    <button class="btn-primary" onclick="doPostLoad()" data-i18n="btn_post_submit">📦 Разместить груз</button>
+    <button class="btn-secondary" onclick="closeModal('postOverlay')" data-i18n="btn_cancel_form">Отмена</button>
   </div>
 </div>
 
@@ -657,11 +657,11 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <div style="font-weight:800;font-size:15px;color:#3498db">Стандарт</div>
-            <div style="font-size:12px;color:#666;margin-top:4px">✅ Видите контакты грузовладельца<br>✅ 50 откликов в месяц<br>✅ Верификация компании</div>
+            <div style="font-size:12px;color:#666;margin-top:4px"><span data-i18n="None"><span data-i18n="sub_contacts">✅ Видите контакты грузовладельца</span></span><br><span data-i18n="None"><span data-i18n="sub_50resp">✅ 50 откликов в месяц</span></span><br><span data-i18n="None"><span data-i18n="sub_verify">✅ Верификация компании</span></span></div>
           </div>
           <div style="text-align:right;white-space:nowrap">
             <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾35</div>
-            <div style="font-size:11px;color:#aaa">/мес</div>
+            <div style="font-size:11px;color:#aaa"><span data-i18n="None"><span data-i18n="per_month">/мес</span></span></div>
           </div>
         </div>
         <button onclick="choosePlan('standard')" style="margin-top:12px;width:100%;background:#3498db;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
@@ -672,11 +672,11 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <div style="font-weight:800;font-size:15px;color:#e6a820">Про</div>
-            <div style="font-size:12px;color:#666;margin-top:4px">✅ Всё из Стандарта<br>✅ Безлимитные отклики<br>✅ Приоритет в выдаче<br>✅ Срочные грузы первым<br>✅ AI диспетчер без лимитов</div>
+            <div style="font-size:12px;color:#666;margin-top:4px"><span data-i18n="None"><span data-i18n="sub_all_standard">✅ Всё из Стандарта</span></span><br><span data-i18n="None"><span data-i18n="sub_unlimited">✅ Безлимитные отклики</span></span><br><span data-i18n="None"><span data-i18n="sub_priority">✅ Приоритет в выдаче</span></span><br><span data-i18n="None"><span data-i18n="sub_urgent_first">✅ Срочные грузы первым</span></span><br><span data-i18n="None"><span data-i18n="sub_ai">✅ AI диспетчер без лимитов</span></span></div>
           </div>
           <div style="text-align:right;white-space:nowrap">
             <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾80</div>
-            <div style="font-size:11px;color:#aaa">/мес</div>
+            <div style="font-size:11px;color:#aaa"><span data-i18n="None"><span data-i18n="per_month">/мес</span></span></div>
           </div>
         </div>
         <button onclick="choosePlan('pro')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
@@ -685,13 +685,13 @@
       <div style="border:2px solid #6c3483;border-radius:12px;padding:16px;background:linear-gradient(135deg,#f9f0ff,#fff)">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <div style="font-weight:800;font-size:15px;color:#6c3483">&#x1F451; Про+</div>
-            <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:6px">Грузы находят тебя сами</div>
-            <div style="font-size:12px;color:#555;line-height:1.8">&#x2705; Всё из Про<br>&#x2705; Мари мониторит биржу и присылает подходящие грузы<br>&#x2705; Уведомления о новых грузах по твоим маршрутам<br>&#x2705; Расширенная аналитика и ставки<br>&#x2705; Персональный менеджер</div>
+            <div style="font-weight:800;font-size:15px;color:#6c3483"><span data-i18n="None">&#x1F451; Про+</span></div>
+            <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:6px"><span data-i18n="None"><span data-i18n="sub_loads_find"><span data-i18n="carrier_promo">Грузы находят тебя сами</span></span></span></div>
+            <div style="font-size:12px;color:#555;line-height:1.8"><span data-i18n="None">&#x2705; Всё из Про</span><br><span data-i18n="None">&#x2705; Мари мониторит биржу и присылает подходящие грузы</span><br><span data-i18n="None">&#x2705; Уведомления о новых грузах по твоим маршрутам</span><br><span data-i18n="None">&#x2705; Расширенная аналитика и ставки</span><br><span data-i18n="None">&#x2705; Персональный менеджер</span></div>
           </div>
           <div style="text-align:right;white-space:nowrap;margin-left:12px">
             <div style="font-size:22px;font-weight:800;color:#1a1a2e">&#x20BE;150</div>
-            <div style="font-size:11px;color:#aaa">/мес</div>
+            <div style="font-size:11px;color:#aaa"><span data-i18n="None"><span data-i18n="per_month">/мес</span></span></div>
           </div>
         </div>
         <button onclick="choosePlan('pro_plus')" style="margin-top:12px;width:100%;background:#6c3483;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
@@ -732,7 +732,7 @@
         <div id="mKm" style="font-size:15px;font-weight:700"></div>
       </div>
     </div>
-    <div class="success-msg" id="respondSuccess">✅ Заявка отправлена! Заказчик получит уведомление.</div>
+    <div class="success-msg" id="respondSuccess"><span data-i18n="None"><span data-i18n="msg_respond_sent">✅ Заявка отправлена! Заказчик получит уведомление.</span></span></div>
     <div id="respondActions" style="display:flex;gap:10px">
       <button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button>
       <button style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;width:54px" onclick="showPhone()">📞</button>
@@ -752,12 +752,12 @@
     </div>
     <div class="divider"></div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="showSection('orders',document.querySelectorAll('.nav-tab')[3]);closeModal('profileOverlay')">📋 Мои заказы</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="showSection('orders',document.querySelectorAll('.nav-tab')[3]);closeModal('profileOverlay')"><span data-i18n="None"><span data-i18n="cab_my_orders">📋 Мои заказы</span></span></button>
       <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="openPostLoad();closeModal('profileOverlay')">📦 Разместить груз</button>
-      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openSettings()">⚙️ Настройки аккаунта</button>
-      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openAnalytics()">📊 Моя аналитика</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openSettings()"><span data-i18n="None"><span data-i18n="cab_settings">⚙️ Настройки аккаунта</span></span></button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openAnalytics()"><span data-i18n="None"><span data-i18n="cab_analytics">📊 Моя аналитика</span></span></button>
     </div>
-    <button class="btn-secondary" onclick="doLogout()">🚪 Выйти</button>
+    <button class="btn-secondary" onclick="doLogout()"><span data-i18n="None"><span data-i18n="cab_logout">🚪 Выйти</span></span></button>
   </div>
 </div>
 
@@ -776,8 +776,8 @@
   <div class="orders-empty" id="cabinetEmpty" style="display:none">
     <div class="icon">📋</div>
     <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div>
-    <div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div>
-    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+    <div style="font-size:14px;margin-bottom:20px"><span data-i18n="None"><span data-i18n="login_for_orders">Войдите в аккаунт чтобы видеть свои заказы</span></span></div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
   </div>
   <div id="cabinetList"></div>
 </div>
@@ -788,10 +788,10 @@
 <div class="overlay" id="settingsOverlay" onclick="closeOverlay('settingsOverlay',event)">
   <div class="modal">
     <button class="close-btn" onclick="closeModal('settingsOverlay')">✕</button>
-    <div class="modal-title">⚙️ Настройки аккаунта</div>
-    <div class="modal-sub">Управление профилем и уведомлениями</div>
+    <div class="modal-title"><span data-i18n="None"><span data-i18n="cab_settings">⚙️ Настройки аккаунта</span></span></div>
+    <div class="modal-sub"><span data-i18n="None"><span data-i18n="cab_settings_sub">Управление профилем и уведомлениями</span></span></div>
     <div class="form-group">
-      <label>Имя / Название компании</label>
+      <label><span data-i18n="None"><span data-i18n="reg_name_label"><span data-i18n="lbl_company_name">Имя / Название компании</span></span></span></label>
       <input class="form-input" id="sName" placeholder="ООО ГрузТранс">
     </div>
     <div class="form-row">
@@ -813,25 +813,25 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Telegram (для уведомлений)</label>
+      <label><span data-i18n="None"><span data-i18n="tg_label">Telegram (для уведомлений)</span></span></label>
       <input class="form-input" id="sTelegram" placeholder="@username">
     </div>
 
     <!-- Поля для перевозчика -->
     <div id="sCarrierFields">
       <div class="divider"></div>
-      <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">🚛 Данные перевозчика</div>
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px"><span data-i18n="None"><span data-i18n="truck_carrier_data">🚛 Данные перевозчика</span></span></div>
       <input type="hidden" id="sInn">
       <input type="hidden" id="sOrgType">
       <div class="form-row">
         <div class="form-group">
-          <label>Тип кузова</label>
+          <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
           <select class="form-select" id="sTruckType">
-            <option value="">— выберите —</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+            <option value="">— выберите —</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option><option data-i18n="truck_other_full">Другой</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Грузоподъёмность (т)</label>
+          <label><span data-i18n="None"><span data-i18n="reg_capacity_t"><span data-i18n="lbl_capacity">Грузоподъёмность (т)</span></span></span></label>
           <input class="form-input" type="number" id="sTonnage" placeholder="20">
         </div>
       </div>
@@ -839,34 +839,34 @@
 
     <!-- Реквизиты — для всех -->
     <div class="divider"></div>
-    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">📋 Реквизиты компании</div>
+    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px"><span data-i18n="None"><span data-i18n="company_requisites">📋 Реквизиты компании</span></span></div>
     <div class="form-row">
       <div class="form-group">
-        <label>ИНН / ID код Грузия</label>
+        <label><span data-i18n="reg_inn_ge"><span data-i18n="lbl_inn_ge">ИНН / ID код Грузия</span></span></label>
         <input class="form-input" id="sInnAll" placeholder="405XXXXXXX">
       </div>
       <div class="form-group">
-        <label>Форма организации</label>
+        <label><span data-i18n="None"><span data-i18n="reg_org_form2">Форма организации</span></span></label>
         <select class="form-select" id="sOrgTypeAll">
           <option value="">— выберите —</option>
-          <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option>Частное лицо</option>
+          <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option><span data-i18n="None"><span data-i18n="reg_private">Частное лицо</span></span></option>
         </select>
       </div>
     </div>
     <div class="form-group">
-      <label>Город / регион работы</label>
+      <label><span data-i18n="None"><span data-i18n="reg_city_label"><span data-i18n="lbl_city">Город / регион работы</span></span></span></label>
       <input class="form-input" id="sCityAll" placeholder="Тбилиси">
     </div>
     <div class="divider"></div>
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px">🔔 Уведомления</div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px"><span data-i18n="None"><span data-i18n="cab_notifications">🔔 Уведомления</span></span></div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Новые отклики на мои грузы</label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Грузы по моим маршрутам</label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> Изменение ставок на маршрутах</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_my_routes">Грузы по моим маршрутам</span></label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> <span data-i18n="notif_rate_changes">Изменение ставок на маршрутах</span></label>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Статус моих заявок</label>
     </div>
-    <button class="btn-primary" onclick="saveSettings()">💾 Сохранить</button>
-    <button class="btn-secondary" onclick="closeModal('settingsOverlay')">Отмена</button>
+    <button class="btn-primary" onclick="saveSettings()"><span data-i18n="None"><span data-i18n="btn_save">💾 Сохранить</span></span></button>
+    <button class="btn-secondary" onclick="closeModal('settingsOverlay')" data-i18n="btn_cancel_form">Отмена</button>
   </div>
 </div>
 
@@ -874,7 +874,7 @@
 <div class="overlay" id="analyticsOverlay" onclick="closeOverlay('analyticsOverlay',event)">
   <div class="modal">
     <button class="close-btn" onclick="closeModal('analyticsOverlay')">✕</button>
-    <div class="modal-title">📊 Моя аналитика</div>
+    <div class="modal-title"><span data-i18n="None"><span data-i18n="cab_analytics">📊 Моя аналитика</span></span></div>
     <div class="modal-sub" id="analyticsUser">Статистика аккаунта</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
       <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
@@ -883,11 +883,11 @@
       </div>
       <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
         <div style="font-size:28px;font-weight:900;color:#2ecc71" id="aStat2">6</div>
-        <div style="font-size:12px;color:#888;margin-top:4px">В этом месяце</div>
+        <div style="font-size:12px;color:#888;margin-top:4px"><span data-i18n="None"><span data-i18n="this_month">В этом месяце</span></span></div>
       </div>
       <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
         <div style="font-size:22px;font-weight:900;color:#f7b731" id="aStat3">₾12,400</div>
-        <div style="font-size:12px;color:#888;margin-top:4px">Заработано (март)</div>
+        <div style="font-size:12px;color:#888;margin-top:4px"><span data-i18n="None"><span data-i18n="earned_march">Заработано (март)</span></span></div>
       </div>
       <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
         <div style="font-size:28px;font-weight:900;color:#3498db" id="aStat4">4.9 ⭐</div>
@@ -930,14 +930,14 @@
   <div class="ai-messages" id="aiMessages">
   </div>
   <div class="ai-template" id="aiTemplate" style="display:none">
-    <div class="ai-template-title">📋 Данные груза:</div>
+    <div class="ai-template-title"><span data-i18n="None"><span data-i18n="post_data_title">📋 Данные груза:</span></span></div>
     <div class="ai-field"><span class="ai-field-label">Откуда</span><span class="ai-field-value" id="tFrom">—</span></div>
     <div class="ai-field"><span class="ai-field-label">Куда</span><span class="ai-field-value" id="tTo">—</span></div>
     <div class="ai-field"><span class="ai-field-label">Груз</span><span class="ai-field-value" id="tDesc">—</span></div>
     <div class="ai-field"><span class="ai-field-label">Вес</span><span class="ai-field-value" id="tWeight">—</span></div>
-    <div class="ai-field"><span class="ai-field-label">Дата</span><span class="ai-field-value" id="tDate">—</span></div>
+    <div class="ai-field"><span class="ai-field-label"><span data-i18n="None">Дата</span></span><span class="ai-field-value" id="tDate">—</span></div>
     <div class="ai-field"><span class="ai-field-label">Кузов</span><span class="ai-field-value" id="tTruck">—</span></div>
-    <div class="ai-field"><span class="ai-field-label">Цена</span><span class="ai-field-value" id="tPrice">—</span></div>
+    <div class="ai-field"><span class="ai-field-label"><span data-i18n="None">Цена</span></span><span class="ai-field-value" id="tPrice">—</span></div>
     <div class="ai-field"><span class="ai-field-label">Оплата</span><span class="ai-field-value" id="tPay">—</span></div>
   </div>
   <button class="ai-post-btn" id="aiPostBtn" onclick="aiPostLoad()">📦 Разместить груз на бирже</button>
@@ -951,23 +951,23 @@
 <!-- NOTIF PANEL -->
 <div class="notif-panel" id="notifPanel">
   <div class="notif-header">
-    <span class="notif-title">🔔 Уведомления</span>
+    <span class="notif-title"><span data-i18n="None"><span data-i18n="cab_notifications">🔔 Уведомления</span></span></span>
     <button class="notif-mark" onclick="clearNotifs()">Прочитать все</button>
   </div>
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1776187263"></script>
-<script src="main.js?v=1776187263"></script>
-<script src="ai-dispatcher.js?v=1776187263"></script>
+<script src="api.js?v=1776188073"></script>
+<script src="main.js?v=1776188073"></script>
+<script src="ai-dispatcher.js?v=1776188073"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
-    <div style="font-weight:700;font-size:14px">🔔 Уведомления</div>
+    <div style="font-weight:700;font-size:14px"><span data-i18n="None"><span data-i18n="cab_notifications">🔔 Уведомления</span></span></div>
     <button onclick="clearNotifs()" style="background:none;border:none;color:#aaa;font-size:12px;cursor:pointer">Очистить</button>
   </div>
   <div id="notifList" style="padding:8px 0">
-    <div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Уведомлений нет</div>
+    <div style="text-align:center;padding:20px;color:#aaa;font-size:13px"><span data-i18n="None"><span data-i18n="no_notifs">Уведомлений нет</span></span></div>
   </div>
 </div>
 

@@ -610,7 +610,7 @@ function doPostTruck(){
   const truck = {
     id: 't_' + Date.now(),
     from, to, type, kg, plate, date, phone,
-    co: user.name || user.email?.split('@')[0] || 'Перевозчик',
+    co: user.name || user.email?.split('@')[0] || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
     rat: '5.0', trips: 0, isOwn: true,
   };
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
@@ -644,7 +644,7 @@ async function syncTrucksFromServer(){
       const all = (d.trucks||[]).map(t=>({
         id:'srv_'+t.id,from:t.available_from||'Тбилиси',to:t.available_to||'Любое',
         type:t.truck_type,kg:t.capacity_kg,plate:t.plate||'—',phone:t.phone||'',
-        co:t.company||'Перевозчик',rat:t.rating||'5.0',trips:t.trips||0,
+        co:t.company||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',rat:t.rating||'5.0',trips:t.trips||0,
         isOwn:(t.user_id==uid),date:t.available_date||''
       }));
       _myTrucks = all.filter(t=>t.isOwn);
@@ -735,7 +735,7 @@ function openCargo(d){
     }
   } else {
     const btn = document.getElementById('btnRespond');
-    if(btn){ btn.disabled=false; btn.textContent='Откликнуться на груз'; }
+    if(btn){ btn.disabled=false; btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_load||'Откликнуться на груз'; }
   }
   document.getElementById('cargoOverlay').classList.add('on');
 }
@@ -821,7 +821,7 @@ function addToOrders(serverResponseId){
     if(!_loadResponses[d.id]) _loadResponses[d.id]=[];
     _loadResponses[d.id].push({
       id: Date.now(),
-      name: user?.name || 'Перевозчик',
+      name: user?.name || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
       truck: user?.truckType || 'Тент',
       tonnage: user?.tonnage || '?',
       rating: user?.rat || '5.0',
@@ -904,7 +904,7 @@ function updateRespondCount(){
   // Показываем в шапке профиля
   const pr = document.getElementById('profileRole');
   if(pr && user){
-    const role = user.role==='shipper' ? 'Грузовладелец' : 'Перевозчик';
+    const role = user.role==='shipper' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик';
     pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} отклик${count===1?'':count<5?'а':'ов'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
@@ -1343,7 +1343,7 @@ function doPostLoad(){
 
 // ── Статусы сделок ─────────────────────────────────────────────────
 const DEAL_STATUS = {
-  rated:      { label:'⭐ Оценено',       color:'#f7b731', border:'#f7b731' },
+  rated:      { label:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rated||'⭐ Оценено',       color:'#f7b731', border:'#f7b731' },
   confirmed:  { label:'✅ Подтверждена',  color:'#2ecc71', border:'#2ecc71' },
   loading:    { label:'📦 Загрузка',      color:'#3498db', border:'#3498db' },
   in_transit: { label:'🚛 В пути',        color:'#9b59b6', border:'#9b59b6' },
@@ -1708,7 +1708,7 @@ function showCabinet(){
  var subEl = document.getElementById('cabUserSub');
  var avatarEl = document.getElementById('cabAvatar');
  if(nameEl) nameEl.textContent = u.name || u.company_name || u.email || '';
- if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? 'Перевозчик' : 'Грузовладелец') : '');
+ if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец') : '');
  if(avatarEl){
  var nm = u.name || u.company_name || u.email || '?';
  avatarEl.textContent = nm.charAt(0).toUpperCase();
@@ -1736,7 +1736,7 @@ function loadCabinetData(){
         fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+l.id,{headers:{'Authorization':'Bearer '+tk}})
           .then(r=>r.ok?r.json():null).then(d=>{
             if(!d) return;
-            _loadResponses[l.id]=(d.responses||[]).map(r=>({id:r.id,name:r.carrier_name||'Перевозчик',phone:r.carrier_phone||null,message:r.message||null,price:r.price||null,status:r.status||'pending'}));
+            _loadResponses[l.id]=(d.responses||[]).map(r=>({id:r.id,name:r.carrier_name||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',phone:r.carrier_phone||null,message:r.message||null,price:r.price||null,status:r.status||'pending'}));
             if(_currentCabTab==='loads') renderCabLoads();
           }).catch(()=>{});
       });
@@ -2038,6 +2038,105 @@ const TRANSLATIONS = {
     btn_post_truck: '📤 Разместить машину',
     online_indicator: '● Онлайн 24/7',
     trips_suffix: 'рейсов',
+    empty_orders: 'Нет активных заказов',
+    empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
+    empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
+    btn_post_load: '+ Разместить груз',
+    btn_post_new: '+ Разместить новый груз',
+    btn_respond_load: 'Откликнуться на груз',
+    role_carrier: 'Перевозчик',
+    role_shipper: 'Грузовладелец',
+    role_both: 'Оба',
+    btn_rate: '⭐ Оценить',
+    btn_rated: '⭐ Оценено',
+    btn_pdf: '📄 Акт PDF',
+    status_confirmed: 'Подтверждено',
+    status_loading: 'Загрузка',
+    status_in_transit: 'В пути',
+    status_delivered: 'Доставлено',
+    status_completed: 'Завершено',
+    status_rated: 'Оценено',
+    reg_who: 'Кто вы?',
+    reg_shipper_company: 'Грузовладелец — компания / ИП',
+    reg_shipper_private: 'Грузовладелец — частное лицо',
+    login_title: 'Войти в аккаунт',
+    btn_register2: 'Зарегистрироваться',
+    already_account: 'Уже есть аккаунт?',
+    forgot_pwd: 'Забыли пароль?',
+    btn_back: '← Назад',
+    btn_back_login: '← Назад ко входу',
+    login_new_pwd: 'Войдите с новым паролем',
+    forgot_hint: 'Введите ваш email — пришлём код',
+    code_label: 'Код подтверждения (6 цифр)',
+    pwd_reset_title: '🔑 Сброс пароля',
+    reg_company_label: 'Название компании / ФИО ИП',
+    reg_name_label: 'Имя / Название компании',
+    reg_city_label: 'Город / регион работы',
+    reg_truck_type: 'Тип транспорта',
+    reg_capacity_t: 'Грузоподъёмность (т)',
+    reg_capacity_kg: 'Грузоподъёмность (кг)',
+    reg_inn_ge: 'ИНН / ID код Грузия',
+    reg_inn: 'ИНН / ID код',
+    reg_org_form2: 'Форма организации',
+    lbl_pay_type: 'Тип оплаты',
+    btn_create_account: 'Создать аккаунт',
+    reg_sub_carrier: 'Компания или ИП — ищу грузы',
+    reg_sub_carrier2: 'Частный перевозчик',
+    reg_private: 'Частное лицо',
+    reg_choose_type: 'Выберите хотя бы один тип',
+    reg_choose_all: '(выбери все свои)',
+    post_hint: 'Заполните данные — перевозчики увидят ваш груз сразу',
+    post_date_hint: 'Если груз гибкий — укажите диапазон',
+    post_when: 'Когда готова',
+    post_weight_label: 'Вес (кг)',
+    post_date_label: 'Дата загрузки',
+    date_from_label: 'Дата с',
+    date_to_label: 'Дата по',
+    pick_period: 'Выберите период',
+    post_data_title: '📋 Данные груза:',
+    post_addr_from: '📍 Точный адрес отправки',
+    post_addr_to: '🏁 Точный адрес доставки',
+    post_country_from: '🌍 Страна отправки',
+    post_country_to: '🌍 Страна доставки',
+    cab_my_orders: '📋 Мои заказы',
+    cab_responses: '🚛 Отклики',
+    cab_deals: '🤝 Сделки',
+    cab_analytics: '📊 Моя аналитика',
+    cab_settings: '⚙️ Настройки аккаунта',
+    cab_notifications: '🔔 Уведомления',
+    cab_logout: '🚪 Выйти',
+    cab_settings_sub: 'Управление профилем и уведомлениями',
+    cab_rs_hint: 'Данные о сделках для налоговой Грузии',
+    cab_export: 'Экспорт для rs.ge',
+    cab_report: '📊 Отчёт',
+    cab_see_rates: '📊 Посмотреть тарифы →',
+    this_month: 'В этом месяце',
+    earned_march: 'Заработано (март)',
+    truck_carrier_data: '🚛 Данные перевозчика',
+    company_requisites: '📋 Реквизиты компании',
+    tg_label: 'Telegram (для уведомлений)',
+    btn_save: '💾 Сохранить',
+    msg_registered: '✅ Аккаунт создан! Добро пожаловать!',
+    msg_logged_in: '✅ Вход выполнен успешно!',
+    msg_load_posted: '✅ Груз размещён! Перевозчики уже видят ваше объявление.',
+    msg_respond_sent: '✅ Заявка отправлена! Заказчик получит уведомление.',
+    msg_truck_added: '✅ Машина добавлена в список!',
+    login_for_orders: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).login_for_orders||'Войдите в аккаунт чтобы видеть свои заказы',
+    login_for_cab: 'Войдите чтобы видеть свои грузы, отклики и сделки',
+    no_notifs: 'Уведомлений нет',
+    sub_all_standard: '✅ Всё из Стандарта',
+    sub_50resp: '✅ 50 откликов в месяц',
+    sub_unlimited: '✅ Безлимитные отклики',
+    sub_verify: '✅ Верификация компании',
+    sub_contacts: '✅ Видите контакты грузовладельца',
+    sub_priority: '✅ Приоритет в выдаче',
+    sub_urgent_first: '✅ Срочные грузы первым',
+    sub_ai: '✅ AI диспетчер без лимитов',
+    sub_loads_find: 'Грузы находят тебя сами',
+    notif_my_routes: 'Грузы по моим маршрутам',
+    notif_rate_changes: 'Изменение ставок на маршрутах',
+    per_month: '/мес',
+    loading_text: 'Загрузка...',
     added: 'Добавлен',
     added_today: 'Добавлен сегодня',
     unit_respond: 'отклик',
@@ -2052,6 +2151,38 @@ const TRANSLATIONS = {
     lbl_distance: 'Расстояние',
     pay_cash_short: 'Наличные',
     pay_cashless: 'Безнал',
+    modal_post_title: 'Разместить груз',
+    lbl_weight_form: 'Вес (кг)',
+    lbl_trucktype_form: 'Тип кузова',
+    lbl_load_date: 'Дата загрузки',
+    lbl_rate_form: 'Ставка (₾)', lbl_rate_intl: 'Ставка ($)',
+    lbl_cargo_desc: 'Описание груза',
+    lbl_pay_type: 'Тип оплаты',
+    lbl_urgent_check: 'Срочный груз',
+    btn_cancel_form: 'Отмена',
+    btn_post_submit: '📦 Разместить груз',
+    hint_flexible_date: 'Если груз гибкий — укажите диапазон',
+    truck_tent: 'Тент', truck_ref_full: 'Рефрижератор',
+    truck_reftent: 'Рефтент', truck_megatent: 'Мегатент',
+    truck_bort_full: 'Бортовой', truck_termos_full: 'Термос',
+    truck_gazel_full: 'Фургон (до 3.5т)', truck_container_full: 'Контейнер',
+    truck_auto_full: 'Автовоз', truck_evac: 'Эвакуатор',
+    truck_cistern: 'Цистерна', truck_grain: 'Зерновоз',
+    truck_dump: 'Самосвал', truck_other_full: 'Другой',
+    role_carrier: 'Перевозчик', role_shipper_co: 'Грузовладелец — компания / ИП',
+    role_shipper_person: 'Грузовладелец — частное лицо',
+    role_carrier_sub: 'Компания или ИП — ищу грузы',
+    role_person_sub: 'Разовые отправки, без ИП',
+    role_shipper_co_sub: 'Регулярные отправки, договор',
+    lbl_company_name: 'Имя / Название компании', lbl_name: 'Имя',
+    lbl_city: 'Город / регион работы',
+    lbl_capacity: 'Грузоподъёмность (т)', lbl_capacity_kg: 'Грузоподъёмность (кг)',
+    lbl_inn: 'ИНН / ID код', lbl_inn_ge: 'ИНН / ID код Грузия',
+    btn_register_submit: 'Зарегистрироваться', btn_login_submit: 'Войти в аккаунт',
+    link_forgot: 'Забыли пароль?',
+    hint_forgot_email: 'Введите ваш email — пришлём код',
+    lbl_code: 'Код подтверждения (6 цифр)', hint_new_pass: 'Войдите с новым паролем',
+    btn_login_short: 'Войти', carrier_promo: 'Грузы находят тебя сами',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -2160,6 +2291,105 @@ const TRANSLATIONS = {
     btn_post_truck: '📤 მანქანის განთავსება',
     online_indicator: '● ონლაინ 24/7',
     trips_suffix: 'გზა',
+    empty_orders: 'შეკვეთები არ არის',
+    empty_orders_sub: 'გამოხმაურება — ტვირთები აქ გამოჩნდება',
+    empty_myloads_sub: 'განათავსეთ ტვირთი და გადამზიდველები დაუყოვნებლივ დაინახავენ',
+    btn_post_load: '+ ტვირთის განთავსება',
+    btn_post_new: '+ ახალი ტვირთის განთავსება',
+    btn_respond_load: 'ტვირთზე გამოხმაურება',
+    role_carrier: 'გადამზიდველი',
+    role_shipper: 'ტვირთის მფლობელი',
+    role_both: 'ორივე',
+    btn_rate: '⭐ შეფასება',
+    btn_rated: '⭐ შეფასებულია',
+    btn_pdf: '📄 აქტი PDF',
+    status_confirmed: 'დადასტურებული',
+    status_loading: 'დატვირთვა',
+    status_in_transit: 'გზაში',
+    status_delivered: 'მიტანილია',
+    status_completed: 'დასრულებული',
+    status_rated: 'შეფასებულია',
+    reg_who: 'ვინ ხართ?',
+    reg_shipper_company: 'ტვირთის მფლობელი — კომპ./ინდ.მ.',
+    reg_shipper_private: 'ტვირთის მფლობელი — კერძო პირი',
+    login_title: 'ანგარიშში შესვლა',
+    btn_register2: 'რეგისტრაცია',
+    already_account: 'უკვე გაქვთ ანგარიში?',
+    forgot_pwd: 'დაგავიწყდათ პაროლი?',
+    btn_back: '← უკან',
+    btn_back_login: '← შესვლასთან დაბრუნება',
+    login_new_pwd: 'შედით ახალი პაროლით',
+    forgot_hint: 'შეიყვანეთ ელ.ფოსტა — გამოვგზავნით კოდს',
+    code_label: 'დამადასტურებელი კოდი (6 ციფრი)',
+    pwd_reset_title: '🔑 პაროლის აღდგენა',
+    reg_company_label: 'კომპანიის სახელი / სახელი',
+    reg_name_label: 'სახელი / კომპანიის სახელი',
+    reg_city_label: 'ქალაქი / სამუშაო რეგიონი',
+    reg_truck_type: 'სატრანსპორტო სახეობა',
+    reg_capacity_t: 'ტვირთამწეობა (ტ)',
+    reg_capacity_kg: 'ტვირთამწეობა (კგ)',
+    reg_inn_ge: 'სხ / ID კოდი',
+    reg_inn: 'სხ / ID კოდი',
+    reg_org_form2: 'ორგანიზაციის ფორმა',
+    lbl_pay_type: 'გადახდის ტიპი',
+    btn_create_account: 'ანგარიშის შექმნა',
+    reg_sub_carrier: 'კომპანია ან ინდ.მ. — ვეძებ ტვირთებს',
+    reg_sub_carrier2: 'კერძო გადამზიდველი',
+    reg_private: 'კერძო პირი',
+    reg_choose_type: 'აირჩიეთ მინიმუმ ერთი ტიპი',
+    reg_choose_all: '(ყველა თქვენი)',
+    post_hint: 'შეავსეთ მონაცემები — გადამზიდველები დაუყოვნებლივ დაინახავენ',
+    post_date_hint: 'თუ თარიღი მოქნილია — მიუთითეთ დიაპაზონი',
+    post_when: 'როდის არის მზად',
+    post_weight_label: 'წონა (კგ)',
+    post_date_label: 'ჩატვირთვის თარიღი',
+    date_from_label: 'თარიღი-დან',
+    date_to_label: 'თარიღი-მდე',
+    pick_period: 'აირჩიეთ პერიოდი',
+    post_data_title: '📋 ტვირთის მონაცემები:',
+    post_addr_from: '📍 ზუსტი მისამართი (გაგზავნა)',
+    post_addr_to: '🏁 ზუსტი მისამართი (მიტანა)',
+    post_country_from: '🌍 გაგზავნის ქვეყანა',
+    post_country_to: '🌍 მიტანის ქვეყანა',
+    cab_my_orders: '📋 ჩემი შეკვეთები',
+    cab_responses: '🚛 გამოხმაურებები',
+    cab_deals: '🤝 გარიგებები',
+    cab_analytics: '📊 ჩემი ანალიტიკა',
+    cab_settings: '⚙️ ანგარიშის პარამეტრები',
+    cab_notifications: '🔔 შეტყობინებები',
+    cab_logout: '🚪 გასვლა',
+    cab_settings_sub: 'პროფილის მართვა',
+    cab_rs_hint: 'გარიგებების მონაცემები rs.ge-სთვის',
+    cab_export: 'ექსპორტი rs.ge-სთვის',
+    cab_report: '📊 ანგარიში',
+    cab_see_rates: '📊 ტარიფების ნახვა →',
+    this_month: 'ამ თვეში',
+    earned_march: 'გამომუშავებული (მარ)',
+    truck_carrier_data: '🚛 გადამზიდველის მონაცემები',
+    company_requisites: '📋 კომპანიის რეკვიზიტები',
+    tg_label: 'Telegram (შეტყობინებებისთვის)',
+    btn_save: '💾 შენახვა',
+    msg_registered: '✅ ანგარიში შეიქმნა! მოგესალმებით!',
+    msg_logged_in: '✅ წარმატებით შეხვედით!',
+    msg_load_posted: '✅ ტვირთი განთავსდა!',
+    msg_respond_sent: '✅ განაცხადი გაგზავნილია!',
+    msg_truck_added: '✅ მანქანა სიაში დაემატა!',
+    login_for_orders: 'შედით ანგარიშში შეკვეთების სანახავად',
+    login_for_cab: 'შედით ტვირთების სანახავად',
+    no_notifs: 'შეტყობინება არ არის',
+    sub_all_standard: '✅ სტანდარტის ყველაფერი',
+    sub_50resp: '✅ 50 გამოხმაურება თვეში',
+    sub_unlimited: '✅ ულიმიტო გამოხმაურებები',
+    sub_verify: '✅ კომპანიის ვერიფიკაცია',
+    sub_contacts: '✅ ტვირთის მფლობელის კონტაქტები',
+    sub_priority: '✅ პრიორიტეტი',
+    sub_urgent_first: '✅ სასწრაფო ტვირთები პირველი',
+    sub_ai: '✅ AI დისპეტჩერი',
+    sub_loads_find: 'ტვირთები თავად გიპოვიან',
+    notif_my_routes: 'ტვირთები ჩემს მარშრუტებზე',
+    notif_rate_changes: 'ტარიფების ცვლილება',
+    per_month: '/თვე',
+    loading_text: 'იტვირთება...',
     added: 'დამატებულია',
     added_today: 'დამატებულია დღეს',
     unit_respond: 'გამოხმაურება',
@@ -2174,6 +2404,38 @@ const TRANSLATIONS = {
     lbl_distance: 'მანძილი',
     pay_cash_short: 'ნაღდი',
     pay_cashless: 'უნაღდო',
+    modal_post_title: 'ტვირთის განთავსება',
+    lbl_weight_form: 'წონა (კგ)',
+    lbl_trucktype_form: 'კუზოვის ტიპი',
+    lbl_load_date: 'ჩატვირთვის თარიღი',
+    lbl_rate_form: 'ტარიფი (₾)', lbl_rate_intl: 'ტარიფი ($)',
+    lbl_cargo_desc: 'ტვირთის აღწერა',
+    lbl_pay_type: 'გადახდის ტიპი',
+    lbl_urgent_check: 'სასწრაფო ტვირთი',
+    btn_cancel_form: 'გაუქმება',
+    btn_post_submit: '📦 ტვირთის განთავსება',
+    hint_flexible_date: 'თუ თარიღი მოქნილია — მიუთითეთ დიაპაზონი',
+    truck_tent: 'ტენტი', truck_ref_full: 'რეფრიჟერატორი',
+    truck_reftent: 'რეფ-ტენტი', truck_megatent: 'მეგა-ტენტი',
+    truck_bort_full: 'ბორტიანი', truck_termos_full: 'თერმოსი',
+    truck_gazel_full: 'ფურგონი (3.5ტ-მდე)', truck_container_full: 'კონტეინერი',
+    truck_auto_full: 'ავტოვოზი', truck_evac: 'ევაკუატორი',
+    truck_cistern: 'ცისტერნა', truck_grain: 'მარცვლეულის',
+    truck_dump: 'თვითმცლელი', truck_other_full: 'სხვა',
+    role_carrier: 'გადამზიდველი', role_shipper_co: 'ტვირთის მფლობელი — კომპანია / ი/მ',
+    role_shipper_person: 'ტვირთის მფლობელი — ფიზიკური პირი',
+    role_carrier_sub: 'კომპანია ან ი/მ — ვეძებ ტვირთებს',
+    role_person_sub: 'ერთჯერადი გაგზავნები, ი/მ-ის გარეშე',
+    role_shipper_co_sub: 'რეგულარული გაგზავნები, ხელშეკრულება',
+    lbl_company_name: 'სახელი / კომპანიის დასახელება', lbl_name: 'სახელი',
+    lbl_city: 'ქალაქი / სამუშაო რეგიონი',
+    lbl_capacity: 'ტვირთამწეობა (ტ)', lbl_capacity_kg: 'ტვირთამწეობა (კგ)',
+    lbl_inn: 'საიდენტიფიკაციო კოდი', lbl_inn_ge: 'საიდენტ. კოდი (საქართველო)',
+    btn_register_submit: 'ანგარიშის შექმნა', btn_login_submit: 'ანგარიშში შესვლა',
+    link_forgot: 'დაგავიწყდათ პაროლი?',
+    hint_forgot_email: 'შეიყვანეთ email — გამოგიგზავნით კოდს',
+    lbl_code: 'დადასტურების კოდი (6 ციფრი)', hint_new_pass: 'შედით ახალი პაროლით',
+    btn_login_short: 'შესვლა', carrier_promo: 'ტვირთები თავად გპოვებენ',
   }
 };
 
@@ -2659,7 +2921,7 @@ function _renderOrders(){
   list.innerHTML = dealsSection + myLoadsHeader + myLoadsHtml + ordersHeader + ordersHtml;
 }
 function _acceptOrder(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='accepted';_renderOrders();pushNotif('✅ Принято!',`Груз "${o.title}" принят.`,[{l:'🚛 Доставлен',c:'ni-done',fn:`_delivered(${id})`}]);}
-function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:'⭐ Оценить',c:'ni-done',fn:`_rate(${id})`}]);}
+function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить',c:'ni-done',fn:`_rate(${id})`}]);}
 function _rate(id){const o=_orders.find(x=>x.id===id);if(!o)return;const r=prompt(`Оцените "${o.title}" (1-5):`,'5');if(r&&+r>=1&&+r<=5){o.status='rated';_renderOrders();pushNotif('⭐ Спасибо!',`Оценка ${r}/5 сохранена.`,[]);}}
 
 // Переопределяем showUserState чтобы показывать колокольчик
@@ -2770,8 +3032,8 @@ function renderDeals(){
     const btns=document.getElementById('deal-btns-'+deal.id);
     if(next && deal.status !== 'in_transit'){const b=document.createElement('button');b.textContent='→ '+(DEAL_STATUS_MAP[next]&&DEAL_STATUS_MAP[next].label||next);b.style.cssText='background:#1a1a2e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,next);};btns.appendChild(b);} if(deal.status==='in_transit'){const isCa=currentUserId&&deal.carrier&&deal.carrier.id==currentUserId;if(isCa){const b=document.createElement('button');b.textContent='🏁 Груз доставлен';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,'delivered');};btns.appendChild(b);}}
     if(deal.status==='delivered'&&!myConf){const b=document.createElement('button');b.textContent='✅ Подтвердить получение';b.style.cssText='background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){confirmDeal(deal.id);};btns.appendChild(b);}
-    if(deal.status==='completed'){const b=document.createElement('button');b.textContent='⭐ Оценить';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';b.onclick=function(){rateDealDialog(deal.id,deal.deal_number||'');};btns.appendChild(b);}
-    const bp=document.createElement('button');bp.textContent='📄 Акт PDF';bp.style.cssText='background:#f0f2f5;color:#333;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';bp.onclick=function(){downloadPDF(deal.id,deal.deal_number||'deal');};btns.appendChild(bp);
+    if(deal.status==='completed'){const b=document.createElement('button');b.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';b.onclick=function(){rateDealDialog(deal.id,deal.deal_number||'');};btns.appendChild(b);}
+    const bp=document.createElement('button');bp.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_pdf||'📄 Акт PDF';bp.style.cssText='background:#f0f2f5;color:#333;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';bp.onclick=function(){downloadPDF(deal.id,deal.deal_number||'deal');};btns.appendChild(bp);
   });
 }
 
