@@ -390,10 +390,10 @@ Object.defineProperty(window, 'INTL', { get: ()=>INTL, set: (v)=>{ INTL.length=0
 
 const INTL = [];
 const TRUCKS = [
-  {id:1,from:'Тбилиси',to:'Любое направление',kg:20000,type:'Тент 120м³',date:'Сегодня',co:'Саба Транс',rat:'4.9',trips:87,plate:'GE-123-AB'},
-  {id:2,from:'Батуми',to:'Тбилиси / Поти',kg:5000,type:'Газель 15м³',date:'Сегодня',co:'БатумиЭкс',rat:'4.7',trips:234,plate:'GE-456-BC'},
-  {id:3,from:'Поти',to:'Тбилиси',kg:12000,type:'Рефриж. t-18°C',date:'Завтра',co:'КолдЧейн',rat:'5.0',trips:156,plate:'GE-789-CD'},
-  {id:4,from:'Кутаиси',to:'Любое',kg:15000,type:'Бортовой',date:'Сегодня',co:'КутТранс',rat:'4.6',trips:43,plate:'GE-321-DE'},
+  {id:1,from:'Тбилиси',to:'Любое направление',kg:20000,type:'tent',date:'Сегодня',co:'Саба Транс',rat:'4.9',trips:87,plate:'GE-123-AB'},
+  {id:2,from:'Батуми',to:'Тбилиси / Поти',kg:5000,type:'gazel',date:'Сегодня',co:'БатумиЭкс',rat:'4.7',trips:234,plate:'GE-456-BC'},
+  {id:3,from:'Поти',to:'Тбилиси',kg:12000,type:'ref',date:'Завтра',co:'КолдЧейн',rat:'5.0',trips:156,plate:'GE-789-CD'},
+  {id:4,from:'Кутаиси',to:'Любое',kg:15000,type:'bort',date:'Сегодня',co:'КутТранс',rat:'4.6',trips:43,plate:'GE-321-DE'},
 ];
 
 // ══════════════════════════════════════════════════════
