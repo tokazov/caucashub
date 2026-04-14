@@ -204,6 +204,22 @@ const REGION_NAMES_GE = {
 };
 
 // Перевод названия города/региона на текущий язык
+
+function translatePay(pay) {
+  if (lang !== 'ge' || !pay) return pay;
+  const T = TRANSLATIONS['ge'];
+  const map = {
+    'Наличные сразу': T.pay_cash||pay,
+    'Наличные': T.pay_cash_short||'ნაღდი',
+    'Нал': T.pay_cash_short||'ნაღდი',
+    'Безнал 3 дня': T.pay_cashless3||pay,
+    'Безнал 7 дней': T.pay_cashless7||pay,
+    '50% предоплата': T.pay_prepay||pay,
+    'Безнал': T.pay_cashless||'უნაღდო',
+  };
+  return map[pay] || pay;
+}
+
 function translateCity(name) {
   if (!name) return name;
   if (lang !== 'ge') return name;
@@ -676,13 +692,13 @@ function openCargo(d){
   window.currentCargoData=d; // сохраняем данные для addToOrders
   document.getElementById('mTitle').textContent=`${translateCity(d.from2||d.from)} → ${translateCity(d.to2||d.to)}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
-  const _addedStr = _loadCreated ? `Добавлен ${_loadCreated}` : 'Добавлен сегодня';
+  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
   document.getElementById('mAva').textContent=d.co.slice(0,2).toUpperCase();
   document.getElementById('mComp').textContent=d.co;
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
-  const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} отклик${respondCount===1?'':respondCount<5?'а':'ов'}` : '';
+  const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}` : '';
   document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + ((TRANSLATIONS[lang]||TRANSLATIONS["ru"]).unit_trips||"рейсов") : ""} · Верифицирован ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
@@ -690,7 +706,7 @@ function openCargo(d){
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} კგ</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):d.typeLabel}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${d.pay}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${typeof translatePay==='function'?translatePay(d.pay):d.pay}</div></div>
   `;
   document.getElementById('mDesc').textContent=d.desc;
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
@@ -704,17 +720,17 @@ function openCargo(d){
   const _actRow = document.getElementById('respondActions');
   if(_actRow){
     if(_isOwn){
-      _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">✏️ Редактировать</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
+      _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
     } else {
       const _modalResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
       if(_modalResponded){
         const _myOrder = typeof _orders !== 'undefined' && _orders.find(o => o.loadId === d.id);
         const _myOrderId = _myOrder ? _myOrder.id : 0;
         const _myServerId = _myOrder ? (_myOrder.serverId||0) : 0;
-        _actRow.innerHTML = `<div style="display:flex;gap:8px;flex:1"><button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>✅ Заявка отправлена</button><button onclick="cancelMyResponse(${_myOrderId},${_myServerId});closeModal('cargoOverlay')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">✕ Отменить</button></div>`;
+        _actRow.innerHTML = `<div style="display:flex;gap:8px;flex:1"><button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).respond_sent||'✅ Заявка отправлена'}</button><button onclick="cancelMyResponse(${_myOrderId},${_myServerId});closeModal('cargoOverlay')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel||'✕ Отменить'}</button></div>`;
         document.getElementById('respondSuccess').style.display='block';
       } else {
-        _actRow.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;flex:1"><div style="display:flex;gap:8px;align-items:center"><div style="flex:1;position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:#888">₾</span><input id="respondPrice" type="number" placeholder="Ваша цена (необязат.)" min="0" style="width:100%;padding:12px 12px 12px 26px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box" onfocus="this.style.borderColor='#f7b731'" onblur="this.style.borderColor='#e0e0e0'"></div><button id="btnRespond" style="background:#f7b731;color:#1a1a2e;border:none;padding:14px 18px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap" onclick="doRespond()">Откликнуться</button></div><div style="font-size:12px;color:#888;text-align:center">📞 После принятия отклика грузовладелец свяжется с вами</div></div>`;
+        _actRow.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;flex:1"><div style="display:flex;gap:8px;align-items:center"><div style="flex:1;position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:#888">₾</span><input id="respondPrice" type="number" placeholder="${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).ph_your_price||'Ваша цена (необязат.)'}" min="0" style="width:100%;padding:12px 12px 12px 26px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box" onfocus="this.style.borderColor='#f7b731'" onblur="this.style.borderColor='#e0e0e0'"></div><button id="btnRespond" style="background:#f7b731;color:#1a1a2e;border:none;padding:14px 18px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap" onclick="doRespond()">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond||'Откликнуться'}</button></div><div style="font-size:12px;color:#888;text-align:center">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).respond_hint||'📞 После принятия отклика грузовладелец свяжется с вами'}</div></div>`;
       }
     }
   } else {
@@ -1252,7 +1268,7 @@ function doPostLoad(){
   const kg=parseInt(document.getElementById('pWeight').value)||5000;
   const price=parseInt(document.getElementById('pPrice').value)||300;
   const truck=document.getElementById('pTruck').value;
-  const desc=document.getElementById('pDesc').value||'Груз без описания';
+  const desc=document.getElementById('pDesc').value||((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
   const pay=document.getElementById('pPay').value;
   const urgent=document.getElementById('pUrgent').checked;
   const typeMap={'Тент':{typeClr:'#f3e5f5',typeClrT:'#6a1b9a'},'Рефрижератор':{typeClr:'#e3f2fd',typeClrT:'#1565c0'},'Бортовой':{typeClr:'#e8f5e9',typeClrT:'#2e7d32'},'Термос':{typeClr:'#fff3e0',typeClrT:'#bf360c'},'Газель':{typeClr:'#fce4ec',typeClrT:'#880e4f'},'Контейнер':{typeClr:'#f0f2f5',typeClrT:'#555'}};
@@ -2022,6 +2038,20 @@ const TRANSLATIONS = {
     btn_post_truck: '📤 Разместить машину',
     online_indicator: '● Онлайн 24/7',
     trips_suffix: 'рейсов',
+    added: 'Добавлен',
+    added_today: 'Добавлен сегодня',
+    unit_respond: 'отклик',
+    default_desc: 'Груз без описания',
+    ph_your_price: 'Ваша цена (необязат.)',
+    respond_hint: '📞 После принятия отклика грузовладелец свяжется с вами',
+    btn_show_route: '🗺️ Показать маршрут на карте',
+    respond_sent: '✅ Заявка отправлена',
+    btn_cancel: '✕ Отменить',
+    btn_edit: '✏️ Редактировать',
+    lbl_rate_modal: 'Ставка',
+    lbl_distance: 'Расстояние',
+    pay_cash_short: 'Наличные',
+    pay_cashless: 'Безнал',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -2130,6 +2160,20 @@ const TRANSLATIONS = {
     btn_post_truck: '📤 მანქანის განთავსება',
     online_indicator: '● ონლაინ 24/7',
     trips_suffix: 'გზა',
+    added: 'დამატებულია',
+    added_today: 'დამატებულია დღეს',
+    unit_respond: 'გამოხმაურება',
+    default_desc: 'აღწერა არ არის',
+    ph_your_price: 'თქვენი ფასი (სურვილისამებრ)',
+    respond_hint: '📞 გამოხმაურების მიღების შემდეგ ტვირთის მფლობელი დაგიკავშირდებათ',
+    btn_show_route: '🗺️ მარშრუტის ჩვენება რუკაზე',
+    respond_sent: '✅ განაცხადი გაგზავნილია',
+    btn_cancel: '✕ გაუქმება',
+    btn_edit: '✏️ რედაქტირება',
+    lbl_rate_modal: 'ტარიფი',
+    lbl_distance: 'მანძილი',
+    pay_cash_short: 'ნაღდი',
+    pay_cashless: 'უნაღდო',
   }
 };
 
@@ -2564,7 +2608,7 @@ function _renderOrders(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <span style="background:#e8f5e9;color:#2e7d32;padding:4px 8px;border-radius:10px;font-size:11px;white-space:nowrap">📦 Мой груз</span>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✏️ Редактировать</button>
+            <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
             <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ Удалить</button>
           </div>
         </div>
@@ -2831,7 +2875,7 @@ window.openRouteMap = function(){
   if(block.style.display !== 'none'){
     block.style.display = 'none';
     if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-    document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Показать маршрут на карте';
+    const _mapBtn2 = document.querySelector('[onclick="openRouteMap()"]'); if(_mapBtn2) _mapBtn2.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_show_route||'🗺️ Показать маршрут на карте';
     return;
   }
   
