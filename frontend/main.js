@@ -205,6 +205,14 @@ const REGION_NAMES_GE = {
 
 // Перевод названия города/региона на текущий язык
 
+
+function tripsWord(n, lang) {
+  if (lang === 'ge') return (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS.ge) ? TRANSLATIONS.ge.unit_trips||'გზა' : 'გზა';
+  if (n % 10 === 1 && n % 100 !== 11) return 'рейс';
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'рейса';
+  return 'рейсов';
+}
+
 function translatePay(pay) {
   if (lang !== 'ge' || !pay) return pay;
   const T = TRANSLATIONS['ge'];
@@ -564,7 +572,7 @@ function renderTrucks(){
       </div>
       <div>
         <div style="font-size:13px;font-weight:600">${t.co}</div>
-        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов') : ''}</div>
+        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
@@ -699,7 +707,7 @@ function openCargo(d){
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}` : '';
-  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + ((TRANSLATIONS[lang]||TRANSLATIONS["ru"]).unit_trips||"рейсов") : ""} · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅${respondTxt}`;
+  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""} · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>
