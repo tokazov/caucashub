@@ -1529,7 +1529,7 @@ function renderMyDeals(){
   const sec = document.getElementById('sDeals');
   if(!sec) return;
   if(!user){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999">Войдите чтобы увидеть сделки</div>'; return; }
-  if(!_deals||!_deals.length){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999"><div style="font-size:32px">🤝</div><div style="margin-top:8px">Сделок пока нет</div><div style="font-size:13px;margin-top:4px;color:#bbb">Примите отклик на груз чтобы создать сделку</div></div>'; return; }
+  if(!_deals||!_deals.length){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999"><div style="font-size:32px">🤝</div><div style="margin-top:8px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div style="font-size:13px;margin-top:4px;color:#bbb">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>'; return; }
   sec.innerHTML = _deals.map(d=>`<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
     <div style="font-weight:800;font-size:15px">${d.load_from||d.from||''} → ${d.load_to||d.to||''}</div>
     <div style="font-size:12px;color:#aaa;margin-top:2px">${d.deal_number||'#'+d.id} · ${new Date(d.created_at).toLocaleDateString('ru')}</div>
@@ -1858,7 +1858,7 @@ function renderCabResponses(){
  }
  el.innerHTML = _orders.map(function(o){
  var statusCls = o.status === 'accepted' ? 'accepted' : o.status === 'rejected' ? 'rejected' : 'pending';
- var statusLabel = o.status === 'accepted' ? '✅ Принят' : o.status === 'rejected' ? '❌ Отклонён' : '⏳ Ожидание';
+ var statusLabel = o.status === 'accepted' ? '✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят') : o.status === 'rejected' ? '❌ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_rejected||'Отклонён') : '⏳ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_pending||'Ожидание');
  var ts = '';
  try { ts = new Date(o.created).toLocaleString('ru', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
  var cancelBtn = o.status === 'pending'
@@ -2929,7 +2929,7 @@ function _renderOrders(){
     const s=_STATUS[o.status]||_STATUS.pending;
     let act='';
     if(o.status==='pending') act=`<button onclick="cancelMyResponse(${o.id},${o.serverId||0})" style="margin-top:8px;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">✕ Отменить заявку</button>`;
-    if(o.status==='accepted') act=`<div style="margin-top:8px;font-size:12px;color:#2980b9;background:#e3f2fd;padding:6px 12px;border-radius:6px">✅ Принят — следите за статусом в разделе <strong>Сделки</strong></div>`;
+    if(o.status==='accepted') act=`<div style="margin-top:8px;font-size:12px;color:#2980b9;background:#e3f2fd;padding:6px 12px;border-radius:6px">✅ ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят'} — ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted_hint||'следите за статусом в разделе'} <strong>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).nav_deals||'Сделки'}</strong></div>`;
     if(o.status==='done') act=`<button onclick="_rate(${o.id})" style="margin-top:8px;background:#f0f2f5;border:none;padding:5px 14px;border-radius:6px;font-size:13px;cursor:pointer">⭐ Оставить отзыв</button>`;
     const ts=new Date(o.created).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const bc=o.status==='accepted'?'#3498db':o.status==='done'?'#2ecc71':o.status==='transit'?'#9b59b6':'#f7b731';
@@ -3074,7 +3074,7 @@ function renderDeals(){
   const el=document.getElementById('dealsList');
   if(!el) return;
   if(!dealsData.length){
-    el.innerHTML='<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;color:#999"><div style="font-size:32px;margin-bottom:8px">📂</div><div>Сделок пока нет</div><div style="font-size:13px;margin-top:4px">Примите отклик на груз чтобы создать сделку</div></div>';
+    el.innerHTML='<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;color:#999"><div style="font-size:32px;margin-bottom:8px">📂</div><div>' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div style="font-size:13px;margin-top:4px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>';
     return;
   }
   el.innerHTML='';
