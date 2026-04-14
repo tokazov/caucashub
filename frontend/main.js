@@ -2518,6 +2518,8 @@ function applyLang(l) {
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
+  // Перерисовываем транспорт
+  if (typeof renderTrucks === 'function') renderTrucks();
 }
 
 function setLang(l, btn) {
@@ -2989,15 +2991,31 @@ if(_dateInput){
   const _today=new Date();
   _dateInput.min=_today.toISOString().split('T')[0];
 }
+// Восстанавливаем язык ДО рендера карточек
+(function() {
+  const saved = localStorage.getItem('ch_lang');
+  if (saved && saved !== 'ru') {
+    lang = saved;
+    document.documentElement.lang = saved === 'ge' ? 'ka' : saved;
+    // Визуально активируем кнопку — DOM ещё может не быть готов, делаем после DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', function() {
+      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
+      if (btn) {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyLang(saved);
+      }
+    });
+  }
+})();
+
 // Гарантируем рендер после загрузки DOM
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',()=>{
-    // Сначала рендерим из localStorage (мгновенно), потом sync с сервером
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
   });
 } else {
-  // Сначала рендерим из localStorage (мгновенно), потом sync с сервером
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
 }
@@ -3270,11 +3288,4 @@ window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
 
-// ── ЯЗЫК — восстановление при загрузке ───────────────
-(function() {
-  const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru') {
-    const btn = document.querySelector(`.lang-btn[onclick*="'${saved}'"]`);
-    setLang(saved, btn);
-  }
-})();
+// Язык восстанавливается раньше — см. блок перед syncLoadsFromServer
