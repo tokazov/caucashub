@@ -244,15 +244,21 @@ async function syncLoadsFromServer(){
   }
 }
 
+// Базовые метки типов (fallback когда TRANSLATIONS ещё не загружен)
+const TYPE_LABELS_RU = {tent:'Тент',ref:'Рефриж.',bort:'Борт',termos:'Термос',gazel:'Фургон',container:'Контейнер',auto:'Автовоз',other:'Другой'};
 function getTypeLabel(type) {
-  const curLang = (typeof lang !== 'undefined' ? lang : 'ru');
-  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[curLang]) || {};
-  const map = {
-    tent: T.type_tent||'Тент', ref: T.type_ref||'Рефриж.', bort: T.type_bort||'Борт',
-    termos: T.type_termos||'Термос', gazel: T.type_gazel||'Фургон',
-    container: T.type_container||'Контейнер', auto: T.type_auto||'Автовоз', other: T.type_other||'Другой'
-  };
-  return map[type] || (T.type_tent || 'Тент');
+  try {
+    const curLang = (typeof lang !== 'undefined' ? lang : 'ru');
+    const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[curLang]) || {};
+    const map = {
+      tent: T.type_tent||'Тент', ref: T.type_ref||'Рефриж.', bort: T.type_bort||'Борт',
+      termos: T.type_termos||'Термос', gazel: T.type_gazel||'Фургон',
+      container: T.type_container||'Контейнер', auto: T.type_auto||'Автовоз', other: T.type_other||'Другой'
+    };
+    return map[type] || TYPE_LABELS_RU[type] || 'Тент';
+  } catch(e) {
+    return TYPE_LABELS_RU[type] || 'Тент';
+  }
 }
 function mapServerLoad(l){
   const typeClrs = {
