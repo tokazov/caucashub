@@ -685,7 +685,7 @@ async function syncTrucksFromServer(){
 }
 
 function deleteMyTruck(id){
-  if(!confirm('Удалить машину из списка?')) return;
+  if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_truck||'Удалить машину из списка?')) return;
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(id.startsWith('srv_') && _tk){
     fetch(API_BASE+'/api/trucks/'+id.replace('srv_',''),{method:'DELETE',headers:{'Authorization':'Bearer '+_tk}}).then(()=>syncTrucksFromServer());
@@ -1547,7 +1547,7 @@ function addMyLoad(load){
 }
 
 function deleteMyLoad(id){
-  if(!confirm('Удалить груз из биржи?')) return;
+  if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_load||'Удалить груз из биржи?')) return;
   const load=_myLoads.find(l=>l.id===id);
   // Удаляем с сервера если есть serverId
   if(load?.serverId && typeof CaucasAPI!=='undefined' && user?.token){
@@ -1829,7 +1829,7 @@ function renderCabLoads(){
  }
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
- + '<div style="flex:1"><div class="cab-load-route">' + l.from + ' → ' + l.to + '</div>'
+ + '<div style="flex:1"><div class="cab-load-route">' + (typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + (typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
  + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
@@ -1839,7 +1839,7 @@ function renderCabLoads(){
  + respBlock
  + '</div>';
  }).join('')
- + '<div class="cab-add-btn"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:9px 20px;font-size:13px">+ Разместить новый груз</button></div>';
+ + '<div class="cab-add-btn"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:9px 20px;font-size:13px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_new||'+ Разместить новый груз') + '</button></div>';
 }
 function renderCabResponses(){
  var el = document.getElementById('myResponsesList');
@@ -1876,7 +1876,7 @@ function renderCabDeals(){
  var el = document.getElementById('myDealsList');
  if(!el) return;
  if(!_deals || !_deals.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>';
+ el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>';
  return;
  }
  var cabDeals = document.getElementById('cabStatDeals');
@@ -2909,7 +2909,7 @@ function _renderOrders(){
     <div id="myload-${l.id}" style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1">
-          <div style="font-weight:700">${l.from} → ${l.to}</div>
+          <div style="font-weight:700">${typeof translateCity==="function"?translateCity(l.from):l.from} → ${typeof translateCity==="function"?translateCity(l.to):l.to}</div>
           <div style="font-size:12px;color:#888;margin-top:2px">${l.kg.toLocaleString()} кг · ${l.cur||'₾'}${l.price} · ${l.date}</div>
           <div style="font-size:12px;color:#888;margin-top:1px">${l.desc||''}</div>
         </div>
@@ -2917,7 +2917,7 @@ function _renderOrders(){
           <span style="background:#e8f5e9;color:#2e7d32;padding:4px 8px;border-radius:10px;font-size:11px;white-space:nowrap">📦 Мой груз</span>
           <div style="display:flex;flex-direction:column;gap:4px">
             <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
-            <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ Удалить</button>
+            <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ ${((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).btn_delete||"Удалить"}</button>
           </div>
         </div>
       </div>
