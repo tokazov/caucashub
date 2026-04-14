@@ -513,7 +513,7 @@ function renderTrucks(){
       </div>
       <div>
         <div style="font-size:13px;font-weight:600">${t.co}</div>
-        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' рейсов' : ''}</div>
+        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов') : ''}</div>
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${t.type}</div>
@@ -648,7 +648,7 @@ function openCargo(d){
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} отклик${respondCount===1?'':respondCount<5?'а':'ов'}` : '';
-  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " рейсов" : ""} · Верифицирован ✅${respondTxt}`;
+  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + ((TRANSLATIONS[lang]||TRANSLATIONS["ru"]).unit_trips||"рейсов") : ""} · Верифицирован ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>
@@ -854,7 +854,7 @@ function updateRespondCount(){
   const pr = document.getElementById('profileRole');
   if(pr && user){
     const role = user.role==='shipper' ? 'Грузовладелец' : 'Перевозчик';
-    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} рейсов${count>0?` · <span style="color:#f7b731;font-weight:700">${count} отклик${count===1?'':count<5?'а':'ов'}</span>`:''}`;
+    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} отклик${count===1?'':count<5?'а':'ов'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -1952,6 +1952,32 @@ const TRANSLATIONS = {
     modal_truck: 'Кузов',
     modal_pay: 'Оплата',
     fcount_suffix: 'грузов',
+    th_route: 'ОТКУДА → КУДА',
+    th_weight: 'ВЕС',
+    th_truck: 'КУЗОВ',
+    th_price: 'ЦЕНА',
+    th_date: 'ДАТА ЗАГРУЗКИ',
+    th_truck_route: 'МАШИНА / МАРШРУТ',
+    th_company: 'КОМПАНИЯ',
+    th_tonnage: 'ТОННАЖ',
+    th_date2: 'ДАТА',
+    th_route2: 'МАРШРУТ',
+    th_tent_rate: 'ТЕНТ $/км',
+    th_ref_rate: 'РЕФРИЖ $/км',
+    th_trend: 'ТРЕНД',
+    th_volume: 'ОБЪЁМ/НЕД',
+    pay_cash: 'Наличные сразу',
+    pay_cashless3: 'Безнал 3 дня',
+    pay_cashless7: 'Безнал 7 дней',
+    pay_prepay: '50% предоплата',
+    unit_trips: 'рейсов',
+    verified: 'Верифицирован',
+    empty_loads: 'Грузов не найдено',
+    empty_responses: 'Нет активных откликов',
+    empty_trucks: 'Нет машин. Добавьте первую!',
+    empty_myloads: 'Нет размещённых грузов',
+    empty_deals: 'Нет сделок',
+    login_for_deals: 'Войдите чтобы увидеть сделки',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -2025,6 +2051,32 @@ const TRANSLATIONS = {
     modal_truck: 'კუზოვი',
     modal_pay: 'გადახდა',
     fcount_suffix: 'ტვირთი',
+    th_route: 'საიდან → სად',
+    th_weight: 'წონა',
+    th_truck: 'კუზოვი',
+    th_price: 'ფასი',
+    th_date: 'ჩატვირთვის თარიღი',
+    th_truck_route: 'მანქანა / მარშრუტი',
+    th_company: 'კომპანია',
+    th_tonnage: 'ტონაჟი',
+    th_date2: 'თარიღი',
+    th_route2: 'მარშრუტი',
+    th_tent_rate: 'ტენტი $/კმ',
+    th_ref_rate: 'რეფრიჟ. $/კმ',
+    th_trend: 'ტენდენცია',
+    th_volume: 'მოცულობა/კვ',
+    pay_cash: 'ნაღდი ანგარიშსწორება',
+    pay_cashless3: 'უნაღდო 3 დღე',
+    pay_cashless7: 'უნაღდო 7 დღე',
+    pay_prepay: '50% წინასწარი გადახდა',
+    unit_trips: 'გზა',
+    verified: 'ვერიფიცირებული',
+    empty_loads: 'ტვირთი ვერ მოიძებნა',
+    empty_responses: 'გამოხმაურებები არ არის',
+    empty_trucks: 'მანქანები არ არის. დაამატეთ პირველი!',
+    empty_myloads: 'განთავსებული ტვირთი არ არის',
+    empty_deals: 'გარიგებები არ არის',
+    login_for_deals: 'შედით გარიგებების სანახავად',
   }
 };
 
@@ -2039,6 +2091,20 @@ function applyLang(l) {
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.dataset.i18nPh;
     if (T[key]) el.placeholder = T[key];
+  });
+  // Города в таблице ставок (data-i18n-city)
+  document.querySelectorAll('[data-i18n-city]').forEach(el => {
+    const route = el.getAttribute('data-i18n-city');
+    if (l === 'ge') {
+      el.textContent = route.split(' → ').map(c => translateCity(c)).join(' → ');
+    } else {
+      el.textContent = route;
+    }
+  });
+  // option с data-i18n (типы оплаты)
+  document.querySelectorAll('option[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (T[key]) el.textContent = T[key];
   });
   // Заголовок страницы
   const titleEl = document.querySelector('title');
@@ -2300,7 +2366,7 @@ function openAnalytics(){
       _rEl.innerHTML=_topRoutes.map(function(r){
         return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">'
           +'<span style="font-size:13px">'+r[0]+'</span>'
-          +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+(r[1]===1?'рейс':r[1]<5?'рейса':'рейсов')+'</span>'
+          +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+((TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']||TRANSLATIONS['ru']).unit_trips||'рейсов')+'</span>'
           +'</div>';
       }).join('');
     }

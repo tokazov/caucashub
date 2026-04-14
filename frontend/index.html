@@ -10,7 +10,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1776185807">
+<link rel="stylesheet" href="styles.css?v=1776186041">
 </head>
 <body>
 
@@ -133,7 +133,7 @@
 <!-- ═══ SECTION: LOADS ═══ -->
 <div class="section active" id="sec-loads">
   <div class="thead">
-    <div>ОТКУДА → КУДА</div><div>ВЕС</div><div>КУЗОВ</div><div>ЦЕНА</div><div>ДАТА ЗАГРУЗКИ</div><div></div>
+    <div data-i18n="th_route">ОТКУДА → КУДА</div><div data-i18n="th_weight">ВЕС</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_price">ЦЕНА</div><div data-i18n="th_date">ДАТА ЗАГРУЗКИ</div><div></div>
   </div>
   <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div></div>
 </div>
@@ -146,7 +146,7 @@
     <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">+ Добавить машину</button>
   </div>
   <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
-    <div>МАШИНА / МАРШРУТ</div><div>КОМПАНИЯ</div><div>ТОННАЖ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
+    <div data-i18n="th_truck_route">МАШИНА / МАРШРУТ</div><div data-i18n="th_company">КОМПАНИЯ</div><div data-i18n="th_tonnage">ТОННАЖ</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_date2">ДАТА</div><div></div>
   </div>
   <div id="truckList"></div>
 </div>
@@ -220,15 +220,15 @@
     <div style="font-size:13px;color:#888;margin-bottom:4px">Средние ставки на маршрутах · обновлено сегодня</div>
   </div>
   <table class="rates-table">
-    <thead><tr><th>МАРШРУТ</th><th>ТЕНТ $/км</th><th>РЕФРИЖ $/км</th><th>ТРЕНД</th><th>ОБЪЁМ/НЕД</th></tr></thead>
+    <thead><tr><th data-i18n="th_route2">МАРШРУТ</th><th data-i18n="th_tent_rate">ТЕНТ $/км</th><th data-i18n="th_ref_rate">РЕФРИЖ $/км</th><th data-i18n="th_trend">ТРЕНД</th><th data-i18n="th_volume">ОБЪЁМ/НЕД</th></tr></thead>
     <tbody>
       <tr><td><strong>Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td>47 рейсов</td></tr>
       <tr><td><strong>Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td>38 рейсов</td></tr>
       <tr><td><strong>Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td>29 рейсов</td></tr>
-      <tr><td><strong>Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td>22 рейса</td></tr>
+      <tr><td><strong data-i18n-city="Тбилиси → Стамбул">Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td>22 рейса</td></tr>
       <tr><td><strong>Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td>18 рейсов</td></tr>
       <tr><td><strong>Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td>14 рейсов</td></tr>
-      <tr><td><strong>Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td>31 рейс</td></tr>
+      <tr><td><strong data-i18n-city="Кутаиси → Тбилиси">Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td>31 рейс</td></tr>
       <tr><td><strong>Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td>11 рейсов</td></tr>
     </tbody>
   </table>
@@ -629,7 +629,7 @@
     <div class="form-group">
       <label>Тип оплаты</label>
       <select class="form-select" id="pPay">
-        <option>Наличные сразу</option><option>Безнал 3 дня</option><option>Безнал 7 дней</option><option>50% предоплата</option>
+        <option data-i18n="pay_cash">Наличные сразу</option><option data-i18n="pay_cashless3">Безнал 3 дня</option><option data-i18n="pay_cashless7">Безнал 7 дней</option><option data-i18n="pay_prepay">50% предоплата</option>
       </select>
     </div>
     <div style="display:flex;gap:8px">
@@ -957,9 +957,9 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1776185807"></script>
-<script src="main.js?v=1776185807"></script>
-<script src="ai-dispatcher.js?v=1776185807"></script>
+<script src="api.js?v=1776186041"></script>
+<script src="main.js?v=1776186041"></script>
+<script src="ai-dispatcher.js?v=1776186041"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
