@@ -523,7 +523,7 @@ function renderLoads(data){
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
         <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
-        <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span></div>
+        <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span></div>
         <div class="price">${d.cur||'₾'}${d.price.toLocaleString()}</div>
         <div style="font-size:12px;font-weight:600;color:#555">${dateStr||'—'}</div>
         <div onclick="event.stopPropagation()">${rightBtns}</div>
@@ -547,7 +547,7 @@ function renderLoads(data){
           </div>
         </div>
         <div class="card-footer-row">
-          <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span>
+          <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span>
           <span>${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</span>
           ${dateStr ? `<span>${dateStr}</span>` : ''}
         </div>
