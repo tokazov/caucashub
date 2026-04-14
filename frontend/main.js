@@ -208,7 +208,7 @@ function filterCity(dir, val){
 
   // Локальные — города Грузии
   const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
-  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${lang==='ge'${c.name} <span class="region">${c.region}</span>${c.name} <span class="region">${c.region}</span>c.nameGe?c.nameGe:c.name} <span class="region">${c.region}</span></div>`).join('');
+  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${lang==='ge'&&c.nameGe?c.nameGe:c.name} <span class="region">${c.region}</span></div>`).join('');
   const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null)">📍 Использовать: "${val.trim()}"</div>`;
   drop.innerHTML=dropHtml+(dropHtml?'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>':'')+freeOpt;
   drop.classList.add('open');
