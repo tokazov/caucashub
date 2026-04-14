@@ -195,7 +195,7 @@ async function syncLoadsFromServer(){
       if(_statEl) _statEl.textContent = serverLoads.length;
       // Обновляем fcount тоже
       const _fcEl = document.getElementById('fcount');
-      if(_fcEl) _fcEl.textContent = serverLoads.length + ' грузов';
+      if(_fcEl) _fcEl.textContent = serverLoads.length + ' ' + ((typeof TRANSLATIONS!=='undefined'&&TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']?.stat_loads)||'грузов');
       console.log('[API] Loaded', serverLoads.length, 'loads from server');
     }
 
@@ -244,18 +244,28 @@ async function syncLoadsFromServer(){
   }
 }
 
+function getTypeLabel(type) {
+  const curLang = (typeof lang !== 'undefined' ? lang : 'ru');
+  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[curLang]) || {};
+  const map = {
+    tent: T.type_tent||'Тент', ref: T.type_ref||'Рефриж.', bort: T.type_bort||'Борт',
+    termos: T.type_termos||'Термос', gazel: T.type_gazel||'Фургон',
+    container: T.type_container||'Контейнер', auto: T.type_auto||'Автовоз', other: T.type_other||'Другой'
+  };
+  return map[type] || (T.type_tent || 'Тент');
+}
 function mapServerLoad(l){
   const typeClrs = {
-    tent:      { typeClr:'#f3e5f5', typeClrT:'#6a1b9a', typeLabel:'Тент'      },
-    ref:       { typeClr:'#e3f2fd', typeClrT:'#1565c0', typeLabel:'Рефриж.'   },
-    bort:      { typeClr:'#e8f5e9', typeClrT:'#2e7d32', typeLabel:'Борт'       },
-    termos:    { typeClr:'#fff3e0', typeClrT:'#bf360c', typeLabel:'Термос'     },
-    gazel:     { typeClr:'#fce4ec', typeClrT:'#880e4f', typeLabel:'Фургон'     },
-    container: { typeClr:'#f0f2f5', typeClrT:'#555',    typeLabel:'Контейнер'  },
-    auto:      { typeClr:'#e8eaf6', typeClrT:'#283593', typeLabel:'Автовоз'   },
-    other:     { typeClr:'#f0f2f5', typeClrT:'#555',    typeLabel:'Другой'    },
+    tent:      { typeClr:'#f3e5f5', typeClrT:'#6a1b9a' },
+    ref:       { typeClr:'#e3f2fd', typeClrT:'#1565c0' },
+    bort:      { typeClr:'#e8f5e9', typeClrT:'#2e7d32' },
+    termos:    { typeClr:'#fff3e0', typeClrT:'#bf360c' },
+    gazel:     { typeClr:'#fce4ec', typeClrT:'#880e4f' },
+    container: { typeClr:'#f0f2f5', typeClrT:'#555'    },
+    auto:      { typeClr:'#e8eaf6', typeClrT:'#283593'  },
+    other:     { typeClr:'#f0f2f5', typeClrT:'#555'    },
   };
-  const tc = typeClrs[l.type] || typeClrs.tent;
+  const tc = { ...(typeClrs[l.type] || typeClrs.tent), typeLabel: getTypeLabel(l.type || 'tent') };
   return {
     id:        l.id,
     serverId:  l.id,

@@ -631,12 +631,12 @@ function openCargo(d){
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} отклик${respondCount===1?'':respondCount<5?'а':'ов'}` : '';
   document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " рейсов" : ""} · Верифицирован ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Откуда</div><div style="font-size:14px;font-weight:700">${d.from2}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Куда</div><div style="font-size:14px;font-weight:700">${d.to2}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Дата загрузки</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Вес</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} кг</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Кузов</div><div style="font-size:14px;font-weight:700">${d.typeLabel}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Оплата</div><div style="font-size:14px;font-weight:700">${d.pay}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${d.from2}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${d.to2}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} კგ</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):d.typeLabel}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${d.pay}</div></div>
   `;
   document.getElementById('mDesc').textContent=d.desc;
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
@@ -1904,6 +1904,31 @@ const TRANSLATIONS = {
     badge_urgent: 'СРОЧНО',
     card_respond: 'Отклик',
     card_sent: '✅ Отправлено',
+    bnav_loads: 'Грузы',
+    bnav_trucks: 'Машины',
+    bnav_rates: 'Ставки',
+    bnav_cabinet: 'Кабинет',
+    nav_loads: '📦 Грузы',
+    nav_rates2: '📊 Ставки',
+    nav_cabinet: '📋 Кабинет',
+    stat_loads: 'грузов',
+    stat_trucks: 'машин онлайн',
+    stat_companies: 'компаний',
+    type_tent: 'Тент',
+    type_ref: 'Рефриж.',
+    type_bort: 'Борт',
+    type_termos: 'Термос',
+    type_gazel: 'Фургон',
+    type_container: 'Контейнер',
+    type_auto: 'Автовоз',
+    type_other: 'Другой',
+    modal_from: 'Откуда',
+    modal_to: 'Куда',
+    modal_date: 'Дата загрузки',
+    modal_weight: 'Вес',
+    modal_truck: 'Кузов',
+    modal_pay: 'Оплата',
+    fcount_suffix: 'грузов',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -1948,6 +1973,31 @@ const TRANSLATIONS = {
     badge_urgent: 'სასწრაფო',
     card_respond: 'გამოხმაურება',
     card_sent: '✅ გაგზავნილია',
+    bnav_loads: 'ტვირთები',
+    bnav_trucks: 'მანქანები',
+    bnav_rates: 'ტარიფები',
+    bnav_cabinet: 'კაბინეტი',
+    nav_loads: '📦 ტვირთები',
+    nav_rates2: '📊 ტარიფები',
+    nav_cabinet: '📋 კაბინეტი',
+    stat_loads: 'ტვირთი',
+    stat_trucks: 'მანქანა ონლაინ',
+    stat_companies: 'კომპანია',
+    type_tent: 'ტენტი',
+    type_ref: 'რეფრიჟ.',
+    type_bort: 'ბორტი',
+    type_termos: 'თერმოსი',
+    type_gazel: 'ფურგონი',
+    type_container: 'კონტეინერი',
+    type_auto: 'ავტოვოზი',
+    type_other: 'სხვა',
+    modal_from: 'საიდან',
+    modal_to: 'სად',
+    modal_date: 'ჩატვირთვის თარიღი',
+    modal_weight: 'წონა',
+    modal_truck: 'კუზოვი',
+    modal_pay: 'გადახდა',
+    fcount_suffix: 'ტვირთი',
   }
 };
 
@@ -1963,6 +2013,19 @@ function applyLang(l) {
     const key = el.dataset.i18nPh;
     if (T[key]) el.placeholder = T[key];
   });
+  // Заголовок страницы
+  const titleEl = document.querySelector('title');
+  if (titleEl) {
+    const key = l === 'ge' ? 'data-i18n-title-ge' : 'data-i18n-title-ru';
+    const val = titleEl.getAttribute(key);
+    if (val) document.title = val;
+  }
+  // fcount — счётчик грузов
+  const fcount = document.getElementById('fcount');
+  if (fcount) {
+    const m = fcount.textContent.match(/^(\d+)/);
+    if (m) fcount.textContent = m[1] + ' ' + (T.fcount_suffix || 'грузов');
+  }
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
