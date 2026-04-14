@@ -59,7 +59,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .post-btn:hover { background:#27ae60; }
 
 /* TABLE */
-.thead { display:grid; column-gap:8px; grid-template-columns:2.5fr 1fr 1.2fr 1fr 1fr 90px; padding:8px 14px; background:#e8eaf0; font-size:11px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #d0d4df; width:100%; }
+.thead { display:grid; column-gap:8px; grid-template-columns:2.5fr 1fr 1.2fr 1fr 1fr 100px; padding:8px 16px; background:#e8eaf0; font-size:11px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #d0d4df; width:100%; }
 .row { display:grid; column-gap:8px; grid-template-columns:2.5fr 1fr 1.2fr 1fr 1fr 90px; padding:11px 14px; background:#fff; border-bottom:1px solid #f2f2f2; cursor:pointer; align-items:center; border-left:3px solid transparent; transition:background .12s; width:100%; }
 .row:hover { background:#fffbf0; }
 .row.urgent { border-left-color:#e74c3c; }
