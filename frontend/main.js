@@ -550,7 +550,7 @@ function renderTrucks(){
   list.innerHTML='';
   const allTrucks = [..._myTrucks, ...(window._serverTrucks||[]), ...((_myTrucks.length||(window._serverTrucks||[]).length)?[]:TRUCKS)];
   const countEl = document.getElementById('truckCount');
-  if(countEl) countEl.textContent = allTrucks.length + ' машин свободно';
+  if(countEl) countEl.textContent = allTrucks.length + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).trucks_free||'машин свободно');
   allTrucks.forEach(t=>{
     const isOwn = t.isOwn;
     const row=document.createElement('div');
@@ -567,19 +567,19 @@ function renderTrucks(){
         <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов') : ''}</div>
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
-      <div style="font-size:12px;color:#555">${t.type}</div>
+      <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
       <div style="font-size:12px;color:#2ecc71;font-weight:600">${t.date}</div>
       <div style="display:flex;gap:4px">
         ${isOwn
           ? `<button class="btn-resp" style="background:#fce4ec;color:#c62828;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" onclick="deleteMyTruck('${t.id}')">🗑️</button>`
-          : `<button class="btn-resp" onclick="callTruck('${t.co}','${t.plate}','${phone}')">Связаться</button>`
+          : `<button class="btn-resp" onclick="callTruck('${t.co}','${t.plate}','${phone}')">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
         }
       </div>
     `;
     list.appendChild(row);
   });
   if(allTrucks.length === 0){
-    list.innerHTML='<div style="text-align:center;padding:32px;color:#aaa">Нет машин. Добавьте первую!</div>';
+    list.innerHTML='<div style="text-align:center;padding:32px;color:#aaa">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_trucks||'Нет машин. Добавьте первую!') + '</div>';
   }
 }
 
@@ -2189,6 +2189,8 @@ const TRANSLATIONS = {
     hint_forgot_email: 'Введите ваш email — пришлём код',
     lbl_code: 'Код подтверждения (6 цифр)', hint_new_pass: 'Войдите с новым паролем',
     btn_login_short: 'Войти', carrier_promo: 'Грузы находят тебя сами',
+    trucks_free: 'машин свободно',
+    btn_contact: 'Связаться',
   },
   ge: {
     nav_exchange: 'ბირჟა',
@@ -2442,6 +2444,8 @@ const TRANSLATIONS = {
     hint_forgot_email: 'შეიყვანეთ email — გამოგიგზავნით კოდს',
     lbl_code: 'დადასტურების კოდი (6 ციფრი)', hint_new_pass: 'შედით ახალი პაროლით',
     btn_login_short: 'შესვლა', carrier_promo: 'ტვირთები თავად გპოვებენ',
+    trucks_free: 'მანქანა თავისუფალია',
+    btn_contact: 'დაკავშირება',
   }
 };
 
