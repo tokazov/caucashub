@@ -10,6 +10,59 @@
   var _aiState = {}; // state от бэкенда (роль, маршрут, etc)
   var _welcomeShown = false; // флаг чтобы приветствие показывалось только 1 раз
 
+  // ── текущий язык ──────────────────────────────────
+  function _getLang(){ return (typeof lang !== 'undefined' ? lang : 'ru'); }
+
+  // ── тексты по языкам ──────────────────────────────
+  var _i18n = {
+    ru: {
+      welcome: 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!',
+      placeholder: 'Напишите о грузе...',
+      loading: '⏳ Думаю...',
+      error: 'Ошибка связи. Попробуйте позже.',
+      name: 'Мари — AI Диспетчер',
+      status: '● Онлайн 24/7'
+    },
+    ge: {
+      welcome: 'გამარჯობა! მე ვარ მარი — თქვენი AI დისპეჩერი 🚛\n\nდაგეხმარებით ტვირთის პოვნაში, მანქანის შერჩევაში ან გადაზიდვასთან დაკავშირებულ ნებისმიერ კითხვაზე. დაწერეთ რა გჭირდებათ!',
+      placeholder: 'დაწერეთ ტვირთის შესახებ...',
+      loading: '⏳ ვფიქრობ...',
+      error: 'კავშირის შეცდომა. სცადეთ მოგვიანებით.',
+      name: 'მარი — AI დისპეჩერი',
+      status: '● ონლაინ 24/7'
+    },
+    en: {
+      welcome: 'Hi! I\'m Mari — your AI dispatcher 🚛\n\nI can help you find cargo, match a truck, or answer any shipping questions. What do you need?',
+      placeholder: 'Describe your cargo...',
+      loading: '⏳ Thinking...',
+      error: 'Connection error. Please try again later.',
+      name: 'Mari — AI Dispatcher',
+      status: '● Online 24/7'
+    }
+  };
+
+  function _t(key){ var l=_getLang(); return (_i18n[l]||_i18n['ru'])[key]; }
+
+  // Обновляем шапку чата и placeholder при смене языка
+  function _updateChatLang(){
+    var nameEl = document.querySelector('.ai-name');
+    var statusEl = document.querySelector('.ai-status');
+    var inp = document.getElementById('aiInput');
+    if(nameEl) nameEl.textContent = _t('name');
+    if(statusEl) statusEl.textContent = _t('status');
+    if(inp) inp.placeholder = _t('placeholder');
+  }
+
+  // Обновляем шапку чата и placeholder при смене языка
+  function _updateChatLang(){
+    var nameEl = document.querySelector('.ai-name');
+    var statusEl = document.querySelector('.ai-status');
+    var inp = document.getElementById('aiInput');
+    if(nameEl) nameEl.textContent = _t('name');
+    if(statusEl) statusEl.textContent = _t('status');
+    if(inp) inp.placeholder = _t('placeholder');
+  }
+
   // ── toggle чата ───────────────────────────────────
   window.toggleAI = function(){
     var chat = document.getElementById('aiChat');
@@ -40,9 +93,10 @@
     }
     if(_aiOpen){
       // Показываем приветствие только один раз
+      _updateChatLang();
       if(_chatHistory.length === 0 && !_welcomeShown){
         _welcomeShown = true;
-        var welcome = 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!';
+        var welcome = _t('welcome');
         _appendMsg('ai', welcome);
         _chatHistory.push({role:'ai', text: welcome});
       }
@@ -81,7 +135,8 @@
       session_id: _sessionId,
       context: loadsCtx || undefined,
       history: _chatHistory.slice(-8).map(function(m){ return {role: m.role==='user'?'user':'assistant', text: m.text}; }),
-      state: _aiState || {}
+      state: _aiState || {},
+      lang: _getLang()
     };
 
     fetch(API + '/api/ai/dispatcher', {
@@ -222,13 +277,14 @@
     _aiState = {};
     _welcomeShown = false;
     _sessionId = 'sess_' + Math.random().toString(36).slice(2);
+    _updateChatLang();
     var msgs = document.getElementById('aiMessages');
     if(msgs) msgs.innerHTML = '';
     var tpl = document.getElementById('aiTemplate');
     if(tpl) tpl.style.display = 'none';
     var btn = document.getElementById('aiPostBtn');
     if(btn) btn.style.display = 'none';
-    _appendMsg('ai', 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!');
+    _appendMsg('ai', _t('welcome'));
   };
 
   // ── aiPostLoad ────────────────────────────────────
@@ -276,8 +332,23 @@
 
     // Восстанавливаем позицию
     try {
-      var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
-      if(saved && saved.bottom && saved.right){ fab.style.bottom = saved.bottom; fab.style.right = saved.right; }
+      // На мобильном — всегда дефолтная позиция (не используем localStorage)
+      if(window.innerWidth > 600){
+        var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
+        if(saved && saved.bottom && saved.right){
+          var rightVal = parseInt(saved.right);
+          var bottomVal = parseInt(saved.bottom);
+          if(rightVal >= 8 && rightVal <= window.innerWidth - 60 && bottomVal >= 60){
+            fab.style.bottom = saved.bottom; fab.style.right = saved.right;
+          } else {
+            localStorage.removeItem('ch_fab_pos');
+          }
+        }
+      } else {
+        localStorage.removeItem('ch_fab_pos');
+        fab.style.bottom = '80px';
+        fab.style.right = '16px';
+      }
     } catch(e){}
 
     var dragging = false, moved = false, startX, startY, startBottom, startRight, dragTarget = null;

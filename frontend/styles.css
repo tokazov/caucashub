@@ -59,8 +59,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .post-btn:hover { background:#27ae60; }
 
 /* TABLE */
-.thead { display:grid; column-gap:8px; grid-template-columns:520px 1fr 1.3fr 1fr 1fr 90px; padding:8px 14px; background:#e8eaf0; font-size:11px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #d0d4df; }
-.row { display:grid; column-gap:8px; grid-template-columns:520px 1fr 1.3fr 1fr 1fr 90px; padding:11px 14px; background:#fff; border-bottom:1px solid #f2f2f2; cursor:pointer; align-items:center; border-left:3px solid transparent; transition:background .12s; }
+.thead { display:grid; column-gap:8px; grid-template-columns:2.2fr 1fr 1.2fr 1fr 1fr 100px; padding:8px 11px; border-left:3px solid transparent; background:#e8eaf0; font-size:11px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #d0d4df; }
+.row { display:grid; column-gap:8px; grid-template-columns:2.2fr 1fr 1.2fr 1fr 1fr 100px; padding:11px 16px; background:#fff; border-bottom:1px solid #f2f2f2; cursor:pointer; align-items:center; border-left:3px solid transparent; transition:background .12s; }
 .row:hover { background:#fffbf0; }
 .row.urgent { border-left-color:#e74c3c; }
 .row.fresh { border-left-color:#2ecc71; }
@@ -78,8 +78,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .btn-resp:hover { background:#e6a820; }
 .row > div { padding:0 6px; }
 .row > div:first-child { padding-left:0; }
-.thead > div { padding:0 6px; }
-.thead > div:first-child { padding-left:0; }
+.thead > div { padding:0; }
 .load-more { text-align:center; padding:16px; background:#fff; }
 .load-more button { background:#f0f2f5; border:none; padding:10px 24px; border-radius:8px; font-size:13px; color:#555; cursor:pointer; }
 
@@ -179,8 +178,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .section { display:none; }
 .section.active { display:block; }
 
-@media(max-width:640px){
-  .thead { display:none; }
+@media(max-width:768px){
+  .thead { display:none !important; }
   .row,.truck-row { display:block; padding:12px 16px; margin-bottom:8px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-left-width:4px !important; }
   .row > div { margin-bottom:3px; line-height:1.4; }
   .row > div:last-child { margin-bottom:0; }
@@ -276,8 +275,8 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cab-stats { display: flex; gap: 8px; flex-wrap: wrap; }
 .cab-stat-pill { background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 5px 12px; color: #ccc; font-size: 12px; }
 .cab-stat-pill b { color: #f7b731; font-weight: 700; }
-.cab-tabs-new { display: flex; background: #fff; border-bottom: 1px solid #f0f0f0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.cab-tab-btn { flex: 1; min-width: 80px; padding: 13px 8px; border: none; background: none; font-size: 13px; font-weight: 600; color: #aaa; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.cab-tabs-new { display: flex; background: #fff; border-bottom: 1px solid #f0f0f0; }
+.cab-tab-btn { flex: 1; min-width: 0; padding: 10px 4px; border: none; background: none; font-size: 10px; font-weight: 600; color: #aaa; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: center; gap: 3px; }
 .cab-tab-btn.active { color: #1a1a2e; border-bottom-color: #f7b731; }
 .cab-tab-badge { background: #e74c3c; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; font-weight: 700; }
 .cab-body { background: #fff; border-radius: 0 0 12px 12px; border: 1px solid #eee; border-top: none; }
@@ -367,7 +366,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .cargo-header { display: none !important; }
 /* На десктопе — ограничиваем ширину */
 @media(min-width: 769px) {
-  #cargoList { max-width: 700px; margin: 0 auto; padding-bottom: 20px; }
+  #cargoList { max-width: 100%; padding-bottom: 20px; }
 }
 
 /* ═══ АДАПТИВ КАРТОЧЕК ГРУЗОВ ═══ */
