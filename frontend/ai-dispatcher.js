@@ -306,7 +306,8 @@
     }
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
-    rec.lang = 'ru-RU';
+    var _cur = _getLang();
+    rec.lang = _cur === 'ge' ? 'ka-GE' : (_cur === 'en' ? 'en-US' : 'ru-RU');
     rec.interimResults = false;
     var micBtn = document.querySelector('.ai-mic');
     if(micBtn){ micBtn.textContent = '🔴'; micBtn.disabled = true; }
