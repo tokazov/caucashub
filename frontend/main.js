@@ -2950,13 +2950,13 @@ function openAnalytics(){
     document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
     // Реальные данные из сделок
     const _allDeals = (typeof _deals!=='undefined'&&_deals)||[];
-    const _completedDeals = _allDeals.filter(d=>d.status==='completed');
+    const _activDeals = _allDeals.filter(d=>d.status!=='cancelled');
     const _now = new Date();
     const _thisMonth = _allDeals.filter(d=>{
       const dt=new Date(d.created_at||d.updatedAt||0);
       return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
     });
-    const _revenue = _completedDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
+    const _revenue = _activDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
     document.getElementById('aStat1').textContent = user.trips || _allDeals.length || 0;
     document.getElementById('aStat2').textContent = _thisMonth.length;
     const _s3=document.getElementById('aStat3');
