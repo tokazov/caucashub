@@ -2055,7 +2055,7 @@ function renderCabDeals(){
  + '<span class="cab-status-badge ' + st.cls + '">' + st.l + '</span></div>'
  + '</div>'
  + '<div class="cab-deal-meta">'
- + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' кг</span>' : '')
+ + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' ' + (_tr.unit_kg||'кг') + '</span>' : '')
  + (carrier ? '<span>🚛 ' + carrier + '</span>' : '')
  + '</div>'
  + '<div class="cab-deal-actions">'
@@ -2175,6 +2175,10 @@ const TRANSLATIONS = {
     badge_new: 'НОВЫЙ',
     badge_intl: 'МЕЖД.',
     unit_kg: 'кг',
+    cargo_label: 'Груз',
+    label_sum: 'Сумма',
+    sig_shipper: 'Отправитель',
+    sig_carrier: 'Перевозчик',
     card_respond: 'Отклик',
     card_sent: '✅ Отправлено',
     bnav_loads: 'Грузы',
@@ -2436,6 +2440,10 @@ const TRANSLATIONS = {
     badge_new: 'ახალი',
     badge_intl: 'საერთ.',
     unit_kg: 'კგ',
+    cargo_label: 'ტვირთი',
+    label_sum: 'თანხა',
+    sig_shipper: 'გამგზავნი',
+    sig_carrier: 'გადამზიდველი',
     card_respond: 'გამოხმაურება',
     card_sent: '✅ გაგზავნილია',
     bnav_loads: 'ტვირთები',
@@ -3297,14 +3305,14 @@ function renderDeals(){
     const card=document.createElement('div');
     card.style.cssText='background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)';
     card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
-      +'<div><div style="font-size:16px;font-weight:900">'+(deal.load_from||'?')+' → '+(deal.load_to||'?')+'</div>'
+      +'<div><div style="font-size:16px;font-weight:900">'+(typeof translateCity==='function'?translateCity(deal.load_from||'?'):(deal.load_from||'?'))+' → '+(typeof translateCity==='function'?translateCity(deal.load_to||'?'):(deal.load_to||'?'))+'</div>'
       +'<div style="font-size:12px;color:#999;margin-top:2px">'+(deal.deal_number||'')+' · '+new Date(deal.created_at).toLocaleDateString('ru')+'</div></div>'
       +'<span style="background:'+st.bg+';color:'+st.color+';padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700">'+st.label+'</span></div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:13px">'
-      +'<div><span style="color:#aaa">Груз: </span>'+((deal.load_kg||0)).toLocaleString()+' кг</div>'
-      +'<div><span style="color:#aaa">Сумма: </span><strong>'+(deal.currency||"₾")+((deal.price||0)).toLocaleString()+'</strong></div>'
-      +'<div><span style="color:#aaa">Отправитель: </span>'+(deal.shipper&&deal.shipper.name||'—')+'</div>'
-      +'<div><span style="color:#aaa">Перевозчик: </span>'+(deal.carrier&&deal.carrier.name||'—')+'</div></div>'
+      +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).cargo_label||'Груз')+': </span>'+((deal.load_kg||0)).toLocaleString()+' '+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг')+'</div>'
+      +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).label_sum||'Сумма')+': </span><strong>'+(deal.currency||"₾")+((deal.price||0)).toLocaleString()+'</strong></div>'
+      +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sig_shipper||'Отправитель')+': </span>'+(deal.shipper&&deal.shipper.name||'—')+'</div>'
+      +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sig_carrier||'Перевозчик')+': </span>'+(deal.carrier&&deal.carrier.name||'—')+'</div></div>'
       +'<div id="deal-btns-'+deal.id+'" style="display:flex;gap:8px;flex-wrap:wrap"></div>';
     el.appendChild(card);
     const btns=document.getElementById('deal-btns-'+deal.id);
