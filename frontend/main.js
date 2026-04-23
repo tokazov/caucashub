@@ -210,6 +210,15 @@ const REGION_NAMES_GE = {
   'Завтра': 'ხვალ',
 };
 
+// Перевод типа кузова на текущий язык
+function getTypeLabel(type) {
+  var key = 'type_' + (type||'tent');
+  var tr = (typeof TRANSLATIONS !== 'undefined' && typeof lang !== 'undefined') ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']) : (typeof TRANSLATIONS !== 'undefined' ? TRANSLATIONS['ru'] : null);
+  if (tr && tr[key]) return tr[key];
+  var fallback = {tent:'Тент',ref:'Рефриж.',bort:'Борт',termos:'Термос',gazel:'Фургон',container:'Контейнер',auto:'Автовоз',other:'Другой'};
+  return fallback[type] || type || 'Тент';
+}
+
 // Перевод названия города/региона на текущий язык
 
 
