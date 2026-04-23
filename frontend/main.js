@@ -2944,45 +2944,67 @@ function saveSettings(){
   pushNotif('✅ Настройки сохранены', 'Профиль обновлён', []);
 }
 
-function openAnalytics(){
-  closeModal('profileOverlay');
-  if(user){
-    document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
-    // Реальные данные из сделок
-    const _allDeals = (typeof _deals!=='undefined'&&_deals)||[];
-    const _activDeals = _allDeals.filter(d=>d.status!=='cancelled');
-    const _now = new Date();
-    const _thisMonth = _allDeals.filter(d=>{
-      const dt=new Date(d.created_at||d.updatedAt||0);
-      return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
-    });
-    const _revenue = _activDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
-    document.getElementById('aStat1').textContent = user.trips || _allDeals.length || 0;
-    document.getElementById('aStat2').textContent = _thisMonth.length;
-    const _s3=document.getElementById('aStat3');
-    if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
-    const _s4=document.getElementById('aStat4');
-    if(_s4) _s4.textContent=(user.rat?Math.round(parseFloat(user.rat)):5)+' ⭐';
-    // Популярные маршруты
-    const _routes={};
-    _allDeals.forEach(function(d){
-      if(d.load_from&&d.load_to){
-        const k=d.load_from+' → '+d.load_to;
-        _routes[k]=(_routes[k]||0)+1;
-      }
-    });
-    const _topRoutes=Object.entries(_routes).sort((a,b)=>b[1]-a[1]).slice(0,3);
-    const _rEl=document.getElementById('aRoutes');
-    if(_rEl&&_topRoutes.length){
+function _renderAnalyticsData(dealsArr){
+  const _allDeals = dealsArr || [];
+  const _activDeals = _allDeals.filter(d=>d.status!=='cancelled');
+  const _now = new Date();
+  const _thisMonth = _allDeals.filter(d=>{
+    const dt=new Date(d.created_at||d.updatedAt||0);
+    return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
+  });
+  const _revenue = _activDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
+  document.getElementById('aStat1').textContent = (user&&user.trips) || _allDeals.length || 0;
+  document.getElementById('aStat2').textContent = _thisMonth.length;
+  const _s3=document.getElementById('aStat3');
+  if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
+  const _s4=document.getElementById('aStat4');
+  if(_s4) _s4.textContent=((user&&user.rat)?Math.round(parseFloat(user.rat)):5)+' ⭐';
+  // Популярные маршруты
+  const _routes={};
+  _allDeals.forEach(function(d){
+    if(d.load_from&&d.load_to){
+      const k=d.load_from+' → '+d.load_to;
+      _routes[k]=(_routes[k]||0)+1;
+    }
+  });
+  const _topRoutes=Object.entries(_routes).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const _rEl=document.getElementById('aRoutes');
+  if(_rEl){
+    if(_topRoutes.length){
       _rEl.innerHTML=_topRoutes.map(function(r){
         return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">'
           +'<span style="font-size:13px">'+r[0]+'</span>'
           +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+((TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']||TRANSLATIONS['ru']).unit_trips||'рейсов')+'</span>'
           +'</div>';
       }).join('');
+    } else {
+      _rEl.innerHTML='<div style="text-align:center;padding:12px;color:#aaa;font-size:13px">Данных пока нет — завершите первые сделки</div>';
     }
   }
+}
+
+function openAnalytics(){
+  closeModal('profileOverlay');
+  if(!user) return;
+  document.getElementById('analyticsUser').textContent='Статистика: '+user.name;
   document.getElementById('analyticsOverlay').classList.add('on');
+
+  const _existing = (typeof _deals!=='undefined'&&_deals)||[];
+  if(_existing.length){
+    // Сделки уже загружены в кабинете — используем их
+    _renderAnalyticsData(_existing);
+  } else {
+    // Подгружаем с сервера напрямую
+    var tk = (typeof getToken==='function'?getToken():null)||localStorage.getItem('ch_token');
+    if(!tk){ _renderAnalyticsData([]); return; }
+    fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(d){
+        var loaded = (d&&d.deals)||[];
+        if(typeof _deals!=='undefined') _deals = loaded;
+        _renderAnalyticsData(loaded);
+      }).catch(function(){ _renderAnalyticsData([]); });
+  }
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────
