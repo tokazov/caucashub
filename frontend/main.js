@@ -72,10 +72,7 @@ function selectAddr(field, addr, lat, lng){
   // Извлекаем название города из адреса (последний значимый компонент до запятой)
   const parts=addr.replace(/`/g,"'").split(',').map(s=>s.trim());
   // Ищем известные города Грузии в адресе
-  // Расширенный список городов — используем CITIES если доступны
-  const knownCities = typeof CITIES !== 'undefined'
-    ? CITIES.map(c => c.name)
-    : ['Тбилиси','Батуми','Кутаиси','Рустави','Зугдиди','Гори','Поти','Мцхета','Сенаки','Боржоми','Ахалцихе','Телави','Сигнахи','Хашури','Кобулети','Озургети','Марнеули','Самтредиа','Ткибули','Сагареджо','Гурджаани','Кварели','Лагодехи','Дедоплисцкаро','Цхинвали','Каспи','Мцхета','Ахмета'];
+  const knownCities=['Тбилиси','Батуми','Кутаиси','Рустави','Зугдиди','Гори','Поти','Мцхета','Сенаки','Боржоми','Ахалцихе','Телави','Сигнахи','Хашури','Кобулети','Озургети','Марнеули','Самтредиа','Ткибули'];
   let cityName=parts[0];
   for(const p of parts){
     if(knownCities.some(c=>p.includes(c))){cityName=p;break;}
@@ -95,176 +92,84 @@ function closeAddrDrop(field){
 }
 
 // ── CITIES ───────────────────────────────────────────
-// nameGe — официальное грузинское название города
 const CITIES = [
   // Грузия
-  {name:'Тбилиси', nameGe:'თბილისი', lat:41.6938, lng:44.8015, region:'Грузия'},
-  {name:'Батуми', nameGe:'ბათუმი', lat:41.6168, lng:41.6367, region:'Грузия'},
-  {name:'Кутаиси', nameGe:'ქუთაისი', lat:42.2679, lng:42.7181, region:'Грузия'},
-  {name:'Рустави', nameGe:'რუსთავი', lat:41.5500, lng:45.0000, region:'Грузия'},
-  {name:'Поти', nameGe:'ფოთი', lat:42.1500, lng:41.6667, region:'Грузия'},
-  {name:'Зугдиди', nameGe:'ზუგდიდი', lat:42.5082, lng:41.8709, region:'Грузия'},
-  {name:'Гори', nameGe:'გორი', lat:41.9850, lng:44.1114, region:'Грузия'},
-  {name:'Сенаки', nameGe:'სენაკი', lat:42.2667, lng:42.0667, region:'Грузия'},
-  {name:'Самтредиа', nameGe:'სამტრედია', lat:42.1500, lng:42.3500, region:'Грузия'},
-  {name:'Хашури', nameGe:'ხაშური', lat:41.9908, lng:43.5975, region:'Грузия'},
-  {name:'Ткибули', nameGe:'ტყიბული', lat:42.3500, lng:42.9833, region:'Грузия'},
-  {name:'Марнеули', nameGe:'მარნეული', lat:41.5000, lng:44.8000, region:'Грузия'},
-  {name:'Телави', nameGe:'თელავი', lat:41.9200, lng:45.4800, region:'Грузия'},
-  {name:'Сигнахи', nameGe:'სიღნაღი', lat:41.6167, lng:45.9167, region:'Грузия'},
-  {name:'Мцхета', nameGe:'მცხეთა', lat:41.8450, lng:44.7200, region:'Грузия'},
-  {name:'Боржоми', nameGe:'ბორჯომი', lat:41.8333, lng:43.4000, region:'Грузия'},
-  {name:'Кобулети', nameGe:'ქობულეთი', lat:41.8243, lng:41.7742, region:'Грузия'},
-  {name:'Озургети', nameGe:'ოზურგეთი', lat:41.9213, lng:42.0019, region:'Грузия'},
-  {name:'Ахалцихе', nameGe:'ახალციხე', lat:41.6397, lng:42.9844, region:'Грузия'},
-  {name:'Амбролаури', nameGe:'ამბროლაური', lat:42.5167, lng:43.1500, region:'Грузია'},
-  {name:'Ланчхути', nameGe:'ლანჩხუთი', lat:41.9753, lng:42.2003, region:'Грузия'},
-  {name:'Чохатаури', nameGe:'ჩოხატაური', lat:41.9833, lng:42.2833, region:'Грузия'},
-  {name:'Цхалтубо', nameGe:'წყალტუბო', lat:42.3167, lng:42.6000, region:'Грузия'},
-  {name:'Сачхере', nameGe:'საჩხერე', lat:42.3500, lng:43.4000, region:'Грузия'},
-  {name:'Хони', nameGe:'ხონი', lat:42.2833, lng:42.8833, region:'Грузия'},
-  {name:'Карели', nameGe:'კარელი', lat:41.8500, lng:44.1333, region:'Грузия'},
-  {name:'Каспи', nameGe:'კასპი', lat:41.9333, lng:44.4167, region:'Грузия'},
-  {name:'Дманиси', nameGe:'დმანისი', lat:41.3333, lng:44.1667, region:'Грузия'},
-  {name:'Гардабани', nameGe:'გარდაბანი', lat:41.4619, lng:45.1167, region:'Грузия'},
-  {name:'Лагодехи', nameGe:'ლაგოდეხი', lat:41.8244, lng:46.2733, region:'Грузия'},
-  {name:'Дедоплисцкаро', nameGe:'დედოფლისწყარო', lat:41.4667, lng:46.1000, region:'Грузия'},
-  {name:'Цнори', nameGe:'წნორი', lat:41.6500, lng:45.6167, region:'Грузия'},
-  {name:'Кварели', nameGe:'ყვარელი', lat:41.9667, lng:45.8167, region:'Грузия'},
-  {name:'Степанцминда', nameGe:'სტეფანწმინდა', lat:42.6575, lng:44.4125, region:'Грузия'},
-  {name:'Местиа', nameGe:'მესტია', lat:43.0464, lng:42.7228, region:'Грузия'},
-  {name:'Зестафони', nameGe:'ზესტაფონი', lat:42.1167, lng:43.0333, region:'Грузия'},
+  {name:'Тбилиси', lat:41.6938, lng:44.8015, region:'Грузия'},
+  {name:'Батуми', lat:41.6168, lng:41.6367, region:'Грузия'},
+  {name:'Кутаиси', lat:42.2679, lng:42.7181, region:'Грузия'},
+  {name:'Рустави', lat:41.5500, lng:45.0000, region:'Грузия'},
+  {name:'Поти', lat:42.1500, lng:41.6667, region:'Грузия'},
+  {name:'Зугдиди', lat:42.5082, lng:41.8709, region:'Грузия'},
+  {name:'Гори', lat:41.9850, lng:44.1114, region:'Грузия'},
+  {name:'Сенаки', lat:42.2667, lng:42.0667, region:'Грузия'},
+  {name:'Самтредиа', lat:42.1500, lng:42.3500, region:'Грузия'},
+  {name:'Хашури', lat:41.9908, lng:43.5975, region:'Грузия'},
+  {name:'Ткибули', lat:42.3500, lng:42.9833, region:'Грузия'},
+  {name:'Марнеули', lat:41.5000, lng:44.8000, region:'Грузия'},
+  {name:'Телави', lat:41.9200, lng:45.4800, region:'Грузия'},
+  {name:'Сигнахи', lat:41.6167, lng:45.9167, region:'Грузия'},
+  {name:'Мцхета', lat:41.8450, lng:44.7200, region:'Грузия'},
+  {name:'Боржоми', lat:41.8333, lng:43.4000, region:'Грузия'},
+  {name:'Кобулети', lat:41.8243, lng:41.7742, region:'Грузия'},
+  {name:'Озургети', lat:41.9213, lng:42.0019, region:'Грузия'},
+  {name:'Ахалцихе', lat:41.6397, lng:42.9844, region:'Грузия'},
+  {name:'Амбролаури', lat:42.5167, lng:43.1500, region:'Грузия'},
+  {name:'Ланчхути', lat:41.9753, lng:42.2003, region:'Грузия'},
+  {name:'Чохатаури', lat:41.9833, lng:42.2833, region:'Грузия'},
+  {name:'Цхалтубо', lat:42.3167, lng:42.6000, region:'Грузия'},
+  {name:'Сачхере', lat:42.3500, lng:43.4000, region:'Грузия'},
+  {name:'Хони', lat:42.2833, lng:42.8833, region:'Грузия'},
+  {name:'Карели', lat:41.8500, lng:44.1333, region:'Грузия'},
+  {name:'Каспи', lat:41.9333, lng:44.4167, region:'Грузия'},
+  {name:'Дманиси', lat:41.3333, lng:44.1667, region:'Грузия'},
+  {name:'Гардабани', lat:41.4619, lng:45.1167, region:'Грузия'},
+  {name:'Лагодехи', lat:41.8244, lng:46.2733, region:'Грузия'},
+  {name:'Дедоплисцкаро', lat:41.4667, lng:46.1000, region:'Грузия'},
+  {name:'Цнори', lat:41.6500, lng:45.6167, region:'Грузия'},
+  {name:'Кварели', lat:41.9667, lng:45.8167, region:'Грузия'},
+  {name:'Степанцминда', lat:42.6575, lng:44.4125, region:'Грузия'},
+  {name:'Местиа', lat:43.0464, lng:42.7228, region:'Грузия'},
   // Международные — Турция
-  {name:'Стамбул', nameGe:'სტამბული', lat:41.0082, lng:28.9784, region:'Турция 🇹🇷'},
-  {name:'Анкара', nameGe:'ანკარა', lat:39.9334, lng:32.8597, region:'Турция 🇹🇷'},
-  {name:'Трабзон', nameGe:'ტრაბზონი', lat:41.0015, lng:39.7178, region:'Турция 🇹🇷'},
-  {name:'Измир', nameGe:'იზმირი', lat:38.4192, lng:27.1287, region:'Турция 🇹🇷'},
+  {name:'Стамбул', lat:41.0082, lng:28.9784, region:'Турция 🇹🇷'},
+  {name:'Анкара', lat:39.9334, lng:32.8597, region:'Турция 🇹🇷'},
+  {name:'Трабзон', lat:41.0015, lng:39.7178, region:'Турция 🇹🇷'},
+  {name:'Измир', lat:38.4192, lng:27.1287, region:'Турция 🇹🇷'},
   // Армения
-  {name:'Ереван', nameGe:'ერევანი', lat:40.1872, lng:44.5152, region:'Армения 🇦🇲'},
-  {name:'Гюмри', nameGe:'გიუმრი', lat:40.7894, lng:43.8475, region:'Армения 🇦🇲'},
+  {name:'Ереван', lat:40.1872, lng:44.5152, region:'Армения 🇦🇲'},
+  {name:'Гюмри', lat:40.7894, lng:43.8475, region:'Армения 🇦🇲'},
   // Азербайджан
-  {name:'Баку', nameGe:'ბაქო', lat:40.4093, lng:49.8671, region:'Азербайджан 🇦🇿'},
-  {name:'Гянджа', nameGe:'განჯა', lat:40.6828, lng:46.3606, region:'Азербайджан 🇦🇿'},
+  {name:'Баку', lat:40.4093, lng:49.8671, region:'Азербайджан 🇦🇿'},
+  {name:'Гянджа', lat:40.6828, lng:46.3606, region:'Азербайджан 🇦🇿'},
   // Россия
-  {name:'Москва', nameGe:'მოსკოვი', lat:55.7558, lng:37.6176, region:'Россия 🇷🇺'},
-  {name:'Санкт-Петербург', nameGe:'სანქტ-პეტერბურგი', lat:59.9343, lng:30.3351, region:'Россия 🇷🇺'},
-  {name:'Сочи', nameGe:'სოჭი', lat:43.5992, lng:39.7257, region:'Россия 🇷🇺'},
-  {name:'Ростов-на-Дону', nameGe:'როსტოვ-დონზე', lat:47.2357, lng:39.7015, region:'Россия 🇷🇺'},
-  {name:'Краснодар', nameGe:'კრასნოდარი', lat:45.0355, lng:38.9753, region:'Россия 🇷🇺'},
+  {name:'Москва', lat:55.7558, lng:37.6176, region:'Россия 🇷🇺'},
+  {name:'Санкт-Петербург', lat:59.9343, lng:30.3351, region:'Россия 🇷🇺'},
+  {name:'Сочи', lat:43.5992, lng:39.7257, region:'Россия 🇷🇺'},
+  {name:'Ростов-на-Дону', lat:47.2357, lng:39.7015, region:'Россия 🇷🇺'},
+  {name:'Краснодар', lat:45.0355, lng:38.9753, region:'Россия 🇷🇺'},
   // Казахстан
-  {name:'Алматы', nameGe:'ალმათი', lat:43.2220, lng:76.8512, region:'Казахстан 🇰🇿'},
-  {name:'Астана', nameGe:'ასტანა', lat:51.1801, lng:71.4460, region:'Казахстан 🇰🇿'},
-  {name:'Шымкент', nameGe:'შიმქენთი', lat:42.3000, lng:69.6000, region:'Казахстан 🇰🇿'},
+  {name:'Алматы', lat:43.2220, lng:76.8512, region:'Казахстан 🇰🇿'},
+  {name:'Астана', lat:51.1801, lng:71.4460, region:'Казахстан 🇰🇿'},
+  {name:'Шымкент', lat:42.3000, lng:69.6000, region:'Казахстан 🇰🇿'},
   // Узбекистан
-  {name:'Ташкент', nameGe:'ტაშქენტი', lat:41.2995, lng:69.2401, region:'Узбекистан 🇺🇿'},
-  {name:'Самарканд', nameGe:'სამარყანდი', lat:39.6542, lng:66.9597, region:'Узбекистан 🇺🇿'},
+  {name:'Ташкент', lat:41.2995, lng:69.2401, region:'Узбекистан 🇺🇿'},
+  {name:'Самарканд', lat:39.6542, lng:66.9597, region:'Узбекистан 🇺🇿'},
   // СНГ
-  {name:'Минск', nameGe:'მინსკი', lat:53.9045, lng:27.5615, region:'Беларусь 🇧🇾'},
-  {name:'Киев', nameGe:'კიევი', lat:50.4501, lng:30.5234, region:'Украина 🇺🇦'},
-  {name:'Одесса', nameGe:'ოდესა', lat:46.4825, lng:30.7233, region:'Украина 🇺🇦'},
+  {name:'Минск', lat:53.9045, lng:27.5615, region:'Беларусь 🇧🇾'},
+  {name:'Киев', lat:50.4501, lng:30.5234, region:'Украина 🇺🇦'},
+  {name:'Одесса', lat:46.4825, lng:30.7233, region:'Украина 🇺🇦'},
   // Средний Восток
-  {name:'Дубай', nameGe:'დუბაი', lat:25.2048, lng:55.2708, region:'ОАЭ 🇦🇪'},
-  {name:'Абу-Даби', nameGe:'აბუ-დაბი', lat:24.4539, lng:54.3773, region:'ОАЭ 🇦🇪'},
-  {name:'Тегеран', nameGe:'თეირანი', lat:35.6892, lng:51.3890, region:'Иран 🇮🇷'},
+  {name:'Дубай', lat:25.2048, lng:55.2708, region:'ОАЭ 🇦🇪'},
+  {name:'Абу-Даби', lat:24.4539, lng:54.3773, region:'ОАЭ 🇦🇪'},
+  {name:'Тегеран', lat:35.6892, lng:51.3890, region:'Иран 🇮🇷'},
   // Европа
-  {name:'Берлин', nameGe:'ბერლინი', lat:52.5200, lng:13.4050, region:'Германия 🇩🇪'},
-  {name:'Варшава', nameGe:'ვარშავა', lat:52.2297, lng:21.0122, region:'Польша 🇵🇱'},
-  {name:'Бухарест', nameGe:'ბუქარესტი', lat:44.4268, lng:26.1025, region:'Румыния 🇷🇴'},
-  {name:'София', nameGe:'სოფია', lat:42.6977, lng:23.3219, region:'Болгария 🇧🇬'},
-  {name:'Афины', nameGe:'ათენი', lat:37.9838, lng:23.7275, region:'Греция 🇬🇷'},
+  {name:'Берлин', lat:52.5200, lng:13.4050, region:'Германия 🇩🇪'},
+  {name:'Варшава', lat:52.2297, lng:21.0122, region:'Польша 🇵🇱'},
+  {name:'Бухарест', lat:44.4268, lng:26.1025, region:'Румыния 🇷🇴'},
+  {name:'София', lat:42.6977, lng:23.3219, region:'Болгария 🇧🇬'},
+  {name:'Афины', lat:37.9838, lng:23.7275, region:'Греция 🇬🇷'},
 ];
 
 let selectedFrom=null, selectedTo=null, map=null, routeLine=null, markers=[];
-
-// Перевод регионов Грузии
-const REGION_NAMES_GE = {
-  // Регионы Грузии
-  'край Имеретия': 'იმერეთის მხარე',
-  'край Кахетия': 'კახეთის მხარე',
-  'край Самегрело': 'სამეგრელოს მხარე',
-  'край Самцхе-Джавахети': 'სამცხე-ჯავახეთის მხარე',
-  'край Шида Картли': 'შიდა ქართლის მხარე',
-  'край Квемо Картли': 'ქვემო ქართლის მხარე',
-  'Автономная Республика Аджария': 'აჭარის ავტ. რესპ.',
-  'Квемо Картли': 'ქვემო ქართლი',
-  // Страны
-  'Грузия': 'საქართველო',
-  'Турция': 'თურქეთი',
-  'Армения': 'სომხეთი',
-  'Азербайджан': 'აზერბაიჯანი',
-  'Россия': 'რუსეთი',
-  'Украина': 'უკრაინა',
-  'Казахстан': 'ყაზახეთი',
-  'Узбекистан': 'უზბეკეთი',
-  'Беларусь': 'ბელარუსი',
-  'Германия': 'გერმანია',
-  'Польша': 'პოლონეთი',
-  'Румыния': 'რუმინეთი',
-  'Болгария': 'ბულგარეთი',
-  'Греция': 'საბერძნეთი',
-  'Иран': 'ირანი',
-  'ОАЭ': 'არაბ. საამ.',
-  'Любое направление': 'ნებისმიერი მიმართულება',
-  'Любое': 'ნებისმიერი',
-  'Сегодня': 'დღეს',
-  'Завтра': 'ხვალ',
-};
-
-// Перевод названия города/региона на текущий язык
-
-
-function tripsWord(n, lang) {
-  if (lang === 'ge') return (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS.ge) ? TRANSLATIONS.ge.unit_trips||'გზა' : 'გზა';
-  if (n % 10 === 1 && n % 100 !== 11) return 'рейс';
-  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return 'рейса';
-  return 'рейсов';
-}
-
-function translatePay(pay) {
-  if (lang !== 'ge' || !pay) return pay;
-  const T = TRANSLATIONS['ge'];
-  const map = {
-    'Наличные сразу': T.pay_cash||pay,
-    'Наличные': T.pay_cash_short||'ნაღდი',
-    'Нал': T.pay_cash_short||'ნაღდი',
-    'Безнал 3 дня': T.pay_cashless3||pay,
-    'Безнал 7 дней': T.pay_cashless7||pay,
-    '50% предоплата': T.pay_prepay||pay,
-    'Безнал': T.pay_cashless||'უნაღდო',
-  };
-  return map[pay] || pay;
-}
-
-function translateCity(name) {
-  if (!name) return name;
-  // На RU: если текст содержит грузинские символы — конвертируем обратно в RU
-  if (lang !== 'ge') {
-    if (/[\u10d0-\u10ff]/.test(name)) {
-      let result = name;
-      for (const city of CITIES) {
-        if (city.nameGe && result.includes(city.nameGe)) {
-          result = result.split(city.nameGe).join(city.name);
-        }
-      }
-      for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
-        if (result.includes(ge)) result = result.split(ge).join(ru);
-      }
-      return result;
-    }
-    return name;
-  }
-  // На GE: переводим RU → GE
-  let result = name;
-  for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
-    if (result.includes(ru)) result = result.split(ru).join(ge);
-  }
-  for (const city of CITIES) {
-    if (city.nameGe && result.includes(city.name)) {
-      result = result.split(city.name).join(city.nameGe);
-    }
-  }
-  return result;
-}
 
 function filterCity(dir, val){
   const q=val.trim().toLowerCase();
@@ -283,12 +188,8 @@ function filterCity(dir, val){
   }
 
   // Локальные — города Грузии
-  const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)||(c.nameGe&&c.nameGe.toLowerCase().includes(q))).slice(0,8);
-  let dropHtml=filtered.map(c=>{
-    const displayName = lang==='ge'&&c.nameGe ? c.nameGe : c.name;
-    const displayRegion = lang==='ge' ? translateCity(c.region) : c.region;
-    return `<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${displayName} <span class="region">${displayRegion}</span></div>`;
-  }).join('');
+  const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)).slice(0,8);
+  let dropHtml=filtered.map(c=>`<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${c.name} <span class="region">${c.region}</span></div>`).join('');
   const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null)">📍 Использовать: "${val.trim()}"</div>`;
   drop.innerHTML=dropHtml+(dropHtml?'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>':'')+freeOpt;
   drop.classList.add('open');
@@ -302,11 +203,11 @@ function selectCity(dir, name, lat, lng, isCountry){
   const city=CITIES.find(c=>c.name===name)||{name,lat:lat?parseFloat(lat):null,lng:lng?parseFloat(lng):null,region:''};
   if(dir==='from'){
     selectedFrom=city;
-    document.getElementById('fFrom').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
+    document.getElementById('fFrom').value=name;
     document.getElementById('dropFrom').classList.remove('open');
   } else {
     selectedTo=city;
-    document.getElementById('fTo').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
+    document.getElementById('fTo').value=name;
     document.getElementById('dropTo').classList.remove('open');
   }
   if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
@@ -393,10 +294,10 @@ Object.defineProperty(window, 'INTL', { get: ()=>INTL, set: (v)=>{ INTL.length=0
 
 const INTL = [];
 const TRUCKS = [
-  {id:1,from:'Тбилиси',to:'Любое направление',kg:20000,type:'tent',date:'Сегодня',co:'Саба Транс',rat:'4.9',trips:87,plate:'GE-123-AB'},
-  {id:2,from:'Батуми',to:'Тбилиси / Поти',kg:5000,type:'gazel',date:'Сегодня',co:'БатумиЭкс',rat:'4.7',trips:234,plate:'GE-456-BC'},
-  {id:3,from:'Поти',to:'Тбилиси',kg:12000,type:'ref',date:'Завтра',co:'КолдЧейн',rat:'5.0',trips:156,plate:'GE-789-CD'},
-  {id:4,from:'Кутаиси',to:'Любое',kg:15000,type:'bort',date:'Сегодня',co:'КутТранс',rat:'4.6',trips:43,plate:'GE-321-DE'},
+  {id:1,from:'Тбилиси',to:'Любое направление',kg:20000,type:'Тент 120м³',date:'Сегодня',co:'Саба Транс',rat:'4.9',trips:87,plate:'GE-123-AB'},
+  {id:2,from:'Батуми',to:'Тбилиси / Поти',kg:5000,type:'Газель 15м³',date:'Сегодня',co:'БатумиЭкс',rat:'4.7',trips:234,plate:'GE-456-BC'},
+  {id:3,from:'Поти',to:'Тбилиси',kg:12000,type:'Рефриж. t-18°C',date:'Завтра',co:'КолдЧейн',rat:'5.0',trips:156,plate:'GE-789-CD'},
+  {id:4,from:'Кутаиси',to:'Любое',kg:15000,type:'Бортовой',date:'Сегодня',co:'КутТранс',rat:'4.6',trips:43,plate:'GE-321-DE'},
 ];
 
 // ══════════════════════════════════════════════════════
@@ -464,13 +365,9 @@ function formatDateRange(d1,d2){
 
 // ── RENDER LOADS ─────────────────────────────────────
 function renderLoads(data){
-  // Если data не передан — берём текущий список по scope
-  if (!data) data = (scope === 'intl' ? INTL : LOCAL);
-  if (!data) data = [];
   // Фильтруем занятые грузы
-  data = data.filter(d=>d.status!=='taken');
-  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
-  document.getElementById('fcount').textContent = data.length + ' ' + (T.fcount_suffix || 'грузов');
+  data=data.filter(d=>d.status!=='taken');
+  document.getElementById('fcount').textContent=data.length+' грузов';
   const list=document.getElementById('cargoList');
   list.innerHTML='';
   if(!data.length){
@@ -493,9 +390,9 @@ function renderLoads(data){
 
     // Бейдж
     let badgeHtml = '';
-    if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
-    else if(d.badge==='new') badgeHtml = `<span class="badge-fresh-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_new||'НОВЫЙ'}</span>`;
-    else if(d.scope==='intl') badgeHtml = `<span class="badge-intl-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_intl||'МЕЖД.'}</span>`;
+    if(d.badge==='urgent') badgeHtml = '<span class="badge-urgent-new">СРОЧНО</span>';
+    else if(d.badge==='new') badgeHtml = '<span class="badge-fresh-new">НОВЫЙ</span>';
+    else if(d.scope==='intl') badgeHtml = '<span class="badge-intl-new">МЕЖД.</span>';
 
     // Тип кузова — цвет тега
     const typeColors = {
@@ -507,15 +404,12 @@ function renderLoads(data){
     const tc = typeColors[d.type] || typeColors.tent;
 
     // Кнопки справа
-    const _alreadyResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
     const rightBtns = isOwn
       ? `<div style="display:flex;gap:6px">
            <button class="card-btn-edit" onclick="event.stopPropagation();editMyLoad(${d.id})">✏️</button>
            <button class="card-btn-del" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑</button>
          </div>`
-      : _alreadyResponded
-        ? `<button class="card-btn-resp" style="background:#2ecc71;color:#fff;font-size:12px;cursor:default" disabled onclick="event.stopPropagation()">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_sent||'✅ Отправлено'}</button>`
-        : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_respond||'Отклик'}</button>`;
+      : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">Отклик</button>`;
 
     const row = document.createElement('div');
     row.className = cardCls;
@@ -525,12 +419,12 @@ function renderLoads(data){
     const desktopHtml = `
       <div class="row-desktop">
         <div>
-          <div class="route">${translateCity(d.from)} <span class="arrow">→</span> ${translateCity(d.to)}</div>
+          <div class="route">${d.from} <span class="arrow">→</span> ${d.to}</div>
           <div class="sub">${d.co} ⭐${d.rat}</div>
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
-        <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
-        <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span></div>
+        <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} кг</div>
+        <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span></div>
         <div class="price">${d.cur||'₾'}${d.price.toLocaleString()}</div>
         <div style="font-size:12px;font-weight:600;color:#555">${dateStr||'—'}</div>
         <div onclick="event.stopPropagation()">${rightBtns}</div>
@@ -542,7 +436,7 @@ function renderLoads(data){
       <div class="row-mobile">
         <div class="card-main-row">
           <div class="card-left">
-            <div class="card-route-new">${translateCity(d.from)} <span class="arr">→</span> ${translateCity(d.to)}</div>
+            <div class="card-route-new">${d.from} <span class="arr">→</span> ${d.to}</div>
             <div class="card-meta-row">
               ${badgeHtml}
               <span class="card-co-new">${d.co} ⭐${d.rat}</span>
@@ -554,8 +448,8 @@ function renderLoads(data){
           </div>
         </div>
         <div class="card-footer-row">
-          <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span>
-          <span>${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</span>
+          <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span>
+          <span>${d.kg.toLocaleString()} кг</span>
           ${dateStr ? `<span>${dateStr}</span>` : ''}
         </div>
       </div>
@@ -583,7 +477,7 @@ function renderTrucks(){
   list.innerHTML='';
   const allTrucks = [..._myTrucks, ...(window._serverTrucks||[]), ...((_myTrucks.length||(window._serverTrucks||[]).length)?[]:TRUCKS)];
   const countEl = document.getElementById('truckCount');
-  if(countEl) countEl.textContent = allTrucks.length + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).trucks_free||'машин свободно');
+  if(countEl) countEl.textContent = allTrucks.length + ' машин свободно';
   allTrucks.forEach(t=>{
     const isOwn = t.isOwn;
     const row=document.createElement('div');
@@ -592,27 +486,27 @@ function renderTrucks(){
     const phone = t.phone ? t.phone : '+995 555 *** ***';
     row.innerHTML=`
       <div>
-        <div class="route">${typeof translateCity==="function"?translateCity(t.from):t.from} <span class="arrow">→</span> ${typeof translateCity==="function"?translateCity(t.to):t.to}</div>
+        <div class="route">${t.from} <span class="arrow">→</span> ${t.to}</div>
         <div class="sub">${t.plate||'—'}</div>
       </div>
       <div>
         <div style="font-size:13px;font-weight:600">${t.co}</div>
-        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
+        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' рейсов' : ''}</div>
       </div>
-      <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
-      <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
-      <div style="font-size:12px;color:#2ecc71;font-weight:600">${(function(d){const T=(typeof TRANSLATIONS!=="undefined"&&TRANSLATIONS[lang])||{};return d==="Сегодня"?(T.opt_today||d):d==="Завтра"?(T.opt_tomorrow||d):d;})(t.date)}</div>
+      <div style="font-size:13px">${(t.kg||0).toLocaleString()} кг</div>
+      <div style="font-size:12px;color:#555">${t.type}</div>
+      <div style="font-size:12px;color:#2ecc71;font-weight:600">${t.date}</div>
       <div style="display:flex;gap:4px">
         ${isOwn
           ? `<button class="btn-resp" style="background:#fce4ec;color:#c62828;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" onclick="deleteMyTruck('${t.id}')">🗑️</button>`
-          : `<button class="btn-resp" onclick="callTruck('${t.co}','${t.plate}','${phone}')">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
+          : `<button class="btn-resp" onclick="callTruck('${t.co}','${t.plate}','${phone}')">Связаться</button>`
         }
       </div>
     `;
     list.appendChild(row);
   });
   if(allTrucks.length === 0){
-    list.innerHTML='<div style="text-align:center;padding:32px;color:#aaa">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_trucks||'Нет машин. Добавьте первую!') + '</div>';
+    list.innerHTML='<div style="text-align:center;padding:32px;color:#aaa">Нет машин. Добавьте первую!</div>';
   }
 }
 
@@ -643,7 +537,7 @@ function doPostTruck(){
   const truck = {
     id: 't_' + Date.now(),
     from, to, type, kg, plate, date, phone,
-    co: user.name || user.email?.split('@')[0] || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
+    co: user.name || user.email?.split('@')[0] || 'Перевозчик',
     rat: '5.0', trips: 0, isOwn: true,
   };
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
@@ -677,7 +571,7 @@ async function syncTrucksFromServer(){
       const all = (d.trucks||[]).map(t=>({
         id:'srv_'+t.id,from:t.available_from||'Тбилиси',to:t.available_to||'Любое',
         type:t.truck_type,kg:t.capacity_kg,plate:t.plate||'—',phone:t.phone||'',
-        co:t.company||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',rat:t.rating||'5.0',trips:t.trips||0,
+        co:t.company||'Перевозчик',rat:t.rating||'5.0',trips:t.trips||0,
         isOwn:(t.user_id==uid),date:t.available_date||''
       }));
       _myTrucks = all.filter(t=>t.isOwn);
@@ -688,7 +582,7 @@ async function syncTrucksFromServer(){
 }
 
 function deleteMyTruck(id){
-  if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_truck||'Удалить машину из списка?')) return;
+  if(!confirm('Удалить машину из списка?')) return;
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(id.startsWith('srv_') && _tk){
     fetch(API_BASE+'/api/trucks/'+id.replace('srv_',''),{method:'DELETE',headers:{'Authorization':'Bearer '+_tk}}).then(()=>syncTrucksFromServer());
@@ -723,26 +617,25 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  document.getElementById('mTitle').textContent=`${translateCity(d.from2||d.from)} → ${translateCity(d.to2||d.to)}`;
+  document.getElementById('mTitle').textContent=`${d.from} → ${d.to}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
-  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
+  const _addedStr = _loadCreated ? `Добавлен ${_loadCreated}` : 'Добавлен сегодня';
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
   document.getElementById('mAva').textContent=d.co.slice(0,2).toUpperCase();
   document.getElementById('mComp').textContent=d.co;
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
-  const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}` : '';
-  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""} · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅${respondTxt}`;
+  const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} отклик${respondCount===1?'':respondCount<5?'а':'ов'}` : '';
+  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " рейсов" : ""} · Верифицирован ✅${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} კგ</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):d.typeLabel}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${typeof translatePay==='function'?translatePay(d.pay):d.pay}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Откуда</div><div style="font-size:14px;font-weight:700">${d.from2}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Куда</div><div style="font-size:14px;font-weight:700">${d.to2}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Дата загрузки</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Вес</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} кг</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Кузов</div><div style="font-size:14px;font-weight:700">${d.typeLabel}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Оплата</div><div style="font-size:14px;font-weight:700">${d.pay}</div></div>
   `;
-  const _descText = d.desc && d.desc !== 'Груз без описания' ? d.desc : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
-  document.getElementById('mDesc').textContent=_descText;
+  document.getElementById('mDesc').textContent=d.desc;
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
   const _kmVal = d.km && d.km !== '—' ? d.km : null;
   const _kmBlock = document.getElementById('mKmBlock');
@@ -754,22 +647,13 @@ function openCargo(d){
   const _actRow = document.getElementById('respondActions');
   if(_actRow){
     if(_isOwn){
-      _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
+      _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">✏️ Редактировать</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
     } else {
-      const _modalResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
-      if(_modalResponded){
-        const _myOrder = typeof _orders !== 'undefined' && _orders.find(o => o.loadId === d.id);
-        const _myOrderId = _myOrder ? _myOrder.id : 0;
-        const _myServerId = _myOrder ? (_myOrder.serverId||0) : 0;
-        _actRow.innerHTML = `<div style="display:flex;gap:8px;flex:1"><button id="btnRespond" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:default" disabled>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).respond_sent||'✅ Заявка отправлена'}</button><button onclick="cancelMyResponse(${_myOrderId},${_myServerId});closeModal('cargoOverlay')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:14px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel||'✕ Отменить'}</button></div>`;
-        document.getElementById('respondSuccess').style.display='block';
-      } else {
-        _actRow.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;flex:1"><div style="display:flex;gap:8px;align-items:center"><div style="flex:1;position:relative"><span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:700;color:#888">₾</span><input id="respondPrice" type="number" placeholder="${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).ph_your_price||'Ваша цена (необязат.)'}" min="0" style="width:100%;padding:12px 12px 12px 26px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box" onfocus="this.style.borderColor='#f7b731'" onblur="this.style.borderColor='#e0e0e0'"></div><button id="btnRespond" style="background:#f7b731;color:#1a1a2e;border:none;padding:14px 18px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap" onclick="doRespond()">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond||'Откликнуться'}</button></div><div style="font-size:12px;color:#888;text-align:center">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).respond_hint||'📞 После принятия отклика грузовладелец свяжется с вами'}</div></div>`;
-      }
+      _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
     }
   } else {
     const btn = document.getElementById('btnRespond');
-    if(btn){ btn.disabled=false; btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_load||'Откликнуться на груз'; }
+    if(btn){ btn.disabled=false; btn.textContent='Откликнуться на груз'; }
   }
   document.getElementById('cargoOverlay').classList.add('on');
 }
@@ -779,13 +663,16 @@ function doRespond(){
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!user || !user.email || !_tk){ closeModal('cargoOverlay'); openAuth('login'); return; }
 
-  // Проверка профиля — только для перевозчиков (carrier)
-  // shipper и both могут откликаться без заполнения профиля перевозчика
-  if(user.role === 'carrier'){
+  // Проверка профиля перевозчика
+  if(!user.role || user.role==='carrier'){
+    // Нужны данные об автомобиле и компании/ИП
     const missingFields=[];
-    if(!user.inn) missingFields.push('ИНН / ID код компании');
+    if(!user.truckType) missingFields.push('тип кузова');
+    if(!user.tonnage)   missingFields.push('грузоподъёмность');
+    if(!user.inn)       missingFields.push('ИНН / ID код компании');
+    if(!user.orgType||user.orgType==='')  missingFields.push('форма (ООО/ИП)');
     if(missingFields.length){
-      alert('❌ Для отклика заполните профиль:\n\n• '+missingFields.join('\n• ')+'\n\nПрофиль → Настройки аккаунта');
+      alert('❌ Для отклика заполните профиль перевозчика:\n\n• '+missingFields.join('\n• ')+'\n\nПрофиль → Настройки аккаунта');
       closeModal('cargoOverlay');
       if(typeof openSettings==='function') openSettings();
       return;
@@ -800,59 +687,15 @@ function doRespond(){
   const _d = window.currentCargoData || window.allLoads?.find(l=>l.id==currentCargoId);
   const _loadServerId = _d?.serverId || _d?.id;
   if(getToken() && _loadServerId){
-    const _priceInput = document.getElementById('respondPrice');
-    const _priceVal = _priceInput && _priceInput.value ? parseFloat(_priceInput.value) : null;
     fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+_loadServerId, {
       method:'POST',
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
-      body:JSON.stringify({price: _priceVal})
-    }).then(async r=>{
-      // 401 — токен истёк, открываем логин
-      if(r.status === 401 || r.status === 403){
-        const err = await r.json().catch(()=>({}));
-        setToken(null); localStorage.removeItem('ch_user');
-        btn.textContent='Откликнуться'; btn.disabled=false;
-        closeModal('cargoOverlay');
-        if(typeof openAuth==='function') openAuth('login');
-        return;
-      }
-      return r.json();
-    }).then(r=>{
-      if(!r) return;
-      // Обрабатываем ошибки от сервера
-      if(r?.detail){
-        const detail = typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail);
-        btn.textContent = 'Откликнуться'; btn.disabled = false;
-        if(detail.includes('|')){
-          const code = detail.split('|')[0];
-          const msg  = detail.split('|')[1];
-          if(code === 'respond_limit'){
-            closeModal('cargoOverlay'); openPaywall('respond');
-          } else if(code === 'shipper_cannot_respond'){
-            if(confirm('⚠️ ' + msg + '\n\nПерейти в настройки?')){
-              closeModal('cargoOverlay');
-              if(typeof openSettings === 'function') openSettings();
-            }
-          } else { alert('⚠️ ' + msg); }
-        } else if(detail === 'Cannot respond to your own load'){
-          alert('⚠️ Нельзя откликнуться на собственный груз');
-        } else if(detail === 'Already responded'){
-          alert('⚠️ Вы уже откликались на этот груз');
-        } else if(detail === 'Authorization required' || detail === 'Invalid or expired token' || detail.toLowerCase().includes('token')){
-          setToken(null); localStorage.removeItem('ch_user');
-          closeModal('cargoOverlay');
-          if(typeof openAuth==='function') openAuth('login');
-          return;
-        } else {
-          alert('⚠️ ' + detail);
-        }
-        return;
-      }
+      body:JSON.stringify({})
+    }).then(r=>r.json()).then(r=>{
       const serverResponseId = r?.response_id || null;
       document.getElementById('respondSuccess').style.display='block';
       btn.textContent='✅ Заявка отправлена';
       addToOrders(serverResponseId);
-      if(typeof renderLoads === 'function') renderLoads();
     }).catch(()=>{
       document.getElementById('respondSuccess').style.display='block';
       btn.textContent='✅ Заявка отправлена';
@@ -892,7 +735,7 @@ function addToOrders(serverResponseId){
     if(!_loadResponses[d.id]) _loadResponses[d.id]=[];
     _loadResponses[d.id].push({
       id: Date.now(),
-      name: user?.name || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
+      name: user?.name || 'Перевозчик',
       truck: user?.truckType || 'Тент',
       tonnage: user?.tonnage || '?',
       rating: user?.rat || '5.0',
@@ -912,15 +755,12 @@ async function acceptResponse(loadId, respId){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!tk){ alert('Войдите в аккаунт'); return; }
   try {
-    const _accR = await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
+    await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + tk }
     });
     // Считаем успехом и 200 и 422 (уже принят) — данные сохранены
-    let _ad = null; try { _ad = await _accR.json(); } catch(e){}
-    const _cPhone = _ad?.carrier_phone || ''; const _cName = _ad?.carrier_name || ''; const _dNum = _ad?.deal_number || '';
-    if(_cPhone){ alert('✅ Отклик принят! Сделка ' + _dNum + ' создана.\n\n📞 Перевозчик: ' + _cName + '\nТелефон: ' + _cPhone); }
-    pushNotif('✅ Сделка ' + _dNum + ' создана', _cPhone ? '📞 ' + _cName + ': ' + _cPhone : 'Перевозчик уведомлён.', []);
+    pushNotif('✅ Принято!', 'Перевозчик уведомлён. Сделка создана.', []);
     if(typeof loadCabinetData === 'function') loadCabinetData();
   } catch(e) {
     alert('Нет соединения с сервером');
@@ -975,8 +815,8 @@ function updateRespondCount(){
   // Показываем в шапке профиля
   const pr = document.getElementById('profileRole');
   if(pr && user){
-    const role = user.role==='shipper' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик';
-    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
+    const role = user.role==='shipper' ? 'Грузовладелец' : 'Перевозчик';
+    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} рейсов${count>0?` · <span style="color:#f7b731;font-weight:700">${count} отклик${count===1?'':count<5?'а':'ов'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -1003,49 +843,8 @@ function openPaywall(reason){
   document.getElementById('paywallOverlay').classList.add('on');
 }
 function choosePlan(plan){
-  if(!user || !getToken()){ openAuth('login'); return; }
-  const btn = document.querySelector('[onclick="choosePlan(\''+plan+'\')"]');
-  if(btn){ btn.textContent='⏳ Создаём платёж...'; btn.disabled=true; }
-  fetch('https://api-production-f3ea.up.railway.app/api/billing/create-payment?plan='+plan, {
-    method: 'POST',
-    headers: {'Authorization': 'Bearer '+getToken()}
-  }).then(r=>r.json()).then(d=>{
-    if(d.payment_url){
-      closeModal('paywallOverlay');
-      window.open(d.payment_url, '_blank');
-    } else {
-      alert('Ошибка создания платежа: '+(d.detail||'попробуйте позже'));
-      if(btn){ btn.textContent='Подключить'; btn.disabled=false; }
-    }
-  }).catch(()=>{
-    alert('Нет связи. Проверьте интернет и попробуйте снова.');
-    if(btn){ btn.textContent='Подключить'; btn.disabled=false; }
-  });
-}
-
-// Показать статус подписки в кабинете
-async function loadBillingStatus(){
-  if(!user || !getToken()) return;
-  try{
-    const r = await fetch('https://api-production-f3ea.up.railway.app/api/billing/status',{
-      headers:{'Authorization':'Bearer '+getToken()}
-    });
-    const d = await r.json();
-    if(!d.plan) return;
-    // Обновляем бейдж плана
-    const pb = document.getElementById('profilePlanBadge');
-    if(pb) pb.innerHTML = getPlanBadge();
-    user.plan = d.plan;
-    user.responds_used = d.responds_used;
-    user.responds_limit = d.responds_limit;
-    // Показываем счётчик откликов если carrier/both
-    const role = user.role || 'carrier';
-    if(role !== 'shipper'){
-      const limit = d.responds_limit === -1 ? '∞' : d.responds_limit;
-      const usedEl = document.getElementById('billingRespondsUsed');
-      if(usedEl) usedEl.textContent = d.responds_used + ' / ' + limit + ' откликов в этом месяце';
-    }
-  }catch(e){}
+  // Подписки пока не активированы — просто закрываем модал
+  closeModal('paywallOverlay');
 }
 
 // ── SUBSCRIPTION BADGE ────────────────────────────────
@@ -1144,7 +943,7 @@ async function doForgotStep2(){
     });
     const d=await r.json();
     if(btn){btn.textContent='Сменить пароль';btn.disabled=false;}
-    if(r.ok&&(d.ok||d.message)){
+    if(r.ok&&d.ok){
       document.getElementById('forgotStep2').style.display='none';
       document.getElementById('forgotSuccess').style.display='block';
       document.getElementById('loginEmail').value=_forgotEmail;
@@ -1380,12 +1179,12 @@ function doPostLoad(){
   const kg=parseInt(document.getElementById('pWeight').value)||5000;
   const price=parseInt(document.getElementById('pPrice').value)||300;
   const truck=document.getElementById('pTruck').value;
-  const desc=document.getElementById('pDesc').value||((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
+  const desc=document.getElementById('pDesc').value||'Груз без описания';
   const pay=document.getElementById('pPay').value;
   const urgent=document.getElementById('pUrgent').checked;
   const typeMap={'Тент':{typeClr:'#f3e5f5',typeClrT:'#6a1b9a'},'Рефрижератор':{typeClr:'#e3f2fd',typeClrT:'#1565c0'},'Бортовой':{typeClr:'#e8f5e9',typeClrT:'#2e7d32'},'Термос':{typeClr:'#fff3e0',typeClrT:'#bf360c'},'Газель':{typeClr:'#fce4ec',typeClrT:'#880e4f'},'Контейнер':{typeClr:'#f0f2f5',typeClrT:'#555'}};
   // Маппинг русских названий → API enum (tent/ref/bort/termos/gazel/container/auto/other)
-  const truckTypeMap={'тент':'tent','рефрижератор':'ref','рефтент':'ref','мегатент':'tent','бортовой':'bort','термос':'termos','фургон (до 3.5т)':'gazel','газель':'gazel','контейнер':'container','автовоз':'auto','эвакуатор':'auto','цистерна':'other','зерновоз':'other','самосвал':'other','ტენტი':'tent','რეფრიჟერატორი':'ref','რეფ-ტენტი':'ref','მეგა-ტენტი':'tent','ბორტიანი':'bort','თერმოსი':'termos','ფურგონი (3.5ტ-მდე)':'gazel','კონტეინერი':'container','ავტოტრანსპორტი':'auto','ევაკუატორი':'auto'};
+  const truckTypeMap={'тент':'tent','рефрижератор':'ref','рефтент':'ref','мегатент':'tent','бортовой':'bort','термос':'termos','фургон (до 3.5т)':'gazel','газель':'gazel','контейнер':'container','автовоз':'auto','эвакуатор':'auto','цистерна':'other','зерновоз':'other','самосвал':'other'};
   const truckTypeApi = truckTypeMap[truck.toLowerCase()] || 'other';
   const tc=typeMap[truck]||typeMap['Тент'];
   const rawDate=document.getElementById('pDate').value;
@@ -1422,20 +1221,12 @@ function doPostLoad(){
         if(typeof _renderOrders==='function') _renderOrders();
         console.log('[createLoad] Saved to server, id='+r.load.serverId);
       } else {
-        console.warn('[createLoad] Server rejected:', r.error);
+        // Сервер не принял — удаляем из LOCAL чтобы не было дублей после sync
+        console.warn('[createLoad] Server rejected, removing from LOCAL');
         const li=LOCAL.findIndex(l=>l.id===newLoad.id);
         if(li>-1) LOCAL.splice(li,1);
         renderLoads(scope==='local'?LOCAL:INTL);
-        if(r.error === 'session_expired'){
-          if(typeof openAuth==='function') openAuth('login');
-        } else if(r.error === 'role_error'){
-          closeModal('postOverlay');
-          if(confirm('⚠️ ' + (r.message || 'Недостаточно прав') + '\n\nПерейти в настройки?')){
-            if(typeof openSettings==='function') openSettings();
-          }
-        } else {
-          alert('⚠️ Груз не удалось сохранить на сервере. Попробуйте ещё раз.');
-        }
+        alert('⚠️ Груз не удалось сохранить на сервере. Попробуйте ещё раз.');
       }
     }).catch((err)=>{
       console.warn('[createLoad] Network error:', err);
@@ -1462,20 +1253,15 @@ function doPostLoad(){
 // Массив своих грузов (отдельно от откликов)
 
 // ── Статусы сделок ─────────────────────────────────────────────────
-function getDealStatus() {
-  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
-  return {
-    rated:      { label: T.status_rated||'⭐ Оценено',         color:'#f7b731', border:'#f7b731' },
-    confirmed:  { label: T.status_confirmed||'✅ Подтверждена', color:'#2ecc71', border:'#2ecc71' },
-    loading:    { label: T.status_loading||'📦 Загрузка',       color:'#3498db', border:'#3498db' },
-    in_transit: { label: T.status_in_transit||'🚛 В пути',      color:'#9b59b6', border:'#9b59b6' },
-    delivered:  { label: T.status_delivered||'🏁 Доставлен',    color:'#f7b731', border:'#f7b731' },
-    completed:  { label: T.status_completed||'🎉 Завершена',    color:'#27ae60', border:'#27ae60' },
-    disputed:   { label: '⚠️ Спор',                             color:'#e74c3c', border:'#e74c3c' },
-    canceled:   { label: '✕ Отменена',                          color:'#aaa',    border:'#ddd'    },
-  };
-}
-const DEAL_STATUS = new Proxy({}, { get: (_, key) => getDealStatus()[key] });
+const DEAL_STATUS = {
+  confirmed:  { label:'✅ Подтверждена',  color:'#2ecc71', border:'#2ecc71' },
+  loading:    { label:'📦 Загрузка',      color:'#3498db', border:'#3498db' },
+  in_transit: { label:'🚛 В пути',        color:'#9b59b6', border:'#9b59b6' },
+  delivered:  { label:'🏁 Доставлен',     color:'#f7b731', border:'#f7b731' },
+  completed:  { label:'🎉 Завершена',     color:'#27ae60', border:'#27ae60' },
+  disputed:   { label:'⚠️ Спор',          color:'#e74c3c', border:'#e74c3c' },
+  canceled:   { label:'✕ Отменена',      color:'#aaa',    border:'#ddd'    },
+};
 
 function renderDealCard(d){
   const st = DEAL_STATUS[d.status] || DEAL_STATUS.confirmed;
@@ -1486,30 +1272,18 @@ function renderDealCard(d){
   // Кнопки действий в зависимости от статуса и роли
   let actions = '';
   if(d.status === 'confirmed' && isCarrier){
-    actions = `<div><button onclick="dealAction(${d.id},'loading')" style="background:#3498db;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">📦 Приступил к загрузке</button><div style="font-size:11px;color:#888;margin-top:4px">Нажмите когда начали грузить товар</div></div>`;
-  } else if(d.status === 'confirmed' && isShipper){
-    actions = `<div style="font-size:12px;color:#e67e22;background:#fff3e0;padding:8px 12px;border-radius:8px;margin-top:4px">⏳ Ожидаем перевозчика — он должен нажать "Приступил к загрузке"</div>`;
+    actions = `<button onclick="dealAction(${d.id},'loading')" style="background:#3498db;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">📦 Приступил к загрузке</button>`;
   } else if(d.status === 'loading' && isCarrier){
-    actions = `<div><button onclick="dealAction(${d.id},'in_transit')" style="background:#9b59b6;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🚛 Груз отправлен</button><div style="font-size:11px;color:#888;margin-top:4px">Нажмите когда машина выехала с грузом</div></div>`;
-  } else if(d.status === 'loading' && isShipper){
-    actions = `<div style="font-size:12px;color:#2980b9;background:#e3f2fd;padding:8px 12px;border-radius:8px;margin-top:4px">📦 Перевозчик грузит — ожидайте отправки</div>`;
+    actions = `<button onclick="dealAction(${d.id},'in_transit')" style="background:#9b59b6;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">🚛 Груз отправлен</button>`;
   } else if(d.status === 'in_transit'){
-    const _isCarrierDeal = user && d.carrier_id === user.userId;
-    const _isShipperDeal = user && d.shipper_id === user.userId;
-    actions = _isCarrierDeal
-      ? `<button onclick="dealAction(${d.id},'delivered')" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">🏁 Груз доставлен</button>`
-      : `<span style="font-size:13px;color:#888">⏳ Ожидаем подтверждения доставки от перевозчика</span>`;
+    actions = `<button onclick="confirmDelivery(${d.id})" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">🏁 Подтвердить доставку</button>`;
   } else if(d.status === 'delivered'){
     const myConfirmed = (isShipper && d.shipper_confirmed) || (isCarrier && d.carrier_confirmed);
     actions = myConfirmed
       ? `<span style="font-size:12px;color:#2ecc71">✅ Вы подтвердили — ждём вторую сторону</span>`
       : `<button onclick="confirmDelivery(${d.id})" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">✅ Подтвердить получение</button>`;
-  } else if(d.status === 'completed' || d.status === 'rated'){
-    const _showRate = d.status === 'completed';
-    actions = `<div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${_showRate ? `<button onclick="rateDealPrompt(${d.id},'${d.act_number||d.id}')" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">⭐ Оценить</button>` : '<span style="font-size:12px;color:#2ecc71;font-weight:700">⭐ Оценено</span>'}
-      <a href="${'https://api-production-f3ea.up.railway.app'}/api/deals/${d.id}/act.pdf?token=${getToken()}&lang=${typeof lang!=='undefined'?lang:'ru'}" target="_blank" style="display:inline-block;background:#1a1a2e;color:#fff;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">📄 Скачать акт</a>
-    </div>`;
+  } else if(d.status === 'completed'){
+    actions = `<a href="${'https://api-production-f3ea.up.railway.app'}/api/deals/${d.id}/act.pdf?token=${getToken()}" target="_blank" style="display:inline-block;background:#1a1a2e;color:#fff;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">📄 Скачать акт</a>`;
   }
 
   return `
@@ -1525,67 +1299,6 @@ function renderDealCard(d){
   </div>`;
 }
 
-async function rateDealPrompt(dealId, num){
-  // Красивый попап с звёздочками вместо prompt
-  const stars = await new Promise(resolve => {
-    // Удаляем старый если есть
-    const old = document.getElementById('ratePopup');
-    if(old) old.remove();
-
-    const popup = document.createElement('div');
-    popup.id = 'ratePopup';
-    popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    popup.innerHTML = `
-      <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-        <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:6px">Оцените перевозчика</div>
-        <div style="font-size:13px;color:#888;margin-bottom:20px">Сделка № ${num}</div>
-        <div id="starRow" style="display:flex;justify-content:center;gap:8px;margin-bottom:24px">
-          ${[1,2,3,4,5].map(i=>`<span data-v="${i}" style="font-size:36px;cursor:pointer;filter:grayscale(1);transition:.15s" onclick="[...document.querySelectorAll('#starRow span')].forEach((s,j)=>{s.style.filter=j<${i}?'none':'grayscale(1)';s.style.transform=j<${i}?'scale(1.1)':'scale(1)'});document.getElementById('rateVal').value='${i}'">⭐</span>`).join('')}
-        </div>
-        <input type="hidden" id="rateVal" value="5">
-        <div style="display:flex;gap:10px">
-          <button onclick="document.getElementById('ratePopup').remove();window._rateResolve(null)" style="flex:1;padding:12px;border:1.5px solid #ddd;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;font-weight:600;color:#888">Отмена</button>
-          <button onclick="const v=parseInt(document.getElementById('rateVal').value);document.getElementById('ratePopup').remove();window._rateResolve(v)" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f7b731;color:#1a1a2e;font-size:14px;font-weight:800;cursor:pointer">Оценить ⭐</button>
-        </div>
-      </div>`;
-    // По умолчанию 5 звёзд подсвечены
-    window._rateResolve = resolve;
-    document.body.appendChild(popup);
-    setTimeout(()=>{
-      [...document.querySelectorAll('#starRow span')].forEach((s,i)=>{
-        s.style.filter='none'; s.style.transform='scale(1.1)';
-      });
-    }, 50);
-  });
-  if(!stars || stars < 1 || stars > 5) return;
-  const tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  try{
-    const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/' + dealId + '/rate', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
-      body: JSON.stringify({score: parseInt(stars)})
-    });
-    if(r.ok){
-      // Toast уведомление
-      const toast = document.createElement('div');
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2ecc71;color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
-      toast.textContent = '⭐ Спасибо за оценку!';
-      document.body.appendChild(toast);
-      setTimeout(()=>toast.remove(), 3000);
-      // Перезагружаем сделки и перерисовываем кабинет
-      const tk2 = getToken ? getToken() : null;
-      if(tk2){
-        fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk2}})
-          .then(r2=>r2.ok?r2.json():null).then(d=>{
-            if(d){ _deals = d.deals||[]; renderCabDeals(); }
-          }).catch(()=>{});
-      }
-    } else {
-      const e = await r.json();
-      alert('Ошибка: ' + (e.detail || 'не удалось сохранить оценку'));
-    }
-  }catch(e){ alert('Ошибка соединения'); }
-}
 async function loadDeals(){
   if(!user || !getToken()) return;
   try{
@@ -1605,8 +1318,7 @@ async function loadDeals(){
       _renderOrders();
       // Показываем панель экспорта если есть завершённые сделки
       const _ep = document.getElementById('exportPanel');
-      const _hasFinishedDeals = _deals.some(d => d.status==='completed'||d.status==='rated');
-      if(_ep) _ep.style.display = _hasFinishedDeals ? 'flex' : 'none';
+      if(_ep) _ep.style.display = _deals.length > 0 ? 'flex' : 'none';
     }
   }catch(e){ console.warn('[Deals]', e); }
 }
@@ -1615,7 +1327,7 @@ async function dealAction(dealId, status){
   if(!getToken()) return;
   try{
     const r = await fetch(`https://api-production-f3ea.up.railway.app/api/deals/${dealId}/status`, {
-      method:'POST',
+      method:'PUT',
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
       body: JSON.stringify({status})
     });
@@ -1660,9 +1372,9 @@ function renderMyDeals(){
   const sec = document.getElementById('sDeals');
   if(!sec) return;
   if(!user){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999">Войдите чтобы увидеть сделки</div>'; return; }
-  if(!_deals||!_deals.length){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999"><div style="font-size:32px">🤝</div><div style="margin-top:8px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div style="font-size:13px;margin-top:4px;color:#bbb">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>'; return; }
+  if(!_deals||!_deals.length){ sec.innerHTML='<div style="text-align:center;padding:40px;color:#999"><div style="font-size:32px">🤝</div><div style="margin-top:8px">Сделок пока нет</div><div style="font-size:13px;margin-top:4px;color:#bbb">Примите отклик на груз чтобы создать сделку</div></div>'; return; }
   sec.innerHTML = _deals.map(d=>`<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-    <div style="font-weight:800;font-size:15px">${typeof translateCity==='function'?translateCity(d.load_from||d.from||''): (d.load_from||d.from||'')} → ${typeof translateCity==='function'?translateCity(d.load_to||d.to||''): (d.load_to||d.to||'')}</div>
+    <div style="font-weight:800;font-size:15px">${d.load_from||d.from||''} → ${d.load_to||d.to||''}</div>
     <div style="font-size:12px;color:#aaa;margin-top:2px">${d.deal_number||'#'+d.id} · ${new Date(d.created_at).toLocaleDateString('ru')}</div>
     <div style="margin-top:8px;font-size:13px"><span style="color:#aaa">Сумма: </span><strong>${d.currency||'₾'}${(d.price||0).toLocaleString()}</strong></div>
     <div style="font-size:12px;margin-top:4px;background:#e8f5e9;color:#2e7d32;display:inline-block;padding:2px 10px;border-radius:10px;font-weight:700">${d.status||'active'}</div>
@@ -1678,7 +1390,7 @@ function addMyLoad(load){
 }
 
 function deleteMyLoad(id){
-  if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_load||'Удалить груз из биржи?')) return;
+  if(!confirm('Удалить груз из биржи?')) return;
   const load=_myLoads.find(l=>l.id===id);
   // Удаляем с сервера если есть serverId
   if(load?.serverId && typeof CaucasAPI!=='undefined' && user?.token){
@@ -1874,7 +1586,7 @@ function showCabinet(){
  var subEl = document.getElementById('cabUserSub');
  var avatarEl = document.getElementById('cabAvatar');
  if(nameEl) nameEl.textContent = u.name || u.company_name || u.email || '';
- if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец') : '');
+ if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? 'Перевозчик' : 'Грузовладелец') : '');
  if(avatarEl){
  var nm = u.name || u.company_name || u.email || '?';
  avatarEl.textContent = nm.charAt(0).toUpperCase();
@@ -1888,20 +1600,6 @@ function showCabinet(){
   loadCabinetData();
 }
 
-// Авто-обновление кабинета каждые 30 секунд когда он открыт
-var _cabRefreshInterval = null;
-function startCabRefresh(){
-  if(_cabRefreshInterval) return;
-  _cabRefreshInterval = setInterval(function(){
-    if(user && getToken() && _currentCabTab){
-      loadCabinetData();
-    }
-  }, 30000);
-}
-function stopCabRefresh(){
-  if(_cabRefreshInterval){ clearInterval(_cabRefreshInterval); _cabRefreshInterval = null; }
-}
-
 function loadCabinetData(){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!tk) return;
@@ -1910,17 +1608,13 @@ function loadCabinetData(){
     .then(r=>r.ok?r.json():null).then(data=>{
       if(!data) return;
       var loads = data.loads || [];
-      var serverLoads = loads.map(l=>typeof mapServerLoad==='function'?mapServerLoad(l):l);
-      // Дедублируем — убираем из localStorage те что уже есть на сервере
-      var serverIds = new Set(serverLoads.map(l=>l.id));
-      var localOnly = _myLoads.filter(l=>!serverIds.has(l.id) && !l.fromServer);
-      _myLoads = [...serverLoads, ...localOnly];
+      _myLoads = loads.map(l=>typeof mapServerLoad==='function'?mapServerLoad(l):l);
       // Отклики на каждый груз
       loads.forEach(l=>{
         fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+l.id,{headers:{'Authorization':'Bearer '+tk}})
           .then(r=>r.ok?r.json():null).then(d=>{
             if(!d) return;
-            _loadResponses[l.id]=(d.responses||[]).map(r=>({id:r.id,name:r.carrier_name||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',phone:r.carrier_phone||null,message:r.message||null,price:r.price||null,status:r.status||'pending'}));
+            _loadResponses[l.id]=(d.responses||[]).map(r=>({id:r.id,name:r.carrier_name||'Перевозчик',phone:r.carrier_phone||null,message:r.message||null,price:r.price||null,status:r.status||'pending'}));
             if(_currentCabTab==='loads') renderCabLoads();
           }).catch(()=>{});
       });
@@ -1949,7 +1643,7 @@ function renderCabLoads(){
  var cabStat = document.getElementById('cabStatLoads');
  if(cabStat) cabStat.textContent = _myLoads.length;
  if(!_myLoads.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_myloads||'Нет размещённых грузов') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_myloads_sub||'Разместите груз и перевозчики сразу увидят его') + '</div><div style="margin-top:14px"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:10px 24px;font-size:14px">+ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_place||'Разместить') + '</button></div></div>';
+ el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">Нет размещённых грузов</div><div class="cab-empty-sub">Разместите груз и перевозчики сразу увидят его</div><div style="margin-top:14px"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:10px 24px;font-size:14px">+ Разместить груз</button></div></div>';
  return;
  }
  el.innerHTML = _myLoads.map(function(l){
@@ -1957,38 +1651,38 @@ function renderCabLoads(){
  var isIntl = l.scope === 'intl';
  var borderCls = l.urgent ? 'urgent' : (isIntl ? 'intl' : '');
  var respBadge = responses.length
- ? '<span class="cab-resp-badge has">' + responses.length + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond_short||'откл.') + '</span>'
- : '<span class="cab-resp-badge none">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses||'Нет откликов') + '</span>';
+ ? '<span class="cab-resp-badge has">' + responses.length + ' откл.</span>'
+ : '<span class="cab-resp-badge none">Нет откликов</span>';
  var respBlock = '';
  if(responses.length){
- respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_responses||'Отклики') + ' (' + responses.length + ')</div>'
+ respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">Отклики (' + responses.length + ')</div>'
  + responses.map(function(r){
  var actions = '';
  if(r.status === 'pending'){
- actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_accept||'Принять') + '</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
+ actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ Принять</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
  } else if(r.status === 'accepted'){
- actions = '<span class="cab-status-badge accepted">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят') + '</span>';
+ actions = '<span class="cab-status-badge accepted">Принят</span>';
  } else {
- actions = '<span class="cab-status-badge rejected">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_rejected||'Отклонён') + '</span>';
+ actions = '<span class="cab-status-badge rejected">Отклонён</span>';
  }
  return '<div class="cab-inline-resp-row"><div><div class="cab-inline-resp-name">' + r.name + '</div>' + (r.price ? '<div class="cab-inline-resp-price">₾' + r.price + '</div>' : '') + (r.phone ? '<a href="tel:' + r.phone + '" style="font-size:11px;color:#1a6ec0;text-decoration:none;display:block">📞 ' + r.phone + '</a>' : '') + '</div>' + actions + '</div>';
  }).join('') + '</div>';
  } else {
- respBlock = '<div style="font-size:12px;color:#ccc;padding:6px 0;text-align:center">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses_yet||'Откликов пока нет') + '</div>';
+ respBlock = '<div style="font-size:12px;color:#ccc;padding:6px 0;text-align:center">Откликов пока нет</div>';
  }
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
- + '<div style="flex:1"><div class="cab-load-route">' + (typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + (typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
- + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (typeof getTypeLabel==='function'?getTypeLabel(l.type||'tent'):(l.typeLabel||'')) + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
+ + '<div style="flex:1"><div class="cab-load-route">' + l.from + ' → ' + l.to + '</div>'
+ + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' кг</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
- + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
- + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
+ + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ Изменить</button>'
+ + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ Удалить</button>'
  + '</div></div>'
  + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
  + respBlock
  + '</div>';
  }).join('')
- + '<div class="cab-add-btn"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:9px 20px;font-size:13px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_new||'+ Разместить новый груз') + '</button></div>';
+ + '<div class="cab-add-btn"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:9px 20px;font-size:13px">+ Разместить новый груз</button></div>';
 }
 function renderCabResponses(){
  var el = document.getElementById('myResponsesList');
@@ -2007,7 +1701,7 @@ function renderCabResponses(){
  }
  el.innerHTML = _orders.map(function(o){
  var statusCls = o.status === 'accepted' ? 'accepted' : o.status === 'rejected' ? 'rejected' : 'pending';
- var statusLabel = o.status === 'accepted' ? '✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят') : o.status === 'rejected' ? '❌ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_rejected||'Отклонён') : '⏳ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_pending||'Ожидание');
+ var statusLabel = o.status === 'accepted' ? '✅ Принят' : o.status === 'rejected' ? '❌ Отклонён' : '⏳ Ожидание';
  var ts = '';
  try { ts = new Date(o.created).toLocaleString('ru', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
  var cancelBtn = o.status === 'pending'
@@ -2015,7 +1709,7 @@ function renderCabResponses(){
  : '';
  return '<div class="cab-resp-item">'
  + '<div><div class="cab-resp-route">🚛 ' + o.title + '</div>'
- + '<div class="cab-resp-meta">' + (o.price && o.price !== 'null' && o.price !== null ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
+ + '<div class="cab-resp-meta">' + (o.price ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
  + cancelBtn + '</div>'
  + '<span class="cab-status-badge ' + statusCls + '">' + statusLabel + '</span>'
  + '</div>';
@@ -2025,7 +1719,7 @@ function renderCabDeals(){
  var el = document.getElementById('myDealsList');
  if(!el) return;
  if(!_deals || !_deals.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>';
+ el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>';
  return;
  }
  var cabDeals = document.getElementById('cabStatDeals');
@@ -2033,15 +1727,13 @@ function renderCabDeals(){
  var total = _deals.reduce(function(s,d){ return s + (d.price||d.agreed_price||0); }, 0);
  var cabRev = document.getElementById('cabStatRevenue');
  if(cabRev) cabRev.textContent = '₾' + total.toLocaleString();
- var _tr = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
  var ST = {
- confirmed:{l:'✅ ' + (_tr.deal_confirmed||'Подтверждена'),cls:'accepted'},
- loading:{l:'🔄 ' + (_tr.deal_loading||'Загрузка'),cls:'pending'},
- in_transit:{l:'🚛 ' + (_tr.deal_in_transit||'В пути'),cls:'pending'},
- delivered:{l:'📍 ' + (_tr.deal_delivered||'Доставлено'),cls:'accepted'},
- completed:{l:'🏆 ' + (_tr.deal_completed||'Завершена'),cls:'accepted'},
- rated:{l:'⭐ ' + (_tr.deal_rated||'Оценено'),cls:'accepted'},
- cancelled:{l:'❌ ' + (_tr.deal_cancelled||'Отменена'),cls:'rejected'}
+ confirmed:{l:'✅ Подтверждена',cls:'accepted'},
+ loading:{l:'🔄 Загрузка',cls:'pending'},
+ in_transit:{l:'🚛 В пути',cls:'pending'},
+ delivered:{l:'📍 Доставлено',cls:'accepted'},
+ completed:{l:'🏆 Завершена',cls:'accepted'},
+ cancelled:{l:'❌ Отменена',cls:'rejected'}
  };
  var tk = getToken ? getToken() : localStorage.getItem('ch_token');
  el.innerHTML = _deals.map(function(d){
@@ -2050,7 +1742,7 @@ function renderCabDeals(){
  return '<div class="cab-deal-card">'
  + '<div class="cab-deal-header">'
  + '<div><div class="cab-deal-num">' + (d.deal_number||'#'+d.id) + '</div>'
- + '<div class="cab-deal-route">' + (typeof translateCity==='function'?translateCity(d.load_from||'?'):d.load_from||'?') + ' → ' + (typeof translateCity==='function'?translateCity(d.load_to||'?'):d.load_to||'?') + '</div></div>'
+ + '<div class="cab-deal-route">' + (d.load_from||'?') + ' → ' + (d.load_to||'?') + '</div></div>'
  + '<div style="text-align:right"><div class="cab-deal-price">₾' + (d.price||d.agreed_price||0).toLocaleString() + '</div>'
  + '<span class="cab-status-badge ' + st.cls + '">' + st.l + '</span></div>'
  + '</div>'
@@ -2059,14 +1751,10 @@ function renderCabDeals(){
  + (carrier ? '<span>🚛 ' + carrier + '</span>' : '')
  + '</div>'
  + '<div class="cab-deal-actions">'
- + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>'
+ + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 Скачать акт PDF</a>'
  + (d.status === 'confirmed' || d.status === 'in_transit'
- ? (d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ ' + (_tr.btn_confirm_delivery||'Подтвердить доставку') + '</button>' : '')
+ ? (d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ Подтвердить доставку</button>' : '')
  : '')
- + (d.status === 'completed'
- ? '<button onclick="rateDealPrompt(' + d.id + ',\'' + (d.act_number||d.id) + '\')" class="cab-btn" style="background:#f7b731;color:#1a1a2e;font-size:12px;padding:7px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-left:6px">⭐ ' + (_tr.btn_rate||'Оценить') + '</button>'
- : '')
- + (d.status === 'rated' ? '<span style="font-size:12px;color:#2ecc71;font-weight:700;margin-left:6px">⭐ ' + (_tr.deal_rated||'Оценено') + '</span>' : '')
  + '</div>'
  + '</div>';
  }).join('');
@@ -2119,627 +1807,11 @@ function setScope(s, el){
   document.getElementById('mapWrap').classList.remove('open');
 }
 
-// ── LANG / i18n ───────────────────────────────────────
-const TRANSLATIONS = {
-  ru: {
-    nav_exchange: 'Биржа',
-    nav_orders: 'Мои заказы',
-    nav_transport: 'Транспорт',
-    nav_rates: 'Ставки',
-    nav_deals: 'Мои сделки',
-    hero_title: 'Биржа грузов',
-    hero_sub: 'Кавказа',
-    hero_desc: 'Грузы по Грузии и СНГ — быстро и надёжно',
-    btn_post: 'Разместить груз',
-    btn_find: 'Найти машину',
-    tab_local: 'Локальные',
-    tab_intl: 'Международные',
-    btn_respond: 'Откликнуться',
-    btn_login: 'Войти',
-    btn_register: 'Регистрация',
-    btn_place: 'Разместить',
-    btn_filters: 'Фильтры',
-    btn_search: 'Найти',
-    lbl_from: 'Откуда',
-    lbl_to: 'Куда',
-    lbl_weight: 'Вес (кг)',
-    lbl_trucktype: 'Тип кузова',
-    lbl_price: 'Стоимость',
-    lbl_desc: 'Описание груза',
-    lbl_urgent: 'Срочно',
-    status_confirmed: 'Подтверждено',
-    status_loading: 'Загрузка',
-    status_in_transit: 'В пути',
-    status_delivered: 'Доставлено',
-    status_completed: 'Завершено',
-    status_rated: '⭐ Оценено',
-    deal_confirmed: 'Подтверждена',
-    deal_loading: 'Загрузка',
-    deal_in_transit: 'В пути',
-    deal_delivered: 'Доставлено',
-    deal_completed: 'Завершена',
-    deal_rated: 'Оценено',
-    deal_cancelled: 'Отменена',
-    btn_download_act: 'Скачать акт PDF',
-    btn_confirm_delivery: 'Подтвердить доставку',
-    opt_date: '📅 Дата',
-    opt_today: 'Сегодня',
-    opt_tomorrow: 'Завтра',
-    opt_week: 'На неделе',
-    opt_trucktype: '🚛 Кузов',
-    opt_tonnage: '⚖️ Тоннаж',
-    opt_price: '💰 Стоимость',
-    ph_from: '📍 Откуда',
-    ph_to: '🏁 Куда',
-    badge_urgent: 'СРОЧНО',
-    badge_new: 'НОВЫЙ',
-    badge_intl: 'МЕЖД.',
-    unit_kg: 'кг',
-    card_respond: 'Отклик',
-    card_sent: '✅ Отправлено',
-    bnav_loads: 'Грузы',
-    bnav_trucks: 'Машины',
-    bnav_rates: 'Ставки',
-    bnav_cabinet: 'Кабинет',
-    bnav_post: 'Груз',
-    nav_loads: '📦 Грузы',
-    nav_rates2: '📊 Ставки',
-    nav_cabinet: '📋 Кабинет',
-    stat_loads: 'грузов',
-    stat_trucks: 'машин онлайн',
-    stat_companies: 'компаний',
-    type_tent: 'Тент',
-    type_ref: 'Рефриж.',
-    type_bort: 'Борт',
-    type_termos: 'Термос',
-    type_gazel: 'Фургон',
-    type_container: 'Контейнер',
-    type_auto: 'Автовоз',
-    type_other: 'Другой',
-    modal_from: 'Откуда',
-    modal_to: 'Куда',
-    modal_date: 'Дата загрузки',
-    modal_weight: 'Вес',
-    modal_truck: 'Кузов',
-    modal_pay: 'Оплата',
-    fcount_suffix: 'грузов',
-    stat_deals: 'сделок',
-    stat_turnover: 'оборот',
-    th_route: 'ОТКУДА → КУДА',
-    th_weight: 'ВЕС',
-    th_truck: 'КУЗОВ',
-    th_price: 'ЦЕНА',
-    th_date: 'ДАТА ЗАГРУЗКИ',
-    th_truck_route: 'МАШИНА / МАРШРУТ',
-    th_company: 'КОМПАНИЯ',
-    th_tonnage: 'ТОННАЖ',
-    th_date2: 'ДАТА',
-    th_route2: 'МАРШРУТ',
-    th_tent_rate: 'ТЕНТ $/км',
-    th_ref_rate: 'РЕФРИЖ $/км',
-    th_trend: 'ТРЕНД',
-    th_volume: 'ОБЪЁМ/НЕД',
-    pay_cash: 'Наличные сразу',
-    pay_cashless3: 'Безнал 3 дня',
-    pay_cashless7: 'Безнал 7 дней',
-    pay_prepay: '50% предоплата',
-    unit_trips: 'рейсов',
-    verified: 'Верифицирован',
-    empty_loads: 'Грузов не найдено',
-    empty_responses: 'Нет активных откликов',
-    empty_trucks: 'Нет машин. Добавьте первую!',
-    empty_myloads: 'Нет размещённых грузов',
-    empty_deals: 'Нет сделок',
-    empty_deals_sub: 'Примите отклик на груз чтобы создать сделку',
-    login_for_deals: 'Войдите чтобы увидеть сделки',
-    rates_subtitle: 'Средние ставки на маршрутах · обновлено сегодня',
-    map_choose_route: 'Выберите маршрут',
-    pop_routes: '🗺️ Популярные маршруты',
-    loading_loads: '⏳ Загружаем грузы...',
-    btn_add_truck: '+ Добавить машину',
-    btn_add_truck2: '🚛 Добавить машину',
-    btn_post_truck: '📤 Разместить машину',
-    online_indicator: '● Онлайн 24/7',
-    trips_suffix: 'рейсов',
-    empty_orders: 'Нет активных заказов',
-    empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
-    empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
-    btn_post_load: '+ Разместить груз',
-    btn_post_new: '+ Разместить новый груз',
-    btn_respond_load: 'Откликнуться на груз',
-    role_carrier: 'Перевозчик', role_shipper: 'Грузовладелец', role_both: 'Перевозчик и грузовладелец',
-    role_shipper: 'Грузовладелец',
-    role_both: 'Оба',
-    btn_rate: '⭐ Оценить',
-    btn_rated: '⭐ Оценено',
-    btn_pdf: '📄 Акт PDF',
-    status_confirmed: 'Подтверждено',
-    status_loading: 'Загрузка',
-    status_in_transit: 'В пути',
-    status_delivered: 'Доставлено',
-    status_completed: 'Завершено',
-    status_rated: 'Оценено',
-    reg_who: 'Кто вы?',
-    reg_shipper_company: 'Грузовладелец — компания / ИП',
-    reg_shipper_private: 'Грузовладелец — частное лицо',
-    login_title: 'Войти в аккаунт',
-    btn_register2: 'Зарегистрироваться',
-    already_account: 'Уже есть аккаунт?',
-    forgot_pwd: 'Забыли пароль?',
-    btn_back: '← Назад',
-    btn_back_login: '← Назад ко входу',
-    login_new_pwd: 'Войдите с новым паролем',
-    forgot_hint: 'Введите ваш email — пришлём код',
-    code_label: 'Код подтверждения (6 цифр)',
-    pwd_reset_title: '🔑 Сброс пароля',
-    reg_company_label: 'Название компании / ФИО ИП',
-    reg_name_label: 'Имя / Название компании',
-    reg_city_label: 'Город / регион работы',
-    reg_truck_type: 'Тип транспорта',
-    reg_capacity_t: 'Грузоподъёмность (т)',
-    reg_capacity_kg: 'Грузоподъёмность (кг)',
-    reg_inn_ge: 'ИНН / ID код Грузия',
-    reg_inn: 'ИНН / ID код',
-    reg_org_form2: 'Форма организации',
-    lbl_pay_type: 'Тип оплаты',
-    btn_create_account: 'Создать аккаунт',
-    reg_sub_carrier: 'Компания или ИП — ищу грузы',
-    reg_sub_carrier2: 'Частный перевозчик',
-    reg_private: 'Частное лицо',
-    reg_choose_type: 'Выберите хотя бы один тип',
-    reg_choose_all: '(выбери все свои)',
-    post_hint: 'Заполните данные — перевозчики увидят ваш груз сразу',
-    post_date_hint: 'Если груз гибкий — укажите диапазон',
-    post_when: 'Когда готова',
-    post_weight_label: 'Вес (кг)',
-    post_date_label: 'Дата загрузки',
-    date_from_label: 'Дата с',
-    date_to_label: 'Дата по',
-    pick_period: 'Выберите период',
-    post_data_title: '📋 Данные груза:',
-    post_addr_from: '📍 Точный адрес отправки',
-    post_addr_to: '🏁 Точный адрес доставки',
-    post_country_from: '🌍 Страна отправки',
-    post_country_to: '🌍 Страна доставки',
-    cab_my_orders: '📋 Мои заказы',
-    cab_responses: '🚛 Отклики',
-    cab_deals: '🤝 Сделки',
-    cab_analytics: '📊 Моя аналитика',
-    cab_settings: '⚙️ Настройки аккаунта',
-    cab_notifications: '🔔 Уведомления',
-    cab_logout: '🚪 Выйти',
-    cab_settings_sub: 'Управление профилем и уведомлениями',
-    cab_rs_hint: 'Данные о сделках для налоговой Грузии',
-    cab_rs_format: 'Формат совместим с rs.ge · Грузия',
-    cab_export: 'Экспорт для rs.ge',
-    cab_report: '📊 Отчёт',
-    cab_see_rates: '📊 Посмотреть тарифы →',
-    this_month: 'В этом месяце',
-    earned_march: 'Заработано (март)',
-    truck_carrier_data: '🚛 Данные перевозчика',
-    company_requisites: '📋 Реквизиты компании',
-    tg_label: 'Telegram (для уведомлений)',
-    btn_save: '💾 Сохранить',
-    msg_registered: '✅ Аккаунт создан! Добро пожаловать!',
-    msg_logged_in: '✅ Вход выполнен успешно!',
-    msg_load_posted: '✅ Груз размещён! Перевозчики уже видят ваше объявление.',
-    msg_respond_sent: '✅ Заявка отправлена! Заказчик получит уведомление.',
-    msg_truck_added: '✅ Машина добавлена в список!',
-    login_for_orders: 'Войдите в аккаунт чтобы видеть свои заказы',
-    login_for_cab: 'Войдите чтобы видеть свои грузы, отклики и сделки',
-    no_notifs: 'Уведомлений нет',
-    sub_all_standard: '✅ Всё из Стандарта',
-    sub_50resp: '✅ 50 откликов в месяц',
-    sub_unlimited: '✅ Безлимитные отклики',
-    sub_verify: '✅ Верификация компании',
-    sub_contacts: '✅ Видите контакты грузовладельца',
-    sub_priority: '✅ Приоритет в выдаче',
-    sub_urgent_first: '✅ Срочные грузы первым',
-    sub_ai: '✅ AI диспетчер без лимитов',
-    sub_loads_find: 'Грузы находят тебя сами',
-    notif_my_routes: 'Грузы по моим маршрутам',
-    notif_rate_changes: 'Изменение ставок на маршрутах',
-    per_month: '/мес',
-    loading_text: 'Загрузка...',
-    added: 'Добавлен',
-    added_today: 'Добавлен сегодня',
-    unit_respond: 'отклик',
-    default_desc: 'Груз без описания',
-    ph_your_price: 'Ваша цена (необязат.)',
-    respond_hint: '📞 После принятия отклика грузовладелец свяжется с вами',
-    btn_show_route: '🗺️ Показать маршрут на карте',
-    respond_sent: '✅ Заявка отправлена',
-    btn_cancel: '✕ Отменить',
-    btn_edit: '✏️ Редактировать',
-    lbl_rate_modal: 'Ставка',
-    lbl_distance: 'Расстояние',
-    pay_cash_short: 'Наличные',
-    pay_cashless: 'Безнал',
-    modal_post_title: 'Разместить груз',
-    lbl_weight_form: 'Вес (кг)',
-    lbl_trucktype_form: 'Тип кузова',
-    lbl_load_date: 'Дата загрузки',
-    lbl_rate_form: 'Ставка (₾)', lbl_rate_intl: 'Ставка ($)',
-    lbl_cargo_desc: 'Описание груза',
-    lbl_pay_type: 'Тип оплаты',
-    lbl_urgent_check: 'Срочный груз',
-    btn_cancel_form: 'Отмена',
-    btn_post_submit: '📦 Разместить груз',
-    hint_flexible_date: 'Если груз гибкий — укажите диапазон',
-    truck_tent: 'Тент', truck_ref_full: 'Рефрижератор',
-    truck_reftent: 'Рефтент', truck_megatent: 'Мегатент',
-    truck_bort_full: 'Бортовой', truck_termos_full: 'Термос',
-    truck_gazel_full: 'Фургон (до 3.5т)', truck_container_full: 'Контейнер',
-    truck_auto_full: 'Автовоз', truck_evac: 'Эвакуатор',
-    truck_cistern: 'Цистерна', truck_grain: 'Зерновоз',
-    truck_dump: 'Самосвал', truck_other_full: 'Другой',
-    role_carrier: 'Перевозчик', role_shipper: 'Грузовладелец', role_both: 'Перевозчик и грузовладелец', role_shipper_co: 'Грузовладелец — компания / ИП',
-    role_shipper_person: 'Грузовладелец — частное лицо',
-    role_carrier_sub: 'Компания или ИП — ищу грузы',
-    role_person_sub: 'Разовые отправки, без ИП',
-    role_shipper_co_sub: 'Регулярные отправки, договор',
-    lbl_company_name: 'Имя / Название компании', lbl_name: 'Имя',
-    lbl_city: 'Город / регион работы',
-    lbl_capacity: 'Грузоподъёмность (т)', lbl_capacity_kg: 'Грузоподъёмность (кг)',
-    lbl_inn: 'ИНН / ID код', lbl_inn_ge: 'ИНН / ID код Грузия',
-    btn_register_submit: 'Зарегистрироваться', btn_login_submit: 'Войти в аккаунт',
-    link_forgot: 'Забыли пароль?',
-    hint_forgot_email: 'Введите ваш email — пришлём код',
-    lbl_code: 'Код подтверждения (6 цифр)', hint_new_pass: 'Войдите с новым паролем',
-    btn_login_short: 'Войти', carrier_promo: 'Грузы находят тебя сами',
-    trucks_free: 'машин свободно',
-    btn_contact: 'Связаться',
-    any_direction: 'Любое направление',
-    any_short: 'Любое',
-  },
-  ge: {
-    nav_exchange: 'ბირჟა',
-    nav_orders: 'ჩემი შეკვეთები',
-    nav_transport: 'ტრანსპორტი',
-    nav_rates: 'ტარიფები',
-    nav_deals: 'ჩემი გარიგებები',
-    hero_title: 'სატვირთო ბირჟა',
-    hero_sub: 'კავკასიის',
-    hero_desc: 'ტვირთები საქართველოს მასშტაბით — სწრაფად და საიმედოდ',
-    btn_post: 'ტვირთის განთავსება',
-    btn_find: 'მანქანის პოვნა',
-    tab_local: 'ადგილობრივი',
-    tab_intl: 'საერთაშორისო',
-    btn_respond: 'გამოხმაურება',
-    btn_login: 'შესვლა',
-    btn_register: 'რეგისტრაცია',
-    btn_place: 'განთავსება',
-    btn_filters: 'ფილტრები',
-    btn_search: 'ძებნა',
-    lbl_from: 'საიდან',
-    lbl_to: 'სად',
-    lbl_weight: 'წონა (კგ)',
-    lbl_trucktype: 'კუზოვის ტიპი',
-    lbl_price: 'ღირებულება',
-    lbl_desc: 'ტვირთის აღწერა',
-    lbl_urgent: 'სასწრაფო',
-    status_confirmed: 'დადასტურებული',
-    status_loading: 'დატვირთვა',
-    status_in_transit: 'გზაში',
-    status_delivered: 'მიტანილია',
-    status_completed: 'დასრულებული',
-    opt_date: '📅 თარიღი',
-    opt_today: 'დღეს',
-    opt_tomorrow: 'ხვალ',
-    opt_week: 'კვირაში',
-    opt_trucktype: '🚛 კუზოვი',
-    opt_tonnage: '⚖️ ტონაჟი',
-    opt_price: '💰 ღირებულება',
-    ph_from: '📍 საიდან',
-    ph_to: '🏁 სად',
-    badge_urgent: 'სასწრაფო',
-    badge_new: 'ახალი',
-    badge_intl: 'საერთ.',
-    unit_kg: 'კგ',
-    card_respond: 'გამოხმაურება',
-    card_sent: '✅ გაგზავნილია',
-    bnav_loads: 'ტვირთები',
-    bnav_trucks: 'მანქანები',
-    bnav_rates: 'ტარიფები',
-    bnav_cabinet: 'კაბინეტი',
-    bnav_post: 'ტვირთი',
-    nav_loads: '📦 ტვირთები',
-    nav_rates2: '📊 ტარიფები',
-    nav_cabinet: '📋 კაბინეტი',
-    stat_loads: 'ტვირთი',
-    stat_trucks: 'მანქანა ონლაინ',
-    stat_companies: 'კომპანია',
-    type_tent: 'ტენტი',
-    type_ref: 'რეფრიჟ.',
-    type_bort: 'ბორტი',
-    type_termos: 'თერმოსი',
-    type_gazel: 'ფურგონი',
-    type_container: 'კონტეინერი',
-    type_auto: 'ავტოვოზი',
-    type_other: 'სხვა',
-    modal_from: 'საიდან',
-    modal_to: 'სად',
-    modal_date: 'ჩატვირთვის თარიღი',
-    modal_weight: 'წონა',
-    modal_truck: 'კუზოვი',
-    modal_pay: 'გადახდა',
-    fcount_suffix: 'ტვირთი',
-    stat_deals: 'გარიგება',
-    stat_turnover: 'ბრუნვა',
-    th_route: 'საიდან → სად',
-    th_weight: 'წონა',
-    th_truck: 'კუზოვი',
-    th_price: 'ფასი',
-    th_date: 'ჩატვირთვის თარიღი',
-    th_truck_route: 'მანქანა / მარშრუტი',
-    th_company: 'კომპანია',
-    th_tonnage: 'ტონაჟი',
-    th_date2: 'თარიღი',
-    th_route2: 'მარშრუტი',
-    th_tent_rate: 'ტენტი $/კმ',
-    th_ref_rate: 'რეფრიჟ. $/კმ',
-    th_trend: 'ტენდენცია',
-    th_volume: 'მოცულობა/კვ',
-    pay_cash: 'ნაღდი ანგარიშსწორება',
-    pay_cashless3: 'უნაღდო 3 დღე',
-    pay_cashless7: 'უნაღდო 7 დღე',
-    pay_prepay: '50% წინასწარი გადახდა',
-    unit_trips: 'გზა',
-    verified: 'ვერიფიცირებული',
-    empty_loads: 'ტვირთი ვერ მოიძებნა',
-    empty_responses: 'გამოხმაურებები არ არის',
-    empty_trucks: 'მანქანები არ არის. დაამატეთ პირველი!',
-    empty_myloads: 'განთავსებული ტვირთი არ არის',
-    empty_deals: 'გარიგებები არ არის',
-    empty_deals_sub: 'მიიღეთ გამოხმაურება ტვირთზე გარიგების შესაქმნელად',
-    login_for_deals: 'შედით გარიგებების სანახავად',
-    rates_subtitle: 'საშუალო ტარიფები მარშრუტებზე · განახლდა დღეს',
-    map_choose_route: 'აირჩიეთ მარშრუტი',
-    pop_routes: '🗺️ პოპულარული მარშრუტები',
-    loading_loads: '⏳ იტვირთება...',
-    btn_add_truck: '+ მანქანის დამატება',
-    btn_add_truck2: '🚛 მანქანის დამატება',
-    btn_post_truck: '📤 მანქანის განთავსება',
-    online_indicator: '● ონლაინ 24/7',
-    trips_suffix: 'გზა',
-    empty_orders: 'შეკვეთები არ არის',
-    empty_orders_sub: 'გამოხმაურება — ტვირთები აქ გამოჩნდება',
-    empty_myloads_sub: 'განათავსეთ ტვირთი და გადამზიდველები დაუყოვნებლივ დაინახავენ',
-    btn_post_load: '+ ტვირთის განთავსება',
-    btn_post_new: '+ ახალი ტვირთის განთავსება',
-    btn_respond_load: 'ტვირთზე გამოხმაურება',
-    role_carrier: 'გადამზიდველი', role_shipper: 'ტვირთის მფლობელი', role_both: 'გადამზიდველი და ტვირთის მფლობელი',
-    role_shipper: 'ტვირთის მფლობელი',
-    role_both: 'ორივე',
-    btn_rate: '⭐ შეფასება',
-    btn_rated: '⭐ შეფასებულია',
-    btn_pdf: '📄 აქტი PDF',
-    status_confirmed: 'დადასტურებული',
-    status_loading: 'დატვირთვა',
-    status_in_transit: 'გზაში',
-    status_delivered: 'მიტანილია',
-    status_completed: 'დასრულებული',
-    status_rated: 'შეფასებულია',
-    deal_confirmed: 'დადასტურებულია',
-    btn_edit_short: 'შეცვლა',
-    btn_delete: 'წაშლა',
-    lbl_responses: 'გამოხმაურებები',
-    no_responses: 'გამ. არ არის',
-    no_responses_yet: 'გამოხმაურება ჯერ არ არის',
-    unit_respond_short: 'გამ.',
-    resp_accepted: 'მიღებულია',
-    resp_rejected: 'უარყოფილია',
-    resp_pending: 'მოლოდინში',
-    deal_loading: 'იტვირთება',
-    deal_in_transit: 'გზაშია',
-    deal_delivered: 'მიტანილია',
-    deal_completed: 'დასრულებულია',
-    deal_rated: 'შეფასებულია',
-    deal_cancelled: 'გაუქმებულია',
-    btn_download_act: 'PDF აქტის გადმოწერა',
-    btn_confirm_delivery: 'მიტანის დადასტურება',
-    reg_who: 'ვინ ხართ?',
-    reg_shipper_company: 'ტვირთის მფლობელი — კომპ./ინდ.მ.',
-    reg_shipper_private: 'ტვირთის მფლობელი — კერძო პირი',
-    login_title: 'ანგარიშში შესვლა',
-    btn_register2: 'რეგისტრაცია',
-    already_account: 'უკვე გაქვთ ანგარიში?',
-    forgot_pwd: 'დაგავიწყდათ პაროლი?',
-    btn_back: '← უკან',
-    btn_back_login: '← შესვლასთან დაბრუნება',
-    login_new_pwd: 'შედით ახალი პაროლით',
-    forgot_hint: 'შეიყვანეთ ელ.ფოსტა — გამოვგზავნით კოდს',
-    code_label: 'დამადასტურებელი კოდი (6 ციფრი)',
-    pwd_reset_title: '🔑 პაროლის აღდგენა',
-    reg_company_label: 'კომპანიის სახელი / სახელი',
-    reg_name_label: 'სახელი / კომპანიის სახელი',
-    reg_city_label: 'ქალაქი / სამუშაო რეგიონი',
-    reg_truck_type: 'სატრანსპორტო სახეობა',
-    reg_capacity_t: 'ტვირთამწეობა (ტ)',
-    reg_capacity_kg: 'ტვირთამწეობა (კგ)',
-    reg_inn_ge: 'სხ / ID კოდი',
-    reg_inn: 'სხ / ID კოდი',
-    reg_org_form2: 'ორგანიზაციის ფორმა',
-    lbl_pay_type: 'გადახდის ტიპი',
-    btn_create_account: 'ანგარიშის შექმნა',
-    reg_sub_carrier: 'კომპანია ან ინდ.მ. — ვეძებ ტვირთებს',
-    reg_sub_carrier2: 'კერძო გადამზიდველი',
-    reg_private: 'კერძო პირი',
-    reg_choose_type: 'აირჩიეთ მინიმუმ ერთი ტიპი',
-    reg_choose_all: '(ყველა თქვენი)',
-    post_hint: 'შეავსეთ მონაცემები — გადამზიდველები დაუყოვნებლივ დაინახავენ',
-    post_date_hint: 'თუ თარიღი მოქნილია — მიუთითეთ დიაპაზონი',
-    post_when: 'როდის არის მზად',
-    post_weight_label: 'წონა (კგ)',
-    post_date_label: 'ჩატვირთვის თარიღი',
-    date_from_label: 'თარიღი-დან',
-    date_to_label: 'თარიღი-მდე',
-    pick_period: 'აირჩიეთ პერიოდი',
-    post_data_title: '📋 ტვირთის მონაცემები:',
-    post_addr_from: '📍 ზუსტი მისამართი (გაგზავნა)',
-    post_addr_to: '🏁 ზუსტი მისამართი (მიტანა)',
-    post_country_from: '🌍 გაგზავნის ქვეყანა',
-    post_country_to: '🌍 მიტანის ქვეყანა',
-    cab_my_orders: '📋 ჩემი შეკვეთები',
-    cab_responses: '🚛 გამოხმაურებები',
-    cab_deals: '🤝 გარიგებები',
-    cab_analytics: '📊 ჩემი ანალიტიკა',
-    cab_settings: '⚙️ ანგარიშის პარამეტრები',
-    cab_notifications: '🔔 შეტყობინებები',
-    cab_logout: '🚪 გასვლა',
-    cab_settings_sub: 'პროფილის მართვა',
-    cab_rs_hint: 'გარიგებების მონაცემები rs.ge-სთვის',
-    cab_rs_format: 'ფორმატი თავსებადია rs.ge-სთან · საქართველო',
-    cab_export: 'ექსპორტი rs.ge-სთვის',
-    cab_report: '📊 ანგარიში',
-    cab_see_rates: '📊 ტარიფების ნახვა →',
-    this_month: 'ამ თვეში',
-    earned_march: 'გამომუშავებული (მარ)',
-    truck_carrier_data: '🚛 გადამზიდველის მონაცემები',
-    company_requisites: '📋 კომპანიის რეკვიზიტები',
-    tg_label: 'Telegram (შეტყობინებებისთვის)',
-    btn_save: '💾 შენახვა',
-    msg_registered: '✅ ანგარიში შეიქმნა! მოგესალმებით!',
-    msg_logged_in: '✅ წარმატებით შეხვედით!',
-    msg_load_posted: '✅ ტვირთი განთავსდა!',
-    msg_respond_sent: '✅ განაცხადი გაგზავნილია!',
-    msg_truck_added: '✅ მანქანა სიაში დაემატა!',
-    login_for_orders: 'შედით ანგარიშში შეკვეთების სანახავად',
-    login_for_cab: 'შედით ტვირთების სანახავად',
-    no_notifs: 'შეტყობინება არ არის',
-    sub_all_standard: '✅ სტანდარტის ყველაფერი',
-    sub_50resp: '✅ 50 გამოხმაურება თვეში',
-    sub_unlimited: '✅ ულიმიტო გამოხმაურებები',
-    sub_verify: '✅ კომპანიის ვერიფიკაცია',
-    sub_contacts: '✅ ტვირთის მფლობელის კონტაქტები',
-    sub_priority: '✅ პრიორიტეტი',
-    sub_urgent_first: '✅ სასწრაფო ტვირთები პირველი',
-    sub_ai: '✅ AI დისპეტჩერი',
-    sub_loads_find: 'ტვირთები თავად გიპოვიან',
-    notif_my_routes: 'ტვირთები ჩემს მარშრუტებზე',
-    notif_rate_changes: 'ტარიფების ცვლილება',
-    per_month: '/თვე',
-    loading_text: 'იტვირთება...',
-    added: 'დამატებულია',
-    added_today: 'დამატებულია დღეს',
-    unit_respond: 'გამოხმაურება',
-    default_desc: 'აღწერა არ არის',
-    ph_your_price: 'თქვენი ფასი (სურვილისამებრ)',
-    respond_hint: '📞 გამოხმაურების მიღების შემდეგ ტვირთის მფლობელი დაგიკავშირდებათ',
-    btn_show_route: '🗺️ მარშრუტის ჩვენება რუკაზე',
-    respond_sent: '✅ განაცხადი გაგზავნილია',
-    btn_cancel: '✕ გაუქმება',
-    btn_edit: '✏️ რედაქტირება',
-    lbl_rate_modal: 'ტარიფი',
-    lbl_distance: 'მანძილი',
-    pay_cash_short: 'ნაღდი',
-    pay_cashless: 'უნაღდო',
-    modal_post_title: 'ტვირთის განთავსება',
-    lbl_weight_form: 'წონა (კგ)',
-    lbl_trucktype_form: 'კუზოვის ტიპი',
-    lbl_load_date: 'ჩატვირთვის თარიღი',
-    lbl_rate_form: 'ტარიფი (₾)', lbl_rate_intl: 'ტარიფი ($)',
-    lbl_cargo_desc: 'ტვირთის აღწერა',
-    lbl_pay_type: 'გადახდის ტიპი',
-    lbl_urgent_check: 'სასწრაფო ტვირთი',
-    btn_cancel_form: 'გაუქმება',
-    btn_post_submit: '📦 ტვირთის განთავსება',
-    hint_flexible_date: 'თუ თარიღი მოქნილია — მიუთითეთ დიაპაზონი',
-    truck_tent: 'ტენტი', truck_ref_full: 'რეფრიჟერატორი',
-    truck_reftent: 'რეფ-ტენტი', truck_megatent: 'მეგა-ტენტი',
-    truck_bort_full: 'ბორტიანი', truck_termos_full: 'თერმოსი',
-    truck_gazel_full: 'ფურგონი (3.5ტ-მდე)', truck_container_full: 'კონტეინერი',
-    truck_auto_full: 'ავტოვოზი', truck_evac: 'ევაკუატორი',
-    truck_cistern: 'ცისტერნა', truck_grain: 'მარცვლეულის',
-    truck_dump: 'თვითმცლელი', truck_other_full: 'სხვა',
-    role_carrier: 'გადამზიდველი', role_shipper: 'ტვირთის მფლობელი', role_both: 'გადამზიდველი და ტვირთის მფლობელი', role_shipper_co: 'ტვირთის მფლობელი — კომპანია / ი/მ',
-    role_shipper_person: 'ტვირთის მფლობელი — ფიზიკური პირი',
-    role_carrier_sub: 'კომპანია ან ი/მ — ვეძებ ტვირთებს',
-    role_person_sub: 'ერთჯერადი გაგზავნები, ი/მ-ის გარეშე',
-    role_shipper_co_sub: 'რეგულარული გაგზავნები, ხელშეკრულება',
-    lbl_company_name: 'სახელი / კომპანიის დასახელება', lbl_name: 'სახელი',
-    lbl_city: 'ქალაქი / სამუშაო რეგიონი',
-    lbl_capacity: 'ტვირთამწეობა (ტ)', lbl_capacity_kg: 'ტვირთამწეობა (კგ)',
-    lbl_inn: 'საიდენტიფიკაციო კოდი', lbl_inn_ge: 'საიდენტ. კოდი (საქართველო)',
-    btn_register_submit: 'ანგარიშის შექმნა', btn_login_submit: 'ანგარიშში შესვლა',
-    link_forgot: 'დაგავიწყდათ პაროლი?',
-    hint_forgot_email: 'შეიყვანეთ email — გამოგიგზავნით კოდს',
-    lbl_code: 'დადასტურების კოდი (6 ციფრი)', hint_new_pass: 'შედით ახალი პაროლით',
-    btn_login_short: 'შესვლა', carrier_promo: 'ტვირთები თავად გპოვებენ',
-    trucks_free: 'მანქანა თავისუფალია',
-    btn_contact: 'დაკავშირება',
-    any_direction: 'ნებისმიერი მიმართულება',
-    any_short: 'ნებისმიერი',
-  }
-};
-
-function applyLang(l) {
-  const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
-  // textContent по data-i18n
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    if (T[key]) el.textContent = T[key];
-  });
-  // placeholder по data-i18n-ph
-  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-    const key = el.dataset.i18nPh;
-    if (T[key]) el.placeholder = T[key];
-  });
-  // Города в таблице ставок (data-i18n-city)
-  document.querySelectorAll('[data-i18n-city]').forEach(el => {
-    const route = el.getAttribute('data-i18n-city');
-    if (l === 'ge') {
-      el.textContent = route.split(' → ').map(c => translateCity(c)).join(' → ');
-    } else {
-      el.textContent = route;
-    }
-  });
-  // option с data-i18n (типы оплаты)
-  document.querySelectorAll('option[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    if (T[key]) el.textContent = T[key];
-  });
-  // рейсы/гзаt (data-i18n-trips="N")
-  document.querySelectorAll('[data-i18n-trips]').forEach(el => {
-    const n = el.getAttribute('data-i18n-trips');
-    el.textContent = n + ' ' + (T.trips_suffix || 'рейсов');
-  });
-  // Заголовок страницы
-  const titleEl = document.querySelector('title');
-  if (titleEl) {
-    const key = l === 'ge' ? 'data-i18n-title-ge' : 'data-i18n-title-ru';
-    const val = titleEl.getAttribute(key);
-    if (val) document.title = val;
-  }
-  // fcount — счётчик грузов
-  const fcount = document.getElementById('fcount');
-  if (fcount) {
-    const m = fcount.textContent.match(/^(\d+)/);
-    if (m) fcount.textContent = m[1] + ' ' + (T.fcount_suffix || 'грузов');
-  }
-  document.documentElement.lang = l === 'ge' ? 'ka' : l;
-  // Перерисовываем карточки грузов если они уже загружены
-  if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
-  // Перерисовываем транспорт
-  if (typeof renderTrucks === 'function') renderTrucks();
-}
-
-function setLang(l, btn) {
-  lang = l;
-  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  applyLang(l);
-  localStorage.setItem('ch_lang', l);
-  // Перерендерим динамические блоки
-  if(typeof renderLoads === 'function') renderLoads();
-  if(typeof renderTrucks === 'function') renderTrucks();
-  if(_currentCabTab === 'loads' && typeof renderCabLoads === 'function') renderCabLoads();
-  if(_currentCabTab === 'responses' && typeof renderCabResponses === 'function') renderCabResponses();
-  if(_currentCabTab === 'deals' && typeof renderCabDeals === 'function') renderCabDeals();
-  // AI чат placeholder и приветствие
-  var aiInp = document.getElementById('aiInput');
-  if(aiInp){ var phs={ru:'Напишите о грузе...',ge:'დაწერეთ ტვირთის შესახებ...',en:'Describe your cargo...'}; aiInp.placeholder=phs[l]||phs['ru']; }
-  if(typeof aiReset === 'function') aiReset();
+// ── LANG ──────────────────────────────────────────────
+function setLang(l,btn){
+  lang=l;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 // ── MODALS ────────────────────────────────────────────
@@ -2749,7 +1821,6 @@ function closeOverlay(id,e){ if(e.target===document.getElementById(id)) closeMod
 // ── COUNTRY FILTER ────────────────────────────────────
 const COUNTRY_FLAGS={'GE':'🇬🇪','TR':'🇹🇷','AM':'🇦🇲','AZ':'🇦🇿','RU':'🇷🇺','UA':'🇺🇦','CN':'🇨🇳','DE':'🇩🇪','PL':'🇵🇱','IT':'🇮🇹','BG':'🇧🇬','KZ':'🇰🇿','UZ':'🇺🇿','TM':'🇹🇲','KG':'🇰🇬','TJ':'🇹🇯','MD':'🇲🇩','BY':'🇧🇾','IL':'🇮🇱','IR':'🇮🇷','AE':'🇦🇪','GR':'🇬🇷','RO':'🇷🇴'};
 const COUNTRY_NAMES={'GE':'Грузия','TR':'Турция','AM':'Армения','AZ':'Азербайджан','RU':'Россия','UA':'Украина','CN':'Китай','DE':'Германия','PL':'Польша','IT':'Италия','BG':'Болгария'};
-const COUNTRY_NAMES_GE={'GE':'საქართველო','TR':'თურქეთი','AM':'სომხეთი','AZ':'აზერბაიჯანი','RU':'რუსეთი','UA':'უკრაინა','CN':'ჩინეთი','DE':'გერმანია','PL':'პოლონეთი','IT':'იტალია','BG':'ბულგარეთი','KZ':'ყაზახეთი','UZ':'უზბეკეთი','BY':'ბელარუსი','IL':'ისრაელი','IR':'ირანი','AE':'არაბეთის გაერთიანებული საამიროები','GR':'საბერძნეთი','RO':'რუმინეთი'};
 
 // Показываем/скрываем фильтр стран при переключении Local/Intl
 // setScope расширен в оригинале
@@ -2944,67 +2015,45 @@ function saveSettings(){
   pushNotif('✅ Настройки сохранены', 'Профиль обновлён', []);
 }
 
-function _renderAnalyticsData(dealsArr){
-  const _allDeals = dealsArr || [];
-  const _activDeals = _allDeals.filter(d=>d.status!=='cancelled');
-  const _now = new Date();
-  const _thisMonth = _allDeals.filter(d=>{
-    const dt=new Date(d.created_at||d.updatedAt||0);
-    return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
-  });
-  const _revenue = _activDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
-  document.getElementById('aStat1').textContent = (user&&user.trips) || _allDeals.length || 0;
-  document.getElementById('aStat2').textContent = _thisMonth.length;
-  const _s3=document.getElementById('aStat3');
-  if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
-  const _s4=document.getElementById('aStat4');
-  if(_s4) _s4.textContent=((user&&user.rat)?Math.round(parseFloat(user.rat)):5)+' ⭐';
-  // Популярные маршруты
-  const _routes={};
-  _allDeals.forEach(function(d){
-    if(d.load_from&&d.load_to){
-      const k=d.load_from+' → '+d.load_to;
-      _routes[k]=(_routes[k]||0)+1;
-    }
-  });
-  const _topRoutes=Object.entries(_routes).sort((a,b)=>b[1]-a[1]).slice(0,3);
-  const _rEl=document.getElementById('aRoutes');
-  if(_rEl){
-    if(_topRoutes.length){
+function openAnalytics(){
+  closeModal('profileOverlay');
+  if(user){
+    document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
+    // Реальные данные из сделок
+    const _allDeals = (typeof _deals!=='undefined'&&_deals)||[];
+    const _completedDeals = _allDeals.filter(d=>d.status==='completed');
+    const _now = new Date();
+    const _thisMonth = _allDeals.filter(d=>{
+      const dt=new Date(d.created_at||d.updatedAt||0);
+      return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
+    });
+    const _revenue = _completedDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
+    document.getElementById('aStat1').textContent = user.trips || _allDeals.length || 0;
+    document.getElementById('aStat2').textContent = _thisMonth.length;
+    const _s3=document.getElementById('aStat3');
+    if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
+    const _s4=document.getElementById('aStat4');
+    if(_s4) _s4.textContent=(user.rat?Math.round(parseFloat(user.rat)):5)+' ⭐';
+    // Популярные маршруты
+    const _routes={};
+    _allDeals.forEach(function(d){
+      if(d.load_from&&d.load_to){
+        const k=d.load_from+' → '+d.load_to;
+        _routes[k]=(_routes[k]||0)+1;
+      }
+    });
+    const _topRoutes=Object.entries(_routes).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const _rEl=document.getElementById('aRoutes');
+    if(_rEl&&_topRoutes.length){
       _rEl.innerHTML=_topRoutes.map(function(r){
         return '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">'
           +'<span style="font-size:13px">'+r[0]+'</span>'
-          +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+((TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']||TRANSLATIONS['ru']).unit_trips||'рейсов')+'</span>'
+          +'<span style="font-size:13px;font-weight:700;color:#f7b731">'+r[1]+' '+(r[1]===1?'рейс':r[1]<5?'рейса':'рейсов')+'</span>'
           +'</div>';
       }).join('');
-    } else {
-      _rEl.innerHTML='<div style="text-align:center;padding:12px;color:#aaa;font-size:13px">Данных пока нет — завершите первые сделки</div>';
     }
   }
-}
-
-function openAnalytics(){
-  closeModal('profileOverlay');
-  if(!user) return;
-  document.getElementById('analyticsUser').textContent='Статистика: '+user.name;
   document.getElementById('analyticsOverlay').classList.add('on');
-
-  const _existing = (typeof _deals!=='undefined'&&_deals)||[];
-  if(_existing.length){
-    // Сделки уже загружены в кабинете — используем их
-    _renderAnalyticsData(_existing);
-  } else {
-    // Подгружаем с сервера напрямую
-    var tk = (typeof getToken==='function'?getToken():null)||localStorage.getItem('ch_token');
-    if(!tk){ _renderAnalyticsData([]); return; }
-    fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}})
-      .then(function(r){return r.ok?r.json():null;})
-      .then(function(d){
-        var loaded = (d&&d.deals)||[];
-        if(typeof _deals!=='undefined') _deals = loaded;
-        _renderAnalyticsData(loaded);
-      }).catch(function(){ _renderAnalyticsData([]); });
-  }
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────
@@ -3067,24 +2116,17 @@ function _renderOrders(){
     if(oldEp) oldEp.style.display='none';
     // Обновляем новый кабинет
     var tab = window._currentCabTab || 'loads';
-    if(tab==='loads' && typeof renderCabLoads==='function'){
-      renderCabLoads();
-      // Обновляем бейдж новых откликов
-      const _allNewResps = Object.values(_loadResponses||{}).flat().filter(r=>r.status==='pending').length;
-      const _loadsBadge = document.getElementById('cabLoadsBadge');
-      if(_loadsBadge){ if(_allNewResps>0){_loadsBadge.textContent=_allNewResps;_loadsBadge.style.display='inline';}else _loadsBadge.style.display='none'; }
-    }
+    if(tab==='loads' && typeof renderCabLoads==='function') renderCabLoads();
     if(tab==='responses' && typeof renderCabResponses==='function') renderCabResponses();
     if(tab==='deals' && typeof renderCabDeals==='function') renderCabDeals();
     return;
   }
   const empty=document.getElementById('ordersEmpty'),list=document.getElementById('ordersList');
   const hasContent=_orders.length||_myLoads.length||_deals.length;
-  // Показываем exportPanel только если есть завершённые сделки
+  // Показываем exportPanel для залогиненных ВСЕГДА (независимо от наличия заказов)
   const _ep=document.getElementById('exportPanel');
   const _tok = getToken ? getToken() : localStorage.getItem('ch_token');
-  const _hasFinished = (_deals||[]).some(d => d.status==='completed'||d.status==='rated');
-  if(_ep) _ep.style.display = (_tok && _hasFinished) ? 'flex' : 'none';
+  if(_ep) _ep.style.display = _tok ? 'flex' : 'none';
   if(!hasContent){
     if(empty){
       empty.style.display='block';
@@ -3131,15 +2173,15 @@ function _renderOrders(){
     <div id="myload-${l.id}" style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1">
-          <div style="font-weight:700">${typeof translateCity==="function"?translateCity(l.from):l.from} → ${typeof translateCity==="function"?translateCity(l.to):l.to}</div>
+          <div style="font-weight:700">${l.from} → ${l.to}</div>
           <div style="font-size:12px;color:#888;margin-top:2px">${l.kg.toLocaleString()} кг · ${l.cur||'₾'}${l.price} · ${l.date}</div>
           <div style="font-size:12px;color:#888;margin-top:1px">${l.desc||''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <span style="background:#e8f5e9;color:#2e7d32;padding:4px 8px;border-radius:10px;font-size:11px;white-space:nowrap">📦 Мой груз</span>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
-            <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ ${((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).btn_delete||"Удалить"}</button>
+            <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✏️ Редактировать</button>
+            <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ Удалить</button>
           </div>
         </div>
       </div>
@@ -3151,7 +2193,7 @@ function _renderOrders(){
     const s=_STATUS[o.status]||_STATUS.pending;
     let act='';
     if(o.status==='pending') act=`<button onclick="cancelMyResponse(${o.id},${o.serverId||0})" style="margin-top:8px;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">✕ Отменить заявку</button>`;
-    if(o.status==='accepted') act=`<div style="margin-top:8px;font-size:12px;color:#2980b9;background:#e3f2fd;padding:6px 12px;border-radius:6px">✅ ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят'} — ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted_hint||'следите за статусом в разделе'} <strong>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).nav_deals||'Сделки'}</strong></div>`;
+    if(o.status==='accepted') act=`<button class="ni-done" onclick="_delivered(${o.id})" style="margin-top:8px;background:#3498db;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer">🚛 Груз доставлен</button>`;
     if(o.status==='done') act=`<button onclick="_rate(${o.id})" style="margin-top:8px;background:#f0f2f5;border:none;padding:5px 14px;border-radius:6px;font-size:13px;cursor:pointer">⭐ Оставить отзыв</button>`;
     const ts=new Date(o.created).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const bc=o.status==='accepted'?'#3498db':o.status==='done'?'#2ecc71':o.status==='transit'?'#9b59b6':'#f7b731';
@@ -3189,7 +2231,7 @@ function _renderOrders(){
   list.innerHTML = dealsSection + myLoadsHeader + myLoadsHtml + ordersHeader + ordersHtml;
 }
 function _acceptOrder(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='accepted';_renderOrders();pushNotif('✅ Принято!',`Груз "${o.title}" принят.`,[{l:'🚛 Доставлен',c:'ni-done',fn:`_delivered(${id})`}]);}
-function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить',c:'ni-done',fn:`_rate(${id})`}]);}
+function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:'⭐ Оценить',c:'ni-done',fn:`_rate(${id})`}]);}
 function _rate(id){const o=_orders.find(x=>x.id===id);if(!o)return;const r=prompt(`Оцените "${o.title}" (1-5):`,'5');if(r&&+r>=1&&+r<=5){o.status='rated';_renderOrders();pushNotif('⭐ Спасибо!',`Оценка ${r}/5 сохранена.`,[]);}}
 
 // Переопределяем showUserState чтобы показывать колокольчик
@@ -3201,15 +2243,6 @@ function _rate(id){const o=_orders.find(x=>x.id===id);if(!o)return;const r=promp
 // showSection расширен через оригинал выше
 
 // ── INIT ──────────────────────────────────────────────
-// Проверяем не истёк ли токен
-function _isTokenValid(tok){
-  try{
-    const p = tok.split('.')[1];
-    const d = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/')));
-    return d.exp && d.exp > Math.floor(Date.now()/1000);
-  }catch(e){ return false; }
-}
-
 // Восстанавливаем сессию безопасно
 try{
   const _saved=_lsGet('ch_user');
@@ -3234,40 +2267,17 @@ if(_dateInput){
   const _today=new Date();
   _dateInput.min=_today.toISOString().split('T')[0];
 }
-// Восстанавливаем язык ДО рендера — сразу меняем переменную lang
-(function() {
-  const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru') {
-    lang = saved;
-    document.documentElement.lang = saved === 'ge' ? 'ka' : saved;
-  }
-})();
-
 // Гарантируем рендер после загрузки DOM
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',()=>{
+    // Сначала рендерим из localStorage (мгновенно), потом sync с сервером
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
-    // Применяем язык после загрузки DOM
-    const saved = localStorage.getItem('ch_lang');
-    if (saved && saved !== 'ru' && typeof applyLang === 'function') {
-      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
-      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-      applyLang(saved);
-    }
   });
 } else {
+  // Сначала рендерим из localStorage (мгновенно), потом sync с сервером
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
-  // DOM уже готов — применяем язык сразу после sync
-  const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru' && typeof applyLang === 'function') {
-    setTimeout(function() {
-      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
-      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-      applyLang(saved);
-    }, 100);
-  }
 }
 
 function openPlansModal(e){ 
@@ -3305,7 +2315,7 @@ function renderDeals(){
   const el=document.getElementById('dealsList');
   if(!el) return;
   if(!dealsData.length){
-    el.innerHTML='<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;color:#999"><div style="font-size:32px;margin-bottom:8px">📂</div><div>' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div style="font-size:13px;margin-top:4px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>';
+    el.innerHTML='<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;color:#999"><div style="font-size:32px;margin-bottom:8px">📂</div><div>Сделок пока нет</div><div style="font-size:13px;margin-top:4px">Примите отклик на груз чтобы создать сделку</div></div>';
     return;
   }
   el.innerHTML='';
@@ -3330,17 +2340,17 @@ function renderDeals(){
       +'<div id="deal-btns-'+deal.id+'" style="display:flex;gap:8px;flex-wrap:wrap"></div>';
     el.appendChild(card);
     const btns=document.getElementById('deal-btns-'+deal.id);
-    if(next && deal.status !== 'in_transit'){const b=document.createElement('button');b.textContent='→ '+(DEAL_STATUS_MAP[next]&&DEAL_STATUS_MAP[next].label||next);b.style.cssText='background:#1a1a2e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,next);};btns.appendChild(b);} if(deal.status==='in_transit'){const isCa=currentUserId&&deal.carrier&&deal.carrier.id==currentUserId;if(isCa){const b=document.createElement('button');b.textContent='🏁 Груз доставлен';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,'delivered');};btns.appendChild(b);}}
-    if(deal.status==='delivered'&&!myConf){const b=document.createElement('button');b.textContent='✅ Подтвердить получение';b.style.cssText='background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){confirmDeal(deal.id);};btns.appendChild(b);}
-    if(deal.status==='completed'){const b=document.createElement('button');b.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';b.onclick=function(){rateDealDialog(deal.id,deal.deal_number||'');};btns.appendChild(b);}
-    const bp=document.createElement('button');bp.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_pdf||'📄 Акт PDF';bp.style.cssText='background:#f0f2f5;color:#333;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';bp.onclick=function(){downloadPDF(deal.id,deal.deal_number||'deal');};btns.appendChild(bp);
+    if(next){const b=document.createElement('button');b.textContent='→ '+(DEAL_STATUS_MAP[next]&&DEAL_STATUS_MAP[next].label||next);b.style.cssText='background:#1a1a2e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,next);};btns.appendChild(b);}
+    if(deal.status==='delivered'&&!myConf){const b=document.createElement('button');b.textContent='✅ Подтвердить';b.style.cssText='background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){confirmDeal(deal.id);};btns.appendChild(b);}
+    if(deal.status==='completed'){const b=document.createElement('button');b.textContent='⭐ Оценить';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';b.onclick=function(){rateDealDialog(deal.id,deal.deal_number||'');};btns.appendChild(b);}
+    const bp=document.createElement('button');bp.textContent='📄 Акт PDF';bp.style.cssText='background:#f0f2f5;color:#333;border:none;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer';bp.onclick=function(){downloadPDF(deal.id,deal.deal_number||'deal');};btns.appendChild(bp);
   });
 }
 
 async function updateDealStatus(id,status){
   const tk=getToken?getToken():localStorage.getItem('ch_token');
   if(!tk)return;
-  await fetch(API_BASE+'/api/deals/'+id+'/status',{method:'POST',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},body:JSON.stringify({status})});
+  await fetch(API_BASE+'/api/deals/'+id+'/status',{method:'PUT',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},body:JSON.stringify({status})});
   loadDeals();
 }
 async function confirmDeal(id){
@@ -3399,7 +2409,7 @@ function renderNotifs(){
     +'<div style="font-weight:600;font-size:13px">'+n.title+'</div>'
     +'<div style="font-size:12px;color:#888;margin-top:2px">'+n.body+'</div>'
     +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+n.time+'</div>'
-    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button onclick="('+(typeof a.action==="function"?a.action.toString()+"()":a.fn||"")+'; event.stopPropagation()" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+a.label+'</button>').join('')+'</div>':'')
+    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button onclick="('+a.action.toString()+'()); event.stopPropagation()" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+a.label+'</button>').join('')+'</div>':'')
     +'</div>'
   ).join('');
 }
@@ -3437,7 +2447,7 @@ window.openRouteMap = function(){
   if(block.style.display !== 'none'){
     block.style.display = 'none';
     if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-    const _mapBtn2 = document.querySelector('[onclick="openRouteMap()"]'); if(_mapBtn2) _mapBtn2.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_show_route||'🗺️ Показать маршрут на карте';
+    document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Показать маршрут на карте';
     return;
   }
   
@@ -3537,64 +2547,3 @@ window.doForgotStep2 = doForgotStep2;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
-
-// Язык восстанавливается раньше — см. блок перед syncLoadsFromServer
-
-// ─── Polling: автопроверка откликов каждые 30 секунд ───────────────────────
-(function startResponsePolling(){
-  var _knownResponseIds = {};
-
-  function _initKnownResponses(){
-    if(typeof _loadResponses !== 'undefined'){
-      Object.keys(_loadResponses).forEach(function(loadId){
-        if(!_knownResponseIds[loadId]) _knownResponseIds[loadId] = {};
-        (_loadResponses[loadId]||[]).forEach(function(r){ _knownResponseIds[loadId][r.id] = true; });
-      });
-    }
-  }
-
-  function _pollResponses(){
-    var tk = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('ch_token');
-    if(!tk) return;
-
-    fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads', {
-      headers: { 'Authorization': 'Bearer ' + tk }
-    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
-      if(!data || !data.loads) return;
-      data.loads.forEach(function(l){
-        fetch('https://api-production-f3ea.up.railway.app/api/responses/load/' + l.id, {
-          headers: { 'Authorization': 'Bearer ' + tk }
-        }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-          if(!d || !d.responses) return;
-          var responses = d.responses;
-          if(!_knownResponseIds[l.id]){
-            _knownResponseIds[l.id] = {};
-            responses.forEach(function(r){ _knownResponseIds[l.id][r.id] = true; });
-            return;
-          }
-          var newOnes = responses.filter(function(r){ return !_knownResponseIds[l.id][r.id]; });
-          newOnes.forEach(function(r){
-            _knownResponseIds[l.id][r.id] = true;
-            var route = (l.from || '?') + ' \u2192 ' + (l.to || '?');
-            var name = r.carrier_name || 'Перевозчик';
-            var priceText = r.price ? ' \u00b7 ' + r.price + ' \u20be' : '';
-            if(typeof pushNotif === 'function'){
-              pushNotif('\ud83d\ude9b Новый отклик!', name + priceText + ' на груз ' + route, []);
-            }
-            if(typeof _loadResponses !== 'undefined'){
-              _loadResponses[l.id] = responses.map(function(rr){
-                return {id:rr.id, name:rr.carrier_name||'Перевозчик', phone:rr.carrier_phone||null, message:rr.message||null, price:rr.price||null, status:rr.status||'pending'};
-              });
-              if(typeof renderCabLoads === 'function') renderCabLoads();
-            }
-          });
-        }).catch(function(){});
-      });
-    }).catch(function(){});
-  }
-
-  setTimeout(function(){
-    _initKnownResponses();
-    setInterval(_pollResponses, 30000);
-  }, 5000);
-})();

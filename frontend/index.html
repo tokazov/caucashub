@@ -22,7 +22,9 @@
     <span class="online-dot" id="onlineDot" title="Вы онлайн"></span>
     <div style="display:flex;gap:2px">
       <button class="lang-btn active" onclick="setLang('ru',this)">RU</button>
-      <button class="lang-btn" onclick="setLang('ge',this)">GE</button>
+      <!-- GE/EN — переводы в разработке -->
+      <!-- <button class="lang-btn" onclick="setLang('ge',this)">GE</button> -->
+      <!-- <button class="lang-btn" onclick="setLang('en',this)">EN</button> -->
     </div>
     <button class="notif-btn" id="notifBtn" onclick="toggleNotifs()">
       <span class="notif-icon">🔔</span>
@@ -895,8 +897,21 @@
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:700;margin-bottom:12px">🗺️ Популярные маршруты</div>
     <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes">
-      <div style="text-align:center;padding:12px;color:#aaa;font-size:13px">Загрузка...</div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Тбилиси → Батуми</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">18 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Поти → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">12 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Кутаиси → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">9 рейсов</span>
+      </div>
     </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;color:#aaa;text-align:center">Полная аналитика будет доступна после первых реальных сделок на платформе</div>
   </div>
 </div>
 
