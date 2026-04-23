@@ -298,6 +298,7 @@ async def get_my_deals(
 async def download_act(
     deal_id: int,
     token: Optional[str] = Query(None),
+    lang: Optional[str] = Query("ru"),
     db: AsyncSession = Depends(get_db),
     authorization: Optional[str] = None,
 ):
@@ -363,6 +364,8 @@ async def download_act(
         # Даты
         "loading_at":      deal.loading_at,
         "delivered_at":    deal.delivered_at,
+        # Язык PDF
+        "lang":            lang if lang in ("ru", "ge") else "ru",
     }
 
     try:
