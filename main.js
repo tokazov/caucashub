@@ -2568,3 +2568,72 @@ async function rateDeal(dealId) {
 }
 window.rateDeal = rateDeal;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
+
+// ─── Polling: автопроверка откликов каждые 30 секунд ───────────────────────
+(function startResponsePolling(){
+  var _knownResponseIds = {};  // loadId → Set of known response ids
+
+  function _initKnownResponses(){
+    // Инициализируем из текущего состояния _loadResponses (уже загружены)
+    if(typeof _loadResponses !== 'undefined'){
+      Object.keys(_loadResponses).forEach(function(loadId){
+        if(!_knownResponseIds[loadId]) _knownResponseIds[loadId] = {};
+        (_loadResponses[loadId]||[]).forEach(function(r){ _knownResponseIds[loadId][r.id] = true; });
+      });
+    }
+  }
+
+  function _pollResponses(){
+    var tk = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('ch_token');
+    if(!tk) return; // не залогинен — не опрашиваем
+
+    fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads', {
+      headers: { 'Authorization': 'Bearer ' + tk }
+    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
+      if(!data || !data.loads) return;
+      var loads = data.loads;
+
+      loads.forEach(function(l){
+        fetch('https://api-production-f3ea.up.railway.app/api/responses/load/' + l.id, {
+          headers: { 'Authorization': 'Bearer ' + tk }
+        }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+          if(!d || !d.responses) return;
+          var responses = d.responses;
+
+          if(!_knownResponseIds[l.id]){
+            // Первый раз видим этот груз — просто запоминаем, не уведомляем
+            _knownResponseIds[l.id] = {};
+            responses.forEach(function(r){ _knownResponseIds[l.id][r.id] = true; });
+            return;
+          }
+
+          // Ищем новые отклики (которых раньше не было)
+          var newOnes = responses.filter(function(r){ return !_knownResponseIds[l.id][r.id]; });
+          newOnes.forEach(function(r){
+            _knownResponseIds[l.id][r.id] = true;
+            var route = (l.from || '?') + ' → ' + (l.to || '?');
+            var name = r.carrier_name || 'Перевозчик';
+            var priceText = r.price ? ' · ' + r.price + ' ₾' : '';
+            if(typeof pushNotif === 'function'){
+              pushNotif('🚛 Новый отклик!', name + priceText + ' на груз ' + route, []);
+            }
+            // Обновляем _loadResponses чтобы данные были актуальны
+            if(typeof _loadResponses !== 'undefined'){
+              if(!_loadResponses[l.id]) _loadResponses[l.id] = [];
+              _loadResponses[l.id] = responses.map(function(rr){
+                return {id:rr.id, name:rr.carrier_name||'Перевозчик', phone:rr.carrier_phone||null, message:rr.message||null, price:rr.price||null, status:rr.status||'pending'};
+              });
+              if(typeof renderCabLoads === 'function') renderCabLoads();
+            }
+          });
+        }).catch(function(){});
+      });
+    }).catch(function(){});
+  }
+
+  // Запускаем с задержкой 5 сек после старта страницы (чтобы данные успели загрузиться)
+  setTimeout(function(){
+    _initKnownResponses();
+    setInterval(_pollResponses, 30000); // каждые 30 секунд
+  }, 5000);
+})();

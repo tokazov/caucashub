@@ -1812,6 +1812,14 @@ function setLang(l,btn){
   lang=l;
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Обновляем placeholder AI чата под текущий язык
+  var aiInp = document.getElementById('aiInput');
+  if(aiInp){
+    var placeholders = {ru:'Напишите о грузе...', ge:'დაწერეთ ტვირთის შესახებ...', en:'Describe your cargo...'};
+    aiInp.placeholder = placeholders[l] || placeholders['ru'];
+  }
+  // Сбрасываем чат — приветствие придёт на новом языке
+  if(typeof aiReset === 'function') aiReset();
 }
 
 // ── MODALS ────────────────────────────────────────────
@@ -2547,3 +2555,67 @@ window.doForgotStep2 = doForgotStep2;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
+
+// ─── Polling: автопроверка откликов каждые 30 секунд ───────────────────────
+(function startResponsePolling(){
+  var _knownResponseIds = {};  // loadId → Set of known response ids
+
+  function _initKnownResponses(){
+    if(typeof _loadResponses !== 'undefined'){
+      Object.keys(_loadResponses).forEach(function(loadId){
+        if(!_knownResponseIds[loadId]) _knownResponseIds[loadId] = {};
+        (_loadResponses[loadId]||[]).forEach(function(r){ _knownResponseIds[loadId][r.id] = true; });
+      });
+    }
+  }
+
+  function _pollResponses(){
+    var tk = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('ch_token');
+    if(!tk) return;
+
+    fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads', {
+      headers: { 'Authorization': 'Bearer ' + tk }
+    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
+      if(!data || !data.loads) return;
+      var loads = data.loads;
+
+      loads.forEach(function(l){
+        fetch('https://api-production-f3ea.up.railway.app/api/responses/load/' + l.id, {
+          headers: { 'Authorization': 'Bearer ' + tk }
+        }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+          if(!d || !d.responses) return;
+          var responses = d.responses;
+
+          if(!_knownResponseIds[l.id]){
+            _knownResponseIds[l.id] = {};
+            responses.forEach(function(r){ _knownResponseIds[l.id][r.id] = true; });
+            return;
+          }
+
+          var newOnes = responses.filter(function(r){ return !_knownResponseIds[l.id][r.id]; });
+          newOnes.forEach(function(r){
+            _knownResponseIds[l.id][r.id] = true;
+            var route = (l.from || '?') + ' → ' + (l.to || '?');
+            var name = r.carrier_name || 'Перевозчик';
+            var priceText = r.price ? ' · ' + r.price + ' ₾' : '';
+            if(typeof pushNotif === 'function'){
+              pushNotif('🚛 Новый отклик!', name + priceText + ' на груз ' + route, []);
+            }
+            if(typeof _loadResponses !== 'undefined'){
+              if(!_loadResponses[l.id]) _loadResponses[l.id] = [];
+              _loadResponses[l.id] = responses.map(function(rr){
+                return {id:rr.id, name:rr.carrier_name||'Перевозчик', phone:rr.carrier_phone||null, message:rr.message||null, price:rr.price||null, status:rr.status||'pending'};
+              });
+              if(typeof renderCabLoads === 'function') renderCabLoads();
+            }
+          });
+        }).catch(function(){});
+      });
+    }).catch(function(){});
+  }
+
+  setTimeout(function(){
+    _initKnownResponses();
+    setInterval(_pollResponses, 30000);
+  }, 5000);
+})();
