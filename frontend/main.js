@@ -50,7 +50,7 @@ function addrSearch(field, val){
           const name=obj.properties.get('name')||fullAddr.split(',')[0];
           const sub=fullAddr.split(',').slice(1,3).join(',').trim();
           const coords=obj.geometry.getCoordinates();
-          html+=`<div class="addr-item" onmousedown="selectAddr('${field}','${fullAddr.replace(/'/g,'`')}',${coords[0]},${coords[1]})"><div class="addr-main">${name}</div><div class="addr-sub">${sub}</div></div>`;
+          html+=`<div class="addr-item" onmousedown="selectAddr('${field}','${name.replace(/'/g,'`')}',${coords[0]},${coords[1]})"><div class="addr-main">${name}</div><div class="addr-sub">${sub}</div></div>`;
         });
         dropEl.innerHTML=html;
       }).catch(()=>{
@@ -1932,8 +1932,8 @@ function editMyLoad(id){
 
   setTimeout(()=>{
     const fill = (elId, val) => { const el=document.getElementById(elId); if(el&&val!=null) el.value=val; };
-    fill('pFromAddr', load.from2||load.from);
-    fill('pToAddr',   load.to2||load.to);
+    fill('pFromAddr', load.from||load.from2);
+    fill('pToAddr',   load.to||load.to2);
     fill('pWeight',   load.kg);
     fill('pPrice',    load.price);
     fill('pDesc',     load.desc);
