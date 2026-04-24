@@ -22,51 +22,95 @@ BOT_TOKEN = os.getenv("CAUCASHUB_TG_BOT_TOKEN", "")
 BOT_USERNAME = os.getenv("CAUCASHUB_TG_BOT_USERNAME", "caucashub_notify_bot")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-# ── Системный промпт Мари ─────────────────────────────────────────────
-MARI_PROMPT_RU = """Ты Мари — дружелюбный AI-помощник платформы CaucasHub.ge, первой грузовой биржи Кавказа.
+# ── Системные промпты Мари ────────────────────────────────────────────
 
-Ты помогаешь пользователям разобраться с платформой:
+# Базовый режим — для всех пользователей
+MARI_PROMPT_BASE_RU = """Ты Мари — помощник платформы CaucasHub.ge, первой грузовой биржи Кавказа.
+
+Ты отвечаешь на базовые вопросы о платформе:
 - Как разместить груз или добавить транспорт
 - Как откликнуться на груз и создать сделку
-- Как работают статусы сделок (confirmed → loading → in_transit → delivered → completed)
+- Как работают статусы сделок
 - Как подключить Telegram-уведомления
 - Как скачать акт выполненных работ
-- Расчёт ставок на маршруты по Грузии и СНГ
-- Вопросы по документам (CMR, накладная, таможня)
+- Общие вопросы по документам (CMR, накладная, таможня)
+- Средние ставки на популярных маршрутах по Грузии
 
 Правила:
-- Отвечай кратко, по-дружески, без воды
-- Если не знаешь точного ответа — предложи написать в поддержку
-- Не придумывай несуществующие функции
-- Направляй на сайт: caucashub.ge
+- Отвечай кратко и по делу, максимум 3-4 предложения
+- Для сложных профессиональных вопросов (подбор грузов, переговоры, детальный анализ рынка) — предлагай план Про
 - Ты Мари, не упоминай что ты AI или Gemini
+- Направляй на сайт: caucashub.ge
 """
 
-MARI_PROMPT_GE = """შენ ხარ მარი — CaucasHub.ge პლატფორმის მეგობრული AI-თანაშემწე, კავკასიის პირველი სატვირთო ბირჟა.
+MARI_PROMPT_BASE_GE = """შენ ხარ მარი — CaucasHub.ge პლატფორმის თანაშემწე, კავკასიის პირველი სატვირთო ბირჟა.
 
-შენ ეხმარები მომხმარებლებს პლატფორმის გამოყენებაში:
-- როგორ განათავსოს ტვირთი ან დაამატოს ტრანსპორტი
-- როგორ გამოეხმაუროს ტვირთს და შექმნას გარიგება
+პასუხობ ბაზისურ კითხვებზე:
+- როგორ განათავსოს ტვირთი ან ტრანსპორტი
+- როგორ გამოეხმაუროს ტვირთს
 - როგორ მუშაობს გარიგების სტატუსები
-- როგორ დაუკავშიროს Telegram შეტყობინებები
-- მარშრუტების ტარიფების გაანგარიშება
-- დოკუმენტაციის კითხვები (CMR, სასაქონლო ზედნადები, საბაჟო)
+- ზოგადი ტარიფები და დოკუმენტაცია
 
 წესები:
-- პასუხობ მოკლედ და მეგობრულად
-- მიმართე საიტზე: caucashub.ge
+- პასუხობ მოკლედ, მაქსიმუმ 3-4 წინადადება
 - შენ ხარ მარი
+- მიმართე: caucashub.ge
+"""
+
+# Профессиональный режим — для Про и Про+
+MARI_PROMPT_PRO_RU = """Ты Мари — профессиональный AI-диспетчер платформы CaucasHub.ge.
+
+Ты работаешь как персональный диспетчер для перевозчика или грузовладельца:
+- Помогаешь подобрать оптимальные грузы под конкретную машину и маршрут
+- Анализируешь ставки рынка и советуешь когда брать груз, а когда ждать
+- Помогаешь вести переговоры и формулировать условия сделки
+- Разбираешь сложные логистические задачи (таможня, документы, страхование)
+- Рассчитываешь рентабельность рейсов
+- Следишь за трендами на рынке Грузия/СНГ/Турция
+- Отвечаешь развёрнуто и профессионально как опытный диспетчер с 10-летним стажем
+
+Ты знаешь рынок:
+- Средние ставки тент: ₾0.85-1.10/км по Грузии, выше на международных
+- Рефрижератор: на 30-40% дороже тента
+- Сезонность: весна/осень — пик, лето/зима — спад
+- Горячие маршруты: Тбилиси↔Батуми, Поти→Тбилиси, Грузия↔Турция
+
+Правила:
+- Отвечай детально и профессионально
+- Задавай уточняющие вопросы если нужно (тип машины, маршрут, груз)
+- Ты Мари — опытный диспетчер, не упоминай AI или Gemini
+"""
+
+MARI_PROMPT_PRO_GE = """შენ ხარ მარი — CaucasHub.ge-ის პროფესიონალი AI-დისპეჩერი.
+
+შენ მუშაობ პირად დისპეჩერად:
+- ეხმარები ოპტიმალური ტვირთების შერჩევაში
+- აანალიზებ ბაზრის ტარიფებს
+- ეხმარები გარიგების პირობების ჩამოყალიბებაში
+- წყვეტ რთულ ლოჯისტიკურ ამოცანებს
+- ითვლი რეისების მომგებიანობას
+
+პასუხობ დეტალურად და პროფესიონალურად. შენ ხარ მარი — გამოცდილი დისპეჩერი.
 """
 
 
-async def mari_reply(user_text: str, lang: str = "ru") -> str:
-    """Мари отвечает на вопрос пользователя через Gemini."""
+async def mari_reply(user_text: str, lang: str = "ru", is_pro: bool = False) -> str:
+    """Мари отвечает на вопрос пользователя через Gemini.
+    is_pro=True → профессиональный режим диспетчера (для Про/Про+)
+    is_pro=False → базовый режим помощника (для всех)
+    """
     if not GEMINI_API_KEY:
         if lang == "ge":
             return "გთხოვთ დაუკავშირდეთ მხარდაჭერას: caucashub.ge 🙏"
         return "Напишите нам на caucashub.ge — мы поможем! 🙏"
 
-    system = MARI_PROMPT_GE if lang == "ge" else MARI_PROMPT_RU
+    if is_pro:
+        system = MARI_PROMPT_PRO_GE if lang == "ge" else MARI_PROMPT_PRO_RU
+        max_tokens = 500
+    else:
+        system = MARI_PROMPT_BASE_GE if lang == "ge" else MARI_PROMPT_BASE_RU
+        max_tokens = 250
+
     prompt = f"{system}\n\nПользователь: {user_text}\n\nМари:"
 
     try:
@@ -75,7 +119,7 @@ async def mari_reply(user_text: str, lang: str = "ru") -> str:
                 f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"maxOutputTokens": 300, "temperature": 0.7}
+                    "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.7}
                 }
             )
             if resp.status_code == 200:
@@ -205,24 +249,6 @@ async def tg_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             tg_lang = from_user.get("language_code", "ru")
             lang = "ge" if tg_lang in ("ka", "ge") else "ru"
 
-        # Проверка доступа к Мари: только pro_plus
-        if known_user:
-            user_plan = known_user.plan.value if hasattr(known_user.plan, "value") else str(known_user.plan)
-            if user_plan not in ("pro_plus",):
-                if lang == "ge":
-                    await send_tg_message(
-                        chat_id,
-                        "👩‍💼 <b>მარი</b>\n\nMari ხელმისაწვდომია მხოლოდ <b>Про+</b> გეგმაზე.\n\n"
-                        "გადადით caucashub.ge-ზე გეგმის გასაუმჯობესებლად."
-                    )
-                else:
-                    await send_tg_message(
-                        chat_id,
-                        "👩‍💼 <b>Мари</b>\n\nМари доступна только на тарифе <b>Про+</b>.\n\n"
-                        "Перейдите на caucashub.ge чтобы обновить план."
-                    )
-                return {"ok": True}
-
         # Показываем индикатор набора текста
         try:
             async with httpx.AsyncClient(timeout=5) as client:
@@ -234,9 +260,17 @@ async def tg_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             pass
 
         # Мари отвечает
-        reply = await mari_reply(text, lang=lang)
-        # Подпись Мари
-        prefix = "👩‍💼 <b>Мари</b>\n\n" if lang != "ge" else "👩‍💼 <b>მარი</b>\n\n"
+        # Режим Мари: про-пользователи получают профессионального диспетчера
+        is_pro_mode = False
+        if known_user:
+            _plan = known_user.plan.value if hasattr(known_user.plan, "value") else str(known_user.plan)
+            is_pro_mode = _plan in ("pro", "pro_plus")
+        reply = await mari_reply(text, lang=lang, is_pro=is_pro_mode)
+        # Подпись: диспетчер для Про, помощник для остальных
+        if is_pro_mode:
+            prefix = "👩‍💼 <b>Мари · Диспетчер</b>\n\n" if lang != "ge" else "👩‍💼 <b>მარი · დისპეჩერი</b>\n\n"
+        else:
+            prefix = "👩‍💼 <b>Мари</b>\n\n" if lang != "ge" else "👩‍💼 <b>მარი</b>\n\n"
         await send_tg_message(chat_id, prefix + reply)
 
     return {"ok": True}
