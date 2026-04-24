@@ -453,6 +453,14 @@ function translateCity(name) {
   return result;
 }
 
+// Получить наиболее конкретный город из полного адреса
+// "край Имеретия, Зестафони" → "Зестафони"
+function _cityShort(addr2, addr){
+  const src = addr2 || addr || '';
+  const parts = src.split(',').map(s=>s.trim()).filter(Boolean);
+  return parts[parts.length-1] || addr || '';
+}
+
 function filterCity(dir, val){
   const q=val.trim().toLowerCase();
   const id=dir==='from'?'dropFrom':'dropTo';
@@ -910,12 +918,6 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  // Показываем наиболее конкретный город: последний сегмент from2/from
-  function _cityShort(addr2, addr){
-    const src = addr2 || addr || '';
-    const parts = src.split(',').map(s=>s.trim()).filter(Boolean);
-    return parts[parts.length-1] || addr || '';
-  }
   document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
