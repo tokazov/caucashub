@@ -951,8 +951,8 @@ function openCargo(d){
         ${d.owner_email ? `<a href="mailto:${d.owner_email}" style="display:block;font-size:13px;color:#555;text-decoration:none">✉️ ${d.owner_email}</a>` : ''}
       `;
     } else if(!_canSeeContacts){
-      _mContactBlock.style.display='';
-      _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).contacts_locked||'Контакты доступны от'} <b>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_standard||'Стандарт'} ₾35 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_per_month||'мес'}</b><br><button onclick="closeModal('cargoOverlay');setTimeout(()=>document.getElementById('paywallOverlay').classList.add('on'),200)" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).details_link||'Подробнее →'}</button></div>`;
+      _mContactBlock.style.display='none'; // pricing disabled
+      if(false) _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).contacts_locked||'Контакты доступны от'} <b>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_standard||'Стандарт'} ₾35 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_per_month||'мес'}</b><br><button onclick="closeModal('cargoOverlay');setTimeout(()=>document.getElementById('paywallOverlay').classList.add('on'),200)" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).details_link||'Подробнее →'}</button></div>`;
     } else {
       _mContactBlock.style.display='none';
     }
@@ -994,11 +994,8 @@ function doRespond(){
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!user || !user.email || !_tk){ closeModal('cargoOverlay'); openAuth('login'); return; }
 
-  // Проверка тарифного плана — free не может откликаться
-  if(!user || user.plan === 'free'){
-    document.getElementById('paywallOverlay').classList.add('on');
-    return;
-  }
+  // Тарификация временно отключена
+  // if(!user || user.plan === 'free'){ paywallOverlay — DISABLED }
 
   // Проверка профиля — только для перевозчиков (carrier)
   // shipper и both могут откликаться без заполнения профиля перевозчика
