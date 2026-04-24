@@ -910,7 +910,7 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  document.getElementById('mTitle').textContent=`${translateCity(d.from2||d.from)} → ${translateCity(d.to2||d.to)}`;
+  document.getElementById('mTitle').textContent=`${translateCity(d.from)} → ${translateCity(d.to)}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
@@ -944,7 +944,7 @@ function openCargo(d){
       `;
     } else if(!_canSeeContacts){
       _mContactBlock.style.display='';
-      _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 Контакты доступны от <b>Стандарт ₾35/мес</b><br><button onclick="document.getElementById('paywallOverlay').classList.add('on')" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Подробнее →</button></div>`;
+      _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).contacts_locked||'Контакты доступны от'} <b>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_standard||'Стандарт'} ₾35/${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_per_month||'мес'}</b><br><button onclick="document.getElementById('paywallOverlay').classList.add('on')" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).details_link||'Подробнее →'}</button></div>`;
     } else {
       _mContactBlock.style.display='none';
     }
@@ -2553,6 +2553,8 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ Всё из Про\n✅ Мари мониторит биржу\n✅ Уведомления по маршрутам\n✅ AI менеджер Мари 24/7',
     pw_free_now: 'Сейчас все функции бесплатны 🎉',
     pw_coming_soon: 'Подписки откроются позже',
+    contacts_locked: 'Контакты доступны от',
+    details_link: 'Подробнее →',
     rules_title: '📋 Правила использования',
     rules_updated: 'Последнее обновление: апрель 2026',
     rules_close: 'Понятно',
@@ -2873,6 +2875,8 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ პრო-ს ყველაფერი\n✅ მარი მონიტორინგს უწევს ბირჟას\n✅ შეტყობინებები მარშრუტებზე\n✅ AI მენეჯერი მარი 24/7',
     pw_free_now: 'ახლა ყველა ფუნქცია უფასოა 🎉',
     pw_coming_soon: 'გამოწერა მოგვიანებით გაიხსნება',
+    contacts_locked: 'კონტაქტები ხელმისაწვდომია',
+    details_link: 'დეტალურად →',
     rules_title: '📋 გამოყენების წესები',
     rules_updated: 'ბოლო განახლება: აპრილი 2026',
     rules_close: 'გასაგებია',
