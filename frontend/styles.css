@@ -197,14 +197,15 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .rates-table td { padding:6px 6px; font-size:12px; }
   .rates-table td:first-child { font-size:11px; max-width:90px; }
   .fsel { font-size:12px; padding:6px 8px; }
+  /* Мобильный: 2 колонки 50/50 */
   .filter-sel { flex:1; min-width:calc(50% - 4px); max-width:calc(50% - 4px); box-sizing:border-box; }
-  .filter-date-wrap { flex:1; min-width:calc(50% - 4px); max-width:calc(50% - 4px); }
-  .filter-date-wrap .fsel { width:100%; }
-  .city-input-wrap { flex:1; min-width:0; }
+  .filter-date-wrap { flex:1; min-width:calc(50% - 4px); max-width:calc(50% - 4px); box-sizing:border-box; }
+  .filter-date-wrap .fsel { width:100%; box-sizing:border-box; }
+  .city-input-wrap { flex:1; min-width:calc(50% - 4px); max-width:calc(50% - 4px); box-sizing:border-box; }
   .filters { flex-wrap:wrap; }
   .filters > * { box-sizing:border-box; }
+  .post-btn { width:100%; margin-top:2px; }
   .post-btn span { display:inline; }
-  .fbtn, .post-btn { flex:1; }
 }
 /* AI DISPATCHER */
 .ai-role-btns{display:flex;flex-direction:column;gap:6px;margin:4px 0;}
