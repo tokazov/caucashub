@@ -187,6 +187,9 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
+            # Убираем груз из публичного списка
+            from sqlalchemy import text as sql_text
+            await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
         else:
             deal.status = DealStatus.delivered
 
@@ -201,6 +204,9 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
+            # Убираем груз из публичного списка
+            from sqlalchemy import text as sql_text
+            await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
         else:
             deal.status = DealStatus.delivered
 
@@ -533,5 +539,7 @@ async def rate_deal(
     # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
     from sqlalchemy import text
     await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
+    # Помечаем груз как завершённый (убираем из публичного списка)
+    await db.execute(text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
     await db.commit()
     return {"ok": True, "score": data.score, "deal_id": deal_id}

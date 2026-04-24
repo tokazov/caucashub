@@ -229,3 +229,26 @@ async def admin_bulk_delete(
     await db.execute(sql_delete(Load).where(Load.id.in_(ids)))
     await db.commit()
     return {"deleted": ids}
+
+
+@router.post("/admin/set-status")
+async def admin_set_status(
+    ids: list[int],
+    status: str,
+    secret: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Admin: изменить статус грузов. status: active|taken|expired|canceled"""
+    import os
+    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    try:
+        new_status = LoadStatus(status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown status: {status}")
+    from sqlalchemy import update as sql_update
+    await db.execute(
+        sql_update(Load).where(Load.id.in_(ids)).values(status=new_status)
+    )
+    await db.commit()
+    return {"updated": ids, "status": status}
