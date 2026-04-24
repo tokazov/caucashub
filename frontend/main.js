@@ -2561,6 +2561,7 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ Всё из Про\n✅ Мари мониторит биржу\n✅ Уведомления по маршрутам\n✅ AI менеджер Мари 24/7',
     pw_free_now: 'Сейчас все функции бесплатны 🎉',
     pw_coming_soon: 'Подписки откроются позже',
+    ad_label: 'Реклама',
     contacts_locked: 'Контакты доступны от',
     details_link: 'Подробнее →',
     rules_title: '📋 Правила использования',
@@ -2883,6 +2884,7 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ პრო-ს ყველაფერი\n✅ მარი მონიტორინგს უწევს ბირჟას\n✅ შეტყობინებები მარშრუტებზე\n✅ AI მენეჯერი მარი 24/7',
     pw_free_now: 'ახლა ყველა ფუნქცია უფასოა 🎉',
     pw_coming_soon: 'გამოწერა მოგვიანებით გაიხსნება',
+    ad_label: 'რეკლამა',
     contacts_locked: 'კონტაქტები ხელმისაწვდომია',
     details_link: 'დეტალურად →',
     rules_title: '📋 გამოყენების წესები',
@@ -3902,3 +3904,105 @@ window.connectTelegram = connectTelegram;
 window.unlinkTelegram = unlinkTelegram;
 
 // Язык восстанавливается раньше — см. блок перед syncLoadsFromServer
+
+// ═══ ADVERTISING SYSTEM ═══
+// Данные рекламы — редактируй этот массив чтобы добавить/убрать баннеры
+const ADS = [
+  // Пример записи (пока пусто — показывает блок только если есть реклама):
+  // {
+  //   id: 1,
+  //   logo: '🏢',        // emoji или URL картинки
+  //   logoUrl: '',       // если есть URL картинки
+  //   title: 'Название компании — краткий заголовок',
+  //   desc: 'Описание услуги · Город · от ₾XXX',
+  //   btnText: 'Узнать →',
+  //   url: 'https://example.com',
+  //   bgColor: '#fff8e6',   // цвет фона слайда
+  //   type: 'top',          // 'top' = топ-баннер, 'native' = нативная карточка
+  //   nativePosition: 8,    // для native: после какого груза показывать
+  // }
+];
+
+// ── Топ-баннер ротатор ─────────────────────────────────────────────
+function _initAdBanner() {
+  const topAds = ADS.filter(a => a.type === 'top');
+  const banner = document.getElementById('adBanner');
+  const slides = document.getElementById('adSlides');
+  const dots = document.getElementById('adDots');
+  if (!banner || !slides || topAds.length === 0) return;
+
+  banner.style.display = 'block';
+
+  // Создаём слайды
+  topAds.forEach((ad, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'ad-slide' + (i === 0 ? ' active' : '');
+    slide.style.background = ad.bgColor || '#fff8e6';
+    slide.innerHTML = `
+      <div class="ad-slide-logo">
+        ${ad.logoUrl ? `<img src="${ad.logoUrl}" alt="">` : ad.logo || '📢'}
+      </div>
+      <div class="ad-slide-text">
+        <div class="ad-slide-title">${ad.title}</div>
+        <div class="ad-slide-desc">${ad.desc}</div>
+      </div>
+      <a href="${ad.url}" class="ad-slide-btn" target="_blank" rel="noopener">${ad.btnText || 'Подробнее →'}</a>
+    `;
+    slides.appendChild(slide);
+
+    // Точка-индикатор
+    if (topAds.length > 1) {
+      const dot = document.createElement('div');
+      dot.className = 'ad-dot' + (i === 0 ? ' active' : '');
+      dot.onclick = () => _showAdSlide(i);
+      dots.appendChild(dot);
+    }
+  });
+
+  // Автоматическая ротация каждые 5 секунд
+  if (topAds.length > 1) {
+    let current = 0;
+    setInterval(() => {
+      current = (current + 1) % topAds.length;
+      _showAdSlide(current);
+    }, 5000);
+  }
+}
+
+function _showAdSlide(idx) {
+  const allSlides = document.querySelectorAll('.ad-slide');
+  const allDots = document.querySelectorAll('.ad-dot');
+  allSlides.forEach((s, i) => s.classList.toggle('active', i === idx));
+  allDots.forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+// ── Нативная реклама в списке грузов ──────────────────────────────
+function _injectNativeAds(cargoItems) {
+  const nativeAds = ADS.filter(a => a.type === 'native');
+  if (nativeAds.length === 0) return cargoItems;
+
+  const template = document.getElementById('adNativeTemplate');
+  if (!template) return cargoItems;
+
+  const result = [...cargoItems];
+  // Вставляем нативные карточки в нужные позиции
+  nativeAds.forEach(ad => {
+    const pos = ad.nativePosition || 8;
+    const card = template.content.cloneNode(true).querySelector('.ad-native-card');
+    card.querySelector('.ad-native-title').textContent = ad.title;
+    card.querySelector('.ad-native-desc').textContent = ad.desc;
+    const btn = card.querySelector('.ad-native-btn');
+    btn.href = ad.url;
+    btn.textContent = ad.btnText || 'Подробнее →';
+    card.onclick = () => window.open(ad.url, '_blank');
+    result.splice(Math.min(pos, result.length), 0, { _isAd: true, _el: card });
+  });
+  return result;
+}
+
+// Инициализируем при загрузке
+setTimeout(_initAdBanner, 500);
+
+// Экспортируем для использования в renderLoads
+window._injectNativeAds = _injectNativeAds;
+window.ADS = ADS;

@@ -411,3 +411,59 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .row { display: grid !important; }
   .row-mobile-main, .row-mobile-footer { display: none !important; }
 }
+
+/* ═══ ADVERTISING ═══ */
+/* Топ-баннер — слайдер */
+#adBanner { min-height: 72px; }
+.ad-slide {
+  display: none;
+  padding: 10px 16px;
+  align-items: center;
+  gap: 12px;
+  animation: adFadeIn 0.5s ease;
+}
+.ad-slide.active { display: flex; }
+@keyframes adFadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+.ad-slide-logo {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: #f0f2f5; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; overflow: hidden;
+}
+.ad-slide-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+.ad-slide-text { flex: 1; min-width: 0; }
+.ad-slide-title { font-size: 13px; font-weight: 700; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ad-slide-desc { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ad-slide-btn {
+  flex-shrink: 0; background: #f7b731; color: #1a1a2e;
+  border: none; padding: 8px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  text-decoration: none; white-space: nowrap;
+}
+.ad-slide-btn:hover { background: #e6a820; }
+.ad-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #ccc; cursor: pointer; transition: background 0.3s;
+}
+.ad-dot.active { background: #f7b731; }
+
+/* Нативная карточка */
+.ad-native-card {
+  background: #f0f7ff; border-left: 3px solid #3498db;
+  padding: 12px 16px; position: relative;
+  cursor: pointer; transition: background 0.2s;
+}
+.ad-native-card:hover { background: #e8f4fd; }
+.ad-native-badge {
+  position: absolute; top: 8px; right: 12px;
+  font-size: 10px; color: #3498db; font-weight: 700;
+  background: rgba(52,152,219,0.1); padding: 2px 8px; border-radius: 4px;
+}
+.ad-native-title { font-size: 14px; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
+.ad-native-desc { font-size: 12px; color: #666; }
+.ad-native-btn {
+  display: inline-block; margin-top: 8px;
+  background: #3498db; color: white;
+  padding: 6px 14px; border-radius: 6px;
+  font-size: 12px; font-weight: 700; text-decoration: none;
+}
