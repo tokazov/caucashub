@@ -8,7 +8,9 @@ from app.models.user import User
 from app.models.load import Load
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
+from app.services.telegram_notify import notify_new_response, notify_response_accepted
 import httpx
+import asyncio
 
 router = APIRouter(prefix="/api/responses", tags=["responses"])
 
@@ -98,6 +100,15 @@ async def respond_to_load(
     # Получаем грузоотправителя
     owner_res = await db.execute(select(User).where(User.id == load.user_id))
     owner = owner_res.scalar_one_or_none()
+
+    # TG-уведомление грузоотправителю
+    if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
+        carrier_name = current_user.company_name or current_user.email.split("@")[0]
+        price_val = float(data.price) if data.price else 0
+        asyncio.create_task(notify_new_response(
+            owner.telegram_id, carrier_name,
+            load.from_city, load.to_city, price_val, "₾"
+        ))
 
     # Email грузоотправителю
     if owner and owner.email:
@@ -242,9 +253,18 @@ async def accept_response(
     await db.commit()
     await db.refresh(deal)
 
-    # Email перевозчику
+    # TG-уведомление перевозчику
     carrier_res = await db.execute(select(User).where(User.id == resp.user_id))
     carrier = carrier_res.scalar_one_or_none()
+    if carrier and carrier.telegram_id and not carrier.telegram_id.startswith("pending:"):
+        shipper_name = current_user.company_name or current_user.email.split("@")[0]
+        asyncio.create_task(notify_response_accepted(
+            carrier.telegram_id, shipper_name,
+            load.from_city, load.to_city,
+            float(resp.price_usd or load.price_gel or 0), "₾"
+        ))
+
+    # Email перевозчику
     if carrier and carrier.email:
         route = f"{load.from_city} → {load.to_city}"
         shipper_name = current_user.company_name or current_user.email
