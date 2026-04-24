@@ -147,64 +147,66 @@
 
 <!-- FILTERS -->
 <div class="filters">
-  <!-- Строка 1: Откуда + Куда -->
-  <div style="display:flex;gap:8px;width:100%">
-    <div class="city-input-wrap" style="flex:1;min-width:0">
-      <input class="city-input" id="fFrom" placeholder="📍 Откуда" data-i18n-ph="ph_from" autocomplete="off" name="cargo-from" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
-      <div class="city-dropdown" id="dropFrom"></div>
-    </div>
-    <div class="city-input-wrap" style="flex:1;min-width:0">
-      <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="off" name="cargo-to" data-i18n-ph="ph_to" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
-      <div class="city-dropdown" id="dropTo"></div>
-    </div>
+  <div class="city-input-wrap">
+    <input class="city-input" id="fFrom" placeholder="📍 Откуда" data-i18n-ph="ph_from" autocomplete="off" name="cargo-from" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+    <div class="city-dropdown" id="dropFrom"></div>
+  </div>
+  <div class="city-input-wrap">
+    <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="off" name="cargo-to" data-i18n-ph="ph_to" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+    <div class="city-dropdown" id="dropTo"></div>
   </div>
 
-  <!-- Строка 2: Дата + Кузов -->
   <div style="display:flex;gap:8px;width:100%">
-    <div style="position:relative;flex:1;min-width:0">
-      <select class="fsel" id="fDate" onchange="filterByDate(this.value)" style="width:100%">
-        <option value="" data-i18n="opt_date">📅 Дата</option>
-        <option value="today" data-i18n="opt_today">Сегодня</option>
-        <option value="tomorrow" data-i18n="opt_tomorrow">Завтра</option>
-        <option value="week" data-i18n="opt_week">На неделе</option>
-        <option value="pick">📆 Период...</option>
-      </select>
-      <!-- Попап выбора периода -->
-      <div id="datePeriodPop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:14px;z-index:500;min-width:230px;border:1px solid #e0e0e0">
-        <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px"><span data-i18n="None"><span data-i18n="pick_period">Выберите период</span></span></div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
-          <div><div style="font-size:11px;color:#aaa;margin-bottom:3px">С</div><input type="date" id="fDateFrom" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/></div>
-          <div><div style="font-size:11px;color:#aaa;margin-bottom:3px">По</div><input type="date" id="fDateTo" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+  <div style="position:relative;flex:1;min-width:0">
+    <select class="fsel" id="fDate" onchange="filterByDate(this.value)" style="width:100%">
+      <option value="" data-i18n="opt_date">📅 Дата</option>
+      <option value="today" data-i18n="opt_today">Сегодня</option>
+      <option value="tomorrow" data-i18n="opt_tomorrow">Завтра</option>
+      <option value="week" data-i18n="opt_week">На неделе</option>
+      <option value="pick">📆 Период...</option>
+    </select>
+    <!-- Попап выбора периода -->
+    <div id="datePeriodPop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:14px;z-index:500;min-width:230px;border:1px solid #e0e0e0">
+      <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px"><span data-i18n="None"><span data-i18n="pick_period">Выберите период</span></span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:3px">С</div>
+          <input type="date" id="fDateFrom" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
         </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="applyDatePeriod()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:9px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">Найти</button>
-          <button onclick="clearDatePeriod()" style="background:#f0f0f0;color:#666;border:none;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer">✕</button>
+        <div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:3px">По</div>
+          <input type="date" id="fDateTo" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
         </div>
       </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="applyDatePeriod()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:9px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">Найти</button>
+        <button onclick="clearDatePeriod()" style="background:#f0f0f0;color:#666;border:none;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer">✕</button>
+      </div>
     </div>
-    <select class="fsel" id="fType" onchange="filterLoads()" style="flex:1;min-width:0"><option value="" data-i18n="opt_trucktype">🚛 Кузов</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option></select>
   </div>
-
-  <!-- Строка 3: Тоннаж + Стоимость + Добавить -->
-  <div style="display:flex;gap:8px;width:100%;align-items:center">
+  </div><!-- end date flex -->
+  <div style="display:flex;gap:8px;width:100%">
+    <select class="fsel" id="fType" onchange="filterLoads()" style="flex:1;min-width:0"><option value="" data-i18n="opt_trucktype">🚛 Кузов</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option></select>
     <select class="fsel" id="fWeight" onchange="filterLoads()" style="flex:1;min-width:0">
       <option value="" data-i18n="opt_tonnage">⚖️ Тоннаж</option>
       <option value="0-1000">До 1 т</option>
       <option value="1000-5000">1–5 т</option>
       <option value="5000-10000">5–10 т</option>
       <option value="10000-20000">10–20 т</option>
-      <option value="20000-99999">20+ т</option>
+      <option value="20000-99999">20+ т (фура)</option>
     </select>
-    <select class="fsel" id="fPrice" onchange="filterLoads()" style="flex:1;min-width:0">
-      <option value="" data-i18n="opt_price">💰 Цена</option>
-      <option value="0-300">До ₾300</option>
-      <option value="300-700">₾300–700</option>
-      <option value="700-1500">₾700–1500</option>
-      <option value="1500-99999">₾1500+</option>
-    </select>
-    <button class="post-btn" onclick="openPostLoad()" style="white-space:nowrap;flex-shrink:0">+ <span data-i18n="btn_post">Груз</span></button>
   </div>
+  <select class="fsel" id="fPrice" onchange="filterLoads()" style="width:100%">
+    <option value="" data-i18n="opt_price">💰 Стоимость</option>
+    <option value="0-300">До ₾300 / $100</option>
+    <option value="300-700">₾300–700 / $100–250</option>
+    <option value="700-1500">₾700–1500 / $250–500</option>
+    <option value="1500-99999">₾1500+ / $500+</option>
+  </select>
   <div id="fcount" style="display:none"></div>
+  <div style="width:100%;display:flex;gap:8px;margin-top:2px">
+    <button class="post-btn" onclick="openPostLoad()">+ <span data-i18n="btn_post">Разместить груз</span></button>
+  </div>
 </div>
 
 <!-- STATS -->
