@@ -156,9 +156,8 @@
     <div class="city-dropdown" id="dropTo"></div>
   </div>
 
-  <div style="display:flex;gap:8px;width:100%">
-  <div style="position:relative;flex:1;min-width:0">
-    <select class="fsel" id="fDate" onchange="filterByDate(this.value)" style="width:100%">
+  <div class="filter-date-wrap" style="position:relative">
+    <select class="fsel filter-sel" id="fDate" onchange="filterByDate(this.value)">
       <option value="" data-i18n="opt_date">📅 Дата</option>
       <option value="today" data-i18n="opt_today">Сегодня</option>
       <option value="tomorrow" data-i18n="opt_tomorrow">Завтра</option>
@@ -184,10 +183,9 @@
       </div>
     </div>
   </div>
-  </div><!-- end date flex -->
-  <div style="display:flex;gap:8px;width:100%">
-    <select class="fsel" id="fType" onchange="filterLoads()" style="flex:1;min-width:0"><option value="" data-i18n="opt_trucktype">🚛 Кузов</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option></select>
-    <select class="fsel" id="fWeight" onchange="filterLoads()" style="flex:1;min-width:0">
+  </select>
+  <select class="fsel filter-sel" id="fType" onchange="filterLoads()"><option value="" data-i18n="opt_trucktype">🚛 Кузов</option><option data-i18n="truck_tent">Тент</option><option data-i18n="truck_ref_full">Рефрижератор</option><option data-i18n="truck_reftent">Рефтент</option><option data-i18n="truck_megatent">Мегатент</option><option data-i18n="truck_bort_full">Бортовой</option><option data-i18n="truck_termos_full">Термос</option><option data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option data-i18n="truck_container_full">Контейнер</option><option data-i18n="truck_auto_full">Автовоз</option><option data-i18n="truck_evac">Эвакуатор</option><option data-i18n="truck_cistern">Цистерна</option><option data-i18n="truck_grain">Зерновоз</option><option data-i18n="truck_dump">Самосвал</option></select>
+  <select class="fsel filter-sel" id="fWeight" onchange="filterLoads()">
       <option value="" data-i18n="opt_tonnage">⚖️ Тоннаж</option>
       <option value="0-1000">До 1 т</option>
       <option value="1000-5000">1–5 т</option>
@@ -196,7 +194,7 @@
       <option value="20000-99999">20+ т (фура)</option>
     </select>
   </div>
-  <select class="fsel" id="fPrice" onchange="filterLoads()" style="width:100%">
+  <select class="fsel filter-sel" id="fPrice" onchange="filterLoads()">
     <option value="" data-i18n="opt_price">💰 Стоимость</option>
     <option value="0-300">До ₾300 / $100</option>
     <option value="300-700">₾300–700 / $100–250</option>
