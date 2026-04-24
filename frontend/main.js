@@ -993,11 +993,8 @@ function doRespond(){
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!user || !user.email || !_tk){ closeModal('cargoOverlay'); openAuth('login'); return; }
 
-  // Проверка тарифного плана — free не может откликаться
-  if(!user || user.plan === 'free'){
-    document.getElementById('paywallOverlay').classList.add('on');
-    return;
-  }
+  // Тарификация временно отключена — все могут откликаться
+  // if(!user || user.plan === 'free'){ paywallOverlay — DISABLED }
 
   // Проверка профиля — только для перевозчиков (carrier)
   // shipper и both могут откликаться без заполнения профиля перевозчика
@@ -1030,8 +1027,7 @@ function doRespond(){
       // 403 — тарифное ограничение → показываем paywall
       if(r.status === 403){
         btn.textContent='Откликнуться'; btn.disabled=false;
-        closeModal('cargoOverlay');
-        document.getElementById('paywallOverlay').classList.add('on');
+        // pricing disabled — не показываем paywall
         return;
       }
       // 401 — токен истёк, открываем логин
