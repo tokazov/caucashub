@@ -1395,6 +1395,12 @@ async function doRegister(){
   const pass=document.getElementById('regPass').value;
   const phone=document.getElementById('regPhone').value;
   if(!name||!email||!pass){alert('Заполните все обязательные поля');return;}
+  const agreeBox=document.getElementById('regAgree');
+  if(agreeBox && !agreeBox.checked){
+    const T=TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+    alert(T['reg_agree_required']||'Необходимо согласиться с правилами использования');
+    return;
+  }
   const inn=document.getElementById('regInn')?.value||'';
   const orgType=document.getElementById('regOrgType')?.value||'';
   const city=document.getElementById('regCity')?.value||'';
@@ -2444,6 +2450,23 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ Всё из Про\n✅ Мари мониторит биржу\n✅ Уведомления по маршрутам\n✅ AI менеджер Мари 24/7',
     pw_free_now: 'Сейчас все функции бесплатны 🎉',
     pw_coming_soon: 'Подписки откроются позже',
+    rules_title: '📋 Правила использования',
+    rules_updated: 'Последнее обновление: апрель 2026',
+    rules_close: 'Понятно',
+    rules_h1: '1. Общие положения',
+    rules_h2: '2. Ответственность платформы',
+    rules_h3: '3. Обязанности грузовладельца',
+    rules_h4: '4. Обязанности перевозчика',
+    rules_h5: '5. Запрещённые грузы',
+    rules_h6: '6. Разрешение споров',
+    rules_h7: '7. Конфиденциальность',
+    rules_h8: '8. Изменение правил',
+    rules_contact: 'По вопросам: caucashub.ge · @caucashub_bot',
+    footer_slogan: 'Первая биржа грузов Кавказа',
+    footer_rules: '📋 Правила и ответственность',
+    reg_agree: 'Регистрируясь, я соглашаюсь с',
+    reg_agree_link: 'правилами использования',
+    reg_agree_required: 'Необходимо согласиться с правилами использования',
     cab_logout: '🚪 Выйти',
     cab_settings_sub: 'Управление профилем и уведомлениями',
     cab_rs_hint: 'Данные о сделках для налоговой Грузии',
@@ -2743,6 +2766,23 @@ const TRANSLATIONS = {
     pw_proplus_features: '✅ პრო-ს ყველაფერი\n✅ მარი მონიტორინგს უწევს ბირჟას\n✅ შეტყობინებები მარშრუტებზე\n✅ AI მენეჯერი მარი 24/7',
     pw_free_now: 'ახლა ყველა ფუნქცია უფასოა 🎉',
     pw_coming_soon: 'გამოწერა მოგვიანებით გაიხსნება',
+    rules_title: '📋 გამოყენების წესები',
+    rules_updated: 'ბოლო განახლება: აპრილი 2026',
+    rules_close: 'გასაგებია',
+    rules_h1: '1. ზოგადი დებულებები',
+    rules_h2: '2. პლატფორმის პასუხისმგებლობა',
+    rules_h3: '3. დამქირავებლის ვალდებულებები',
+    rules_h4: '4. გადამზიდის ვალდებულებები',
+    rules_h5: '5. აკრძალული ტვირthი',
+    rules_h6: '6. დავების გადაწყვეტა',
+    rules_h7: '7. კონფიდენციალობა',
+    rules_h8: '8. წესების ცვლილება',
+    rules_contact: 'კითხვებისთვის: caucashub.ge · @caucashub_bot',
+    footer_slogan: 'კავკასიის პირველი სატვირthო ბირжა',
+    footer_rules: '📋 წესები და პასუხისმგებლობა',
+    reg_agree: 'რეგისტრაციით ვეთანხმები',
+    reg_agree_link: 'გამოყენების წესებს',
+    reg_agree_required: 'საჭიროა გამოყენების წესებზე თანხმობა',
     cab_logout: '🚪 გასვლა',
     cab_settings_sub: 'პროფილის მართვა',
     cab_rs_hint: 'გარიგებების მონაცემები rs.ge-სთვის',

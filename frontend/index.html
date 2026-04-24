@@ -592,6 +592,13 @@
 
         <input type="hidden" id="regRole">
         <div id="regErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px">
+          <input type="checkbox" id="regAgree" style="margin-top:3px;min-width:16px;accent-color:#f7b731">
+          <label for="regAgree" style="font-size:12px;color:#888;cursor:pointer">
+            <span data-i18n="reg_agree">Регистрируясь, я соглашаюсь с</span>
+            <a href="#" onclick="document.getElementById('rulesOverlay').classList.add('on');return false" style="color:#f7b731;text-decoration:none" data-i18n="reg_agree_link">правилами использования</a>
+          </label>
+        </div>
         <button class="btn-primary" onclick="doRegister()"><span data-i18n="None"><span data-i18n="btn_create_account">Создать аккаунт</span></span></button>
       </div>
 
@@ -1097,6 +1104,76 @@
   </div>
 </div>
 
+
+
+<!-- ═══ MODAL: ПРАВИЛА ═══ -->
+<div class="overlay" id="rulesOverlay" onclick="closeOverlay('rulesOverlay',event)">
+  <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
+    <button class="close-btn" onclick="closeModal('rulesOverlay')">✕</button>
+    <div class="modal-title" data-i18n="rules_title">📋 Правила использования</div>
+    <div id="rulesContent" style="font-size:13px;line-height:1.7;color:#333">
+
+      <div style="background:#fff8e6;border-left:3px solid #f7b731;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#888">
+        <span data-i18n="rules_updated">Последнее обновление: апрель 2026</span>
+      </div>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h1">1. Общие положения</h4>
+      <p data-i18n="rules_p1">CaucasHub.ge — информационная платформа (биржа), которая соединяет грузовладельцев и перевозчиков. Платформа не является стороной договора перевозки — договор заключается напрямую между пользователями. Регистрация означает согласие с настоящими правилами.</p>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h2">2. Ответственность платформы</h4>
+      <p data-i18n="rules_p2">CaucasHub не несёт ответственности за сохранность груза, сроки доставки и качество перевозки. Платформа не гарантирует достоверность данных, указанных пользователями. CaucasHub не является экспедитором, перевозчиком или страховщиком.</p>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h3">3. Обязанности грузовладельца</h4>
+      <ul style="margin:0;padding-left:18px" data-i18n="rules_p3">
+        <li>Предоставлять достоверную информацию о грузе (вес, габариты, характер)</li>
+        <li>Своевременно оплачивать услуги перевозчика согласно договорённости</li>
+        <li>Обеспечить надлежащую упаковку груза</li>
+        <li>Не размещать заведомо ложные объявления</li>
+      </ul>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h4">4. Обязанности перевозчика</h4>
+      <ul style="margin:0;padding-left:18px" data-i18n="rules_p4">
+        <li>Иметь действующие документы (лицензия, техосмотр, страховка)</li>
+        <li>Принимать груз только при наличии надлежащих документов</li>
+        <li>Соблюдать сроки доставки и условия договора</li>
+        <li>Немедленно уведомлять грузовладельца о форс-мажоре</li>
+      </ul>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h5">5. Запрещённые грузы</h4>
+      <p data-i18n="rules_p5">Запрещено размещать: наркотики, оружие, взрывчатые вещества, незадекларированные товары, а также любые грузы, перевозка которых нарушает законодательство Грузии или страны назначения.</p>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h6">6. Разрешение споров</h4>
+      <p data-i18n="rules_p6">Споры между пользователями решаются самостоятельно путём переговоров. При невозможности урегулирования — в суде по законодательству Грузии. CaucasHub вправе заблокировать пользователя при нарушении правил без предупреждения.</p>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h7">7. Конфиденциальность</h4>
+      <p data-i18n="rules_p7">Данные пользователей не передаются третьим лицам. Контакты участников видны только в рамках активной сделки. Платформа использует данные исключительно для обеспечения работы сервиса.</p>
+
+      <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h8">8. Изменение правил</h4>
+      <p data-i18n="rules_p8">CaucasHub оставляет за собой право изменять правила. Продолжение использования платформы после изменений означает согласие с новой редакцией.</p>
+
+      <div style="background:#f8f9fa;border-radius:8px;padding:12px 16px;margin-top:20px;font-size:12px;color:#888">
+        <span data-i18n="rules_contact">По вопросам: caucashub.ge · @caucashub_bot</span>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="closeModal('rulesOverlay')" style="margin-top:16px" data-i18n="rules_close">Понятно</button>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<div style="background:#1a1a2e;color:#888;font-size:12px;text-align:center;padding:16px;padding-bottom:80px">
+  <div style="margin-bottom:6px">
+    <span style="color:#f7b731;font-weight:700">CaucasHub</span><span style="color:#fff">.ge</span>
+    <span style="margin:0 8px;color:#444">·</span>
+    <span data-i18n="footer_slogan">Первая биржа грузов Кавказа</span>
+  </div>
+  <div>
+    <a href="#" onclick="document.getElementById('rulesOverlay').classList.add('on');return false" style="color:#888;text-decoration:none;margin:0 8px" data-i18n="footer_rules">📋 Правила и ответственность</a>
+    <span style="color:#444">·</span>
+    <a href="https://t.me/caucashub_bot" target="_blank" style="color:#888;text-decoration:none;margin:0 8px">💬 Поддержка</a>
+    <span style="color:#444">·</span>
+    <span style="margin:0 8px">© 2026 CaucasHub.ge</span>
+  </div>
+</div>
 
 </body>
 </html>
