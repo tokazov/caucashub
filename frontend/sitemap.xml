@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- Главная страница -->
+  <url>
+    <loc>https://caucashub.ge/</loc>
+    <lastmod>2026-04-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://caucashub.ge/"/>
+    <xhtml:link rel="alternate" hreflang="ka" href="https://caucashub.ge/?lang=ge"/>
+  </url>
+
+  <!-- Грузы -->
+  <url>
+    <loc>https://caucashub.ge/#loads</loc>
+    <lastmod>2026-04-24</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Транспорт -->
+  <url>
+    <loc>https://caucashub.ge/#trucks</loc>
+    <lastmod>2026-04-24</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Ставки -->
+  <url>
+    <loc>https://caucashub.ge/#rates</loc>
+    <lastmod>2026-04-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>
