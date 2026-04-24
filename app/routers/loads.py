@@ -220,15 +220,18 @@ async def get_load(
     ur = await db.execute(select(User).where(User.id == load.user_id))
     owner = ur.scalar_one_or_none()
 
-    # Определяем показывать ли контакты
+    # Определяем показывать ли контакты (если PRICING_ENABLED=false — показываем всем авторизованным)
+    from app.services.plan_check import PRICING_ENABLED, is_paid_plan
     show_contacts = False
     viewer_id = get_user_id(authorization)
     if viewer_id:
-        viewer_res = await db.execute(select(User).where(User.id == viewer_id))
-        viewer = viewer_res.scalar_one_or_none()
-        if viewer:
-            plan_val = viewer.plan.value if hasattr(viewer.plan, "value") else str(viewer.plan)
-            show_contacts = plan_val in ("standard", "pro", "pro_plus")
+        if not PRICING_ENABLED:
+            show_contacts = True  # Тарификация выключена — контакты всем
+        else:
+            viewer_res = await db.execute(select(User).where(User.id == viewer_id))
+            viewer = viewer_res.scalar_one_or_none()
+            if viewer:
+                show_contacts = is_paid_plan(viewer)
 
     return load_to_dict(load, user=owner, show_contacts=show_contacts)
 
