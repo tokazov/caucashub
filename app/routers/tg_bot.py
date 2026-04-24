@@ -205,6 +205,24 @@ async def tg_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             tg_lang = from_user.get("language_code", "ru")
             lang = "ge" if tg_lang in ("ka", "ge") else "ru"
 
+        # Проверка доступа к Мари: только pro_plus
+        if known_user:
+            user_plan = known_user.plan.value if hasattr(known_user.plan, "value") else str(known_user.plan)
+            if user_plan not in ("pro_plus",):
+                if lang == "ge":
+                    await send_tg_message(
+                        chat_id,
+                        "👩‍💼 <b>მარი</b>\n\nMari ხელმისაწვდომია მხოლოდ <b>Про+</b> გეგმაზე.\n\n"
+                        "გადადით caucashub.ge-ზე გეგმის გასაუმჯობესებლად."
+                    )
+                else:
+                    await send_tg_message(
+                        chat_id,
+                        "👩‍💼 <b>Мари</b>\n\nМари доступна только на тарифе <b>Про+</b>.\n\n"
+                        "Перейдите на caucashub.ge чтобы обновить план."
+                    )
+                return {"ok": True}
+
         # Показываем индикатор набора текста
         try:
             async with httpx.AsyncClient(timeout=5) as client:

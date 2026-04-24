@@ -62,7 +62,7 @@ class LoadUpdate(BaseModel):
     load_date_end: Optional[str] = None
     is_urgent: Optional[bool] = None
 
-def load_to_dict(l: Load, company_name: str = None, user: object = None) -> dict:
+def load_to_dict(l: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:
     """Конвертируем Load в dict для фронтенда."""
     # Берём company_name: явный параметр → user объект → fallback
     co = company_name
@@ -103,6 +103,9 @@ def load_to_dict(l: Load, company_name: str = None, user: object = None) -> dict
         "user_id": l.user_id,
         "views": l.views or 0,
         "created_at": l.created_at.isoformat() if l.created_at else None,
+        # Контакты владельца — только для платных планов
+        "owner_phone": (user.phone if user else None) if show_contacts else None,
+        "owner_email": (user.email if user else None) if show_contacts else None,
     }
 
 @router.get("/")
@@ -202,7 +205,11 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     return {"loads": [load_to_dict(l, user=owner) for l in loads]}
 
 @router.get("/{load_id}")
-async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
+async def get_load(
+    load_id: int,
+    db: AsyncSession = Depends(get_db),
+    authorization: Optional[str] = Header(None),
+):
     result = await db.execute(select(Load).where(Load.id == load_id))
     load = result.scalar_one_or_none()
     if not load:
@@ -212,7 +219,18 @@ async def get_load(load_id: int, db: AsyncSession = Depends(get_db)):
     # Загружаем профиль владельца
     ur = await db.execute(select(User).where(User.id == load.user_id))
     owner = ur.scalar_one_or_none()
-    return load_to_dict(load, user=owner)
+
+    # Определяем показывать ли контакты
+    show_contacts = False
+    viewer_id = get_user_id(authorization)
+    if viewer_id:
+        viewer_res = await db.execute(select(User).where(User.id == viewer_id))
+        viewer = viewer_res.scalar_one_or_none()
+        if viewer:
+            plan_val = viewer.plan.value if hasattr(viewer.plan, "value") else str(viewer.plan)
+            show_contacts = plan_val in ("standard", "pro", "pro_plus")
+
+    return load_to_dict(load, user=owner, show_contacts=show_contacts)
 
 
 @router.delete("/admin/bulk-delete")

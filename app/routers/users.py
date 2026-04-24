@@ -1,8 +1,9 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserPlan
 from app.routers.loads import require_user
 from pydantic import BaseModel
 from typing import Optional
@@ -20,6 +21,19 @@ class UpdateProfileRequest(BaseModel):
     telegram_id:  Optional[str] = None
 
 
+class SetPlanRequest(BaseModel):
+    plan:   str
+    secret: str
+
+
+PLAN_LIMITS = {
+    "free":     0,
+    "standard": 50,
+    "pro":      -1,   # безлимит
+    "pro_plus": -1,   # безлимит
+}
+
+
 @router.get("/me")
 async def get_me(
     db: AsyncSession = Depends(get_db),
@@ -29,21 +43,24 @@ async def get_me(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(404, "User not found")
+    plan_val = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
     return {
-        "id":           user.id,
-        "email":        user.email,
-        "company_name": user.company_name,
-        "phone":        user.phone,
-        "role":         user.role,
-        "plan":         user.plan,
-        "rating":       round((user.rating or 50) / 10, 1),
-        "trips_count":  user.trips_count or 0,
-        "is_verified":  user.is_verified,
-        "inn":          user.inn,
-        "org_type":     user.org_type,
-        "city":         user.city,
-        "lang":         user.lang,
-        "telegram_id":  user.telegram_id,
+        "id":                    user.id,
+        "email":                 user.email,
+        "company_name":          user.company_name,
+        "phone":                 user.phone,
+        "role":                  user.role,
+        "plan":                  plan_val,
+        "responses_this_month":  user.responses_this_month or 0,
+        "responses_limit":       PLAN_LIMITS.get(plan_val, 0),
+        "rating":                round((user.rating or 50) / 10, 1),
+        "trips_count":           user.trips_count or 0,
+        "is_verified":           user.is_verified,
+        "inn":                   user.inn,
+        "org_type":              user.org_type,
+        "city":                  user.city,
+        "lang":                  user.lang,
+        "telegram_id":           user.telegram_id,
     }
 
 
@@ -78,6 +95,35 @@ async def update_me(
         "org_type":     user.org_type,
         "city":         user.city,
     }
+
+
+@router.post("/me/plan")
+async def set_my_plan(
+    data: SetPlanRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(require_user),
+):
+    """Admin устанавливает план пользователя вручную после оплаты."""
+    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
+    if data.secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        new_plan = UserPlan(data.plan)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown plan: {data.plan}")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    user.plan = new_plan
+    await db.commit()
+    await db.refresh(user)
+
+    plan_val = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
+    return {"ok": True, "plan": plan_val}
 
 
 @router.get("/{user_id}")

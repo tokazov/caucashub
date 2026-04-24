@@ -12,6 +12,7 @@ class UserPlan(str, enum.Enum):
     free = "free"
     standard = "standard"
     pro = "pro"
+    pro_plus = "pro_plus"
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +36,9 @@ class User(Base):
     org_type      = Column(String, nullable=True)   # ООО / ИП / АО
     city          = Column(String, nullable=True)   # Город работы
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    # Тарификация — счётчик откликов
+    responses_this_month  = Column(Integer, default=0)
+    responses_month_reset = Column(DateTime, nullable=True)
 
 
 class ResetCode(Base):

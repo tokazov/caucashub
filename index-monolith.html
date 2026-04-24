@@ -1,28 +1,1013 @@
-// ═══════════════════════════════════════════════════════
-// CaucasHub.ge — main.js
-// Весь JS фронтенда (кроме api.js и ai-dispatcher.js)
-// 
-// СТРУКТУРА:
-//   1. LocalStorage helpers (_lsSet, _lsGet, _lsDel)
-//   2. Адресный поиск (addrSearch, selectAddr)
-//   3. Города и карта (filterCity, showRouteMap)
-//   4. Подписки и доступ (canSeeContact, canRespond)
-//   5. Рендер грузов (renderLoads, renderTrucks)
-//   6. Отклики (doRespond, addToOrders, acceptResponse)
-//   7. Кабинет (showCabinet, switchCabTab, loadCabinetData)
-//   8. Авторизация (openAuth, doLogin, doRegister)
-//   9. Размещение груза (openPostLoad, doPostLoad)
-//  10. Сделки (renderDealCard, loadDeals)
-//  11. Уведомления (pushNotif, _renderOrders)
-//  12. Навигация (showSection, setScope, setLang)
-// ═══════════════════════════════════════════════════════
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
 
+
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=ru_RU" type="text/javascript" async></script>
+<title>CaucasHub.ge — Биржа грузов Кавказа</title>
+
+
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f5; color:#1a1a2e;  overflow-x:hidden; }
+
+/* HEADER */
+.header { background:#1a1a2e; padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:54px; position:sticky; top:0; z-index:200; }
+.logo { color:#fff; font-size:24px; font-weight:900; }
+.logo span { color:#f7b731; }
+.logo sub { font-size:10px; color:#888; }
+.hright { display:flex; gap:8px; align-items:center; }
+.lang-btn { background:transparent; border:1px solid #333; color:#888; padding:3px 8px; border-radius:4px; font-size:11px; cursor:pointer; }
+.reg-type-btn { display:flex; align-items:center; gap:14px; background:#f8f9fa; border:2px solid #e0e0e0; border-radius:12px; padding:14px 16px; cursor:pointer; width:100%; text-align:left; transition:all .15s; }
+.reg-type-btn:hover { border-color:#f7b731; background:#fffbf0; }
+.reg-type-btn.selected { border-color:#1a1a2e; background:#f0f2f8; }
+.lang-btn.active { background:#f7b731; color:#1a1a2e; border-color:#f7b731; font-weight:700; }
+.btn-login { background:transparent; color:#ccc; border:1px solid #444; padding:7px 14px; border-radius:6px; font-size:14px; cursor:pointer; }
+.btn-login:hover { border-color:#f7b731; color:#f7b731; }
+.btn-reg { background:#f7b731; color:#1a1a2e; border:none; padding:7px 16px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer; }
+
+/* SCOPE */
+.scope-bar { background:#16213e; display:flex; padding:0 16px; border-bottom:1px solid #0d1526; }
+.scope-tab { padding:10px 20px; font-size:13px; color:#888; cursor:pointer; border-bottom:2px solid transparent; font-weight:500; position:relative; z-index:10; }
+.scope-tab.active { color:#f7b731; border-bottom-color:#f7b731; }
+
+/* NAV */
+.nav-tabs { background:#1a1a2e; display:flex; padding:0 16px; border-bottom:1px solid #111; }
+@media(max-width:768px){ .nav-tabs { display:none !important; } }
+.nav-tab { padding:10px 16px; color:#aaa; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; position:relative; z-index:10; }
+.nav-tab.active { color:#f7b731; border-bottom-color:#f7b731; font-weight:600; }
+
+/* STATS */
+.stats-bar { background:#0d1526; padding:8px 16px; display:flex; gap:20px; font-size:13px; color:#666; }
+.dot { width:6px; height:6px; border-radius:50%; background:#2ecc71; display:inline-block; margin-right:4px; animation:pulse 2s infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* FILTERS */
+.filters { background:#fff; padding:10px 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid #eee; position:relative; z-index:1; box-shadow:none; box-shadow:0 2px 4px rgba(0,0,0,.06); }
+.fsel { border:1.5px solid #e0e0e0; border-radius:8px; padding:7px 10px; font-size:15px; color:#333; background:#fff; cursor:pointer; outline:none; }
+.fsel:focus { border-color:#f7b731; }
+.fbtn { background:#1a1a2e; color:#fff; border:none; padding:7px 18px; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; }
+.fbtn:hover { background:#2a2a4e; }
+.fcount { background:#f7b731; color:#1a1a2e; padding:6px 12px; border-radius:8px; font-size:14px; font-weight:700; margin-left:auto; }
+.post-btn { background:#2ecc71; color:#fff; border:none; padding:7px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; }
+.post-btn:hover { background:#27ae60; }
+
+/* TABLE */
+.thead { display:grid; column-gap:8px; grid-template-columns:520px 1fr 1.3fr 1fr 1fr 90px; padding:8px 14px; background:#e8eaf0; font-size:11px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid #d0d4df; }
+.row { display:grid; column-gap:8px; grid-template-columns:520px 1fr 1.3fr 1fr 1fr 90px; padding:11px 14px; background:#fff; border-bottom:1px solid #f2f2f2; cursor:pointer; align-items:center; border-left:3px solid transparent; transition:background .12s; }
+.row:hover { background:#fffbf0; }
+.row.urgent { border-left-color:#e74c3c; }
+.row.fresh { border-left-color:#2ecc71; }
+.row.intl { border-left-color:#3498db; }
+.route { font-weight:700; font-size:16px; }
+.arrow { color:#f7b731; }
+.sub { font-size:13px; color:#999; margin-top:3px; }
+.tag { display:inline-block; font-size:13px; padding:3px 10px; border-radius:4px; font-weight:600; }
+.price { font-size:17px; font-weight:900; }
+.badge { font-size:10px; padding:2px 6px; border-radius:10px; font-weight:700; display:inline-block; margin-top:2px; }
+.badge-new { background:#2ecc71; color:#fff; }
+.badge-urgent { background:#e74c3c; color:#fff; }
+.badge-intl { background:#3498db; color:#fff; }
+.btn-resp { background:#f7b731; color:#1a1a2e; border:none; padding:7px 4px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; width:100%; text-align:center; }
+.btn-resp:hover { background:#e6a820; }
+.row > div { padding:0 6px; }
+.row > div:first-child { padding-left:0; }
+.thead > div { padding:0 6px; }
+.thead > div:first-child { padding-left:0; }
+.load-more { text-align:center; padding:16px; background:#fff; }
+.load-more button { background:#f0f2f5; border:none; padding:10px 24px; border-radius:8px; font-size:13px; color:#555; cursor:pointer; }
+
+/* TRUCKS TAB */
+.truck-row { display:grid; grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px; padding:11px 16px; background:#fff; border-bottom:1px solid #f2f2f2; cursor:pointer; align-items:center; border-left:3px solid transparent; transition:background .12s; }
+.truck-row:hover { background:#fffbf0; }
+
+/* RATES TAB */
+.rates-table { width:100%; border-collapse:collapse; background:#fff; }
+.rates-table th { background:#e8eaf0; padding:8px 8px; text-align:left; font-size:10px; color:#777; font-weight:700; text-transform:uppercase; letter-spacing:0; }
+.rates-table td { padding:8px 8px; border-bottom:1px solid #f2f2f2; font-size:13px; }
+.rate-up { color:#2ecc71; font-weight:700; }
+.rate-down { color:#e74c3c; font-weight:700; }
+
+/* ORDERS TAB */
+.orders-empty { text-align:center; padding:60px 20px; color:#aaa; }
+.orders-empty .icon { font-size:48px; margin-bottom:12px; }
+
+/* MODALS */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+.overlay.on { display:flex; }
+.modal { background:#fff; width:100%; max-width:480px; border-radius:16px; padding:24px; max-height:90vh; overflow-y:auto; animation:fadeIn .2s ease; position:relative; }
+.modal-bottom { background:#fff; width:100%; max-width:560px; border-radius:16px 16px 0 0; padding:20px; max-height:90vh; overflow-y:auto; align-self:flex-end; animation:slideUp .25s ease; position:relative; }
+@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-title { font-size:20px; font-weight:900; margin-bottom:4px; }
+.modal-sub { font-size:13px; color:#999; margin-bottom:20px; }
+.form-group { margin-bottom:14px; }
+.form-group label { font-size:12px; color:#666; font-weight:600; display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.4px; }
+.form-input { width:100%; border:1.5px solid #e0e0e0; border-radius:8px; padding:10px 12px; font-size:14px; outline:none; transition:border-color .2s; }
+.form-input:focus { border-color:#f7b731; }
+.form-select { width:100%; border:1.5px solid #e0e0e0; border-radius:8px; padding:10px 12px; font-size:14px; outline:none; background:#fff; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+.eye-btn { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:#aaa; padding:4px; }
+.pass-wrap { position:relative; }
+.btn-primary { width:100%; background:#f7b731; color:#1a1a2e; border:none; padding:13px; border-radius:10px; font-size:15px; font-weight:800; cursor:pointer; margin-top:8px; }
+.btn-primary:hover { background:#e6a820; }
+.btn-secondary { width:100%; background:#f0f2f5; color:#333; border:none; padding:11px; border-radius:10px; font-size:14px; cursor:pointer; margin-top:8px; }
+.close-btn { position:absolute; top:16px; right:16px; background:#f0f2f5; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; }
+.handle { width:40px; height:4px; background:#ddd; border-radius:2px; margin:0 auto 14px; }
+.divider { height:1px; background:#f0f0f0; margin:14px 0; }
+.tabs-auth { display:flex; border-bottom:1px solid #f0f0f0; margin-bottom:20px; }
+.tab-auth { flex:1; padding:10px; text-align:center; font-size:14px; color:#999; cursor:pointer; border-bottom:2px solid transparent; background:none; border-top:none; border-left:none; border-right:none; }
+.tab-auth.active { color:#1a1a2e; border-bottom-color:#f7b731; font-weight:700; }
+
+/* USER AVATAR */
+.user-avatar { width:32px; height:32px; background:#f7b731; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#1a1a2e; font-weight:800; font-size:13px; cursor:pointer; }
+
+/* SUCCESS */
+.success-msg { background:#e8f5e9; border:1px solid #2ecc71; border-radius:8px; padding:12px 16px; font-size:13px; color:#2e7d32; margin-bottom:14px; display:none; }
+
+/* ADDRESS AUTOCOMPLETE */
+.addr-wrap { position:relative; }
+.addr-input { width:100%; border:1.5px solid #e0e0e0; border-radius:8px; padding:10px 12px 10px 32px; font-size:14px; outline:none; transition:border-color .2s; }
+.addr-input:focus { border-color:#f7b731; }
+.addr-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:14px; pointer-events:none; }
+.addr-drop { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1.5px solid #f7b731; border-radius:8px; z-index:600; max-height:220px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.12); margin-top:2px; }
+.addr-drop.open { display:block; }
+.addr-item { padding:10px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid #f5f5f5; line-height:1.3; }
+.addr-item:hover { background:#fffbf0; }
+.addr-item .addr-main { font-weight:600; color:#1a1a2e; }
+.addr-item .addr-sub { font-size:11px; color:#aaa; margin-top:1px; }
+.addr-loading { padding:10px 12px; font-size:13px; color:#aaa; }
+.addr-coords { font-size:10px; color:#2ecc71; margin-top:3px; display:none; }
+
+/* CITY SEARCH */
+.city-input-wrap { position:relative; flex:1; min-width:130px; }
+.city-input { width:100%; border:1.5px solid #e0e0e0; border-radius:8px; padding:7px 10px; font-size:13px; color:#333; background:#fff; outline:none; }
+.city-input:focus { border-color:#f7b731; }
+.city-dropdown { display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1.5px solid #f7b731; border-radius:8px; z-index:500; max-height:200px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,.12); margin-top:2px; }
+.city-dropdown.open { display:block; }
+.city-option { padding:8px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid #f5f5f5; }
+.city-option:hover { background:#fffbf0; }
+.city-option .region { font-size:10px; color:#aaa; }
+
+/* MAP */
+.map-wrap { display:none; background:#fff; border-bottom:1px solid #eee; }
+.map-wrap.open { display:block; }
+#routeMap { height:300px; }
+.map-info { padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+.map-route-label { font-size:14px; font-weight:700; }
+.map-dist { font-size:12px; color:#888; background:#f0f2f5; padding:4px 10px; border-radius:6px; }
+.map-close { background:none; border:none; color:#aaa; cursor:pointer; font-size:18px; }
+
+/* BOTTOM NAV */
+.bnav { display:none; position:fixed; bottom:0; left:0; right:0; background:#1a1a2e; padding:8px 0; z-index:100; }
+.bitem { flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; color:#555; font-size:10px; cursor:pointer; padding:3px 0; background:none; border:none; }
+.bitem.active { color:#f7b731; }
+.bitem-post { color:#2ecc71 !important; font-weight:700; }
+.cab-tab { transition: color .15s, border-color .15s; }
+.cab-tab.active { color:#f7b731 !important; border-bottom-color:#f7b731 !important; }
+.cab-tab-content { padding-bottom:80px; }
+.bicon { font-size:20px; }
+
+/* CONTENT SECTIONS */
+.section { display:none; }
+.section.active { display:block; }
+
+@media(max-width:640px){
+  .thead { display:none; }
+  .row,.truck-row { display:block; padding:12px 16px; margin-bottom:8px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-left-width:4px !important; }
+  .row > div { margin-bottom:3px; line-height:1.4; }
+  .row > div:last-child { margin-bottom:0; }
+  .sub { font-size:13px; margin-top:4px; }
+  .route { font-size:17px; line-height:1.4; }
+  .price { font-size:20px; margin-top:4px; display:block; }
+  .bnav { display:flex; }
+  .cargo-list { padding-bottom:64px; }
+  .section { padding-bottom: 80px !important; }
+  .rates-table th { padding:6px 6px; font-size:9px; }
+  .rates-table td { padding:6px 6px; font-size:12px; }
+  .rates-table td:first-child { font-size:11px; max-width:90px; }
+  .fsel { font-size:12px; padding:6px 8px; }
+  .post-btn span { display:inline; }
+  .fbtn, .post-btn { flex:1; }
+}
+/* AI DISPATCHER */
+.ai-role-btns{display:flex;flex-direction:column;gap:6px;margin:4px 0;}
+.ai-role-btn{background:#f0f2f5;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 14px;font-size:13px;cursor:pointer;text-align:left;transition:all .15s;}
+.ai-role-btn:hover{background:#fffbf0;border-color:#f7b731;}
+.ai-fab{position:fixed;bottom:72px;right:16px;width:56px;height:56px;background:linear-gradient(135deg,#1a1a2e,#3498db);border-radius:50%;border:none;cursor:pointer;z-index:600;box-shadow:0 4px 20px rgba(52,152,219,.5);display:flex;align-items:center;justify-content:center;font-size:24px;transition:transform .2s;touch-action:manipulation;}
+.ai-fab:hover{transform:scale(1.1);}
+.ai-badge{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#2ecc71;border-radius:50%;animation:pulse 2s infinite;border:2px solid #fff;}
+.ai-chat{display:none;position:fixed;bottom:140px;right:16px;width:320px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:601;flex-direction:column;max-height:500px;overflow:hidden;}
+@media(max-width:480px){.ai-chat{width:calc(100vw - 32px);right:16px;bottom:80px;}}
+.ai-chat.open{display:flex;}
+/* На мобиле — позиция ставится через JS в openAI() */
+.ai-chat-header{background:linear-gradient(135deg,#1a1a2e,#2c3e6e);padding:12px 14px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;}
+.ai-avatar{width:34px;height:34px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ai-name{color:#fff;font-weight:700;font-size:13px;}
+.ai-status{color:#2ecc71;font-size:11px;}
+.ai-close{margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:20px;z-index:502;position:relative;padding:8px;line-height:1;touch-action:manipulation;}
+.ai-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;display:flex;flex-direction:column;gap:7px;min-height:0;}
+.ai-msg{max-width:82%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.4;}
+.ai-msg.bot{background:#f0f2f5;color:#1a1a2e;align-self:flex-start;border-radius:4px 12px 12px 12px;}
+.ai-msg.user{background:#1a1a2e;color:#fff;align-self:flex-end;border-radius:12px 4px 12px 12px;}
+.ai-msg.typing{background:#f0f2f5;color:#aaa;align-self:flex-start;padding:10px 14px;}
+.ai-msg.typing .dot{width:7px;height:7px;border-radius:50%;background:#aaa;display:inline-block;margin:0 2px;animation:typingDot 1.2s infinite ease-in-out;}
+.ai-msg.typing .dot:nth-child(2){animation-delay:.2s;}
+.ai-msg.typing .dot:nth-child(3){animation-delay:.4s;}
+@keyframes typingDot{0%,80%,100%{transform:scale(0.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+.ai-template{background:#fffbf0;border:1.5px solid #f7b731;border-radius:10px;padding:10px;margin:6px 10px;font-size:12px;}
+.ai-template-title{font-weight:700;font-size:13px;margin-bottom:6px;}
+.ai-field{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0e8d0;}
+.ai-field:last-child{border-bottom:none;}
+.ai-field-label{color:#888;}
+.ai-field-value{font-weight:600;color:#1a1a2e;}
+.ai-post-btn{display:none;margin:0 10px 10px;background:#2ecc71;color:#fff;border:none;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;width:calc(100% - 20px);}
+.ai-post-btn.ready{display:block;}
+.ai-input-area{padding:8px 10px;border-top:1px solid #f0f0f0;display:flex;gap:6px;align-items:flex-end;}
+.ai-input{flex:1;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 10px;font-size:13px;outline:none;resize:none;max-height:80px;font-family:inherit;}
+.ai-input:focus{border-color:#3498db;}
+.ai-send{background:#3498db;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;}
+.ai-mic{background:#f0f2f5;color:#555;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:14px;flex-shrink:0;}
+
+/* NOTIFICATIONS */
+.online-dot{display:none;width:10px;height:10px;background:#2ecc71;border-radius:50%;animation:blink 1.5s infinite;border:2px solid #1a1a2e;}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 4px #2ecc71}50%{opacity:.4;box-shadow:none}}
+.notif-btn{position:relative;background:transparent;border:none;cursor:pointer;padding:4px 6px;display:none}
+.notif-icon{font-size:20px}
+.notif-badge{position:absolute;top:0;right:0;background:#e74c3c;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center}
+.notif-badge.has{display:flex}
+.notif-panel{display:none;position:fixed;top:60px;right:16px;width:320px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:300;max-height:440px;overflow-y:auto}
+.notif-panel.open{display:block}
+.notif-header{padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}
+.notif-title{font-weight:700;font-size:14px}
+.notif-mark{font-size:12px;color:#3498db;cursor:pointer;background:none;border:none}
+.notif-item{padding:12px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.notif-item.unread{border-left:3px solid #f7b731;background:#fffdf5}
+.ni-title{font-weight:600;font-size:13px;margin-bottom:2px}
+.ni-body{font-family:'Noto Sans','Noto Sans Georgian',system-ui,-apple-system,sans-serif;font-size:12px;color:#666;line-height:1.4}
+.ni-time{font-size:11px;color:#aaa;margin-top:4px}
+.ni-actions{display:flex;gap:6px;margin-top:8px}
+.ni-accept{background:#2ecc71;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.ni-reject{background:#f0f2f5;color:#555;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.ni-done{background:#f7b731;color:#1a1a2e;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+.notif-empty{padding:24px;text-align:center;color:#aaa;font-size:13px}
+/* STATUS */
+.sbadge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700}
+.s-pending{background:#fff3e0;color:#f39c12}
+.s-accepted{background:#e8f5e9;color:#2e7d32}
+.s-transit{background:#e3f2fd;color:#1565c0}
+.s-done{background:#f0f4ff;color:#5c35d6}
+.s-rated{background:#f5f5f5;color:#888}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="logo" onclick="showSection('loads',document.querySelector('.nav-tab'));" style="cursor:pointer">Caucas<span>Hub</span><span style="font-size:11px;color:#888;font-weight:600;vertical-align:-1px">.ge</span></span>
+  </div>
+  <div class="hright">
+    <span class="online-dot" id="onlineDot" title="Вы онлайн"></span>
+    <div style="display:flex;gap:2px">
+      <button class="lang-btn active" onclick="setLang('ru',this)">RU</button>
+      <!-- GE/EN — переводы в разработке -->
+      <!-- <button class="lang-btn" onclick="setLang('ge',this)">GE</button> -->
+      <!-- <button class="lang-btn" onclick="setLang('en',this)">EN</button> -->
+    </div>
+    <button class="notif-btn" id="notifBtn" onclick="toggleNotifs()">
+      <span class="notif-icon">🔔</span>
+      <span class="notif-badge" id="notifBadge"></span>
+    </button>
+    <div id="authBtns" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+      <button class="btn-login" id="btnLogin" onclick="openAuth('login')" style="font-size:11px;padding:4px 8px;border-radius:5px">Войти</button>
+      <button class="btn-reg" id="btnReg" onclick="openAuth('register')" style="font-size:11px;padding:4px 8px;border-radius:5px;background:#f7b731;color:#1a1a2e;border:none;font-weight:700;cursor:pointer">Регистрация</button>
+    </div>
+    <div class="user-avatar" id="userAvatar" style="display:none" onclick="openProfile()">ТК</div>
+  </div>
+</div>
+
+<!-- STICKY NAV -->
+<div style="position:sticky;top:54px;z-index:190;background:#1a1a2e">
+  <div class="scope-bar">
+    <div class="scope-tab active" onclick="setScope('local',this)" id="sLocal">🇬🇪 Локальные</div>
+    <div class="scope-tab" onclick="setScope('intl',this)" id="sIntl">🌍 Международные</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showSection('loads',this)">📦 Грузы</button>
+    <button class="nav-tab" onclick="showSection('trucks',this)">🚛 Транспорт</button>
+    <button class="nav-tab" onclick="showSection('rates',this)">📊 Ставки</button>
+    <button class="nav-tab" onclick="showSection('orders',this)">📋 Кабинет</button>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="city-input-wrap">
+    <input class="city-input" id="fFrom" placeholder="📍 Откуда" autocomplete="off" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+    <div class="city-dropdown" id="dropFrom"></div>
+  </div>
+  <div class="city-input-wrap">
+    <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="off" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+    <div class="city-dropdown" id="dropTo"></div>
+  </div>
+
+  <select class="fsel" id="fDate" onchange="filterByDate(this.value)">
+    <option value="">📅 Дата</option>
+    <option value="today">Сегодня</option>
+    <option value="tomorrow">Завтра</option>
+    <option value="week">На неделе</option>
+  </select>
+  <select class="fsel" id="fType"><option value="">🚛 Кузов</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option></select>
+  <select class="fsel" id="fWeight" onchange="filterLoads()">
+    <option value="">⚖️ Тоннаж</option>
+    <option value="0-1000">До 1 т</option>
+    <option value="1000-5000">1–5 т</option>
+    <option value="5000-10000">5–10 т</option>
+    <option value="10000-20000">10–20 т</option>
+    <option value="20000-99999">20+ т (фура)</option>
+  </select>
+  <select class="fsel" id="fPrice" onchange="filterLoads()">
+    <option value="">💰 Стоимость</option>
+    <option value="0-300">До ₾300 / $100</option>
+    <option value="300-700">₾300–700 / $100–250</option>
+    <option value="700-1500">₾700–1500 / $250–500</option>
+    <option value="1500-99999">₾1500+ / $500+</option>
+  </select>
+  <div class="fcount" id="fcount">— грузов</div>
+  <div style="width:100%;display:flex;gap:8px;margin-top:2px">
+    <button class="fbtn" onclick="filterLoads()">Найти</button>
+    <button class="post-btn" onclick="openPostLoad()">+ Разместить груз</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar" id="statsBar">
+  <span><span class="dot"></span><strong id="statLoads">—</strong> грузов</span>
+  <span><strong id="statTrucks">634</strong> машин онлайн</span>
+  <span><strong>2,841</strong> компаний</span>
+</div>
+
+<!-- MAP -->
+<div class="map-wrap" id="mapWrap">
+  <div class="map-info">
+    <div class="map-route-label" id="mapRouteLabel">Выберите маршрут</div>
+    <div class="map-dist" id="mapDist"></div>
+    <button class="map-close" onclick="closeMap()">✕</button>
+  </div>
+  <div id="routeMap"></div>
+</div>
+
+<!-- ═══ SECTION: LOADS ═══ -->
+<div class="section active" id="sec-loads">
+  <div class="thead">
+    <div>ОТКУДА → КУДА</div><div>ВЕС</div><div>КУЗОВ</div><div>ЦЕНА</div><div>ДАТА ЗАГРУЗКИ</div><div></div>
+  </div>
+  <div class="cargo-list" id="cargoList"><div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div></div>
+</div>
+
+<!-- ═══ SECTION: TRUCKS ═══ -->
+<div class="section" id="sec-trucks">
+  <!-- Панель действий -->
+  <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:13px;color:#888" id="truckCount">Свободные машины</span>
+    <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">+ Добавить машину</button>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
+    <div>МАШИНА / МАРШРУТ</div><div>КОМПАНИЯ</div><div>ТОННАЖ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
+  </div>
+  <div id="truckList"></div>
+</div>
+
+<!-- ═══ MODAL: POST TRUCK ═══ -->
+<div class="overlay" id="postTruckOverlay" onclick="closeOverlay('postTruckOverlay',event)">
+  <div class="modal">
+    <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
+    <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center">🚛 Добавить машину</div>
+    <div id="postTruckSuccess" class="success-msg">✅ Машина добавлена в список!</div>
+    <div class="form-group">
+      <label>Маршрут — Откуда</label>
+      <input class="form-input" id="tFrom" placeholder="Тбилиси">
+    </div>
+    <div class="form-group">
+      <label>Маршрут — Куда</label>
+      <input class="form-input" id="tTo" placeholder="Любое направление">
+    </div>
+    <div class="form-group">
+      <label>Тип кузова <span style="color:#999;font-size:12px">(выбери все свои)</span></label>
+      <div id="tTypeCheckboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Тент" style="width:16px;height:16px"> Тент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Рефрижератор" style="width:16px;height:16px"> Рефрижератор</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Рефтент" style="width:16px;height:16px"> Рефтент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Мегатент" style="width:16px;height:16px"> Мегатент</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Бортовой" style="width:16px;height:16px"> Бортовой</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Термос" style="width:16px;height:16px"> Термос</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Фургон (до 3.5т)" style="width:16px;height:16px"> Фургон (до 3.5т)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Контейнер" style="width:16px;height:16px"> Контейнер</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Автовоз" style="width:16px;height:16px"> Автовоз</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Эвакуатор" style="width:16px;height:16px"> Эвакуатор</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Цистерна" style="width:16px;height:16px"> Цистерна</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Зерновоз" style="width:16px;height:16px"> Зерновоз</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="Самосвал" style="width:16px;height:16px"> Самосвал</label>
+      </div>
+      <div id="tTypeError" style="display:none;color:#e74c3c;font-size:12px;margin-top:4px">Выберите хотя бы один тип</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label>Грузоподъёмность (кг)</label>
+        <input class="form-input" id="tKg" type="number" placeholder="20000">
+      </div>
+      <div class="form-group">
+        <label>Объём (м³)</label>
+        <input class="form-input" id="tVol" type="number" placeholder="82">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Номер машины</label>
+      <input class="form-input" id="tPlate" placeholder="GE-123-AB">
+    </div>
+    <div class="form-group">
+      <label>Когда готова</label>
+      <select class="form-input" id="tDate">
+        <option value="Сегодня">Сегодня</option>
+        <option value="Завтра">Завтра</option>
+        <option value="На неделе">На неделе</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Телефон для связи</label>
+      <input class="form-input" id="tPhone" placeholder="+995 555 ..." type="tel">
+    </div>
+    <button class="btn-primary" onclick="doPostTruck()">📤 Разместить машину</button>
+  </div>
+</div>
+
+<!-- ═══ SECTION: RATES ═══ -->
+<div class="section" id="sec-rates">
+  <div style="padding:16px;background:#fff;border-bottom:1px solid #eee">
+    <div style="font-size:13px;color:#888;margin-bottom:4px">Средние ставки на маршрутах · обновлено сегодня</div>
+  </div>
+  <table class="rates-table">
+    <thead><tr><th>МАРШРУТ</th><th>ТЕНТ $/км</th><th>РЕФРИЖ $/км</th><th>ТРЕНД</th><th>ОБЪЁМ/НЕД</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td>47 рейсов</td></tr>
+      <tr><td><strong>Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td>38 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td>29 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td>22 рейса</td></tr>
+      <tr><td><strong>Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td>18 рейсов</td></tr>
+      <tr><td><strong>Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td>14 рейсов</td></tr>
+      <tr><td><strong>Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td>31 рейс</td></tr>
+      <tr><td><strong>Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td>11 рейсов</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ SECTION: ORDERS ═══ -->
+<div class="section" id="sec-orders">
+
+  <!-- Шапка кабинета — для незалогиненных -->
+  <div id="ordersEmpty" style="text-align:center;padding:60px 20px">
+    <div style="font-size:48px;margin-bottom:12px">📋</div>
+    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Личный кабинет</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:20px">Войдите чтобы видеть свои грузы, отклики и сделки</div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+  </div>
+
+  <!-- Кабинет для залогиненных -->
+  <div id="cabinetPanel" style="display:none;max-width:800px;margin:0 auto;width:100%">
+
+    <!-- Внутренние вкладки кабинета -->
+    <div id="cabinetTabs" style="display:flex;background:#fff;border-bottom:2px solid #f0f0f0;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:54px;z-index:50;max-width:800px;margin:0 auto;width:100%">
+      <button class="cab-tab active" onclick="switchCabTab('loads',this)" style="flex:1;min-width:70px;padding:12px 8px;border:none;background:none;font-size:12px;font-weight:600;color:#f7b731;border-bottom:2px solid #f7b731;cursor:pointer;white-space:nowrap">📦 Грузы</button>
+      <button class="cab-tab" onclick="switchCabTab('responses',this)" style="flex:1;min-width:70px;padding:12px 8px;border:none;background:none;font-size:12px;font-weight:600;color:#aaa;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap">🚛 Отклики</button>
+      <button class="cab-tab" onclick="switchCabTab('deals',this)" style="flex:1;min-width:70px;padding:12px 8px;border:none;background:none;font-size:12px;font-weight:600;color:#aaa;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap">🤝 Сделки</button>
+      <button class="cab-tab" onclick="switchCabTab('report',this)" style="flex:1;min-width:70px;padding:12px 8px;border:none;background:none;font-size:12px;font-weight:600;color:#aaa;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap">📊 Отчёт</button>
+    </div>
+
+    <!-- Вкладка: МОИ ГРУЗЫ -->
+    <div id="cabTab-loads" class="cab-tab-content" style="max-width:800px;margin:0 auto;width:100%">
+      <div id="myLoadsList">
+        <div style="text-align:center;padding:40px 20px;color:#aaa">
+          <div style="font-size:36px;margin-bottom:8px">📦</div>
+          <div>Загружаем грузы...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Вкладка: МОИ ОТКЛИКИ -->
+    <div id="cabTab-responses" class="cab-tab-content" style="display:none;max-width:800px;margin:0 auto;width:100%">
+      <div id="myResponsesList">
+        <div style="text-align:center;padding:40px 20px;color:#aaa">
+          <div style="font-size:36px;margin-bottom:8px">🚛</div>
+          <div style="font-weight:700;margin-bottom:4px">Нет активных откликов</div>
+          <div style="font-size:13px">Откликнитесь на грузы — они появятся здесь</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Вкладка: СДЕЛКИ -->
+    <div id="cabTab-deals" class="cab-tab-content" style="display:none;max-width:800px;margin:0 auto;width:100%">
+      <div id="myDealsList">
+        <div style="text-align:center;padding:40px 20px;color:#aaa">
+          <div style="font-size:36px;margin-bottom:8px">🤝</div>
+          <div>Загружаем сделки...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Вкладка: ОТЧЁТ -->
+    <div id="cabTab-report" class="cab-tab-content" style="display:none;max-width:800px;margin:0 auto;width:100%">
+      <div style="padding:16px">
+        <div style="background:#1565c0;border-radius:12px 12px 0 0;padding:14px 16px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">📊</span>
+          <div>
+            <div style="font-weight:800;color:#fff;font-size:15px">Отчёт для rs.ge</div>
+            <div style="font-size:12px;color:#90caf9;margin-top:2px">Скачайте данные о сделках для налоговой</div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:0 0 12px 12px;border:2px solid #e3f2fd;border-top:none;padding:14px 16px">
+          <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px">Период:</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:#aaa;margin-bottom:4px">Дата с</div>
+              <input type="date" id="exportFrom" onchange="exportDateFrom=this.value"
+                style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:11px;color:#aaa;margin-bottom:4px">Дата по</div>
+              <input type="date" id="exportTo" onchange="exportDateTo=this.value"
+                style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="exportDealsData('json')"
+              style="flex:1;background:#1565c0;color:#fff;border:none;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">📥 JSON</button>
+            <button onclick="exportDealsData('csv')"
+              style="flex:1;background:#2e7d32;color:#fff;border:none;padding:11px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">📊 CSV (Excel)</button>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center">Формат совместим с rs.ge · Грузия</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /cabinetPanel -->
+
+  <!-- Старые контейнеры (нужны для совместимости со старым кодом) -->
+  <div id="ordersList" style="display:none"></div>
+  <div id="exportPanel" style="display:none"></div>
+
+</div>
+
+<!-- ═══ MODAL: AUTH ═══ -->
+<div class="overlay" id="authOverlay" onclick="closeOverlay('authOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
+    <div style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
+      <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')">Войти</button>
+      <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')">Регистрация</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="formLogin">
+      <div class="success-msg" id="loginSuccess">✅ Вход выполнен успешно!</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="form-input" type="email" id="loginEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <div class="pass-wrap"><input class="form-input" type="password" id="loginPass" placeholder="••••••••" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('loginPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
+      </div>
+      <div style="text-align:right;margin-bottom:10px">
+        <a href="#" onclick="showForgotForm()" style="font-size:12px;color:#888;text-decoration:underline">Забыли пароль?</a>
+      </div>
+      <div id="loginErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
+      <button class="btn-primary" onclick="doLogin()">Войти в аккаунт</button>
+      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700">Зарегистрироваться</a></div>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div id="formForgot" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">🔑 Сброс пароля</div>
+        <div style="font-size:13px;color:#888">Введите ваш email — пришлём код</div>
+      </div>
+      <div id="forgotStep1">
+        <div class="form-group">
+          <label>Email</label>
+          <input class="form-input" type="email" id="forgotEmail" placeholder="your@email.com">
+        </div>
+        <div id="forgotError" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
+        <button class="btn-primary" onclick="doForgotStep1()">Получить код</button>
+      </div>
+      <div id="forgotStep2" style="display:none">
+        <div style="background:#fff7e6;border:1px solid #fde8a0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;text-align:center">
+          📧 Код отправлен на <strong id="forgotEmailShow"></strong>
+        </div>
+        <div class="form-group">
+          <label>Код подтверждения (6 цифр)</label>
+          <input class="form-input" type="text" id="forgotCode" placeholder="000000" maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center">
+        </div>
+        <div class="form-group">
+          <label>Новый пароль</label>
+          <div class="pass-wrap"><input class="form-input" type="password" id="forgotNewPass" placeholder="Минимум 6 символов" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('forgotNewPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
+        </div>
+        <div class="form-group">
+          <label>Повторите пароль</label>
+          <input class="form-input" type="password" id="forgotNewPass2" placeholder="Повторите пароль">
+        </div>
+        <div id="forgotError2" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
+        <button class="btn-primary" onclick="doForgotStep2()">Сменить пароль</button>
+        <div style="text-align:center;margin-top:10px"><a href="#" onclick="doForgotStep1()" style="font-size:12px;color:#888">Отправить код повторно</a></div>
+      </div>
+      <div id="forgotSuccess" style="display:none;text-align:center;padding:20px">
+        <div style="font-size:40px;margin-bottom:10px">✅</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Пароль изменён!</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">Войдите с новым паролем</div>
+        <button class="btn-primary" onclick="switchAuth('login')">Войти</button>
+      </div>
+      <div style="text-align:center;margin-top:14px">
+        <a href="#" onclick="switchAuth('login')" style="font-size:13px;color:#888">← Назад ко входу</a>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="formRegister" style="display:none">
+      <div class="success-msg" id="regSuccess">✅ Аккаунт создан! Добро пожаловать!</div>
+
+      <!-- ШАГ 1: Тип аккаунта -->
+      <div id="regStep1">
+        <div style="font-size:14px;font-weight:700;color:#333;margin-bottom:12px">Кто вы?</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button onclick="selectRegType('carrier')" class="reg-type-btn" id="rtCarrier">
+            <span style="font-size:22px">🚛</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Перевозчик</div>
+              <div style="font-size:12px;color:#888">Компания или ИП — ищу грузы</div>
+            </div>
+          </button>
+          <button onclick="selectRegType('shipper_company')" class="reg-type-btn" id="rtShipperCo">
+            <span style="font-size:22px">🏢</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Грузовладелец — компания / ИП</div>
+              <div style="font-size:12px;color:#888">Регулярные отправки, договор</div>
+            </div>
+          </button>
+          <button onclick="selectRegType('shipper_person')" class="reg-type-btn" id="rtShipperPerson">
+            <span style="font-size:22px">👤</span>
+            <div>
+              <div style="font-weight:700;font-size:14px">Грузовладелец — частное лицо</div>
+              <div style="font-size:12px;color:#888">Разовая отправка, без ИП</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- ШАГ 2: Форма (меняется по типу) -->
+      <div id="regStep2" style="display:none">
+        <button onclick="backToStep1()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;margin-bottom:14px;padding:0">← Назад</button>
+
+        <!-- Общие поля -->
+        <div class="form-group">
+          <label id="regNameLabel">Имя</label>
+          <input class="form-input" type="text" id="regName" placeholder="">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Телефон</label>
+            <input class="form-input" type="tel" id="regPhone" placeholder="+995 555 ___">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="form-input" type="email" id="regEmail" placeholder="your@email.com">
+          </div>
+        </div>
+
+        <!-- Поля для компании / ИП (перевозчик + грузовладелец-юрлицо) -->
+        <div id="regCompanyFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>ИНН / ID код</label>
+              <input class="form-input" type="text" id="regInn" placeholder="123456789">
+            </div>
+            <div class="form-group">
+              <label>Форма</label>
+              <select class="form-select" id="regOrgType">
+                <option>ООО</option><option>ИП</option><option>АО</option><option>Частный перевозчик</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Город / регион работы</label>
+            <input class="form-input" type="text" id="regCity" placeholder="Тбилиси">
+          </div>
+        </div>
+
+        <!-- Поля только для перевозчика -->
+        <div id="regCarrierFields" style="display:none">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Тип транспорта</label>
+              <select class="form-select" id="regTruckType">
+                <option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Грузоподъёмность (т)</label>
+              <input class="form-input" type="number" id="regTonnage" placeholder="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Пароль</label>
+          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов">
+        </div>
+
+        <input type="hidden" id="regRole">
+        <div id="regErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
+        <button class="btn-primary" onclick="doRegister()">Создать аккаунт</button>
+      </div>
+
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="closeModal('authOverlay');setTimeout(function(){document.getElementById('paywallOverlay').classList.add('on');},150)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline">📊 Посмотреть тарифы →</button>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:13px;color:#888">Уже есть аккаунт? <a href="#" onclick="switchAuth('login')" style="color:#f7b731;font-weight:700">Войти</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: POST LOAD ═══ -->
+<div class="overlay" id="postOverlay" onclick="closeOverlay('postOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('postOverlay')">✕</button>
+    <div class="modal-title">Разместить груз</div>
+    <div class="modal-sub">Заполните данные — перевозчики увидят ваш груз сразу</div>
+    <div class="success-msg" id="postSuccess">✅ Груз размещён! Перевозчики уже видят ваше объявление.</div>
+    <div class="form-group" id="countryFromWrap" style="display:none">
+      <label>🌍 Страна отправки</label>
+      <select class="form-select" id="pFromCountry" onchange="updateFormForIntl()">
+        <option value="GE">🇬🇪 Грузия</option>
+        <option value="TR">🇹🇷 Турция</option>
+        <option value="AM">🇦🇲 Армения</option>
+        <option value="AZ">🇦🇿 Азербайджан</option>
+        <option value="RU">🇷🇺 Россия</option>
+        <option value="UA">🇺🇦 Украина</option>
+        <option value="CN">🇨🇳 Китай</option>
+        <option value="DE">🇩🇪 Германия</option>
+        <option value="PL">🇵🇱 Польша</option>
+        <option value="IT">🇮🇹 Италия</option>
+        <option value="BG">🇧🇬 Болгария</option>
+        <option value="KZ">🇰🇿 Казахстан</option>
+        <option value="UZ">🇺🇿 Узбекистан</option>
+        <option value="TM">🇹🇲 Туркменистан</option>
+        <option value="KG">🇰🇬 Кыргызстан</option>
+        <option value="TJ">🇹🇯 Таджикистан</option>
+        <option value="MD">🇲🇩 Молдова</option>
+        <option value="BY">🇧🇾 Беларусь</option>
+        <option value="IL">🇮🇱 Израиль</option>
+        <option value="IR">🇮🇷 Иран</option>
+        <option value="IQ">🇮🇶 Ирак</option>
+        <option value="SA">🇸🇦 Саудовская Аравия</option>
+        <option value="AE">🇦🇪 ОАЭ</option>
+        <option value="GR">🇬🇷 Греция</option>
+        <option value="RO">🇷🇴 Румыния</option>
+      </select>
+    </div>
+    <div class="form-group" id="countryToWrap" style="display:none">
+      <label>🌍 Страна доставки</label>
+      <select class="form-select" id="pToCountry">
+        <option value="GE">🇬🇪 Грузия</option>
+        <option value="TR">🇹🇷 Турция</option>
+        <option value="AM">🇦🇲 Армения</option>
+        <option value="AZ">🇦🇿 Азербайджан</option>
+        <option value="RU">🇷🇺 Россия</option>
+        <option value="UA">🇺🇦 Украина</option>
+        <option value="CN">🇨🇳 Китай</option>
+        <option value="DE">🇩🇪 Германия</option>
+        <option value="PL">🇵🇱 Польша</option>
+        <option value="IT">🇮🇹 Италия</option>
+        <option value="BG">🇧🇬 Болгария</option>
+        <option value="KZ">🇰🇿 Казахстан</option>
+        <option value="UZ">🇺🇿 Узбекистан</option>
+        <option value="TM">🇹🇲 Туркменистан</option>
+        <option value="KG">🇰🇬 Кыргызстан</option>
+        <option value="TJ">🇹🇯 Таджикистан</option>
+        <option value="MD">🇲🇩 Молдова</option>
+        <option value="BY">🇧🇾 Беларусь</option>
+        <option value="IL">🇮🇱 Израиль</option>
+        <option value="IR">🇮🇷 Иран</option>
+        <option value="AE">🇦🇪 ОАЭ</option>
+        <option value="GR">🇬🇷 Греция</option>
+        <option value="RO">🇷🇴 Румыния</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>📍 Точный адрес отправки</label>
+      <div class="addr-wrap">
+        <span class="addr-icon">📍</span>
+        <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+          oninput="addrSearch('pFrom',this.value)"
+          onblur="setTimeout(()=>closeAddrDrop('pFrom'),200)">
+        <div class="addr-drop" id="dropPFrom"></div>
+        <div class="addr-coords" id="coordsPFrom"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>🏁 Точный адрес доставки</label>
+      <div class="addr-wrap">
+        <span class="addr-icon">🏁</span>
+        <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+          oninput="addrSearch('pTo',this.value)"
+          onblur="setTimeout(()=>closeAddrDrop('pTo'),200)">
+        <div class="addr-drop" id="dropPTo"></div>
+        <div class="addr-coords" id="coordsPTo"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Вес (кг)</label>
+        <input class="form-input" type="number" id="pWeight" placeholder="5000">
+      </div>
+      <div class="form-group">
+        <label>Тип кузова</label>
+        <select class="form-select" id="pTruck">
+          <option>Тент</option><option>Рефрижератор</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Рефтент</option><option>Мегатент</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Дата загрузки</label>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input class="form-input" type="date" id="pDate" style="flex:1;min-width:0" oninput="syncDateMin()">
+        <span style="font-size:12px;color:#aaa;white-space:nowrap">по</span>
+        <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0">
+      </div>
+      <div style="font-size:11px;color:#aaa;margin-top:3px">Если груз гибкий — укажите диапазон</div>
+    </div>
+    <div class="form-group">
+      <label id="priceCurLabel">Ставка (₾)</label>
+      <input class="form-input" type="number" id="pPrice" placeholder="350">
+    </div>
+    <div class="form-group">
+      <label>Описание груза</label>
+      <input class="form-input" type="text" id="pDesc" placeholder="Стройматериалы, паллеты, документы готовы...">
+    </div>
+    <div class="form-group">
+      <label>Тип оплаты</label>
+      <select class="form-select" id="pPay">
+        <option>Наличные сразу</option><option>Безнал 3 дня</option><option>Безнал 7 дней</option><option>50% предоплата</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="pUrgent"> <strong>Срочный груз</strong>
+      </label>
+    </div>
+    <button class="btn-primary" onclick="doPostLoad()">📦 Разместить груз</button>
+    <button class="btn-secondary" onclick="closeModal('postOverlay')">Отмена</button>
+  </div>
+</div>
+
+<!-- ═══ MODAL: PAYWALL ═══ -->
+<div class="overlay" id="paywallOverlay" onclick="closeOverlay('paywallOverlay',event)">
+  <div class="modal" style="max-width:480px">
+    <button class="close-btn" onclick="closeModal('paywallOverlay')">✕</button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:8px">📋</div>
+      <div id="paywallTitle" style="font-size:18px;font-weight:800;color:#1a1a2e">Тарифные планы</div>
+      <div id="paywallSub" style="font-size:13px;color:#888;margin-top:6px"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <!-- Стандарт -->
+      <div style="border:2px solid #3498db;border-radius:12px;padding:16px;position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#3498db">Стандарт</div>
+            <div style="font-size:12px;color:#666;margin-top:4px">✅ Видите контакты грузовладельца<br>✅ 50 откликов в месяц<br>✅ Верификация компании</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾35</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('standard')" style="margin-top:12px;width:100%;background:#3498db;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+      <!-- Про -->
+      <div style="border:2px solid #f7b731;border-radius:12px;padding:16px;position:relative">
+        <div style="position:absolute;top:-10px;left:16px;background:#f7b731;color:#1a1a2e;font-size:10px;font-weight:800;padding:2px 10px;border-radius:10px">ЛУЧШИЙ ВЫБОР</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#e6a820">Про</div>
+            <div style="font-size:12px;color:#666;margin-top:4px">✅ Всё из Стандарта<br>✅ Безлимитные отклики<br>✅ Приоритет в выдаче<br>✅ Срочные грузы первым<br>✅ AI диспетчер без лимитов</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">₾80</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('pro')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+      <!-- Про+ -->
+      <div style="border:2px solid #6c3483;border-radius:12px;padding:16px;background:linear-gradient(135deg,#f9f0ff,#fff)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:800;font-size:15px;color:#6c3483">&#x1F451; Про+</div>
+            <div style="font-size:11px;color:#888;font-style:italic;margin-bottom:6px">Грузы находят тебя сами</div>
+            <div style="font-size:12px;color:#555;line-height:1.8">&#x2705; Всё из Про<br>&#x2705; Мари мониторит биржу и присылает подходящие грузы<br>&#x2705; Уведомления о новых грузах по твоим маршрутам<br>&#x2705; Расширенная аналитика и ставки<br>&#x2705; Персональный менеджер</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap;margin-left:12px">
+            <div style="font-size:22px;font-weight:800;color:#1a1a2e">&#x20BE;150</div>
+            <div style="font-size:11px;color:#aaa">/мес</div>
+          </div>
+        </div>
+        <button onclick="choosePlan('pro_plus')" style="margin-top:12px;width:100%;background:#6c3483;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Скоро доступно</button>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#aaa">Сейчас все функции бесплатны 🎁<br>Подписки откроются позже</div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: CARGO DETAIL ═══ -->
+<div class="overlay" id="cargoOverlay" onclick="closeOverlay('cargoOverlay',event)" style="align-items:flex-end">
+  <div class="modal-bottom">
+    <div class="handle"></div>
+    <button class="close-btn" onclick="closeModal('cargoOverlay')">✕</button>
+    <div class="modal-title" id="mTitle"></div>
+    <div class="modal-sub" id="mSub"></div>
+    <div style="display:flex;align-items:center;gap:10px;background:#f8f9fa;border-radius:10px;padding:11px;margin-bottom:14px">
+      <div id="mAva" style="width:42px;height:42px;background:#1a1a2e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#f7b731;font-weight:900;font-size:14px;flex-shrink:0"></div>
+      <div>
+        <div id="mComp" style="font-weight:700;font-size:14px"></div>
+        <div id="mStats" style="font-size:12px;color:#888"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px" id="mGrid"></div>
+    <div style="font-size:13px;color:#444;line-height:1.5;margin-bottom:14px;padding:10px;background:#f8f9fa;border-radius:8px" id="mDesc"></div>
+    <button onclick="openRouteMap()" style="width:100%;background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:10px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px">🗺️ Показать маршрут на карте</button>
+    <div id="routeMapBlock" style="display:none;border-radius:10px;overflow:hidden;margin-bottom:12px" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+      <div id="routeMapModal" style="height:220px;border-radius:10px;touch-action:none"></div>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div>
+        <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Ставка</div>
+        <div id="mPrice" style="font-size:28px;font-weight:900"></div>
+      </div>
+      <div id="mKmBlock" style="text-align:right">
+        <div style="font-size:11px;color:#aaa">Расстояние</div>
+        <div id="mKm" style="font-size:15px;font-weight:700"></div>
+      </div>
+    </div>
+    <div class="success-msg" id="respondSuccess">✅ Заявка отправлена! Заказчик получит уведомление.</div>
+    <div id="respondActions" style="display:flex;gap:10px">
+      <button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button>
+      <button style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;width:54px" onclick="showPhone()">📞</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: PROFILE ═══ -->
+<div class="overlay" id="profileOverlay" onclick="closeOverlay('profileOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('profileOverlay')">✕</button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:64px;height:64px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a2e;font-weight:900;font-size:24px;margin:0 auto 10px" id="profileAva">ТК</div>
+      <div style="font-weight:700;font-size:18px" id="profileName">Тимур Токазов</div>
+      <div style="font-size:13px;color:#888" id="profileRole">Перевозчик · ⭐ 4.9 · 47 рейсов</div>
+      <div style="margin-top:8px" id="profilePlanBadge"></div>
+    </div>
+    <div class="divider"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="showSection('orders',document.querySelectorAll('.nav-tab')[3]);closeModal('profileOverlay')">📋 Мои заказы</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="openPostLoad();closeModal('profileOverlay')">📦 Разместить груз</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openSettings()">⚙️ Настройки аккаунта</button>
+      <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openAnalytics()">📊 Моя аналитика</button>
+    </div>
+    <button class="btn-secondary" onclick="doLogout()">🚪 Выйти</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+ <button class="bitem active" onclick="showSection('loads',null)"><div class="bicon">📦</div><div>Грузы</div></button>
+ <button class="bitem" onclick="showSection('trucks',null)"><div class="bicon">🚛</div><div>Машины</div></button>
+ <button class="bitem bitem-post" onclick="openPostLoad()"><div class="bicon">➕</div><div>Груз</div></button>
+ <button class="bitem" onclick="showSection('rates',null)"><div class="bicon">📊</div><div>Ставки</div></button>
+ <button class="bitem" onclick="showSection('orders',this)"><div class="bicon">📋</div><div>Кабинет</div></button>
+</div>
+
+<script>
 // ── SAFE LOCALSTORAGE ─────────────────────────────────
 function _lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){window["_ls_"+k]=v;}}
 function _lsGet(k){try{return localStorage.getItem(k);}catch(e){return window["_ls_"+k]||null;}}
 function _lsDel(k){try{localStorage.removeItem(k);}catch(e){delete window["_ls_"+k];}}
-let _myLoads = [];
-let _deals   = []; // сделки из API
 // ── ADDRESS AUTOCOMPLETE (Nominatim) ─────────────────
 let addrTimers={};
 let addrSelected={pFrom:null, pTo:null};
@@ -288,9 +1273,6 @@ function closeMap(){
 
 // ── DATA ────────────────────────────────────────────
 const LOCAL = [];
-// Экспортируем shared переменные в window для api.js
-Object.defineProperty(window, 'LOCAL', { get: ()=>LOCAL, set: (v)=>{ LOCAL.length=0; v.forEach(x=>LOCAL.push(x)); } });
-Object.defineProperty(window, 'INTL', { get: ()=>INTL, set: (v)=>{ INTL.length=0; v.forEach(x=>INTL.push(x)); } });
 
 const INTL = [];
 const TRUCKS = [
@@ -325,9 +1307,6 @@ function userHasPlan(min){
 }
 
 let scope='local', lang='ru', user=null, cargoData=[...LOCAL];
-Object.defineProperty(window, 'scope', { get: ()=>scope });
-Object.defineProperty(window, 'currentUserId', { get: ()=>currentUserId, set: (v)=>{ currentUserId=v; } });
-Object.defineProperty(window, 'user', { get: ()=>user, set: (v)=>{ user=v; } });
 let currentUserId=null; // user_id из JWT
 
 // ── DATE RANGE SYNC ───────────────────────────────────
@@ -371,6 +1350,7 @@ function renderLoads(data){
   const list=document.getElementById('cargoList');
   list.innerHTML='';
   if(!data.length){
+    // Если сервер ещё не ответил — показываем лоадер, не "Грузов не найдено"
     if(window._loadsLoading){
       list.innerHTML='<div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div>';
     } else {
@@ -379,91 +1359,33 @@ function renderLoads(data){
     return;
   }
   data.forEach(d=>{
-    const isOwn = currentUserId && d.userId === currentUserId;
-    const dateStr = formatDateRange(d.date, d.date2);
-
-    // Класс карточки
-    let cardCls = 'card-load';
-    if(d.badge==='urgent') cardCls += ' card-urgent';
-    else if(d.badge==='new') cardCls += ' card-fresh';
-    else if(d.scope==='intl') cardCls += ' card-intl';
-
-    // Бейдж
-    let badgeHtml = '';
-    if(d.badge==='urgent') badgeHtml = '<span class="badge-urgent-new">СРОЧНО</span>';
-    else if(d.badge==='new') badgeHtml = '<span class="badge-fresh-new">НОВЫЙ</span>';
-    else if(d.scope==='intl') badgeHtml = '<span class="badge-intl-new">МЕЖД.</span>';
-
-    // Тип кузова — цвет тега
-    const typeColors = {
-      tent:{bg:'#f3e5f5',t:'#6a1b9a'},ref:{bg:'#e3f2fd',t:'#1565c0'},
-      bort:{bg:'#e8f5e9',t:'#2e7d32'},termos:{bg:'#fff3e0',t:'#bf360c'},
-      gazel:{bg:'#fce4ec',t:'#880e4f'},container:{bg:'#f0f2f5',t:'#555'},
-      auto:{bg:'#e8eaf6',t:'#283593'},other:{bg:'#f0f2f5',t:'#555'}
-    };
-    const tc = typeColors[d.type] || typeColors.tent;
-
-    // Кнопки справа
-    const rightBtns = isOwn
-      ? `<div style="display:flex;gap:6px">
-           <button class="card-btn-edit" onclick="event.stopPropagation();editMyLoad(${d.id})">✏️</button>
-           <button class="card-btn-del" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑</button>
-         </div>`
-      : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">Отклик</button>`;
-
-    const row = document.createElement('div');
-    row.className = cardCls;
-    row.onclick = () => openCargo(d);
-
-    // Десктопная строка (таблица)
-    const desktopHtml = `
-      <div class="row-desktop">
-        <div>
-          <div class="route">${d.from} <span class="arrow">→</span> ${d.to}</div>
-          <div class="sub">${d.co} ⭐${d.rat}</div>
-          <div style="margin-top:3px">${badgeHtml}</div>
-        </div>
-        <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} кг</div>
-        <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span></div>
-        <div class="price">${d.cur||'₾'}${d.price.toLocaleString()}</div>
-        <div style="font-size:12px;font-weight:600;color:#555">${dateStr||'—'}</div>
-        <div onclick="event.stopPropagation()">${rightBtns}</div>
+    const borderClr=d.badge==='urgent'?'#e74c3c':d.badge==='new'?'#2ecc71':d.scope==='intl'?'#3498db':'transparent';
+    const dateStr=formatDateRange(d.date,d.date2);
+    const dateClr=d.date==='today'?'#2ecc71':d.date==='tomorrow'?'#f7b731':'#555';
+    const badgeHtml=d.badge==='urgent'?'<span class="badge badge-urgent">СРОЧНО</span>':d.badge==='new'?'<span class="badge badge-new">NEW</span>':'';
+    const row=document.createElement('div');
+    row.className='row'+(d.badge==='urgent'?' urgent':d.badge==='new'?' fresh':d.scope==='intl'?' intl':'');
+    row.onclick=()=>openCargo(d);
+    row.innerHTML=`
+      <div>
+        <div class="route">${d.from} <span class="arrow">→</span> ${d.to}</div>
+        <div class="sub">${d.co} ⭐${d.rat}</div>
+        <div style="margin-top:3px">${badgeHtml}</div>
       </div>
+      <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} кг</div>
+      <div><span class="tag" style="background:${d.typeClr};color:${d.typeClrT}">${d.typeLabel}</span></div>
+      <div class="price">${d.cur||"\$"}${d.price.toLocaleString()}</div>
+      <div><div style="font-size:12px;font-weight:600;color:${dateClr}">${dateStr}</div></div>
+      <div>${(currentUserId && d.userId === currentUserId) ? `<div style="display:flex;gap:4px"><button style="background:#e8f5e9;color:#2e7d32;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;flex:1" onclick="event.stopPropagation();editMyLoad(${d.id})">✏️</button><button style="background:#fce4ec;color:#c62828;border:none;padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑️</button></div>` : `<button class="btn-resp" style="margin-top:10px;display:block;width:100%" onclick="event.stopPropagation();openCargo({...window.allLoads.find(x=>x.id==${d.id})})">Отклик</button>`}</div>
     `;
-
-    // Мобильная карточка
-    const mobileHtml = `
-      <div class="row-mobile">
-        <div class="card-main-row">
-          <div class="card-left">
-            <div class="card-route-new">${d.from} <span class="arr">→</span> ${d.to}</div>
-            <div class="card-meta-row">
-              ${badgeHtml}
-              <span class="card-co-new">${d.co} ⭐${d.rat}</span>
-            </div>
-          </div>
-          <div class="card-right-col">
-            <div class="card-price-new">${d.cur||'₾'}${d.price.toLocaleString()}</div>
-            <div onclick="event.stopPropagation()">${rightBtns}</div>
-          </div>
-        </div>
-        <div class="card-footer-row">
-          <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${d.typeLabel}</span>
-          <span>${d.kg.toLocaleString()} кг</span>
-          ${dateStr ? `<span>${dateStr}</span>` : ''}
-        </div>
-      </div>
-    `;
-
-    row.innerHTML = desktopHtml + mobileHtml;
     list.appendChild(row);
   });
-  // Кнопка "Загрузить ещё"
+  // Кнопка "Загрузить ещё" — только если сервер вернул больше чем показано
   const _total = window._serverTotal || 0;
   if(_total > data.length){
-    const lm = document.createElement('div');
-    lm.className = 'load-more';
-    lm.innerHTML = `<button onclick="alert('Загружаем ещё...')">Загрузить ещё ${_total - data.length} груз ↓</button>`;
+    const lm=document.createElement('div');
+    lm.className='load-more';
+    lm.innerHTML=`<button onclick="alert('Загружаем ещё...')">Загрузить ещё ${_total - data.length} груз ↓</button>`;
     list.appendChild(lm);
   }
 }
@@ -636,26 +1558,6 @@ function openCargo(d){
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Оплата</div><div style="font-size:14px;font-weight:700">${d.pay}</div></div>
   `;
   document.getElementById('mDesc').textContent=d.desc;
-
-  // Контакты владельца груза — доступны только от Стандарт
-  const _mContactBlock = document.getElementById('mOwnerContacts');
-  if(_mContactBlock){
-    const _canSeeContacts = user && user.plan && user.plan !== 'free';
-    if(_canSeeContacts && (d.owner_phone || d.owner_email)){
-      _mContactBlock.style.display='';
-      _mContactBlock.innerHTML=`
-        <div style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Контакты грузовладельца</div>
-        ${d.owner_phone ? `<a href="tel:${d.owner_phone}" style="display:block;font-size:14px;font-weight:700;color:#1a6ec0;text-decoration:none;margin-bottom:4px">📞 ${d.owner_phone}</a>` : ''}
-        ${d.owner_email ? `<a href="mailto:${d.owner_email}" style="display:block;font-size:13px;color:#555;text-decoration:none">✉️ ${d.owner_email}</a>` : ''}
-      `;
-    } else if(!_canSeeContacts){
-      _mContactBlock.style.display='';
-      _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 Контакты доступны от <b>Стандарт ₾35/мес</b><br><button onclick="document.getElementById('paywallOverlay').classList.add('on')" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Подробнее →</button></div>`;
-    } else {
-      _mContactBlock.style.display='none';
-    }
-  }
-
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
   const _kmVal = d.km && d.km !== '—' ? d.km : null;
   const _kmBlock = document.getElementById('mKmBlock');
@@ -669,7 +1571,7 @@ function openCargo(d){
     if(_isOwn){
       _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">✏️ Редактировать</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
     } else {
-      _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="openAuth('register')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
+      _actRow.innerHTML = `<button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button><button onclick="alert('📞 Контакт доступен после регистрации')" style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">📞</button>`;
     }
   } else {
     const btn = document.getElementById('btnRespond');
@@ -682,12 +1584,6 @@ function openCargo(d){
 function doRespond(){
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!user || !user.email || !_tk){ closeModal('cargoOverlay'); openAuth('login'); return; }
-
-  // Проверка тарифного плана — free не может откликаться
-  if(!user || user.plan === 'free'){
-    document.getElementById('paywallOverlay').classList.add('on');
-    return;
-  }
 
   // Проверка профиля перевозчика
   if(!user.role || user.role==='carrier'){
@@ -713,20 +1609,12 @@ function doRespond(){
   const _d = window.currentCargoData || window.allLoads?.find(l=>l.id==currentCargoId);
   const _loadServerId = _d?.serverId || _d?.id;
   if(getToken() && _loadServerId){
-    const _loadPrice = _d?.price || _d?.priceGel || 0;
     fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+_loadServerId, {
       method:'POST',
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
-      body:JSON.stringify({price_usd: _loadPrice})
-    }).then(async r=>{
-      if(r.status === 403){
-        btn.textContent='Откликнуться'; btn.disabled=false;
-        closeModal('cargoOverlay');
-        document.getElementById('paywallOverlay').classList.add('on');
-        return;
-      }
-      const data = await r.json();
-      const serverResponseId = data?.response_id || null;
+      body:JSON.stringify({})
+    }).then(r=>r.json()).then(r=>{
+      const serverResponseId = r?.response_id || null;
       document.getElementById('respondSuccess').style.display='block';
       btn.textContent='✅ Заявка отправлена';
       addToOrders(serverResponseId);
@@ -785,20 +1673,37 @@ function addToOrders(serverResponseId){
   if(typeof _renderOrders === 'function') _renderOrders();
 }
 
-async function acceptResponse(loadId, respId){
-  var tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk){ alert('Войдите в аккаунт'); return; }
-  try {
-    await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + tk }
-    });
-    // Считаем успехом и 200 и 422 (уже принят) — данные сохранены
-    pushNotif('✅ Принято!', 'Перевозчик уведомлён. Сделка создана.', []);
-    if(typeof loadCabinetData === 'function') loadCabinetData();
-  } catch(e) {
-    alert('Нет соединения с сервером');
+function acceptResponse(loadId, respId){
+  const resps = _loadResponses[loadId]||[];
+  const accepted = resps.find(r=>r.id===respId);
+  resps.forEach(r=>{ r.status = r.id===respId ? 'accepted' : 'rejected'; });
+  _loadResponses[loadId] = resps;
+  // Создаём сделку на сервере если есть токен и carrierId
+  if(getToken() && accepted && accepted.userId){
+    const load = _myLoads.find(l=>l.id===loadId);
+    fetch('https://api-production-f3ea.up.railway.app/api/deals/', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
+      body: JSON.stringify({
+        load_id:      loadId,
+        carrier_id:   accepted.userId,
+        response_id:  null,
+        agreed_price: load ? (load.price||0) : 0,
+        currency:     load ? (load.cur==='₾'?'GEL':'USD') : 'GEL',
+      })
+    }).then(r=>r.ok?r.json():null).then(d=>{
+      if(d && d.id){
+        _deals.unshift({...d, from_city:load?.from, to_city:load?.to});
+        _renderOrders();
+        pushNotif('🤝 Сделка создана!', `Акт № ${d.act_number}. Перевозчик уведомлён.`,[]);
+      }
+    }).catch(()=>{});
   }
+  // Убираем груз из списка (принят)
+  const load = _myLoads.find(l=>l.id===loadId);
+  if(load){ load.status='taken'; load.status_label='Принят'; }
+  _renderOrders();
+  pushNotif('✅ Принято!', `Перевозчик принят на маршрут ${load?.from||''} → ${load?.to||''}`,[{label:'Мои сделки',action:()=>{showSection('deals',document.querySelector('[onclick*="deals"]'));}}]);
 }
 
 async function cancelMyResponse(orderId, serverId){
@@ -885,8 +1790,8 @@ function choosePlan(plan){
 function getPlanBadge(){
   if(!SUBSCRIPTIONS_ENABLED) return '<span style="background:#2ecc71;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">Бесплатный период</span>';
   const plan=user?.plan||'free';
-  const colors={free:'#888',standard:'#3498db',pro:'#f7b731',pro_plus:'#6c3483'};
-  const names={free:'Бесплатно',standard:'Стандарт',pro:'Про',pro_plus:'Про+'};
+  const colors={free:'#888',standard:'#3498db',pro:'#f7b731'};
+  const names={free:'Бесплатно',standard:'Стандарт',pro:'Про'};
   return `<span style="background:${colors[plan]};color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">${names[plan]}</span>`;
 }
 
@@ -897,7 +1802,7 @@ function showPhone(){
   const d=window.allLoads.find(x=>x.id===currentCargoId);
   const phone=d?.phone||'+995 555 123 456';
   const email=d?.email||'cargo@company.ge';
-  window.location.href = 'tel:' + phone;
+  alert(`📞 Контакт грузовладельца\n\n${phone}\n${email}`);
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -1285,6 +2190,8 @@ function doPostLoad(){
 }
 
 // Массив своих грузов (отдельно от откликов)
+let _myLoads = [];
+let _deals   = []; // сделки из API
 
 // ── Статусы сделок ─────────────────────────────────────────────────
 const DEAL_STATUS = {
@@ -1582,29 +2489,18 @@ function filterLoads(){
 var _currentCabTab = 'loads';
 
 function switchCabTab(tab, el){
- _currentCabTab = tab;
- document.querySelectorAll('.cab-tab').forEach(function(b){
- b.classList.remove('active');
- if(!b.classList.contains('cab-tab-btn')){
- b.style.color = '#aaa';
- b.style.borderBottomColor = 'transparent';
- }
- });
- if(el){
- el.classList.add('active');
- if(!el.classList.contains('cab-tab-btn')){
- el.style.color = '#f7b731';
- el.style.borderBottomColor = '#f7b731';
- }
- }
- document.querySelectorAll('.cab-tab-content').forEach(function(d){ d.style.display = 'none'; });
- var content = document.getElementById('cabTab-' + tab);
- if(content) content.style.display = 'block';
- localStorage.setItem('ch_cab_tab', tab);
- if(tab === 'deals') renderCabDeals();
- if(tab === 'loads') renderCabLoads();
- if(tab === 'responses') renderCabResponses();
+  _currentCabTab = tab;
+  document.querySelectorAll('.cab-tab').forEach(b=>{ b.classList.remove('active'); b.style.color='#aaa'; b.style.borderBottomColor='transparent'; });
+  if(el){ el.classList.add('active'); el.style.color='#f7b731'; el.style.borderBottomColor='#f7b731'; }
+  document.querySelectorAll('.cab-tab-content').forEach(d=>d.style.display='none');
+  var content = document.getElementById('cabTab-'+tab);
+  if(content) content.style.display='block';
+  localStorage.setItem('ch_cab_tab', tab);
+  if(tab==='deals') renderCabDeals();
+  if(tab==='loads') renderCabLoads();
+  if(tab==='responses') renderCabResponses();
 }
+
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
   var panel = document.getElementById('cabinetPanel');
@@ -1612,19 +2508,6 @@ function showCabinet(){
   if(!tk){ if(empty) empty.style.display='block'; if(panel) panel.style.display='none'; return; }
   if(empty) empty.style.display='none';
   if(panel) panel.style.display='block';
- // Заполняем шапку кабинета
- var u = user || (localStorage.getItem('ch_user') ? JSON.parse(localStorage.getItem('ch_user')) : null);
- if(u){
- var nameEl = document.getElementById('cabUserName');
- var subEl = document.getElementById('cabUserSub');
- var avatarEl = document.getElementById('cabAvatar');
- if(nameEl) nameEl.textContent = u.name || u.company_name || u.email || '';
- if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? 'Перевозчик' : 'Грузовладелец') : '');
- if(avatarEl){
- var nm = u.name || u.company_name || u.email || '?';
- avatarEl.textContent = nm.charAt(0).toUpperCase();
- }
- }
   // Восстанавливаем последнюю вкладку
   var savedCabTab = localStorage.getItem('ch_cab_tab') || 'loads';
   var tabBtn = document.querySelector('.cab-tab[onclick*="switchCabTab(\''+savedCabTab+'\'"]');
@@ -1671,143 +2554,53 @@ function loadCabinetData(){
 }
 
 function renderCabLoads(){
- var el = document.getElementById('myLoadsList');
- if(!el) return;
- var cabStat = document.getElementById('cabStatLoads');
- if(cabStat) cabStat.textContent = _myLoads.length;
- if(!_myLoads.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">Нет размещённых грузов</div><div class="cab-empty-sub">Разместите груз и перевозчики сразу увидят его</div><div style="margin-top:14px"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:10px 24px;font-size:14px">+ Разместить груз</button></div></div>';
- return;
- }
- el.innerHTML = _myLoads.map(function(l){
- var responses = _loadResponses[l.id] || [];
- var isIntl = l.scope === 'intl';
- var borderCls = l.urgent ? 'urgent' : (isIntl ? 'intl' : '');
- var respBadge = responses.length
- ? '<span class="cab-resp-badge has">' + responses.length + ' откл.</span>'
- : '<span class="cab-resp-badge none">Нет откликов</span>';
- var respBlock = '';
- if(responses.length){
- respBlock = '<div class="cab-inline-resps"><div class="cab-inline-resp-label">Отклики (' + responses.length + ')</div>'
- + responses.map(function(r){
- var actions = '';
- if(r.status === 'pending'){
- actions = '<div class="cab-inline-resp-actions"><button onclick="acceptResponse(' + l.id + ',' + r.id + ')" class="cab-accept-btn">✓ Принять</button><button onclick="rejectResponse(' + l.id + ',' + r.id + ')" class="cab-reject-btn">✕</button></div>';
- } else if(r.status === 'accepted'){
- actions = '<span class="cab-status-badge accepted">Принят</span>';
- } else {
- actions = '<span class="cab-status-badge rejected">Отклонён</span>';
- }
- return '<div class="cab-inline-resp-row"><div><div class="cab-inline-resp-name">' + r.name + '</div>' + (r.price ? '<div class="cab-inline-resp-price">₾' + r.price + '</div>' : '') + (r.phone ? '<a href="tel:' + r.phone + '" style="font-size:11px;color:#1a6ec0;text-decoration:none;display:block">📞 ' + r.phone + '</a>' : '') + '</div>' + actions + '</div>';
- }).join('') + '</div>';
- } else {
- respBlock = '<div style="font-size:12px;color:#ccc;padding:6px 0;text-align:center">Откликов пока нет</div>';
- }
- return '<div class="cab-load-card ' + borderCls + '">'
- + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
- + '<div style="flex:1"><div class="cab-load-route">' + l.from + ' → ' + l.to + '</div>'
- + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' кг</span><span>' + (l.typeLabel||'') + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
- + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
- + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ Изменить</button>'
- + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ Удалить</button>'
- + '</div></div>'
- + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
- + respBlock
- + '</div>';
- }).join('')
- + '<div class="cab-add-btn"><button onclick="openPostLoad()" class="cab-btn primary" style="padding:9px 20px;font-size:13px">+ Разместить новый груз</button></div>';
+  var el = document.getElementById('myLoadsList');
+  if(!el) return;
+  if(!_myLoads.length){
+    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa"><div style="font-size:36px;margin-bottom:8px">📦</div><div style="font-weight:700;margin-bottom:4px">Нет размещённых грузов</div><div style="font-size:13px;margin-bottom:16px">Разместите груз и перевозчики сразу увидят его</div><button onclick="openPostLoad()" style="background:#f7b731;color:#1a1a2e;border:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">+ Разместить груз</button></div>';
+    return;
+  }
+  el.innerHTML = _myLoads.map(l=>{
+    var responses = _loadResponses[l.id]||[];
+    var respHtml = responses.length ? '<div style="margin-top:10px;border-top:1px solid #f0f0f0;padding-top:10px"><div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px">👥 Отклики ('+responses.length+'):</div>'+responses.map(r=>'<div style="background:#f8f9fa;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:600;font-size:13px">'+r.name+'</div>'+(r.price?'<div style="font-size:12px;color:#2e7d32;font-weight:700">₾'+r.price+'</div>':'')+(r.phone?'<div style="font-size:11px;color:#555">📞 '+r.phone+'</div>':'')+(r.message?'<div style="font-size:11px;color:#888">💬 '+r.message+'</div>':'')+'</div><div style="display:flex;gap:4px;flex-shrink:0">'+(r.status==='pending'?'<button onclick="acceptResponse('+l.id+','+r.id+')" style="background:#2ecc71;color:#fff;border:none;padding:5px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">✓</button><button onclick="rejectResponse('+l.id+','+r.id+')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;padding:5px 6px;border-radius:6px;font-size:11px;cursor:pointer">✕</button>':r.status==='accepted'?'<span style="color:#2ecc71;font-size:11px;font-weight:700">✅</span>':'<span style="color:#aaa;font-size:11px">Отклонён</span>')+'</div></div>').join('')+'</div>' : '<div style="font-size:12px;color:#bbb;margin-top:8px;text-align:center">Откликов пока нет</div>';
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1"><div style="font-weight:700">'+l.from+' → '+l.to+'</div><div style="font-size:12px;color:#888;margin-top:2px">'+(l.kg||0).toLocaleString()+' кг · '+(l.cur||'₾')+(l.price||0)+' · '+(l.date||'—')+'</div>'+(l.desc?'<div style="font-size:12px;color:#999">'+l.desc+'</div>':'')+'</div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0"><button onclick="editMyLoad('+l.id+')" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer">✏️ Ред.</button><button onclick="deleteMyLoad('+l.id+')" style="background:#fee;color:#e74c3c;border:1px solid #fcc;border-radius:6px;padding:5px 8px;font-size:11px;cursor:pointer">✕ Удалить</button></div></div>'+respHtml+'</div>';
+  }).join('');
 }
+
 function renderCabResponses(){
- var el = document.getElementById('myResponsesList');
- if(!el) return;
- if(!_orders || !_orders.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет активных откликов</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>';
- var badge = document.getElementById('cabRespBadge');
- if(badge) badge.style.display = 'none';
- return;
- }
- var pendingCount = _orders.filter(function(o){ return o.status === 'pending'; }).length;
- var badge = document.getElementById('cabRespBadge');
- if(badge){
- if(pendingCount > 0){ badge.style.display = 'inline'; badge.textContent = pendingCount; }
- else badge.style.display = 'none';
- }
- el.innerHTML = _orders.map(function(o){
- var statusCls = o.status === 'accepted' ? 'accepted' : o.status === 'rejected' ? 'rejected' : 'pending';
- var statusLabel = o.status === 'accepted' ? '✅ Принят' : o.status === 'rejected' ? '❌ Отклонён' : '⏳ Ожидание';
- var ts = '';
- try { ts = new Date(o.created).toLocaleString('ru', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
- var cancelBtn = o.status === 'pending'
- ? '<div style="margin-top:8px"><button onclick="cancelMyResponse(' + o.id + ',' + (o.serverId||0) + ')" class="cab-btn del" style="width:100%;padding:7px;font-size:13px">✕ Отменить заявку</button></div>'
- : '';
- return '<div class="cab-resp-item">'
- + '<div><div class="cab-resp-route">🚛 ' + o.title + '</div>'
- + '<div class="cab-resp-meta">' + (o.price ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
- + cancelBtn + '</div>'
- + '<span class="cab-status-badge ' + statusCls + '">' + statusLabel + '</span>'
- + '</div>';
- }).join('');
+  var el = document.getElementById('myResponsesList');
+  if(!el) return;
+  if(!_orders||!_orders.length){
+    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa"><div style="font-size:36px;margin-bottom:8px">🚛</div><div style="font-weight:700;margin-bottom:4px">Нет активных откликов</div><div style="font-size:13px">Откликнитесь на грузы — они появятся здесь</div></div>';
+    return;
+  }
+  var STATUS={pending:{l:'⏳ Ожидание',c:'#f7b731'},accepted:{l:'✅ Принят',c:'#2ecc71'},rejected:{l:'❌ Отклонён',c:'#e74c3c'}};
+  el.innerHTML = _orders.map(o=>{
+    var s=STATUS[o.status]||{l:o.status,c:'#aaa'};
+    var ts=new Date(o.created).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    var cancelBtn=o.status==='pending'?'<button onclick="cancelMyResponse('+o.id+','+(o.serverId||0)+')" style="margin-top:8px;width:100%;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:7px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✕ Отменить заявку</button>':'';
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid '+s.c+'"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-weight:700">🚛 '+o.title+'</div><div style="font-size:12px;color:#888;margin-top:2px">'+(o.price?'₾'+o.price+' · ':'')+o.co+' · '+ts+'</div></div><span style="font-size:12px;font-weight:700;color:'+s.c+';flex-shrink:0">'+s.l+'</span></div>'+cancelBtn+'</div>';
+  }).join('');
 }
+
 function renderCabDeals(){
- var el = document.getElementById('myDealsList');
- if(!el) return;
- if(!_deals || !_deals.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>';
- return;
- }
- var cabDeals = document.getElementById('cabStatDeals');
- if(cabDeals) cabDeals.textContent = _deals.length;
- var total = _deals.reduce(function(s,d){ return s + (d.agreed_price||0); }, 0);
- var cabRev = document.getElementById('cabStatRevenue');
- if(cabRev) cabRev.textContent = '₾' + total.toLocaleString();
- var ST = {
- confirmed:         {l:'✅ Подтверждена',       cls:'accepted'},
- loading:           {l:'🔄 Загрузка',            cls:'pending'},
- in_transit:        {l:'🚛 В пути',              cls:'pending'},
- delivered:         {l:'📍 Ожидаем подтверждения',cls:'pending'},
- completed:         {l:'🏆 Завершена',           cls:'accepted'},
- rated:             {l:'⭐ Оценена',             cls:'accepted'},
- cancelled:         {l:'❌ Отменена',            cls:'rejected'},
- canceled:          {l:'❌ Отменена',            cls:'rejected'}
- };
- var tk = getToken ? getToken() : localStorage.getItem('ch_token');
- el.innerHTML = _deals.map(function(d){
- var st = ST[d.status] || {l:d.status,cls:'pending'};
- var carrier = d.carrier_name || (d.carrier && d.carrier.name) || '';
- var isCarrier = d.carrier_id === currentUserId;
- var isShipper = d.shipper_id === currentUserId;
-
- // Кнопки действий по статусу и роли
- var actions = '';
- // PDF всегда
- actions += '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 Акт PDF</a>';
-
- if(d.status === 'confirmed') {
-  if(isCarrier) actions += '<button onclick="updateDealStatus(' + d.id + ',\'loading\')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">📦 Приступил к загрузке</button>';
- } else if(d.status === 'loading') {
-  if(isCarrier) actions += '<button onclick="updateDealStatus(' + d.id + ',\'in_transit\')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">🚛 Груз отправлен</button>';
- } else if(d.status === 'in_transit' || d.status === 'delivered') {
-  if(isCarrier && !d.carrier_confirmed) actions += '<button onclick="updateDealStatus(' + d.id + ',\'delivered_carrier\')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ Подтвердить доставку</button>';
-  if(isShipper && !d.shipper_confirmed) actions += '<button onclick="updateDealStatus(' + d.id + ',\'delivered_shipper\')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ Подтвердить получение</button>';
- } else if(d.status === 'completed') {
-  actions += '<button onclick="rateDeal(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">⭐ Оценить</button>';
- }
-
- return '<div class="cab-deal-card">'
- + '<div class="cab-deal-header">'
- + '<div><div class="cab-deal-num">' + (d.deal_number||'#'+d.id) + '</div>'
- + '<div class="cab-deal-route">' + (d.load_from||'?') + ' → ' + (d.load_to||'?') + '</div></div>'
- + '<div style="text-align:right"><div class="cab-deal-price">₾' + (d.agreed_price||0).toLocaleString() + '</div>'
- + '<span class="cab-status-badge ' + st.cls + '">' + st.l + '</span></div>'
- + '</div>'
- + '<div class="cab-deal-meta">'
- + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' кг</span>' : '')
- + (carrier ? '<span>🚛 ' + carrier + '</span>' : '')
- + '</div>'
- + '<div class="cab-deal-actions">' + actions + '</div>'
- + '</div>';
- }).join('');
+  var el = document.getElementById('myDealsList');
+  if(!el) return;
+  if(!_deals||!_deals.length){
+    el.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa"><div style="font-size:36px;margin-bottom:8px">🤝</div><div style="font-weight:700;margin-bottom:4px">Нет сделок</div><div style="font-size:13px">Примите отклик на груз чтобы создать сделку</div></div>';
+    return;
+  }
+  var ST={confirmed:{l:'✅ Подтверждена',c:'#2ecc71'},loading:{l:'🔄 Загрузка',c:'#3498db'},in_transit:{l:'🚛 В пути',c:'#9b59b6'},delivered:{l:'📍 Доставлено',c:'#16a085'},completed:{l:'🏆 Завершена',c:'#27ae60'},cancelled:{l:'❌ Отменена',c:'#e74c3c'}};
+  var tk=getToken?getToken():localStorage.getItem('ch_token');
+  el.innerHTML = _deals.map(d=>{
+    var st=ST[d.status]||{l:d.status,c:'#aaa'};
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div><div style="font-weight:700">'+(d.load_from||'?')+' → '+(d.load_to||'?')+'</div><div style="font-size:12px;color:#888;margin-top:2px">'+(d.deal_number||'#'+d.id)+'</div></div><span style="font-size:12px;font-weight:700;color:'+st.c+'">'+st.l+'</span></div><div style="display:flex;gap:8px;font-size:12px;color:#666;margin-bottom:8px"><span>⚖️ '+(d.load_kg||0).toLocaleString()+' кг</span><span>💰 ₾'+(d.agreed_price||0)+'</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><a href="https://api-production-f3ea.up.railway.app/api/deals/'+d.id+'/act.pdf?token='+tk+'" target="_blank" style="background:#1a1a2e;color:#fff;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;display:inline-block">📄 Скачать акт</a></div></div>';
+  }).join('');
 }
+
+
+// ── SECTIONS ──────────────────────────────────────────
+var _userClickedTab = false; // флаг ручного клика
 function showSection(name, el){
   _userClickedTab = true;
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1902,89 +2695,14 @@ function updateFormForIntl(){
 
 // ── DATE FILTER ────────────────────────────────────────
 function filterByDate(val){
-  var pop = document.getElementById('datePeriodPop');
-  if(val === 'pick'){
-    // Показываем попап периода
-    if(pop){ pop.style.display = pop.style.display==='none' ? 'block' : 'none'; }
-    return;
-  }
-  // Закрываем попап если открыт
-  if(pop) pop.style.display='none';
-  if(!val){ filterLoads(); return; }
-  var data = scope==='local' ? [...LOCAL] : [...INTL];
-  if(val==='today') data = data.filter(function(d){ return d.date==='today'; });
-  else if(val==='tomorrow') data = data.filter(function(d){ return d.date==='tomorrow'; });
-  else if(val==='week') data = data.filter(function(d){ return d.date; });
+  if(!val){filterLoads();return;}
+  let data=scope==='local'?[...LOCAL]:[...INTL];
+  if(val==='today') data=data.filter(d=>d.date==='today');
+  else if(val==='tomorrow') data=data.filter(d=>d.date==='tomorrow');
+  else if(val==='week') data=data.filter(d=>d.date==='today'||d.date==='tomorrow'||d.date);
   renderLoads(data);
-  document.getElementById('fcount').textContent = data.length+' грузов';
+  document.getElementById('fcount').textContent=data.length+' грузов';
 }
-
-function applyDatePeriod(){
-  var fromStr = document.getElementById('fDateFrom').value;
-  var toStr   = document.getElementById('fDateTo').value;
-  document.getElementById('datePeriodPop').style.display = 'none';
-
-  if(!fromStr && !toStr){ filterLoads(); return; }
-
-  var fromDate = fromStr ? new Date(fromStr) : null;
-  var toDate   = toStr   ? new Date(toStr)   : null;
-  if(toDate) toDate.setHours(23,59,59);
-
-  // Форматируем метку в select
-  var label = '📅 ';
-  if(fromStr && toStr) label += fromStr.split('-').reverse().join('.') + ' – ' + toStr.split('-').reverse().join('.');
-  else if(fromStr) label += 'с ' + fromStr.split('-').reverse().join('.');
-  else label += 'по ' + toStr.split('-').reverse().join('.');
-  var sel = document.getElementById('fDate');
-  var opt = sel.querySelector('option[value="pick_range"]');
-  if(!opt){ opt = document.createElement('option'); opt.value='pick_range'; sel.appendChild(opt); }
-  opt.textContent = label;
-  sel.value = 'pick_range';
-
-  var data = scope==='local' ? [...LOCAL] : [...INTL];
-  data = data.filter(function(d){
-    if(!d.date) return false;
-    // Конвертируем d.date в Date
-    var today = new Date(); today.setHours(0,0,0,0);
-    var tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-    var loadDate;
-    if(d.date==='today') loadDate = today;
-    else if(d.date==='tomorrow') loadDate = tomorrow;
-    else {
-      // dd.mm.yy или dd.mm.yyyy
-      var parts = d.date.split('.');
-      if(parts.length===3){
-        var y = parts[2].length===2 ? '20'+parts[2] : parts[2];
-        loadDate = new Date(y+'-'+parts[1]+'-'+parts[0]);
-      }
-    }
-    if(!loadDate) return false;
-    if(fromDate && loadDate < fromDate) return false;
-    if(toDate   && loadDate > toDate)   return false;
-    return true;
-  });
-  renderLoads(data);
-  document.getElementById('fcount').textContent = data.length+' грузов';
-}
-
-function clearDatePeriod(){
-  document.getElementById('fDateFrom').value = '';
-  document.getElementById('fDateTo').value   = '';
-  document.getElementById('datePeriodPop').style.display = 'none';
-  var sel = document.getElementById('fDate');
-  sel.value = '';
-  filterLoads();
-}
-
-// Закрываем попап при клике вне
-document.addEventListener('click', function(e){
-  var pop = document.getElementById('datePeriodPop');
-  var sel = document.getElementById('fDate');
-  if(pop && !pop.contains(e.target) && e.target !== sel){
-    pop.style.display = 'none';
-  }
-});
-
 
 // ── SETTINGS & ANALYTICS ──────────────────────────────
 function openSettings(){
@@ -2297,7 +3015,196 @@ if(document.readyState==='loading'){
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
 }
+</script>
+<!-- ═══ SECTION: CABINET ═══ -->
+<div class="section" id="sec-cabinet">
+  <div class="orders-empty" id="cabinetEmpty" style="display:none">
+    <div class="icon">📋</div>
+    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div>
+    <div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div>
+    <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')">Войти</button>
+  </div>
+  <div id="cabinetList"></div>
+</div>
+<!-- SECTION: DEALS -->
+<div id="sDeals" class="section" style="display:none;padding:16px;max-width:600px;margin:0 auto"></div>
 
+<!-- MODAL: SETTINGS -->
+<div class="overlay" id="settingsOverlay" onclick="closeOverlay('settingsOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('settingsOverlay')">✕</button>
+    <div class="modal-title">⚙️ Настройки аккаунта</div>
+    <div class="modal-sub">Управление профилем и уведомлениями</div>
+    <div class="form-group">
+      <label>Имя / Название компании</label>
+      <input class="form-input" id="sName" placeholder="ООО ГрузТранс">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Телефон</label>
+        <input class="form-input" id="sPhone" placeholder="+995 555 ___">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input class="form-input" id="sEmail" type="email" placeholder="you@email.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Вы:</label>
+      <select class="form-select" id="sRole">
+        <option value="carrier">🚛 Перевозчик</option>
+        <option value="shipper">📦 Грузовладелец</option>
+        <option value="both">🔄 Перевозчик и грузовладелец</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Telegram (для уведомлений)</label>
+      <input class="form-input" id="sTelegram" placeholder="@username">
+    </div>
+
+    <!-- Поля для перевозчика -->
+    <div id="sCarrierFields">
+      <div class="divider"></div>
+      <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">🚛 Данные перевозчика</div>
+      <input type="hidden" id="sInn">
+      <input type="hidden" id="sOrgType">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Тип кузова</label>
+          <select class="form-select" id="sTruckType">
+            <option value="">— выберите —</option><option>Тент</option><option>Рефрижератор</option><option>Рефтент</option><option>Мегатент</option><option>Бортовой</option><option>Термос</option><option>Фургон (до 3.5т)</option><option>Контейнер</option><option>Автовоз</option><option>Эвакуатор</option><option>Цистерна</option><option>Зерновоз</option><option>Самосвал</option><option>Другой</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Грузоподъёмность (т)</label>
+          <input class="form-input" type="number" id="sTonnage" placeholder="20">
+        </div>
+      </div>
+    </div>
+
+    <!-- Реквизиты — для всех -->
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px">📋 Реквизиты компании</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ИНН / ID код Грузия</label>
+        <input class="form-input" id="sInnAll" placeholder="405XXXXXXX">
+      </div>
+      <div class="form-group">
+        <label>Форма организации</label>
+        <select class="form-select" id="sOrgTypeAll">
+          <option value="">— выберите —</option>
+          <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option>Частное лицо</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Город / регион работы</label>
+      <input class="form-input" id="sCityAll" placeholder="Тбилиси">
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">🔔 Уведомления</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Новые отклики на мои грузы</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Грузы по моим маршрутам</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> Изменение ставок на маршрутах</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> Статус моих заявок</label>
+    </div>
+    <button class="btn-primary" onclick="saveSettings()">💾 Сохранить</button>
+    <button class="btn-secondary" onclick="closeModal('settingsOverlay')">Отмена</button>
+  </div>
+</div>
+
+<!-- MODAL: ANALYTICS -->
+<div class="overlay" id="analyticsOverlay" onclick="closeOverlay('analyticsOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('analyticsOverlay')">✕</button>
+    <div class="modal-title">📊 Моя аналитика</div>
+    <div class="modal-sub" id="analyticsUser">Статистика аккаунта</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#1a1a2e" id="aStat1">47</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Рейсов всего</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#2ecc71" id="aStat2">6</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">В этом месяце</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:22px;font-weight:900;color:#f7b731" id="aStat3">₾12,400</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Заработано (март)</div>
+      </div>
+      <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:900;color:#3498db" id="aStat4">4.9 ⭐</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">Рейтинг</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">🗺️ Популярные маршруты</div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes">
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Тбилиси → Батуми</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">18 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Поти → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">12 рейсов</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
+        <span style="font-size:13px">Кутаиси → Тбилиси</span>
+        <span style="font-size:13px;font-weight:700;color:#f7b731">9 рейсов</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:13px;color:#aaa;text-align:center">Полная аналитика будет доступна после первых реальных сделок на платформе</div>
+  </div>
+</div>
+
+<!-- AI DISPATCHER FAB -->
+<button class="ai-fab" onclick="toggleAI()" title="Твой AI Диспетчер" style="font-size:0;background:linear-gradient(135deg,#1a1a2e,#2980b9)">
+  <img src="dispatcher.jpg" width="56" height="56" style="border-radius:50%;object-fit:cover;object-position:center top">
+  <div class="ai-badge"></div>
+</button>
+<div class="ai-chat" id="aiChat">
+  <div class="ai-chat-header">
+    <div class="ai-avatar" style="background:transparent;overflow:hidden;width:40px;height:40px;border-radius:50%"><img src="dispatcher.jpg" width="40" height="40" style="object-fit:cover;object-position:center top;border-radius:50%"></div>
+    <div style="flex:1"><div class="ai-name">Мари — AI Диспетчер</div><div class="ai-status">● Онлайн 24/7</div></div>
+    <button onclick="aiReset()" style="background:none;border:none;color:#aaa;font-size:11px;cursor:pointer;padding:4px 8px;border-radius:6px;margin-right:4px;" title="Начать заново">↺</button>
+    <button class="ai-close" onclick="closeAI()">✕</button>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+  </div>
+  <div class="ai-template" id="aiTemplate" style="display:none">
+    <div class="ai-template-title">📋 Данные груза:</div>
+    <div class="ai-field"><span class="ai-field-label">Откуда</span><span class="ai-field-value" id="tFrom">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Куда</span><span class="ai-field-value" id="tTo">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Груз</span><span class="ai-field-value" id="tDesc">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Вес</span><span class="ai-field-value" id="tWeight">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Дата</span><span class="ai-field-value" id="tDate">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Кузов</span><span class="ai-field-value" id="tTruck">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Цена</span><span class="ai-field-value" id="tPrice">—</span></div>
+    <div class="ai-field"><span class="ai-field-label">Оплата</span><span class="ai-field-value" id="tPay">—</span></div>
+  </div>
+  <button class="ai-post-btn" id="aiPostBtn" onclick="aiPostLoad()">📦 Разместить груз на бирже</button>
+  <div class="ai-input-area">
+    <textarea class="ai-input" id="aiInput" placeholder="Напишите о грузе..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"></textarea>
+    <button class="ai-mic" onclick="aiStartVoice()" title="Голосовой ввод">🎤</button>
+    <button class="ai-send" onclick="aiSend()">➤</button>
+  </div>
+</div>
+
+<!-- NOTIF PANEL -->
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-header">
+    <span class="notif-title">🔔 Уведомления</span>
+    <button class="notif-mark" onclick="clearNotifs()">Прочитать все</button>
+  </div>
+  <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
+</div>
+
+<script src="api.js?v=1775652405"></script>
+<script src="ai-dispatcher.js?v=1775652405"></script>
+<script>
 function openPlansModal(e){ 
   if(e) e.stopPropagation(); 
   closeModal('authOverlay'); 
@@ -2445,6 +3352,7 @@ document.addEventListener('click', function(e){ const p=document.getElementById(
 setTimeout(renderNotifs, 100);
 
 // ═══ ЯНДЕКС КАРТА В МОДАЛЕ ═══
+let _routeMap = null;
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
   let from = '', to = '';
@@ -2508,165 +3416,17 @@ window.openRouteMap = function(){
   _initMap();
 }
 
+</script>
+<div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
+  <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700;font-size:14px">🔔 Уведомления</div>
+    <button onclick="clearNotifs()" style="background:none;border:none;color:#aaa;font-size:12px;cursor:pointer">Очистить</button>
+  </div>
+  <div id="notifList" style="padding:8px 0">
+    <div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Уведомлений нет</div>
+  </div>
+</div>
 
-// Явно регистрируем все функции как глобальные
-window.showSection = showSection;
-window.setScope = setScope;
-window.setLang = setLang;
-window.openAuth = openAuth;
-window.switchAuth = switchAuth;
-window.doLogout = doLogout;
-window.openPostLoad = openPostLoad;
-window.doPostLoad = doPostLoad;
-window.openCargo = openCargo;
-window.doRespond = doRespond;
-window.showCabinet = showCabinet;
-window.switchCabTab = switchCabTab;
-window.filterLoads = filterLoads;
-window.openPostTruck = openPostTruck;
-window.doPostTruck = doPostTruck;
-window.deleteMyLoad = deleteMyLoad;
-window.editMyLoad = editMyLoad;
-window.saveEditedLoad = saveEditedLoad;
-window.acceptResponse = acceptResponse;
-window.rejectResponse = rejectResponse;
-window.openProfile = openProfile;
-window.showForgotForm = showForgotForm;
-window.closeModal = closeModal;
-window.closeOverlay = closeOverlay;
-window.openPaywall = openPaywall;
-window.choosePlan = choosePlan;
-window.showPhone = showPhone;
-window.callTruck = callTruck;
-window.deleteMyTruck = deleteMyTruck;
-window.filterByCountry = filterByCountry;
-window.selectRegType = selectRegType;
-window.backToStep1 = backToStep1;
-window.openDrop = openDrop;
-window.closeDrop = closeDrop;
-window.selectCity = selectCity;
-window.addrSearch = addrSearch;
-window.selectAddr = selectAddr;
-window.closeAddrDrop = closeAddrDrop;
-window.showRouteMap = showRouteMap;
-window.closeMap = closeMap;
-window.updateFormForIntl = updateFormForIntl;
-window.syncDateMin = syncDateMin;
-window.renderLoads = renderLoads;
-window.clearNotifs = clearNotifs;
-window.toggleNotifPanel = toggleNotifPanel;
-
-// Дополнительные регистрации (правильные имена)
-window.doLogin = doLogin;
-window.doRegister = doRegister;
-window.cancelMyResponse = cancelMyResponse;
-window.doForgotStep1 = doForgotStep1;
-window.doForgotStep2 = doForgotStep2;
-window.dealAction = dealAction;
-window.confirmDelivery = confirmDelivery;
-
-async function updateDealStatus(dealId, status) {
- var tk = getToken ? getToken() : localStorage.getItem('ch_token');
- var r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/' + dealId + '/status', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk },
-  body: JSON.stringify({ status: status })
- });
- var data = await r.json().catch(function(){ return null; });
- if(r.ok) {
-  loadCabinetData();
-  pushNotif('✅ Статус обновлён', 'Сделка обновлена', []);
- } else {
-  alert('Ошибка: ' + (data && data.detail ? data.detail : 'Попробуйте ещё раз'));
- }
-}
-window.updateDealStatus = updateDealStatus;
-
-async function rateDeal(dealId) {
- var score = prompt('Оцените сделку от 1 до 5:');
- if(!score || isNaN(score) || +score < 1 || +score > 5) return;
- var tk = getToken ? getToken() : localStorage.getItem('ch_token');
- var r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/' + dealId + '/rate', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk },
-  body: JSON.stringify({ score: parseInt(score) })
- });
- var data = await r.json().catch(function(){ return null; });
- if(r.ok) {
-  loadCabinetData();
-  pushNotif('⭐ Спасибо!', 'Оценка сохранена', []);
- } else {
-  alert('Ошибка при сохранении оценки: ' + (data && data.detail ? data.detail : ''));
- }
-}
-window.rateDeal = rateDeal;
-window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
-
-// ─── Polling: автопроверка откликов каждые 30 секунд ───────────────────────
-(function startResponsePolling(){
-  var _knownResponseIds = {};  // loadId → Set of known response ids
-
-  function _initKnownResponses(){
-    // Инициализируем из текущего состояния _loadResponses (уже загружены)
-    if(typeof _loadResponses !== 'undefined'){
-      Object.keys(_loadResponses).forEach(function(loadId){
-        if(!_knownResponseIds[loadId]) _knownResponseIds[loadId] = {};
-        (_loadResponses[loadId]||[]).forEach(function(r){ _knownResponseIds[loadId][r.id] = true; });
-      });
-    }
-  }
-
-  function _pollResponses(){
-    var tk = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('ch_token');
-    if(!tk) return; // не залогинен — не опрашиваем
-
-    fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads', {
-      headers: { 'Authorization': 'Bearer ' + tk }
-    }).then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
-      if(!data || !data.loads) return;
-      var loads = data.loads;
-
-      loads.forEach(function(l){
-        fetch('https://api-production-f3ea.up.railway.app/api/responses/load/' + l.id, {
-          headers: { 'Authorization': 'Bearer ' + tk }
-        }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-          if(!d || !d.responses) return;
-          var responses = d.responses;
-
-          if(!_knownResponseIds[l.id]){
-            // Первый раз видим этот груз — просто запоминаем, не уведомляем
-            _knownResponseIds[l.id] = {};
-            responses.forEach(function(r){ _knownResponseIds[l.id][r.id] = true; });
-            return;
-          }
-
-          // Ищем новые отклики (которых раньше не было)
-          var newOnes = responses.filter(function(r){ return !_knownResponseIds[l.id][r.id]; });
-          newOnes.forEach(function(r){
-            _knownResponseIds[l.id][r.id] = true;
-            var route = (l.from || '?') + ' → ' + (l.to || '?');
-            var name = r.carrier_name || 'Перевозчик';
-            var priceText = r.price ? ' · ' + r.price + ' ₾' : '';
-            if(typeof pushNotif === 'function'){
-              pushNotif('🚛 Новый отклик!', name + priceText + ' на груз ' + route, []);
-            }
-            // Обновляем _loadResponses чтобы данные были актуальны
-            if(typeof _loadResponses !== 'undefined'){
-              if(!_loadResponses[l.id]) _loadResponses[l.id] = [];
-              _loadResponses[l.id] = responses.map(function(rr){
-                return {id:rr.id, name:rr.carrier_name||'Перевозчик', phone:rr.carrier_phone||null, message:rr.message||null, price:rr.price||null, status:rr.status||'pending'};
-              });
-              if(typeof renderCabLoads === 'function') renderCabLoads();
-            }
-          });
-        }).catch(function(){});
-      });
-    }).catch(function(){});
-  }
-
-  // Запускаем с задержкой 5 сек после старта страницы (чтобы данные успели загрузиться)
-  setTimeout(function(){
-    _initKnownResponses();
-    setInterval(_pollResponses, 30000); // каждые 30 секунд
-  }, 5000);
-})();
+<script>window.openPlansModal=function(e){if(e)e.stopPropagation();if(typeof closeModal==="function")closeModal("authOverlay");setTimeout(function(){var p=document.getElementById("paywallOverlay");if(p)p.classList.add("on");},150);};</script>
+</body>
+</html>

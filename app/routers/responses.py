@@ -9,6 +9,7 @@ from app.models.load import Load
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
 from app.services.telegram_notify import notify_new_response, notify_response_accepted
+from app.services.plan_check import check_can_respond
 import httpx
 import asyncio
 
@@ -70,6 +71,15 @@ async def respond_to_load(
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
+    # Проверка тарифного плана
+    can, reason = check_can_respond(current_user)
+    if not can:
+        plan_needed = "standard" if reason == "plan_required" else "standard"
+        raise HTTPException(
+            status_code=403,
+            detail={"code": reason, "plan": plan_needed}
+        )
+
     # Проверяем груз
     load_res = await db.execute(select(Load).where(Load.id == load_id))
     load = load_res.scalar_one_or_none()
@@ -94,6 +104,15 @@ async def respond_to_load(
         status=ResponseStatus.pending
     )
     db.add(resp)
+
+    # Увеличиваем счётчик для standard плана
+    plan_val = current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan)
+    if plan_val == "standard":
+        from datetime import datetime, timezone
+        current_user.responses_this_month = (current_user.responses_this_month or 0) + 1
+        if current_user.responses_month_reset is None:
+            current_user.responses_month_reset = datetime.now(timezone.utc)
+
     await db.commit()
     await db.refresh(resp)
 

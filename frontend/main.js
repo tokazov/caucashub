@@ -827,6 +827,26 @@ function openCargo(d){
   `;
   const _descText = d.desc && d.desc !== 'Груз без описания' ? d.desc : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
   document.getElementById('mDesc').textContent=_descText;
+
+  // Контакты владельца груза — доступны только от Стандарт
+  const _mContactBlock = document.getElementById('mOwnerContacts');
+  if(_mContactBlock){
+    const _canSeeContacts = user && user.plan && user.plan !== 'free';
+    if(_canSeeContacts && (d.owner_phone || d.owner_email)){
+      _mContactBlock.style.display='';
+      _mContactBlock.innerHTML=`
+        <div style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Контакты грузовладельца</div>
+        ${d.owner_phone ? `<a href="tel:${d.owner_phone}" style="display:block;font-size:14px;font-weight:700;color:#1a6ec0;text-decoration:none;margin-bottom:4px">📞 ${d.owner_phone}</a>` : ''}
+        ${d.owner_email ? `<a href="mailto:${d.owner_email}" style="display:block;font-size:13px;color:#555;text-decoration:none">✉️ ${d.owner_email}</a>` : ''}
+      `;
+    } else if(!_canSeeContacts){
+      _mContactBlock.style.display='';
+      _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 Контакты доступны от <b>Стандарт ₾35/мес</b><br><button onclick="document.getElementById('paywallOverlay').classList.add('on')" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Подробнее →</button></div>`;
+    } else {
+      _mContactBlock.style.display='none';
+    }
+  }
+
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
   const _kmVal = d.km && d.km !== '—' ? d.km : null;
   const _kmBlock = document.getElementById('mKmBlock');
@@ -863,6 +883,12 @@ function doRespond(){
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!user || !user.email || !_tk){ closeModal('cargoOverlay'); openAuth('login'); return; }
 
+  // Проверка тарифного плана — free не может откликаться
+  if(!user || user.plan === 'free'){
+    document.getElementById('paywallOverlay').classList.add('on');
+    return;
+  }
+
   // Проверка профиля — только для перевозчиков (carrier)
   // shipper и both могут откликаться без заполнения профиля перевозчика
   if(user.role === 'carrier'){
@@ -891,8 +917,15 @@ function doRespond(){
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
       body:JSON.stringify({price: _priceVal})
     }).then(async r=>{
+      // 403 — тарифное ограничение → показываем paywall
+      if(r.status === 403){
+        btn.textContent='Откликнуться'; btn.disabled=false;
+        closeModal('cargoOverlay');
+        document.getElementById('paywallOverlay').classList.add('on');
+        return;
+      }
       // 401 — токен истёк, открываем логин
-      if(r.status === 401 || r.status === 403){
+      if(r.status === 401){
         const err = await r.json().catch(()=>({}));
         setToken(null); localStorage.removeItem('ch_user');
         btn.textContent='Откликнуться'; btn.disabled=false;
@@ -1136,8 +1169,8 @@ async function loadBillingStatus(){
 function getPlanBadge(){
   if(!SUBSCRIPTIONS_ENABLED) return '<span style="background:#2ecc71;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">Бесплатный период</span>';
   const plan=user?.plan||'free';
-  const colors={free:'#888',standard:'#3498db',pro:'#f7b731'};
-  const names={free:'Бесплатно',standard:'Стандарт',pro:'Про'};
+  const colors={free:'#888',standard:'#3498db',pro:'#f7b731',pro_plus:'#6c3483'};
+  const names={free:'Бесплатно',standard:'Стандарт',pro:'Про',pro_plus:'Про+'};
   return `<span style="background:${colors[plan]};color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700">${names[plan]}</span>`;
 }
 
