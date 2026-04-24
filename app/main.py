@@ -11,9 +11,26 @@ async def lifespan(app: FastAPI):
     # Создаём таблицы при старте (не удаляем существующие данные!)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Миграции — добавляем новые колонки если их нет
+    from sqlalchemy import text
+    migrations = [
+        # Тарификация — счётчик откликов
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_this_month INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_month_reset TIMESTAMP WITH TIME ZONE",
+        # pro_plus план в enum (если не добавлен)
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$",
+    ]
+    async with engine.begin() as conn:
+        for sql in migrations:
+            try:
+                await conn.execute(text(sql))
+                print(f"[MIGRATION] ✅ {sql[:60]}...", flush=True)
+            except Exception as e:
+                print(f"[MIGRATION] ⚠️ {sql[:60]}: {e}", flush=True)
+
     # Проверка что данные на месте
     try:
-        from sqlalchemy import text
         async with engine.connect() as conn:
             result = await conn.execute(text("SELECT COUNT(*) FROM loads"))
             count = result.scalar()
