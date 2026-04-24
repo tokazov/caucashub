@@ -111,6 +111,7 @@ const CITIES = [
   {name:'Ткибули', nameGe:'ტყიბული', lat:42.3500, lng:42.9833, region:'Грузия'},
   {name:'Марнеули', nameGe:'მარნეული', lat:41.5000, lng:44.8000, region:'Грузия'},
   {name:'Телави', nameGe:'თელავი', lat:41.9200, lng:45.4800, region:'Грузия'},
+  {name:'Ахмета', nameGe:'ახმეტა', lat:42.0300, lng:45.2100, region:'Грузия'},
   {name:'Сигнахи', nameGe:'სიღნაღი', lat:41.6167, lng:45.9167, region:'Грузия'},
   {name:'Мцхета', nameGe:'მცხეთა', lat:41.8450, lng:44.7200, region:'Грузия'},
   {name:'Боржоми', nameGe:'ბორჯომი', lat:41.8333, lng:43.4000, region:'Грузия'},
