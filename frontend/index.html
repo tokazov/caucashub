@@ -148,11 +148,11 @@
 <!-- FILTERS -->
 <div class="filters">
   <div class="city-input-wrap">
-    <input class="city-input" id="fFrom" placeholder="📍 Откуда" data-i18n-ph="ph_from" autocomplete="new-password" name="cargo-from" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+    <input class="city-input" id="fFrom" placeholder="📍 Откуда" data-i18n-ph="ph_from" autocomplete="off" name="cargo-from" oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
     <div class="city-dropdown" id="dropFrom"></div>
   </div>
   <div class="city-input-wrap">
-    <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="new-password" name="cargo-to" data-i18n-ph="ph_to" autocomplete="off" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+    <input class="city-input" id="fTo" placeholder="🏁 Куда" autocomplete="off" name="cargo-to" data-i18n-ph="ph_to" oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
     <div class="city-dropdown" id="dropTo"></div>
   </div>
 
