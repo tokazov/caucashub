@@ -678,7 +678,7 @@
       <label><span data-i18n="None"><span data-i18n="post_addr_from">📍 Точный адрес отправки</span></span></label>
       <div class="addr-wrap">
         <span class="addr-icon">📍</span>
-        <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+        <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." data-i18n-ph="ph_addr_from" autocomplete="off"
           oninput="addrSearch('pFrom',this.value)"
           onblur="setTimeout(()=>closeAddrDrop('pFrom'),200)">
         <div class="addr-drop" id="dropPFrom"></div>
@@ -689,7 +689,7 @@
       <label><span data-i18n="None"><span data-i18n="post_addr_to">🏁 Точный адрес доставки</span></span></label>
       <div class="addr-wrap">
         <span class="addr-icon">🏁</span>
-        <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." autocomplete="off"
+        <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." data-i18n-ph="ph_addr_to" autocomplete="off"
           oninput="addrSearch('pTo',this.value)"
           onblur="setTimeout(()=>closeAddrDrop('pTo'),200)">
         <div class="addr-drop" id="dropPTo"></div>
@@ -712,7 +712,7 @@
       <label><span data-i18n="None"><span data-i18n="post_date_label"><span data-i18n="lbl_load_date">Дата загрузки</span></span></span></label>
       <div style="display:flex;align-items:center;gap:6px">
         <input class="form-input" type="date" id="pDate" style="flex:1;min-width:0" oninput="syncDateMin()">
-        <span style="font-size:12px;color:#aaa;white-space:nowrap">по</span>
+        <span style="font-size:12px;color:#aaa;white-space:nowrap" data-i18n="date_separator">по</span>
         <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0">
       </div>
       <div style="font-size:11px;color:#aaa;margin-top:3px"><span data-i18n="None"><span data-i18n="post_date_hint"><span data-i18n="hint_flexible_date">Если груз гибкий — укажите диапазон</span></span></span></div>
@@ -723,7 +723,7 @@
     </div>
     <div class="form-group">
       <label><span data-i18n="None"><span data-i18n="lbl_cargo_desc">Описание груза</span></span></label>
-      <input class="form-input" type="text" id="pDesc" placeholder="Стройматериалы, паллеты, документы готовы...">
+      <input class="form-input" type="text" id="pDesc" placeholder="Стройматериалы, паллеты, документы готовы..." data-i18n-ph="ph_cargo_desc">
     </div>
     <div class="form-group">
       <label><span data-i18n="None"><span data-i18n="lbl_pay_type"><span data-i18n="lbl_pay_type">Тип оплаты</span></span></span></label>
