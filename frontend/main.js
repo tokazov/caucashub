@@ -2982,6 +2982,8 @@ function openSettings(){
   if(cf&&role) cf.style.display=(role.value==='shipper')?'none':'block';
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
   document.getElementById('settingsOverlay').classList.add('on');
+  // Инициализируем статус TG-подключения
+  _initTgStatus();
 }
 function saveSettings(){
   const name=document.getElementById('sName').value;
@@ -3607,5 +3609,66 @@ window.doForgotStep2 = doForgotStep2;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
+
+// ── TELEGRAM CONNECT ──────────────────────────────────
+async function connectTelegram(){
+  const btn = document.getElementById('tgConnectBtn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Генерируем ссылку...'; }
+  try {
+    const resp = await apiFetch('/api/tg/generate-link', {method:'POST'});
+    if(resp && resp.link){
+      window.open(resp.link, '_blank');
+      if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
+      // Запускаем проверку статуса каждые 3 сек (до 60 сек)
+      let attempts = 0;
+      const check = setInterval(async () => {
+        attempts++;
+        const st = await apiFetch('/api/tg/status');
+        if(st && st.linked){
+          clearInterval(check);
+          _renderTgStatus(true);
+          pushNotif('✅ Telegram подключён', 'Теперь вы получаете уведомления в Telegram', []);
+        }
+        if(attempts > 20) clearInterval(check);
+      }, 3000);
+    } else {
+      if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
+      alert('Ошибка. Попробуйте ещё раз.');
+    }
+  } catch(e) {
+    if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
+  }
+}
+
+async function unlinkTelegram(){
+  if(!confirm('Отключить Telegram-уведомления?')) return;
+  await apiFetch('/api/tg/unlink', {method:'DELETE'});
+  _renderTgStatus(false);
+  pushNotif('ℹ️ Telegram отключён', 'Уведомления в Telegram отключены', []);
+}
+
+function _renderTgStatus(linked){
+  const btn = document.getElementById('tgConnectBtn');
+  const linked_block = document.getElementById('tgLinkedBlock');
+  if(!btn || !linked_block) return;
+  if(linked){
+    btn.style.display = 'none';
+    linked_block.style.display = 'flex';
+  } else {
+    btn.style.display = 'block';
+    linked_block.style.display = 'none';
+  }
+}
+
+async function _initTgStatus(){
+  if(!token) return;
+  try {
+    const st = await apiFetch('/api/tg/status');
+    if(st) _renderTgStatus(st.linked);
+  } catch(e){}
+}
+
+window.connectTelegram = connectTelegram;
+window.unlinkTelegram = unlinkTelegram;
 
 // Язык восстанавливается раньше — см. блок перед syncLoadsFromServer
