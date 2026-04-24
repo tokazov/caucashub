@@ -192,7 +192,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   .rates-table th { padding:6px 6px; font-size:9px; }
   .rates-table td { padding:6px 6px; font-size:12px; }
   .rates-table td:first-child { font-size:11px; max-width:90px; }
-  .fsel { font-size:12px; padding:6px 8px; }
+  .fsel { font-size:12px; padding:6px 8px; flex:1; min-width:0; }
+  .city-input-wrap { flex:1; min-width:0; }
+  .filters { flex-wrap:wrap; }
+  .filters > * { box-sizing:border-box; }
   .post-btn span { display:inline; }
   .fbtn, .post-btn { flex:1; }
 }
