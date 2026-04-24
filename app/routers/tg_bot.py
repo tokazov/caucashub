@@ -11,7 +11,7 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User
 from app.routers.loads import require_user
-from app.services.telegram_notify import notify_welcome, send_tg_message
+from app.services.telegram_notify import notify_welcome, send_tg_message, get_text
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -110,31 +110,23 @@ async def tg_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 # Привязываем chat_id
                 user.telegram_id = str(chat_id)
                 await db.commit()
+                lang = user.lang or "ru"
                 name = user.company_name or user.full_name or first_name or "пользователь"
-                await notify_welcome(chat_id, name)
-                logger.info(f"TG linked: user_id={user.id} chat_id={chat_id}")
+                await notify_welcome(chat_id, name, lang=lang)
+                logger.info(f"TG linked: user_id={user.id} chat_id={chat_id} lang={lang}")
             else:
-                await send_tg_message(
-                    chat_id,
-                    "❌ Ссылка недействительна или уже использована.\n"
-                    "Сгенерируйте новую в настройках профиля CaucasHub."
-                )
+                await send_tg_message(chat_id, get_text("ru", "invalid_token"))
         else:
-            # /start без токена
-            await send_tg_message(
-                chat_id,
-                "👋 Это бот уведомлений <b>CaucasHub.ge</b>\n\n"
-                "Для привязки аккаунта:\n"
-                "1. Войдите на <a href='https://caucashub.ge'>caucashub.ge</a>\n"
-                "2. Откройте профиль → Telegram-уведомления\n"
-                "3. Нажмите «Подключить Telegram»"
-            )
+            # /start без токена — определяем язык по language_code Telegram
+            tg_lang = from_user.get("language_code", "ru")
+            lang = "ge" if tg_lang in ("ka", "ge") else "ru"
+            await send_tg_message(chat_id, get_text(lang, "start_no_token"))
     else:
         # Любое другое сообщение
-        await send_tg_message(
-            chat_id,
-            "Этот бот только для уведомлений 🔔\n"
-            "Управляйте грузами на <a href='https://caucashub.ge'>caucashub.ge</a>"
-        )
+        # Ищем юзера по chat_id чтобы ответить на его языке
+        res = await db.execute(select(User).where(User.telegram_id == str(chat_id)))
+        known_user = res.scalar_one_or_none()
+        lang = (known_user.lang or "ru") if known_user else "ru"
+        await send_tg_message(chat_id, get_text(lang, "only_notifications"))
 
     return {"ok": True}

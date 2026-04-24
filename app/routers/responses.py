@@ -107,7 +107,8 @@ async def respond_to_load(
         price_val = float(data.price) if data.price else 0
         asyncio.create_task(notify_new_response(
             owner.telegram_id, carrier_name,
-            load.from_city, load.to_city, price_val, "₾"
+            load.from_city, load.to_city, price_val, "₾",
+            lang=owner.lang or "ru"
         ))
 
     # Email грузоотправителю
@@ -261,7 +262,8 @@ async def accept_response(
         asyncio.create_task(notify_response_accepted(
             carrier.telegram_id, shipper_name,
             load.from_city, load.to_city,
-            float(resp.price_usd or load.price_gel or 0), "₾"
+            float(resp.price_usd or load.price_gel or 0), "₾",
+            lang=carrier.lang or "ru"
         ))
 
     # Email перевозчику
