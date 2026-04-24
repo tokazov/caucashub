@@ -72,7 +72,7 @@ async def mari_reply(user_text: str, lang: str = "ru") -> str:
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {"maxOutputTokens": 300, "temperature": 0.7}
