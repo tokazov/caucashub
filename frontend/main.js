@@ -910,7 +910,13 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
-  document.getElementById('mTitle').textContent=`${translateCity(d.from)} → ${translateCity(d.to)}`;
+  // Показываем наиболее конкретный город: последний сегмент from2/from
+  function _cityShort(addr2, addr){
+    const src = addr2 || addr || '';
+    const parts = src.split(',').map(s=>s.trim()).filter(Boolean);
+    return parts[parts.length-1] || addr || '';
+  }
+  document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
   document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
@@ -1932,8 +1938,8 @@ function editMyLoad(id){
 
   setTimeout(()=>{
     const fill = (elId, val) => { const el=document.getElementById(elId); if(el&&val!=null) el.value=val; };
-    fill('pFromAddr', load.from||load.from2);
-    fill('pToAddr',   load.to||load.to2);
+    fill('pFromAddr', _cityShort(load.from2,load.from));
+    fill('pToAddr',   _cityShort(load.to2,load.to));
     fill('pWeight',   load.kg);
     fill('pPrice',    load.price);
     fill('pDesc',     load.desc);
