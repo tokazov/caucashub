@@ -202,6 +202,11 @@ async def update_status(
             deal.status = DealStatus.completed
             deal.completed_at = now
             _notify_completed(shipper, carrier, deal_num)
+            # Помечаем груз завершённым
+            load_res = await db.execute(select(Load).where(Load.id == deal.load_id))
+            comp_load = load_res.scalar_one_or_none()
+            if comp_load:
+                comp_load.status = LoadStatus.taken
         else:
             deal.status = DealStatus.delivered
 
@@ -217,6 +222,11 @@ async def update_status(
             deal.status = DealStatus.completed
             deal.completed_at = now
             _notify_completed(shipper, carrier, deal_num)
+            # Помечаем груз завершённым
+            load_res = await db.execute(select(Load).where(Load.id == deal.load_id))
+            comp_load = load_res.scalar_one_or_none()
+            if comp_load:
+                comp_load.status = LoadStatus.taken
         else:
             deal.status = DealStatus.delivered
 
@@ -526,6 +536,12 @@ async def rate_deal(
 
     # Меняем статус сделки на rated
     deal.status = DealStatus.rated
+
+    # Помечаем груз как завершённый
+    load_res = await db.execute(select(Load).where(Load.id == deal.load_id))
+    load = load_res.scalar_one_or_none()
+    if load:
+        load.status = LoadStatus.taken
 
     await db.commit()
     return {"ok": True, "score": data.score, "deal_id": deal_id}
