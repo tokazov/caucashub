@@ -685,71 +685,71 @@
     <button class="close-btn" onclick="closeModal('paywallOverlay')">✕</button>
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:32px;margin-bottom:6px">💳</div>
-      <div id="paywallTitle" style="font-size:18px;font-weight:800;color:#1a1a2e">Тарифные планы</div>
+      <div id="paywallTitle" style="font-size:18px;font-weight:800;color:#1a1a2e" data-i18n="pw_title">Тарифные планы</div>
       <div id="paywallSub" style="font-size:13px;color:#888;margin-top:4px"></div>
     </div>
-    <!-- Карточки: горизонтальный скролл на мобильном -->
     <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory">
       <!-- Бесплатно -->
       <div style="flex:0 0 200px;scroll-snap-align:start;border:2px solid #ccc;border-radius:14px;padding:16px;background:#fafafa;display:flex;flex-direction:column">
-        <div style="font-weight:800;font-size:15px;color:#555;margin-bottom:4px">Бесплатно</div>
+        <div style="font-weight:800;font-size:15px;color:#555;margin-bottom:4px" data-i18n="pw_free">Бесплатно</div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾0</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px">/мес</div>
-        <div style="font-size:12px;color:#555;line-height:1.9;flex:1">
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
+        <div style="font-size:12px;color:#555;line-height:1.9;flex:1" data-i18n="pw_free_features">
           ✅ Просмотр грузов<br>
           ✅ Регистрация<br>
           ✅ Добавить транспорт<br>
           ❌ Отклики<br>
           ❌ Контакты
         </div>
-        <button id="paywallBtnFree" onclick="closeModal('paywallOverlay')" style="margin-top:14px;width:100%;background:#ccc;color:#555;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:default" disabled>Текущий план</button>
+        <button id="paywallBtnFree" onclick="closeModal('paywallOverlay')" style="margin-top:14px;width:100%;background:#ccc;color:#555;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:default" disabled data-i18n="pw_current_plan">Текущий план</button>
       </div>
       <!-- Стандарт -->
       <div style="flex:0 0 200px;scroll-snap-align:start;border:2px solid #3498db;border-radius:14px;padding:16px;background:#f0f7ff;display:flex;flex-direction:column">
-        <div style="font-weight:800;font-size:15px;color:#3498db;margin-bottom:4px">Стандарт</div>
+        <div style="font-weight:800;font-size:15px;color:#3498db;margin-bottom:4px" data-i18n="pw_standard">Стандарт</div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾35</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px">/мес</div>
-        <div style="font-size:12px;color:#555;line-height:1.9;flex:1">
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
+        <div style="font-size:12px;color:#555;line-height:1.9;flex:1" data-i18n="pw_standard_features">
           ✅ 50 откликов/мес<br>
           ✅ Контакты грузовладельца<br>
           ✅ Верификация компании<br>
           ❌ Приоритет<br>
           ❌ Мари бот
         </div>
-        <button onclick="alert('Оплата скоро будет доступна!')" style="margin-top:14px;width:100%;background:#3498db;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Подключить</button>
+        <button onclick="alert(window._pwSoon||'Скоро!')" style="margin-top:14px;width:100%;background:#3498db;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-i18n="pw_subscribe">Подключить</button>
       </div>
       <!-- Про -->
       <div style="flex:0 0 200px;scroll-snap-align:start;border:2px solid #f7b731;border-radius:14px;padding:16px;background:#fffbf0;display:flex;flex-direction:column;position:relative">
-        <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#f7b731;color:#1a1a2e;font-size:10px;font-weight:800;padding:2px 12px;border-radius:10px;white-space:nowrap">⭐ ЛУЧШИЙ ВЫБОР</div>
-        <div style="font-weight:800;font-size:15px;color:#e6a820;margin-bottom:4px">Про</div>
+        <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#f7b731;color:#1a1a2e;font-size:10px;font-weight:800;padding:2px 12px;border-radius:10px;white-space:nowrap" data-i18n="pw_best">⭐ ЛУЧШИЙ ВЫБОР</div>
+        <div style="font-weight:800;font-size:15px;color:#e6a820;margin-bottom:4px" data-i18n="pw_pro">Про</div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾80</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px">/мес</div>
-        <div style="font-size:12px;color:#555;line-height:1.9;flex:1">
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
+        <div style="font-size:12px;color:#555;line-height:1.9;flex:1" data-i18n="pw_pro_features">
           ✅ Безлимит откликов<br>
           ✅ Контакты грузовладельца<br>
           ✅ Приоритет в выдаче<br>
           ✅ Срочные грузы первым<br>
-          ✅ AI диспетчер<br>
-          ❌ Мари бот
+          ✅ AI диспетчер Мари
         </div>
-        <button onclick="alert('Оплата скоро будет доступна!')" style="margin-top:14px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Подключить</button>
+        <button onclick="alert(window._pwSoon||'Скоро!')" style="margin-top:14px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-i18n="pw_subscribe">Подключить</button>
       </div>
       <!-- Про+ -->
       <div style="flex:0 0 200px;scroll-snap-align:start;border:2px solid #6c3483;border-radius:14px;padding:16px;background:linear-gradient(135deg,#f9f0ff,#fff);display:flex;flex-direction:column">
-        <div style="font-weight:800;font-size:15px;color:#6c3483;margin-bottom:4px">👑 Про+</div>
+        <div style="font-weight:800;font-size:15px;color:#6c3483;margin-bottom:4px">👑 <span data-i18n="pw_proplus">Про+</span></div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾150</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px">/мес</div>
-        <div style="font-size:12px;color:#555;line-height:1.9;flex:1">
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
+        <div style="font-size:12px;color:#555;line-height:1.9;flex:1" data-i18n="pw_proplus_features">
           ✅ Всё из Про<br>
           ✅ Мари мониторит биржу<br>
           ✅ Уведомления по маршрутам<br>
-          ✅ AI менеджер 24/7<br>
-          ✅ Персональный менеджер
+          ✅ AI менеджер Мари 24/7
         </div>
-        <button onclick="alert('Оплата скоро будет доступна!')" style="margin-top:14px;width:100%;background:#6c3483;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer">Подключить</button>
+        <button onclick="alert(window._pwSoon||'Скоро!')" style="margin-top:14px;width:100%;background:#6c3483;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-i18n="pw_subscribe">Подключить</button>
       </div>
     </div>
-    <div style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">Оплата скоро будет доступна 🚀</div>
+    <div style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">
+      <span data-i18n="pw_free_now">Сейчас все функции бесплатны 🎉</span><br>
+      <span data-i18n="pw_coming_soon">Подписки откроются позже</span>
+    </div>
   </div>
 </div>
 

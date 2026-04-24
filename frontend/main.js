@@ -2429,6 +2429,21 @@ const TRANSLATIONS = {
     cab_settings: '⚙️ Настройки аккаунта',
     cab_notifications: '🔔 Уведомления',
     cab_pricing: '💳 Тарифы и подписка',
+    pw_title: 'Тарифные планы',
+    pw_free: 'Бесплатно',
+    pw_standard: 'Стандарт',
+    pw_pro: 'Про',
+    pw_proplus: 'Про+',
+    pw_best: '⭐ ЛУЧШИЙ ВЫБОР',
+    pw_per_month: '/мес',
+    pw_current_plan: 'Текущий план',
+    pw_subscribe: 'Подключить',
+    pw_free_features: '✅ Просмотр грузов\n✅ Регистрация\n✅ Добавить транспорт\n❌ Отклики\n❌ Контакты',
+    pw_standard_features: '✅ 50 откликов/мес\n✅ Контакты грузовладельца\n✅ Верификация компании\n❌ Приоритет\n❌ Мари бот',
+    pw_pro_features: '✅ Безлимит откликов\n✅ Контакты грузовладельца\n✅ Приоритет в выдаче\n✅ Срочные грузы первым\n✅ AI диспетчер Мари',
+    pw_proplus_features: '✅ Всё из Про\n✅ Мари мониторит биржу\n✅ Уведомления по маршрутам\n✅ AI менеджер Мари 24/7',
+    pw_free_now: 'Сейчас все функции бесплатны 🎉',
+    pw_coming_soon: 'Подписки откроются позже',
     cab_logout: '🚪 Выйти',
     cab_settings_sub: 'Управление профилем и уведомлениями',
     cab_rs_hint: 'Данные о сделках для налоговой Грузии',
@@ -2713,6 +2728,21 @@ const TRANSLATIONS = {
     cab_settings: '⚙️ ანგარიშის პარამეტრები',
     cab_notifications: '🔔 შეტყობინებები',
     cab_pricing: '💳 ტარიფები და გამოწერა',
+    pw_title: 'ტარიფული გეგმები',
+    pw_free: 'უფასო',
+    pw_standard: 'სტანდარტი',
+    pw_pro: 'პრო',
+    pw_proplus: 'პრო+',
+    pw_best: '⭐ საუკეთესო არჩევანი',
+    pw_per_month: '/თვეში',
+    pw_current_plan: 'მიმდინარე გეგმა',
+    pw_subscribe: 'გამოწერა',
+    pw_free_features: '✅ ტვირთების ნახვა\n✅ რეგისტრაცია\n✅ ტრანსპორტის დამატება\n❌ გამოხმაურება\n❌ კონტაქტები',
+    pw_standard_features: '✅ 50 გამოხმაურება/თვეში\n✅ დამქირავებლის კონტაქტები\n✅ კომპანიის ვერიფიკაცია\n❌ პრიორიტეტი\n❌ მარი ბოტი',
+    pw_pro_features: '✅ შეუზღუდავი გამოხმაურება\n✅ დამქირავებლის კონტაქტები\n✅ პრიორიტეტი გამოცემაში\n✅ სასწრაფო ტვირთები პირველი\n✅ AI დისპეჩერი მარი',
+    pw_proplus_features: '✅ პრო-ს ყველაფერი\n✅ მარი მონიტორინგს უწევს ბირჟას\n✅ შეტყობინებები მარშრუტებზე\n✅ AI მენეჯერი მარი 24/7',
+    pw_free_now: 'ახლა ყველა ფუნქცია უფასოა 🎉',
+    pw_coming_soon: 'გამოწერა მოგვიანებით გაიხსნება',
     cab_logout: '🚪 გასვლა',
     cab_settings_sub: 'პროფილის მართვა',
     cab_rs_hint: 'გარიგებების მონაცემები rs.ge-სთვის',
@@ -2845,6 +2875,8 @@ function applyLang(l) {
     if (m) fcount.textContent = m[1] + ' ' + (T.fcount_suffix || 'грузов');
   }
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
+  // Локализация alert для paywall кнопок
+  window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
   // Перерисовываем транспорт
