@@ -2601,6 +2601,7 @@ const TRANSLATIONS = {
     cab_see_rates: '📊 Посмотреть тарифы →',
     this_month: 'В этом месяце',
     earned_march: 'Заработано (март)',
+    analytics_note: 'Полная аналитика будет доступна после первых реальных сделок на платформе',
     truck_carrier_data: '🚛 Данные перевозчика',
     company_requisites: '📋 Реквизиты компании',
     tg_label: 'Telegram (для уведомлений)',
@@ -2938,6 +2939,7 @@ const TRANSLATIONS = {
     cab_see_rates: '📊 ტარიფების ნახვა →',
     this_month: 'ამ თვეში',
     earned_march: 'გამომუშავებული (მარ)',
+    analytics_note: 'სრული ანალიტიკა ხელმისაწვდომი იქნება პლატფორმაზე პირველი რეალური გარიგებების შემდეგ',
     truck_carrier_data: '🚛 გადამზიდველის მონაცემები',
     company_requisites: '📋 კომპანიის რეკვიზიტები',
     tg_label: 'Telegram (შეტყობინებებისთვის)',
@@ -3295,8 +3297,26 @@ function saveSettings(){
   pushNotif('✅ Настройки сохранены', 'Профиль обновлён', []);
 }
 
+function _refreshAnalytics(){
+  if(!user) return;
+  const _allDeals = _deals||[];
+  const _completedDeals = _allDeals.filter(d=>d.status==='completed');
+  const _revenue = _completedDeals.reduce(function(s,d){return s+(d.price||d.agreed_price||0);},0);
+  const _s3=document.getElementById('aStat3');
+  if(_s3) _s3.textContent='₾'+(_revenue||user.revenue||user.earned||0).toLocaleString();
+  const _now = new Date();
+  const _thisMonth = _allDeals.filter(d=>{
+    const dt=new Date(d.created_at||d.updatedAt||0);
+    return dt.getMonth()===_now.getMonth()&&dt.getFullYear()===_now.getFullYear();
+  });
+  const _s2=document.getElementById('aStat2');
+  if(_s2) _s2.textContent=_thisMonth.length||user.trips_month||0;
+}
+
 function openAnalytics(){
   closeModal('profileOverlay');
+  // Загружаем сделки если ещё не загружены
+  if(typeof loadDeals==='function' && getToken() && !_deals.length) loadDeals().then(()=>_refreshAnalytics());
   if(user){
     document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
     // Реальные данные из сделок
@@ -3311,7 +3331,8 @@ function openAnalytics(){
     document.getElementById('aStat1').textContent = user.trips || _allDeals.length || 0;
     document.getElementById('aStat2').textContent = _thisMonth.length;
     const _s3=document.getElementById('aStat3');
-    if(_s3) _s3.textContent='₾'+_revenue.toLocaleString();
+    const _displayRevenue = _revenue || user.revenue || user.earned || 0;
+    if(_s3) _s3.textContent='₾'+_displayRevenue.toLocaleString();
     const _s4=document.getElementById('aStat4');
     if(_s4) _s4.textContent=(user.rat?Math.round(parseFloat(user.rat)):5)+' ⭐';
     // Популярные маршруты
