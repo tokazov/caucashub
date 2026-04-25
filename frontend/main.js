@@ -2602,6 +2602,9 @@ const TRANSLATIONS = {
     this_month: 'В этом месяце',
     earned_march: 'Заработано (март)',
     analytics_note: 'Полная аналитика будет доступна после первых реальных сделок на платформе',
+    analytics_sub: 'Статистика аккаунта',
+    analytics_trips_total: 'Рейсов всего',
+    analytics_rating: 'Рейтинг',
     footer_support: 'Поддержка',
     truck_carrier_data: '🚛 Данные перевозчика',
     company_requisites: '📋 Реквизиты компании',
@@ -2941,6 +2944,9 @@ const TRANSLATIONS = {
     this_month: 'ამ თვეში',
     earned_march: 'გამომუშავებული (მარ)',
     analytics_note: 'სრული ანალიტიკა ხელმისაწვდომი იქნება პლატფორმაზე პირველი რეალური გარიგებების შემდეგ',
+    analytics_sub: 'ანგარიშის სტატისტიკა',
+    analytics_trips_total: 'სულ რეისი',
+    analytics_rating: 'რეიტინგი',
     footer_support: 'მხარდაჭერა',
     truck_carrier_data: '🚛 გადამზიდველის მონაცემები',
     company_requisites: '📋 კომპანიის რეკვიზიტები',
@@ -3320,7 +3326,8 @@ function openAnalytics(){
   // Загружаем сделки если ещё не загружены
   if(typeof loadDeals==='function' && getToken() && !_deals.length) loadDeals().then(()=>_refreshAnalytics());
   if(user){
-    document.getElementById('analyticsUser').textContent=`Статистика: ${user.name}`;
+    const _analyticsSub = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).analytics_sub||'Статистика аккаунта';
+    document.getElementById('analyticsUser').textContent=`${_analyticsSub}: ${user.name}`;
     // Реальные данные из сделок
     const _allDeals = (typeof _deals!=='undefined'&&_deals)||[];
     const _completedDeals = _allDeals.filter(d=>d.status==='completed');
