@@ -4148,3 +4148,30 @@ async function doDeleteAccount(){
 window.openDeleteAccountModal = openDeleteAccountModal;
 window.checkDeleteConfirm = checkDeleteConfirm;
 window.doDeleteAccount = doDeleteAccount;
+
+// ── 3.8.3: Глобальный Escape handler — закрывает верхнюю открытую модалку ──
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  // Закрываем первую найденную открытую модалку в порядке приоритета
+  const modalOrder = [
+    'deleteAccountOverlay',
+    'cargoOverlay',
+    'postOverlay',
+    'settingsOverlay',
+    'authOverlay',
+    'profileOverlay',
+    'analyticsOverlay',
+    'paywallOverlay',
+    'mapOverlay',
+    'postTruckOverlay',
+    'rulesOverlay',
+    'rulesModal',
+  ];
+  for (const id of modalOrder) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('on')) {
+      el.classList.remove('on');
+      break;
+    }
+  }
+});
