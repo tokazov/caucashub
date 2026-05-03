@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models.load import Load, LoadStatus
+from app.models.load import Load, LoadStatus, LoadScope
 from app.config import settings
 from pydantic import BaseModel
 from typing import Optional, List

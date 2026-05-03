@@ -186,6 +186,20 @@ async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
         raise HTTPException(status_code=404, detail="Not found")
     if load.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not your load")
+    # Нельзя отменить груз с активной сделкой
+    if load.status == LoadStatus.taken:
+        from app.models.deal import Deal, DealStatus
+        active_deal = await db.execute(
+            select(Deal).where(
+                Deal.load_id == load_id,
+                Deal.status.notin_([DealStatus.canceled, DealStatus.completed, DealStatus.rated])
+            )
+        )
+        if active_deal.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot cancel load with active deal. Cancel the deal first."
+            )
     load.status = LoadStatus.canceled
     await db.commit()
     return {"ok": True}

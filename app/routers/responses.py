@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models.user import User
-from app.models.load import Load
+from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
 from app.services.telegram_notify import notify_new_response, notify_response_accepted
@@ -85,6 +85,8 @@ async def respond_to_load(
     load = load_res.scalar_one_or_none()
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
+    if load.status != LoadStatus.active:
+        raise HTTPException(status_code=400, detail="Load is no longer available")
     if load.user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot respond to your own load")
 
