@@ -5,9 +5,10 @@ import enum
 from app.database import Base
 
 class ResponseStatus(str, enum.Enum):
-    pending  = "pending"
-    accepted = "accepted"
-    rejected = "rejected"
+    pending   = "pending"
+    accepted  = "accepted"
+    rejected  = "rejected"
+    withdrawn = "withdrawn"  # перевозчик отозвал отклик (ADR-008 / Трек 8)
 
 class Response(Base):
     __tablename__ = "responses"

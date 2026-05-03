@@ -251,6 +251,10 @@ async def accept_response(
     current_user: User = Depends(require_user)
 ):
     """Грузоотправитель принимает отклик → создаётся сделка"""
+    from app.services.state_machine import validate_transition
+    from app.services.audit_log import log_status_change
+    from app.models.deal import Deal as DealModel
+
     resp_res = await db.execute(select(Response).where(Response.id == response_id))
     resp = resp_res.scalar_one_or_none()
     if not resp:
@@ -261,13 +265,33 @@ async def accept_response(
     if not load or load.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your load")
 
+    # Трек 8: Защита от race condition — проверяем что у груза нет уже принятой сделки
+    # Если resp уже не pending — значит другой запрос нас опередил
+    current_resp_status = resp.status.value if hasattr(resp.status, 'value') else str(resp.status)
+    validate_transition("response", current_resp_status, "accepted")
+
+    # Проверяем нет ли активной сделки по этому грузу (двойной accept)
+    existing_deal = await db.execute(
+        select(DealModel).where(
+            DealModel.load_id == resp.load_id,
+            DealModel.status.notin_(["canceled"])
+        )
+    )
+    if existing_deal.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Deal already exists for this load")
+
     # Принимаем отклик, отклоняем остальные
     resp.status = ResponseStatus.accepted
+    await log_status_change(db, "response", resp.id, current_resp_status, "accepted", current_user.id)
+
     all_resp = await db.execute(
-        select(Response).where(Response.load_id == resp.load_id, Response.id != response_id)
+        select(Response).where(Response.load_id == resp.load_id, Response.id != response_id,
+                                Response.status == ResponseStatus.pending)
     )
     for other in all_resp.scalars().all():
         other.status = ResponseStatus.rejected
+        await log_status_change(db, "response", other.id, "pending", "rejected", current_user.id,
+                                 reason="auto-rejected: another response accepted")
 
     await db.commit()
 
@@ -397,15 +421,24 @@ async def cancel_response(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user)
 ):
-    """Перевозчик отзывает свой отклик (только pending)"""
+    """
+    Перевозчик отзывает свой отклик (только pending → withdrawn).
+    Трек 8: ADR-008 withdrawn. Запись не удаляется — меняется статус.
+    """
+    from app.services.state_machine import validate_transition
+    from app.services.audit_log import log_status_change
+
     resp_res = await db.execute(select(Response).where(Response.id == response_id))
     resp = resp_res.scalar_one_or_none()
     if not resp:
         raise HTTPException(status_code=404, detail="Response not found")
     if resp.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your response")
-    if resp.status != ResponseStatus.pending:
-        raise HTTPException(status_code=400, detail="Cannot cancel accepted response")
-    await db.delete(resp)
+
+    current_status = resp.status.value if hasattr(resp.status, 'value') else str(resp.status)
+    validate_transition("response", current_status, "withdrawn")
+
+    resp.status = ResponseStatus.withdrawn
+    await log_status_change(db, "response", resp.id, current_status, "withdrawn", current_user.id)
     await db.commit()
-    return {"ok": True}
+    return {"ok": True, "status": "withdrawn"}

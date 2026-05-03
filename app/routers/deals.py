@@ -129,9 +129,15 @@ async def update_status(
     if deal.shipper_id != user_id and deal.carrier_id != user_id:
         raise HTTPException(403, "Нет доступа к этой сделке")
 
+    from app.services.state_machine import validate_transition
+    from app.services.audit_log import log_status_change
+
     current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
     new_status_str = data.status
     now = datetime.now(timezone.utc)
+
+    # Трек 8: Валидация перехода через state machine
+    validate_transition("deal", current_status, new_status_str)
 
     # Загружаем участников для email
     shipper_res = await db.execute(select(User).where(User.id == deal.shipper_id))
@@ -149,10 +155,9 @@ async def update_status(
     if new_status_str == "loading":
         if user_id != deal.carrier_id:
             raise HTTPException(403, "Только перевозчик может изменить статус на загрузку")
-        if current_status != "confirmed":
-            raise HTTPException(400, f"Нельзя перейти в loading из {current_status}")
         deal.status = DealStatus.loading
         deal.loading_at = now
+        await log_status_change(db, "deal", deal.id, current_status, "loading", user_id)
         if email_available and shipper and shipper.email:
             import asyncio
             asyncio.create_task(send_deal_status_email(
@@ -165,9 +170,8 @@ async def update_status(
     elif new_status_str == "in_transit":
         if user_id != deal.carrier_id:
             raise HTTPException(403, "Только перевозчик может изменить статус")
-        if current_status != "loading":
-            raise HTTPException(400, f"Нельзя перейти в in_transit из {current_status}")
         deal.status = DealStatus.in_transit
+        await log_status_change(db, "deal", deal.id, current_status, "in_transit", user_id)
         if email_available and shipper and shipper.email:
             import asyncio
             asyncio.create_task(send_deal_status_email(

@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities
+from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities, dictionaries, stats
 from app.database import engine, Base
-from app.models import user, load, truck, response, deal, city  # noqa — регистрируем модели
+from app.models import user, load, truck, response, deal, city, status_change  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -73,7 +73,9 @@ app.include_router(ai.router,     prefix="/api/ai",     tags=["ai"])
 app.include_router(deals.router,  prefix="/api/deals",  tags=["deals"])
 app.include_router(responses.router, tags=["responses"])
 app.include_router(tg_bot.router,   prefix="/api/tg",     tags=["telegram"])
-app.include_router(cities.router,   prefix="/api/cities", tags=["cities"])
+app.include_router(cities.router,        prefix="/api/cities",        tags=["cities"])
+app.include_router(dictionaries.router,  prefix="/api/dictionaries",  tags=["dictionaries"])
+app.include_router(stats.router,         prefix="/api/stats",         tags=["stats"])
 
 @app.get("/")
 def root():

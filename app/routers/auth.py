@@ -63,15 +63,23 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         if phone_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Phone already registered")
 
-    user = User(
+    from app.services.normalizers import normalize_user_fields
+    from app.services.dictionaries import normalize_org_type
+    normalized = normalize_user_fields(
         email=data.email,
-        hashed_password=hash_password(data.password),
-        company_name=data.company_name,
         phone=data.phone,
+        company_name=data.company_name,
+        inn=data.inn,
+    )
+    user = User(
+        email=normalized.get("email", data.email),
+        hashed_password=hash_password(data.password),
+        company_name=normalized.get("company_name", data.company_name),
+        phone=normalized.get("phone", data.phone),
         role=UserRole(data.role),
         lang=data.lang,
-        inn=data.inn,
-        org_type=data.org_type,
+        inn=normalized.get("inn", data.inn),
+        org_type=normalize_org_type(data.org_type or ""),
         city=data.city,
     )
     db.add(user)

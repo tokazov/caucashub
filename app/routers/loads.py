@@ -154,6 +154,18 @@ async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()
+    else:
+        # Трек 9: дата загрузки не может быть в прошлом (> 1 день назад)
+        ld = load_data["load_date"]
+        if hasattr(ld, 'replace'):
+            ld_naive = ld.replace(tzinfo=None) if ld.tzinfo else ld
+            if ld_naive < datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0):
+                raise HTTPException(status_code=400, detail="load_date cannot be in the past")
+
+    # Трек 9: нормализуем payment_type
+    if load_data.get("payment_type"):
+        from app.services.dictionaries import normalize_payment_type
+        load_data["payment_type"] = normalize_payment_type(load_data["payment_type"])
 
     # ADR-006: получаем курс NBG и заполняем обе валюты
     rate = await get_usd_gel_rate()
