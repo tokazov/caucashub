@@ -970,6 +970,12 @@ function openCargo(d){
   if(_actRow){
     if(_isOwn){
       _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
+    } else if(!currentUserId) {
+      // ADR-008: незалогиненный — показываем приглашение войти, кнопки нет
+      _actRow.innerHTML = `<div style="text-align:center;padding:14px;background:#f8f9fa;border-radius:10px;font-size:14px;color:#555">
+        ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).respond_login_hint||'Войдите, чтобы откликнуться на груз'} &nbsp;
+        <a href="#" onclick="closeModal('cargoOverlay');openAuth('login');return false;" style="color:#f7b731;font-weight:700;text-decoration:none">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login||'Войти'} →</a>
+      </div>`;
     } else {
       const _modalResponded = typeof _orders !== 'undefined' && _orders.some(o => o.loadId === d.id);
       if(_modalResponded){
@@ -1079,16 +1085,15 @@ function doRespond(){
       addToOrders(serverResponseId);
       if(typeof renderLoads === 'function') renderLoads();
     }).catch(()=>{
-      document.getElementById('respondSuccess').style.display='block';
-      btn.textContent='✅ Заявка отправлена';
-      addToOrders(null);
+      // Сетевая ошибка — не показываем "успех", честно сообщаем об ошибке
+      btn.textContent='Откликнуться'; btn.disabled=false;
+      alert('⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.');
     });
   } else {
-    setTimeout(()=>{
-      document.getElementById('respondSuccess').style.display='block';
-      btn.textContent='✅ Заявка отправлена';
-      addToOrders(null);
-    },1000);
+    // Нет токена — закрываем модалку, открываем логин
+    // (кнопка не должна быть видна незалогиненным — это fallback)
+    closeModal('cargoOverlay');
+    if(typeof openAuth==='function') openAuth('login');
   }
 }
 function addToOrders(serverResponseId){
@@ -2637,6 +2642,7 @@ const TRANSLATIONS = {
     default_desc: 'Груз без описания',
     ph_your_price: 'Ваша цена (необязат.)',
     respond_hint: '📞 После принятия отклика грузовладелец свяжется с вами',
+    respond_login_hint: 'Войдите, чтобы откликнуться на груз',
     btn_show_route: '🗺️ Показать маршрут на карте',
     respond_sent: '✅ Заявка отправлена',
     btn_cancel: '✕ Отменить',
@@ -2979,6 +2985,7 @@ const TRANSLATIONS = {
     default_desc: 'აღწერა არ არის',
     ph_your_price: 'თქვენი ფასი (სურვილისამებრ)',
     respond_hint: '📞 გამოხმაურების მიღების შემდეგ ტვირთის მფლობელი დაგიკავშირდებათ',
+    respond_login_hint: 'გამოეხმაურეთ ტვირთს შესვლის შემდეგ',
     btn_show_route: '🗺️ მარშრუტის ჩვენება რუკაზე',
     respond_sent: '✅ განაცხადი გაგზავნილია',
     btn_cancel: '✕ გაუქმება',
