@@ -54,6 +54,9 @@ async def require_user(
     # ADR-010: удалённый пользователь — инвалидируем любую активную сессию
     if getattr(user, 'is_deleted', False):
         raise HTTPException(status_code=401, detail="Аккаунт удалён")
+    # 2.4.2: заблокированный пользователь не может действовать
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Аккаунт заблокирован. Обратитесь в поддержку.")
     return user
 
 @router.post("/register")

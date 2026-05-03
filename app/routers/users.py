@@ -292,6 +292,42 @@ async def _send_deletion_email(email: str, user_id: int, deleted_at: datetime):
         pass  # Email не критичен — данные уже анонимизированы
 
 
+@router.post("/admin/{user_id}/block")
+async def admin_block_user(
+    user_id: int,
+    secret: str,
+    reason: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: заблокировать пользователя (2.4.2)."""
+    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
+    if secret != admin_secret:
+        raise HTTPException(403, "Forbidden")
+    from app.services.account_actions import block_user
+    try:
+        return await block_user(db, user_id, reason=reason)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/admin/{user_id}/unblock")
+async def admin_unblock_user(
+    user_id: int,
+    secret: str,
+    reason: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: разблокировать пользователя."""
+    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
+    if secret != admin_secret:
+        raise HTTPException(403, "Forbidden")
+    from app.services.account_actions import unblock_user
+    try:
+        return await unblock_user(db, user_id, reason=reason)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @router.get("/{user_id}")
 async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.id == user_id))

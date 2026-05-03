@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, Header
+from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -148,10 +148,12 @@ async def get_loads(
     return {"loads": [load_to_dict(lo, user=users_map.get(lo.user_id)) for lo in loads], "total": len(loads)}
 
 @router.post("/")
-async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
+async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Depends(get_db),
                       authorization: Optional[str] = Header(None)):
     from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
+    from app.services.idempotency import check_idempotency
     user_id = require_user(authorization)
+    await check_idempotency(request, scope="create_load", user_id=user_id)
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()

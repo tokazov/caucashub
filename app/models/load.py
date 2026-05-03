@@ -20,6 +20,7 @@ class LoadScope(str, enum.Enum):
 
 class LoadStatus(str, enum.Enum):
     active   = "active"
+    paused   = "paused"    # владелец заблокирован — груз скрыт из ленты
     taken    = "taken"
     expired  = "expired"
     canceled = "canceled"

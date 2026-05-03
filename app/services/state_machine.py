@@ -11,10 +11,11 @@ from fastapi import HTTPException
 # ── Load.status ───────────────────────────────────────────────────────────────
 # Кто инициирует указан в комментарии
 LOAD_TRANSITIONS: dict[str, list[str]] = {
-    "active":   ["taken", "canceled"],    # taken: system (accept); canceled: shipper
-    "taken":    ["active", "canceled"],   # active: system (deal canceled); canceled: shipper (+ no active deal check)
-    "expired":  [],                        # терминальный
-    "canceled": [],                        # терминальный
+    "active":   ["taken", "canceled", "paused"],  # paused: system (owner blocked)
+    "paused":   ["active", "canceled"],            # active: system (owner unblocked)
+    "taken":    ["active", "canceled"],
+    "expired":  [],                                # терминальный
+    "canceled": [],                                # терминальный
 }
 
 # ── Response.status ───────────────────────────────────────────────────────────

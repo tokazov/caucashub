@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -67,10 +67,15 @@ class AcceptRequest(BaseModel):
 async def respond_to_load(
     load_id: int,
     data: RespondRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
+    # 2.5.4: idempotency check — защита от двойного отклика
+    from app.services.idempotency import check_idempotency
+    await check_idempotency(request, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
+
     # Проверка тарифного плана
     can, reason = check_can_respond(current_user)
     if not can:
@@ -247,10 +252,13 @@ async def my_responses(
 @router.post("/accept/{response_id}")
 async def accept_response(
     response_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user)
 ):
     """Грузоотправитель принимает отклик → создаётся сделка"""
+    from app.services.idempotency import check_idempotency
+    await check_idempotency(request, scope=f"accept_response:{response_id}", user_id=current_user.id)
     from app.services.state_machine import validate_transition
     from app.services.audit_log import log_status_change
     from app.models.deal import Deal as DealModel
