@@ -198,3 +198,85 @@
 
 **Решение принимает:** Тимур  
 **Зависимость:** ADR-006 (валюта) не зависит от этого решения, можно решать параллельно.
+
+---
+
+## ADR-006: Валюта на платформе — ACCEPTED
+
+**Дата:** 03.05.2026  
+**Статус:** ACCEPTED  
+**Решение:** Вариант C — две валюты со снапшотом курса NBG.
+
+**Детали:**
+- `Load.price_gel` + `Load.price_usd` — оба поля хранятся
+- `Response.price_gel` + `Response.price_usd` — добавить `price_gel`
+- `Deal.exchange_rate_snapshot` — курс GEL/USD из NBG на момент создания сделки
+- Источник курса: `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/en/json`
+- Кешировать 1 час (in-memory или Redis)
+- При создании сделки (`accept_response`) — записать снапшот курса
+
+**Миграция:**
+```sql
+ALTER TABLE responses ADD COLUMN price_gel FLOAT;
+ALTER TABLE deals ADD COLUMN exchange_rate_snapshot FLOAT;
+ALTER TABLE deals ADD COLUMN final_price_gel FLOAT;
+ALTER TABLE deals ADD COLUMN final_price_usd FLOAT;
+```
+
+---
+
+## ADR-007: Справочник городов — ACCEPTED
+
+**Дата:** 03.05.2026  
+**Статус:** ACCEPTED  
+**Решение:** Yandex Geocoder API (Advanced) + своя таблица `cities` как fallback.
+
+**Детали:**
+- Основной источник автокомплита — Яндекс Geocoder API (Advanced-лицензия)
+- Таблица `cities(id, name_ru, name_ge, country_iso, lat, lon)` — топ-50 городов Грузия+СНГ+Турция
+- Fallback при недоступности Яндекса — из таблицы `cities`
+- Координаты от Яндекса сохранять в `cities` (требование Advanced-лицензии)
+- Города в БД (`from_city`, `to_city`) нормализовать к `name_ru` из справочника
+
+**Миграция:**
+```sql
+CREATE TABLE cities (
+    id SERIAL PRIMARY KEY,
+    name_ru VARCHAR NOT NULL,
+    name_ge VARCHAR,
+    country_iso CHAR(2) NOT NULL,
+    lat FLOAT,
+    lon FLOAT,
+    yandex_geo_id VARCHAR
+);
+```
+
+---
+
+## ADR-008: Незалогиненный пользователь — ACCEPTED
+
+**Дата:** 03.05.2026  
+**Статус:** ACCEPTED  
+**Решение:** Кнопка «Откликнуться» скрывается для незалогиненных.
+
+**Детали:**
+- Для `currentUserId == null` → показывать текст «Войдите, чтобы откликнуться» + ссылка на `openAuth('login')`
+- Фейковая ветка `else { setTimeout(...) }` в `doRespond()` удаляется полностью
+- `.catch()` блок в `doRespond()` — тоже переделать: не показывать «успех» при сетевой ошибке
+- После логина из карточки груза — возврат на ту же карточку, кнопка появляется
+
+**Файл:** `frontend/main.js`
+
+---
+
+## ADR-009: Папка backend/ архивируется — ACCEPTED
+
+**Дата:** 03.05.2026  
+**Статус:** ACCEPTED  
+**Решение:** `backend/` переименована в `_archive_backend/`, помечена DO NOT EDIT.
+
+**Детали:**
+- Переименовано: `backend/` → `_archive_backend/`
+- Добавлен `_archive_backend/README.md` с предупреждением
+- Добавлен `CLAUDE.md` в корень проекта — правила работы с кодом
+- Все Claude-инструменты работают только с `app/`

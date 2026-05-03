@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -75,13 +75,20 @@ async def update_me(
     if not user:
         raise HTTPException(404, "User not found")
 
-    if data.company_name is not None: user.company_name = data.company_name
-    if data.phone        is not None: user.phone        = data.phone
-    if data.inn          is not None: user.inn          = data.inn
-    if data.org_type     is not None: user.org_type     = data.org_type
-    if data.city         is not None: user.city         = data.city
-    if data.lang         is not None: user.lang         = data.lang
-    if data.telegram_id  is not None: user.telegram_id  = data.telegram_id
+    if data.company_name is not None:
+        user.company_name = data.company_name
+    if data.phone is not None:
+        user.phone = data.phone
+    if data.inn is not None:
+        user.inn = data.inn
+    if data.org_type is not None:
+        user.org_type = data.org_type
+    if data.city is not None:
+        user.city = data.city
+    if data.lang is not None:
+        user.lang = data.lang
+    if data.telegram_id is not None:
+        user.telegram_id = data.telegram_id
 
     await db.commit()
     await db.refresh(user)

@@ -150,7 +150,7 @@ class ResetRequest(BaseModel):
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
-    import secrets, os
+    import secrets
     from datetime import datetime, timedelta
     from app.models.user import ResetCode
     result = await db.execute(select(User).where(User.email == data.email))
@@ -182,7 +182,6 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
 
                 # Отправка через Resend API
         RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
-        email_sent = False
         try:
             import httpx
             async with httpx.AsyncClient() as client:
@@ -195,8 +194,8 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
                         "html": html,
                     },
                     timeout=15)
-                if r.status_code == 200 or r.status_code == 201:
-                    email_sent = True
+                if r.status_code not in (200, 201):
+                    pass  # email не отправлен — продолжаем без ошибки
         except Exception:
             pass
 

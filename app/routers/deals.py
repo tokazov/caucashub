@@ -1,8 +1,10 @@
 """
 Роутер сделок: создание, смена статусов, генерация PDF акта.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
-from fastapi.responses import Response as FastAPIResponse
+import csv
+import io
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response as FastAPIResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -387,9 +389,6 @@ async def download_act(
 
 
 # ── Экспорт сделок для rs.ge ─────────────────────────────────────────
-from fastapi.responses import StreamingResponse
-import csv, io
-from datetime import timezone
 
 @router.get("/export")
 async def export_deals(
@@ -420,8 +419,8 @@ async def export_deals(
     load_map = {}
     if load_ids:
         lr = await db.execute(select(Load).where(Load.id.in_(load_ids)))
-        for l in lr.scalars().all():
-            load_map[l.id] = l
+        for load_item in lr.scalars().all():
+            load_map[load_item.id] = load_item
 
     # Загружаем данные пользователей
     uids = list({d.shipper_id for d in all_deals} | {d.carrier_id for d in all_deals})
@@ -432,7 +431,8 @@ async def export_deals(
             user_map[u.id] = u
 
     def _fmt(dt):
-        if not dt: return ""
+        if not dt:
+            return ""
         return dt.strftime("%d.%m.%Y") if hasattr(dt, 'strftime') else str(dt)[:10]
 
     def _company(uid):
@@ -467,8 +467,10 @@ async def export_deals(
             "delivery_date": _fmt(d.delivered_at),
         }
         rows.append(row)
-        if cur == "GEL": total_gel += price
-        else:            total_usd += price
+        if cur == "GEL":
+            total_gel += price
+        else:
+            total_usd += price
 
     # ── JSON ──
     if format == "json":
@@ -494,9 +496,11 @@ async def export_deals(
     w.writerows(rows)
 
     # Итоги
-    buf.write(f"\n;;;;;;;;;;;\n")
-    if total_gel: buf.write(f"ИТОГО GEL;;;;;;;;{total_gel:.2f};GEL;;;\n")
-    if total_usd: buf.write(f"ИТОГО USD;;;;;;;;{total_usd:.2f};USD;;;\n")
+    buf.write("\n;;;;;;;;;;;\n")
+    if total_gel:
+        buf.write(f"ИТОГО GEL;;;;;;;;{total_gel:.2f};GEL;;;\n")
+    if total_usd:
+        buf.write(f"ИТОГО USD;;;;;;;;{total_usd:.2f};USD;;;\n")
 
     csv_bytes = buf.getvalue().encode("utf-8-sig")  # utf-8-sig для Excel/Windows
     return StreamingResponse(

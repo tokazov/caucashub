@@ -10,12 +10,11 @@ from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
 from app.services.telegram_notify import notify_new_response, notify_response_accepted
 from app.services.plan_check import check_can_respond
+import os
 import httpx
 import asyncio
 
 router = APIRouter(prefix="/api/responses", tags=["responses"])
-
-import os
 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"

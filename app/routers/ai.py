@@ -7,7 +7,8 @@ from app.config import settings
 from pydantic import BaseModel
 from typing import Optional, List
 import google.generativeai as genai
-import json, re
+import json
+import re
 
 router = APIRouter()
 
@@ -45,8 +46,8 @@ async def ai_chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
     )
     loads = result.scalars().all()
     loads_ctx = "\n".join([
-        f"- {l.from_city} → {l.to_city}, {l.weight_kg}кг, {l.truck_type}, ${l.price_usd}"
-        for l in loads
+        f"- {lo.from_city} → {lo.to_city}, {lo.weight_kg}кг, {lo.truck_type}, ${lo.price_usd}"
+        for lo in loads
     ]) or "Грузы не найдены"
 
     prompt = f"{SYSTEM_PROMPT}\n\nАктивные грузы на бирже:\n{loads_ctx}\n\nПользователь: {req.message}"
@@ -103,7 +104,8 @@ async def dispatcher_debug(req: DispatcherMessage):
         raw = r.text.strip()
         raw = re.sub(r'```json\s*|\s*```', '', raw).strip()
         jm = re.search(r'\{.*\}', raw, re.DOTALL)
-        if jm: raw = jm.group(0)
+        if jm:
+            raw = jm.group(0)
         data = json.loads(raw)
         return {"status": "ok", "raw": r.text[:200], "parsed": data}
     except Exception as e:
@@ -126,8 +128,8 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
         )
         loads = result.scalars().all()
         loads_ctx = "\n".join([
-            f"{l.from_city} → {l.to_city} | {l.weight_kg}кг | {l.price_usd or l.price_gel or '?'}{'$' if l.scope==LoadScope.intl else '₾'}"
-            for l in loads
+            f"{lo.from_city} → {lo.to_city} | {lo.weight_kg}кг | {lo.price_usd or lo.price_gel or '?'}{'$' if lo.scope == LoadScope.intl else '₾'}"
+            for lo in loads
         ]) or "Грузов пока нет"
     except Exception:
         pass  # БД недоступна — продолжаем без грузов
@@ -204,17 +206,17 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
             from_city = data.get("state", {}).get("from") or sf.get("from") or ""
             # Ищем грузы по городу отправления (мягкое совпадение)
             matched_loads = []
-            for l in loads:
-                if from_city and from_city.lower()[:4] in l.from_city.lower():
+            for lo in loads:
+                if from_city and from_city.lower()[:4] in lo.from_city.lower():
                     matched_loads.append({
-                        "id": l.id,
-                        "from": l.from_city,
-                        "to": l.to_city,
-                        "kg": l.weight_kg,
-                        "truck": str(l.truck_type),
-                        "price": l.price_gel or l.price_usd,
-                        "cur": "₾" if l.price_gel else "$",
-                        "company": getattr(l, 'company_name', None) or "—",
+                        "id": lo.id,
+                        "from": lo.from_city,
+                        "to": lo.to_city,
+                        "kg": lo.weight_kg,
+                        "truck": str(lo.truck_type),
+                        "price": lo.price_gel or lo.price_usd,
+                        "cur": "₾" if lo.price_gel else "$",
+                        "company": getattr(lo, 'company_name', None) or "—",
                     })
             matched_loads = matched_loads[:5]
 
@@ -222,9 +224,9 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
             if matched_loads:
                 to_city = data.get("state", {}).get("to") or sf.get("to") or ""
                 # Проверяем есть ли точное совпадение по направлению
-                exact = [l for l in matched_loads if to_city and to_city.lower()[:4] in l["to"].lower()]
+                exact = [item for item in matched_loads if to_city and to_city.lower()[:4] in item["to"].lower()]
                 n = len(matched_loads)
-                routes = ", ".join(f"{l['from']} → {l['to']}" for l in matched_loads[:3])
+                routes = ", ".join(f"{item['from']} → {item['to']}" for item in matched_loads[:3])
                 if exact:
                     reply_text = f"Нашла {n} груз{'а' if n in [2,3,4] else 'ов' if n > 4 else ''} из {from_city}: {routes}. Выбирайте 👆"
                 else:

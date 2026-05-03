@@ -7,7 +7,6 @@ from app.models.user import User
 from app.routers.auth import require_user
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
 
 router = APIRouter()
 
@@ -28,7 +27,7 @@ async def get_trucks(
     limit: int = Query(50, le=200),
     db: AsyncSession = Depends(get_db)
 ):
-    q = select(Truck, User).join(User, Truck.user_id == User.id).where(Truck.is_available == True)
+    q = select(Truck, User).join(User, Truck.user_id == User.id).where(Truck.is_available)
     if from_city:
         q = q.where(Truck.available_from.ilike(f"%{from_city}%"))
     if truck_type:
@@ -66,7 +65,7 @@ async def create_truck(
     if data.available_date:
         try:
             avail_date = dt.strptime(data.available_date, "%Y-%m-%d")
-        except:
+        except ValueError:
             pass
     truck = Truck(
         user_id=current_user.id,

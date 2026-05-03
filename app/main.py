@@ -4,7 +4,6 @@ from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot
 from app.database import engine, Base
 from app.models import user, load, truck, response, deal  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
-import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

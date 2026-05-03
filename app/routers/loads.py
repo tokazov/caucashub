@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select
 from app.database import get_db
-from app.models.load import Load, LoadScope, LoadStatus, TruckType
+from app.models.load import Load, LoadStatus
 from app.models.user import User
 from app.config import settings
 from pydantic import BaseModel
@@ -62,7 +62,7 @@ class LoadUpdate(BaseModel):
     load_date_end: Optional[str] = None
     is_urgent: Optional[bool] = None
 
-def load_to_dict(l: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:
+def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:  # noqa: E741
     """Конвертируем Load в dict для фронтенда."""
     # Берём company_name: явный параметр → user объект → fallback
     co = company_name
@@ -79,30 +79,30 @@ def load_to_dict(l: Load, company_name: str = None, user: object = None, show_co
         trips = user.trips_count or 0
 
     return {
-        "id": l.id,
-        "from": l.from_city,
-        "from2": l.from_address or l.from_city,
-        "to": l.to_city,
-        "to2": l.to_address or l.to_city,
-        "scope": l.scope.value if hasattr(l.scope, 'value') else str(l.scope),
-        "kg": l.weight_kg,
-        "type": l.truck_type.value if hasattr(l.truck_type, 'value') else str(l.truck_type),
+        "id": load.id,
+        "from": load.from_city,
+        "from2": load.from_address or load.from_city,
+        "to": load.to_city,
+        "to2": load.to_address or load.to_city,
+        "scope": load.scope.value if hasattr(load.scope, 'value') else str(load.scope),
+        "kg": load.weight_kg,
+        "type": load.truck_type.value if hasattr(load.truck_type, 'value') else str(load.truck_type),
         "typeLabel": {"tent":"Тент","ref":"Рефриж.","bort":"Борт","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","other":"Другой"}.get(
-            l.truck_type.value if hasattr(l.truck_type,'value') else str(l.truck_type), "Тент"),
-        "price": l.price_gel or l.price_usd or 0,
-        "cur": "₾" if l.price_gel else "$",
-        "desc": l.cargo_desc or "",
-        "pay": l.payment_type or "Нал",
-        "urgent": l.is_urgent,
-        "status": l.status.value if hasattr(l.status,'value') else str(l.status),
-        "badge": "urgent" if l.is_urgent else None,
-        "date": l.load_date.strftime("%d.%m.%y") if l.load_date else None,
+            load.truck_type.value if hasattr(load.truck_type,'value') else str(load.truck_type), "Тент"),
+        "price": load.price_gel or load.price_usd or 0,
+        "cur": "₾" if load.price_gel else "$",
+        "desc": load.cargo_desc or "",
+        "pay": load.payment_type or "Нал",
+        "urgent": load.is_urgent,
+        "status": load.status.value if hasattr(load.status, 'value') else str(load.status),
+        "badge": "urgent" if load.is_urgent else None,
+        "date": load.load_date.strftime("%d.%m.%y") if load.load_date else None,
         "co": co,
         "rat": rat,
         "trips": trips,
-        "user_id": l.user_id,
-        "views": l.views or 0,
-        "created_at": l.created_at.isoformat() if l.created_at else None,
+        "user_id": load.user_id,
+        "views": load.views or 0,
+        "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
         "owner_phone": (user.phone if user else None) if show_contacts else None,
         "owner_email": (user.email if user else None) if show_contacts else None,
@@ -137,14 +137,14 @@ async def get_loads(
     loads = result.scalars().all()
 
     # Подгружаем пользователей одним запросом
-    user_ids = list({l.user_id for l in loads if l.user_id})
+    user_ids = list({lo.user_id for lo in loads if lo.user_id})
     users_map: dict = {}
     if user_ids:
         uq = await db.execute(select(User).where(User.id.in_(user_ids)))
         for u in uq.scalars().all():
             users_map[u.id] = u
 
-    return {"loads": [load_to_dict(l, user=users_map.get(l.user_id)) for l in loads], "total": len(loads)}
+    return {"loads": [load_to_dict(lo, user=users_map.get(lo.user_id)) for lo in loads], "total": len(loads)}
 
 @router.post("/")
 async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
@@ -216,7 +216,7 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     # Загружаем профиль текущего пользователя
     ur = await db.execute(select(User).where(User.id == user_id))
     owner = ur.scalar_one_or_none()
-    return {"loads": [load_to_dict(l, user=owner) for l in loads]}
+    return {"loads": [load_to_dict(lo, user=owner) for lo in loads]}
 
 @router.get("/{load_id}")
 async def get_load(

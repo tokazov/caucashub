@@ -1,5 +1,5 @@
-from .user import User
-from .load import Load
-from .truck import Truck
-from .response import Response
-from .deal import Deal
+from .user import User as User
+from .load import Load as Load
+from .truck import Truck as Truck
+from .response import Response as Response
+from .deal import Deal as Deal
