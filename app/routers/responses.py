@@ -57,7 +57,8 @@ async def send_email(to: str, subject: str, html: str):
 
 class RespondRequest(BaseModel):
     message: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[float] = None        # цена в GEL (основная)
+    price_usd: Optional[float] = None   # цена в USD (если перевозчик хочет в USD)
 
 class AcceptRequest(BaseModel):
     response_id: int
@@ -96,12 +97,26 @@ async def respond_to_load(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Already responded")
 
+    # ADR-006: получаем курс NBG, заполняем обе валюты
+    from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
+    rate = await get_usd_gel_rate()
+
+    price_gel = data.price  # price — это GEL по умолчанию
+    price_usd = data.price_usd
+
+    if price_gel and not price_usd:
+        price_usd = convert_gel_to_usd(price_gel, rate)
+    elif price_usd and not price_gel:
+        price_gel = convert_usd_to_gel(price_usd, rate)
+
     # Создаём отклик
     resp = Response(
         load_id=load_id,
         user_id=current_user.id,
         message=data.message,
-        price_usd=data.price,
+        price_gel=price_gel,
+        price_usd=price_usd,
+        exchange_rate_at_creation=rate,
         status=ResponseStatus.pending
     )
     db.add(resp)
@@ -256,19 +271,31 @@ async def accept_response(
 
     await db.commit()
 
-    # Создаём сделку
+    # ADR-006: Создаём сделку со снапшотом курса
     from app.models.deal import Deal
-    # Берём цену: сначала из отклика (перевозчик предложил), потом из груза
-    agreed = float(resp.price_usd) if resp.price_usd else None
-    if not agreed:
-        agreed = float(load.price_gel or load.price_usd or 0)
-    currency = "GEL"
+    from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
+
+    deal_rate = await get_usd_gel_rate()
+
+    # Согласованная цена: сначала из отклика, потом из груза
+    agreed_gel = resp.price_gel or (load.price_gel if hasattr(load, 'price_gel') else None)
+    agreed_usd = resp.price_usd or (load.price_usd if hasattr(load, 'price_usd') else None)
+
+    if agreed_gel and not agreed_usd:
+        agreed_usd = convert_gel_to_usd(agreed_gel, deal_rate)
+    elif agreed_usd and not agreed_gel:
+        agreed_gel = convert_usd_to_gel(agreed_usd, deal_rate)
+
+    agreed = agreed_gel or 0
     deal = Deal(
         load_id=resp.load_id,
         shipper_id=current_user.id,
         carrier_id=resp.user_id,
         agreed_price=agreed,
-        currency=currency,
+        currency="GEL",
+        exchange_rate_snapshot=deal_rate,
+        final_price_gel=agreed_gel,
+        final_price_usd=agreed_usd,
     )
     db.add(deal)
     await db.commit()

@@ -46,6 +46,7 @@ class Load(Base):
     # Цена
     price_usd     = Column(Float, nullable=True)
     price_gel     = Column(Float, nullable=True)
+    exchange_rate_at_creation = Column(Float, nullable=True)  # GEL/USD из NBG на момент создания
     payment_type  = Column(String, nullable=True)  # нал/безнал
 
     # Даты

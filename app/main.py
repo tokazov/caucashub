@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot
+from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities
 from app.database import engine, Base
-from app.models import user, load, truck, response, deal  # noqa — регистрируем модели
+from app.models import user, load, truck, response, deal, city  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -36,6 +36,18 @@ async def lifespan(app: FastAPI):
             print(f"[STARTUP] ✅ DB OK — loads: {count}", flush=True)
     except Exception as e:
         print(f"[STARTUP] ⚠️ DB check failed: {e}", flush=True)
+
+    # Сидинг городов (ADR-007) — только если таблица пустая
+    try:
+        from app.services.cities_seed import seed_cities
+        from app.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            n = await seed_cities(db)
+            if n:
+                print(f"[SEED] ✅ Cities seeded: {n} records", flush=True)
+    except Exception as e:
+        print(f"[SEED] ⚠️ Cities seed failed: {e}", flush=True)
+
     yield
 
 app = FastAPI(
@@ -61,6 +73,7 @@ app.include_router(ai.router,     prefix="/api/ai",     tags=["ai"])
 app.include_router(deals.router,  prefix="/api/deals",  tags=["deals"])
 app.include_router(responses.router, tags=["responses"])
 app.include_router(tg_bot.router,   prefix="/api/tg",     tags=["telegram"])
+app.include_router(cities.router,   prefix="/api/cities", tags=["cities"])
 
 @app.get("/")
 def root():

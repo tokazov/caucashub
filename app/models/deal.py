@@ -35,8 +35,11 @@ class Deal(Base):
     status       = Column(Enum(DealStatus), default=DealStatus.confirmed, index=True)
 
     # Финансы (фиксируем на момент сделки)
-    agreed_price = Column(Float, nullable=True)   # согласованная цена
-    currency     = Column(String(3), default="GEL")  # GEL / USD
+    agreed_price          = Column(Float, nullable=True)   # согласованная цена (в currency)
+    currency              = Column(String(3), default="GEL")  # GEL / USD
+    exchange_rate_snapshot = Column(Float, nullable=True)  # GEL/USD зафиксирован при создании
+    final_price_gel       = Column(Float, nullable=True)   # итог в GEL (снапшот)
+    final_price_usd       = Column(Float, nullable=True)   # итог в USD (снапшот)
 
     # Даты
     created_at       = Column(DateTime(timezone=True), server_default=func.now())

@@ -149,10 +149,20 @@ async def get_loads(
 @router.post("/")
 async def create_load(data: LoadCreate, db: AsyncSession = Depends(get_db),
                       authorization: Optional[str] = Header(None)):
+    from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
     user_id = require_user(authorization)
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()
+
+    # ADR-006: получаем курс NBG и заполняем обе валюты
+    rate = await get_usd_gel_rate()
+    load_data["exchange_rate_at_creation"] = rate
+    if load_data.get("price_gel") and not load_data.get("price_usd"):
+        load_data["price_usd"] = convert_gel_to_usd(load_data["price_gel"], rate)
+    elif load_data.get("price_usd") and not load_data.get("price_gel"):
+        load_data["price_gel"] = convert_usd_to_gel(load_data["price_usd"], rate)
+
     load = Load(**load_data, user_id=user_id)
     db.add(load)
     await db.commit()
