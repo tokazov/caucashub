@@ -39,6 +39,9 @@ class User(Base):
     # Тарификация — счётчик откликов
     responses_this_month  = Column(Integer, default=0)
     responses_month_reset = Column(DateTime, nullable=True)
+    # Soft delete (ADR-010 GDPR)
+    is_deleted  = Column(Boolean, default=False, nullable=False)
+    deleted_at  = Column(DateTime(timezone=True), nullable=True)
 
 
 class ResetCode(Base):

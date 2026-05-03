@@ -4068,3 +4068,83 @@ setTimeout(_initAdBanner, 500);
 // Экспортируем для использования в renderLoads
 window._injectNativeAds = _injectNativeAds;
 window.ADS = ADS;
+
+// ── ADR-010: Удаление аккаунта ────────────────────────────────────────────────
+function openDeleteAccountModal(){
+  if(!getToken()){ openAuth('login'); return; }
+  const inp = document.getElementById('deleteConfirmInput');
+  if(inp) inp.value = '';
+  const btn = document.getElementById('btnDeleteConfirm');
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
+  closeModal('settingsOverlay');
+  document.getElementById('deleteAccountOverlay').classList.add('on');
+}
+
+function checkDeleteConfirm(){
+  const val = (document.getElementById('deleteConfirmInput')?.value || '').trim();
+  const btn = document.getElementById('btnDeleteConfirm');
+  if(!btn) return;
+  const ok = (val === 'УДАЛИТЬ');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '0.5';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+async function doDeleteAccount(){
+  const btn = document.getElementById('btnDeleteConfirm');
+  const val = (document.getElementById('deleteConfirmInput')?.value || '').trim();
+  if(val !== 'УДАЛИТЬ'){
+    alert('⚠️ Введите слово УДАЛИТЬ для подтверждения');
+    return;
+  }
+  if(btn){ btn.textContent = '⏳ Удаляем...'; btn.disabled = true; }
+
+  try {
+    const r = await fetch('https://api-production-f3ea.up.railway.app/api/users/me', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'УДАЛИТЬ' })
+    });
+    const data = await r.json();
+
+    if(r.status === 400 && data?.detail?.active_deal_ids){
+      const ids = data.detail.active_deal_ids.join(', ');
+      alert(`❌ ${data.detail.message}\n\nАктивные сделки: #${ids}`);
+      if(btn){ btn.textContent = 'Подтвердить удаление'; btn.disabled = false; }
+      return;
+    }
+    if(!r.ok){
+      const msg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+      alert('❌ ' + msg);
+      if(btn){ btn.textContent = 'Подтвердить удаление'; btn.disabled = false; }
+      return;
+    }
+
+    // Успешное удаление — чистим сессию
+    setToken(null);
+    localStorage.removeItem('ch_user');
+    localStorage.removeItem('ch_token');
+    closeModal('deleteAccountOverlay');
+    // Показываем прощальное сообщение и редирект на главную
+    const msg = document.createElement('div');
+    msg.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:16px;padding:40px;text-align:center;max-width:400px">
+          <div style="font-size:48px;margin-bottom:16px">👋</div>
+          <h3 style="margin:0 0 8px">Аккаунт удалён</h3>
+          <p style="color:#666;margin:0 0 24px">Ваши данные анонимизированы. До свидания!</p>
+          <button onclick="location.reload()" style="background:#f7b731;color:#1a1a2e;border:none;padding:12px 24px;border-radius:8px;font-weight:800;font-size:15px;cursor:pointer">На главную</button>
+        </div>
+      </div>`;
+    document.body.appendChild(msg);
+    setTimeout(()=>location.reload(), 3000);
+
+  } catch(e) {
+    alert('❌ Ошибка сети. Попробуйте ещё раз.');
+    if(btn){ btn.textContent = 'Подтвердить удаление'; btn.disabled = false; }
+  }
+}
+
+window.openDeleteAccountModal = openDeleteAccountModal;
+window.checkDeleteConfirm = checkDeleteConfirm;
+window.doDeleteAccount = doDeleteAccount;

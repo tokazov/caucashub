@@ -299,8 +299,9 @@ async def get_my_deals(
         base["load_desc"]   = load.cargo_desc if load else ""
         base["load_kg"]     = load.weight_kg if load else 0
         base["price"]       = d.agreed_price
-        base["shipper"]     = {"id": sh.id, "name": sh.company_name or sh.email, "phone": sh.phone, "inn": sh.inn} if sh else {}
-        base["carrier"]     = {"id": ca.id, "name": ca.company_name or ca.email, "phone": ca.phone, "inn": ca.inn} if ca else {}
+        from app.services.user_display import display_name, display_phone
+        base["shipper"]     = {"id": sh.id, "name": display_name(sh), "phone": display_phone(sh), "inn": sh.inn} if sh else {}
+        base["carrier"]     = {"id": ca.id, "name": display_name(ca), "phone": display_phone(ca), "inn": ca.inn} if ca else {}
         enriched.append(base)
     return {"deals": enriched}
 
@@ -344,6 +345,8 @@ async def download_act(
     carrier_res = await db.execute(select(User).where(User.id == deal.carrier_id))
     carrier = carrier_res.scalar_one_or_none()
 
+    from app.services.user_display import display_name, display_phone, display_email  # ADR-010
+
     truck_labels = {
         "tent": "Тент", "ref": "Рефрижератор", "bort": "Борт",
         "termos": "Термос", "gazel": "Фургон", "container": "Контейнер",
@@ -355,15 +358,15 @@ async def download_act(
         "deal_id":         deal.id,
         "completed_at":    deal.completed_at or deal.delivered_at or deal.created_at,
         # Грузовладелец
-        "shipper_name":    shipper.company_name or shipper.email if shipper else "—",
+        "shipper_name":    display_name(shipper) if shipper else "—",
         "shipper_inn":     shipper.inn if shipper and shipper.inn else "—",
-        "shipper_phone":   shipper.phone if shipper else "—",
-        "shipper_email":   shipper.email if shipper else "—",
+        "shipper_phone":   display_phone(shipper) if shipper else "—",
+        "shipper_email":   display_email(shipper) if shipper else "—",
         # Перевозчик
-        "carrier_name":    carrier.company_name or carrier.email if carrier else "—",
+        "carrier_name":    display_name(carrier) if carrier else "—",
         "carrier_inn":     carrier.inn if carrier and carrier.inn else "—",
-        "carrier_phone":   carrier.phone if carrier else "—",
-        "carrier_email":   carrier.email if carrier else "—",
+        "carrier_phone":   display_phone(carrier) if carrier else "—",
+        "carrier_email":   display_email(carrier) if carrier else "—",
         # Груз
         "from_city":       load.from_city if load else "—",
         "to_city":         load.to_city if load else "—",
@@ -440,8 +443,9 @@ async def export_deals(
         return dt.strftime("%d.%m.%Y") if hasattr(dt, 'strftime') else str(dt)[:10]
 
     def _company(uid):
+        from app.services.user_display import display_name as _dn
         u = user_map.get(uid)
-        return (u.company_name or u.email) if u else "—"
+        return _dn(u) if u else "—"
 
     rows = []
     total_gel = 0.0

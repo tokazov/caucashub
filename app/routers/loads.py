@@ -65,9 +65,10 @@ class LoadUpdate(BaseModel):
 def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:  # noqa: E741
     """Конвертируем Load в dict для фронтенда."""
     # Берём company_name: явный параметр → user объект → fallback
+    from app.services.user_display import display_name
     co = company_name
     if not co and user:
-        co = user.company_name or user.email.split('@')[0]
+        co = display_name(user)
     if not co:
         co = "CaucasHub"
 

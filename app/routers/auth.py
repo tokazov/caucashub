@@ -51,6 +51,9 @@ async def require_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # ADR-010: удалённый пользователь — инвалидируем любую активную сессию
+    if getattr(user, 'is_deleted', False):
+        raise HTTPException(status_code=401, detail="Аккаунт удалён")
     return user
 
 @router.post("/register")
@@ -91,7 +94,10 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
-    if not user or not pwd_context.verify(data.password, user.hashed_password):
+    # ADR-010: удалённый аккаунт — 401 без подсказки о пароле
+    if user and getattr(user, 'is_deleted', False):
+        raise HTTPException(status_code=401, detail="Аккаунт не найден или удалён")
+    if not user or not user.hashed_password or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
 
