@@ -2420,6 +2420,9 @@ function showSection(name, el){
   if(map[name]!==undefined) bnav[map[name]].classList.add('active');
   if(name==='trucks') renderTrucks();
   if(name==='cabinet' || name==='orders'){
+    // sec-orders содержит cabinetPanel — принудительно показываем
+    var _secOrders = document.getElementById('sec-orders');
+    if(_secOrders) _secOrders.classList.add('active');
     if(typeof showCabinet === 'function') showCabinet();
     else setTimeout(function(){ if(typeof showCabinet==='function') showCabinet(); }, 100);
   }
