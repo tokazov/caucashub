@@ -817,6 +817,35 @@ ALTER TABLE deals ADD COLUMN transport_request_id INTEGER REFERENCES transport_r
 - `GET /api/deals/my` → контакты видны если `viewer = shipper_id OR carrier_id`
 - Отклик `TransportRequest` создаётся свободно (нет платного барьера)
 
+**Уточнение: роль `both`**
+Пользователь с ролью `both` (одновременно перевозчик и грузовладелец) может быть
+на любой стороне сделки — в зависимости от того, кто инициировал.
+В `Deal` всегда явно фиксируется `shipper_id` и `carrier_id`.
+**CHECK constraint:** `shipper_id != carrier_id` — один user не может быть обеими сторонами одной сделки.
+
+---
+
+### ADR-016.7 — Экспорт rs.ge для двусторонних сделок
+
+**Решение:** Экспорт включает все `Deal` независимо от источника (`cargo` или `transport_offer`).
+
+Поля экспорта общие:
+```
+deal_id, act_number, created_at, completed_at
+shipper.tax_id, shipper.legal_name
+carrier.tax_id, carrier.legal_name
+route: from_city → to_city  (из cargo если есть, иначе из transport_offer)
+final_price_gel, final_price_usd, exchange_rate_snapshot
+```
+
+**Реализация:** В `GET /api/deals/export` — добавить JOIN с `transport_offers`
+для заполнения from_city/to_city когда `cargo_id IS NULL`.
+
+**Тестовый сценарий:**
+1. Создать сделку через TransportRequest-флоу (transport_offer_id заполнен)
+2. Завершить сделку (status = completed)
+3. `GET /api/deals/export` → запись присутствует с правильными полями маршрута
+
 ---
 
 ### Зависимости и порядок реализации

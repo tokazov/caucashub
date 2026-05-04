@@ -28,21 +28,23 @@ def _act_number(deal_id: int) -> str:
 
 def deal_to_dict(d: Deal) -> dict:
     return {
-        "id":               d.id,
-        "load_id":          d.load_id,
-        "shipper_id":       d.shipper_id,
-        "carrier_id":       d.carrier_id,
-        "status":           d.status.value if hasattr(d.status, "value") else str(d.status),
-        "agreed_price":     d.agreed_price,
-        "currency":         d.currency,
-        "created_at":       d.created_at.isoformat() if d.created_at else None,
-        "loading_at":       d.loading_at.isoformat() if d.loading_at else None,
-        "delivered_at":     d.delivered_at.isoformat() if d.delivered_at else None,
-        "completed_at":     d.completed_at.isoformat() if d.completed_at else None,
-        "shipper_confirmed": d.shipper_confirmed,
-        "carrier_confirmed": d.carrier_confirmed,
-        "act_number":       d.act_number,
-        "notes":            d.notes,
+        "id":                    d.id,
+        "load_id":               d.load_id,
+        "transport_offer_id":    d.transport_offer_id,
+        "deal_source":           d.deal_source,          # 'cargo' | 'transport'
+        "shipper_id":            d.shipper_id,
+        "carrier_id":            d.carrier_id,
+        "status":                d.status.value if hasattr(d.status, "value") else str(d.status),
+        "agreed_price":          d.agreed_price,
+        "currency":              d.currency,
+        "created_at":            d.created_at.isoformat() if d.created_at else None,
+        "loading_at":            d.loading_at.isoformat() if d.loading_at else None,
+        "delivered_at":          d.delivered_at.isoformat() if d.delivered_at else None,
+        "completed_at":          d.completed_at.isoformat() if d.completed_at else None,
+        "shipper_confirmed":     d.shipper_confirmed,
+        "carrier_confirmed":     d.carrier_confirmed,
+        "act_number":            d.act_number,
+        "notes":                 d.notes,
     }
 
 
@@ -199,9 +201,12 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
-            # Убираем груз из публичного списка
+            # Закрываем источник сделки (ADR-016: load или transport_offer)
             from sqlalchemy import text as sql_text
-            await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+            if deal.load_id:
+                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+            elif deal.transport_offer_id:
+                await db.execute(sql_text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"), {"id": deal.transport_offer_id})
         else:
             deal.status = DealStatus.delivered
 
@@ -216,9 +221,12 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
-            # Убираем груз из публичного списка
+            # Закрываем источник сделки (ADR-016: load или transport_offer)
             from sqlalchemy import text as sql_text
-            await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+            if deal.load_id:
+                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+            elif deal.transport_offer_id:
+                await db.execute(sql_text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"), {"id": deal.transport_offer_id})
         else:
             deal.status = DealStatus.delivered
 
@@ -589,7 +597,13 @@ async def rate_deal(
     # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
     from sqlalchemy import text
     await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
-    # Помечаем груз как завершённый (убираем из публичного списка)
-    await db.execute(text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+    # Помечаем источник сделки как завершённый
+    if deal.load_id:
+        # Грузовой путь — убираем груз из публичного списка
+        await db.execute(text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+    elif deal.transport_offer_id:
+        # Транспортный путь (ADR-016) — закрываем транспортное предложение
+        await db.execute(text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"),
+                         {"id": deal.transport_offer_id})
     await db.commit()
     return {"ok": True, "score": data.score, "deal_id": deal_id}
