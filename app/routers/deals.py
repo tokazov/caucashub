@@ -457,12 +457,21 @@ async def export_deals(
             pass
 
     # Загружаем данные о грузах батчем
-    load_ids = list({d.load_id for d in all_deals})
+    load_ids = [d.load_id for d in all_deals if d.load_id]
     load_map = {}
     if load_ids:
         lr = await db.execute(select(Load).where(Load.id.in_(load_ids)))
         for load_item in lr.scalars().all():
             load_map[load_item.id] = load_item
+
+    # Загружаем TransportOffer для транспортных сделок (ADR-016.7)
+    from app.models.transport_offer import TransportOffer
+    offer_ids = [d.transport_offer_id for d in all_deals if d.transport_offer_id]
+    offer_map = {}
+    if offer_ids:
+        or_ = await db.execute(select(TransportOffer).where(TransportOffer.id.in_(offer_ids)))
+        for o in or_.scalars().all():
+            offer_map[o.id] = o
 
     # Загружаем данные пользователей
     uids = list({d.shipper_id for d in all_deals} | {d.carrier_id for d in all_deals})
@@ -486,7 +495,10 @@ async def export_deals(
     total_gel = 0.0
     total_usd = 0.0
     for d in all_deals:
-        load = load_map.get(d.load_id)
+        # ADR-016.7: route берётся из Load (cargo-путь) или TransportOffer (transport-путь)
+        load  = load_map.get(d.load_id) if d.load_id else None
+        offer = offer_map.get(d.transport_offer_id) if d.transport_offer_id else None
+        source = offer if offer else load   # transport_offer_id приоритетнее
         price = d.agreed_price or 0
         cur = d.currency or "GEL"
         row = {
@@ -494,10 +506,10 @@ async def export_deals(
             "date":          _fmt(d.completed_at or d.created_at),
             "shipper":       _company(d.shipper_id),
             "carrier":       _company(d.carrier_id),
-            "from_city":     load.from_city if load else "—",
-            "to_city":       load.to_city   if load else "—",
-            "cargo_desc":    (load.cargo_desc or "") if load else "",
-            "weight_kg":     load.weight_kg if load else 0,
+            "from_city":     source.from_city if source else "—",
+            "to_city":       source.to_city   if source else "—",
+            "cargo_desc":    (load.cargo_desc or "") if load else (offer.notes or "") if offer else "",
+            "weight_kg":     load.weight_kg if load else (offer.capacity_kg if offer else 0),
             "amount":        price,
             "currency":      cur,
             "payment_type":  (load.payment_type or "") if load else "",
@@ -505,7 +517,9 @@ async def export_deals(
             "carrier_inn":   (user_map.get(d.carrier_id).inn or "") if user_map.get(d.carrier_id) else "",
             "status":        d.status.value if hasattr(d.status, 'value') else str(d.status),
             "deal_id":       d.id,
+            "deal_source":   d.deal_source,   # ADR-016.7
             "load_id":       d.load_id,
+            "transport_offer_id": d.transport_offer_id,
             "loading_date":  _fmt(d.loading_at),
             "delivery_date": _fmt(d.delivered_at),
         }
@@ -534,7 +548,7 @@ async def export_deals(
     fields = ["act_number","date","shipper","shipper_inn","carrier","carrier_inn",
               "from_city","to_city","cargo_desc","weight_kg","amount","currency",
               "payment_type","status","deal_id","load_id","loading_date","delivery_date"]
-    w = csv.DictWriter(buf, fieldnames=fields, delimiter=";")
+    w = csv.DictWriter(buf, fieldnames=fields, delimiter=";", extrasaction="ignore")
     w.writeheader()
     w.writerows(rows)
 
