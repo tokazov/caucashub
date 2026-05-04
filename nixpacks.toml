@@ -2,10 +2,22 @@
 NIXPACKS_PYTHON_VERSION = "3.12"
 
 [phases.setup]
-nixPkgs = ["dejavu_fonts", "noto-fonts"]
+nixPkgs = ["dejavu_fonts", "noto-fonts", "postgresql"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
+
+# ADR-011 Вариант A: pre-deploy migration step
+# Запускается ПЕРЕД стартом контейнера (Railway поддерживает).
+# Если alembic upgrade head падает → деплой отменяется, старая версия продолжает работать.
+[phases.migrate]
+cmds = [
+  # Бэкап БД перед миграцией (pg_dump → локальный файл, хранится в Railway volume)
+  # Если DATABASE_URL не установлен — пропускаем без ошибки
+  "bash -c 'if [ -n \"$DATABASE_URL\" ]; then mkdir -p /app/backups && PGPASSWORD=$(echo $DATABASE_URL | sed \"s|.*:\\(.*\\)@.*|\\1|\") pg_dump \"$DATABASE_URL\" --no-password 2>/dev/null > /app/backups/pre_deploy_$(date +%Y%m%d_%H%M%S).sql && echo \"[BACKUP] ✅ Pre-deploy backup done\" || echo \"[BACKUP] ⚠️ pg_dump not available, skipping\"; fi'",
+  # Запуск миграций Alembic
+  "bash -c 'alembic upgrade head && echo \"[MIGRATE] ✅ alembic upgrade head OK\"'"
+]
 
 [start]
 cmd = "python main.py"

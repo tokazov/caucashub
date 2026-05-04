@@ -1,82 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities, dictionaries, stats
-from app.database import engine, Base
+from app.database import engine
 from app.models import user, load, truck, response, deal, city, status_change  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Создаём таблицы при старте (не удаляем существующие данные!)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    # Миграции — добавляем новые колонки если их нет
+    """
+    ADR-011 (Вариант A): схема поддерживается через Alembic pre-deploy (nixpacks.toml).
+    При старте — только seed городов + healthcheck соединения.
+    Автомиграции через CREATE TABLE / ALTER TABLE — УДАЛЕНЫ (источник правды — alembic/versions/).
+    """
     from sqlalchemy import text
-    migrations = [
-        # Тарификация — счётчик откликов
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_this_month INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_month_reset TIMESTAMP WITH TIME ZONE",
-        # pro_plus план в enum (если не добавлен)
-        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$",
-        # paused статус груза (Трек 10, 2.4.2)
-        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$",
-        # withdrawn статус отклика (Трек 8)
-        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$",
-        # ADR-006: поля валюты в loads
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
-        # ADR-006: поля валюты в responses
-        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS price_gel FLOAT",
-        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
-        # ADR-006: поля валюты в deals
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS exchange_rate_snapshot FLOAT",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_gel FLOAT",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_usd FLOAT",
-        # ADR-007: таблица cities и FK в loads
-        """CREATE TABLE IF NOT EXISTS cities (
-            id SERIAL PRIMARY KEY,
-            name_ru VARCHAR(100) NOT NULL,
-            name_ge VARCHAR(100),
-            country_iso CHAR(2) NOT NULL,
-            lat FLOAT,
-            lon FLOAT,
-            is_popular BOOLEAN NOT NULL DEFAULT TRUE,
-            yandex_geo_id VARCHAR(50)
-        )""",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS from_city_id INTEGER",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS to_city_id INTEGER",
-        # Трек 8: audit log
-        """CREATE TABLE IF NOT EXISTS status_changes (
-            id SERIAL PRIMARY KEY,
-            entity_type VARCHAR(20) NOT NULL,
-            entity_id INTEGER NOT NULL,
-            from_status VARCHAR(30),
-            to_status VARCHAR(30) NOT NULL,
-            user_id INTEGER REFERENCES users(id),
-            changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            reason TEXT
-        )""",
-        # ADR-010: soft delete
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE",
-        # reset_codes table (если не было)
-        """CREATE TABLE IF NOT EXISTS reset_codes (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR NOT NULL,
-            code VARCHAR NOT NULL,
-            expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )""",
-    ]
-    async with engine.begin() as conn:
-        for sql in migrations:
-            try:
-                await conn.execute(text(sql))
-                print(f"[MIGRATION] ✅ {sql[:60]}...", flush=True)
-            except Exception as e:
-                print(f"[MIGRATION] ⚠️ {sql[:60]}: {e}", flush=True)
 
-    # Проверка что данные на месте
+    # Проверка соединения с БД
     try:
         async with engine.connect() as conn:
             result = await conn.execute(text("SELECT COUNT(*) FROM loads"))
@@ -130,7 +68,23 @@ def root():
     return {"status": "ok", "service": "CaucasHub API v1.0"}
 
 @app.get("/health")
-def health():
-    return {"status": "healthy"}
+async def health():
+    """
+    ADR-011: healthcheck с проверкой соединения с БД.
+    Railway использует этот эндпоинт для определения готовности сервиса.
+    Возвращает 200 только если БД доступна.
+    """
+    from sqlalchemy import text as sa_text
+    from app.database import engine as db_engine
+    try:
+        async with db_engine.connect() as conn:
+            await conn.execute(sa_text("SELECT 1"))
+        return {"status": "healthy", "db": "ok"}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "db": "error", "detail": str(e)}
+        )
 
 
