@@ -354,3 +354,18 @@ window.getToken = getToken;
 window.setToken = setToken;
 window.decodeJwtUserId = decodeJwtUserId;
 window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRouteMap_(); };
+
+// ── Загрузка реальных счётчиков из API ───────────────────────────────────────
+(function loadStatsCounters(){
+  fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(5000)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var trEl = document.getElementById('statTrucks');
+      var coEl = document.getElementById('statCompanies');
+      if(trEl && d.online_trucks != null) trEl.textContent = d.online_trucks.toLocaleString();
+      if(coEl && d.companies != null) coEl.textContent = d.companies.toLocaleString();
+      var ldEl = document.getElementById('statLoads');
+      if(ldEl && d.active_loads != null) ldEl.textContent = d.active_loads.toLocaleString();
+    })
+    .catch(function(){});
+})();

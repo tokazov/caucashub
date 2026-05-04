@@ -3741,17 +3741,48 @@ function _isTokenValid(tok){
 try{
   const _saved=_lsGet('ch_user');
   if(_saved&&_saved!=='null'){
-    user=JSON.parse(_saved);
-    if(user&&user.name){
-      showUserState();
-      // Восстанавливаем JWT токен
-      if(user.token && typeof setToken!=='undefined') setToken(user.token);
-      // Восстанавливаем currentUserId из сохранённого userId
-      if(user.userId) currentUserId = Number(user.userId);
-      // Синхронизируем грузы с сервером
-      setTimeout(()=>{
-        if(typeof syncLoadsFromServer==='function') syncLoadsFromServer();
-      }, 300);
+    const _savedUser=JSON.parse(_saved);
+    if(_savedUser&&_savedUser.name){
+      const _tok = (typeof getToken!=='undefined'&&getToken()) || _savedUser.token || localStorage.getItem('ch_token');
+      if(_tok){
+        // Проверяем токен через API — если 401 очищаем сессию
+        fetch(API_BASE+'/api/users/me',{headers:{'Authorization':'Bearer '+_tok},signal:AbortSignal.timeout(5000)})
+          .then(r=>{
+            if(r.status===401||r.status===403){
+              // Токен невалиден — очищаем сессию
+              _lsDel('ch_user'); localStorage.removeItem('ch_token');
+              user=null; currentUserId=null;
+              if(typeof showUserState==='function') showUserState();
+              return;
+            }
+            return r.json();
+          })
+          .then(d=>{
+            if(!d) return;
+            // Токен валиден — восстанавливаем сессию с актуальными данными с сервера
+            user=_savedUser;
+            user.name = d.company_name || _savedUser.name;
+            user.phone = d.phone || _savedUser.phone;
+            user.inn = d.inn || _savedUser.inn;
+            user.plan = d.plan || _savedUser.plan;
+            user.userId = d.id || _savedUser.userId;
+            currentUserId = Number(d.id || _savedUser.userId);
+            _lsSet('ch_user',JSON.stringify(user));
+            showUserState();
+            setTimeout(()=>{ if(typeof syncLoadsFromServer==='function') syncLoadsFromServer(); },300);
+          })
+          .catch(()=>{
+            // Нет сети — доверяем localStorage (оффлайн режим)
+            user=_savedUser;
+            if(_savedUser.userId) currentUserId=Number(_savedUser.userId);
+            showUserState();
+            setTimeout(()=>{ if(typeof syncLoadsFromServer==='function') syncLoadsFromServer(); },300);
+          });
+        if(typeof setToken!=='undefined') setToken(_tok);
+      } else {
+        // Нет токена — очищаем
+        _lsDel('ch_user');
+      }
     }
   }
 }catch(e){try{_lsDel('ch_user');}catch(e2){}}
