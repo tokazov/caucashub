@@ -6,3 +6,6 @@ from .deal import Deal as Deal
 from .city import City as City
 from .status_change import StatusChange as StatusChange
 from .subscription import RouteSubscription as RouteSubscription
+from .transport_offer import TransportOffer as TransportOffer
+from .transport_request import TransportRequest as TransportRequest
+from .transport_subscription import TransportSubscription as TransportSubscription

@@ -25,11 +25,17 @@ class Deal(Base):
 
     id           = Column(Integer, primary_key=True, index=True)
 
+    # Источник сделки (ADR-016.1): ровно одно из двух заполнено
+    # cargo_id — сделка из груза (старый путь)
+    # transport_offer_id — сделка из транспортного предложения (новый путь)
+    load_id              = Column(Integer, ForeignKey("loads.id"), nullable=True)   # nullable! (ADR-016)
+    transport_offer_id   = Column(Integer, ForeignKey("transport_offers.id"), nullable=True)
+    transport_request_id = Column(Integer, ForeignKey("transport_requests.id"), nullable=True)
+
     # Участники
-    load_id      = Column(Integer, ForeignKey("loads.id"), nullable=False)
     shipper_id   = Column(Integer, ForeignKey("users.id"), nullable=False)   # грузовладелец
     carrier_id   = Column(Integer, ForeignKey("users.id"), nullable=False)   # перевозчик
-    response_id  = Column(Integer, ForeignKey("responses.id"), nullable=True)  # отклик который приняли
+    response_id  = Column(Integer, ForeignKey("responses.id"), nullable=True)  # отклик (груз-путь)
 
     # Статус
     status       = Column(Enum(DealStatus), default=DealStatus.confirmed, index=True)
@@ -56,7 +62,14 @@ class Deal(Base):
     notes        = Column(Text, nullable=True)
 
     # Связи
-    load     = relationship("Load",     foreign_keys=[load_id])
-    shipper  = relationship("User",     foreign_keys=[shipper_id])
-    carrier  = relationship("User",     foreign_keys=[carrier_id])
-    response = relationship("Response", foreign_keys=[response_id])
+    load             = relationship("Load",             foreign_keys=[load_id])
+    transport_offer  = relationship("TransportOffer",   foreign_keys=[transport_offer_id])
+    transport_request= relationship("TransportRequest", foreign_keys=[transport_request_id])
+    shipper          = relationship("User",             foreign_keys=[shipper_id])
+    carrier          = relationship("User",             foreign_keys=[carrier_id])
+    response         = relationship("Response",         foreign_keys=[response_id])
+
+    @property
+    def deal_source(self) -> str:
+        """'cargo' или 'transport' — тип сделки."""
+        return "transport" if self.transport_offer_id else "cargo"

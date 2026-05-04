@@ -195,3 +195,53 @@
 
 ### Контакты в фронте
 Компонент `renderDealCard()` показывает phone/email из `deal.shipper.phone` и `deal.carrier.phone`. Эти поля заполнены только если viewer — участник сделки.
+
+---
+
+## Двусторонняя биржа (ADR-016, реализуется с 05.05.2026)
+
+### Новые модели
+
+#### TransportOffer (предложение транспорта)
+Перевозчик публикует: from_city, to_city, truck_type, capacity_kg, available_from/to, price.
+`status`: active → taken → completed / canceled.
+
+#### TransportRequest (отклик грузовладельца)
+Грузовладелец откликается на TransportOffer: cargo_description, weight_kg, message.
+`status`: pending → accepted / rejected / canceled.
+При `accepted` → создаётся `Deal` с `transport_offer_id` заполненным.
+
+#### TransportSubscription (подписка грузовладельца)
+Аналог `RouteSubscription`. Грузовладелец подписывается на from_city/to_city.
+Хук в `POST /api/transport/` — уведомление при новом TransportOffer.
+
+### Расширение Deal (ADR-016.1)
+
+```
+Deal
+├── load_id (nullable)            — сделка из груза (старый путь)
+├── transport_offer_id (nullable) — сделка из транспорта (новый путь)
+├── transport_request_id (nullable)
+└── response_id (nullable)        — отклик перевозчика (грузовой путь)
+```
+
+Инвариант: `(load_id IS NOT NULL) XOR (transport_offer_id IS NOT NULL)`.
+Проверяется в бизнес-логике (не в БД для совместимости с SQLite в тестах).
+
+### API эндпоинты (Этап 2)
+
+| Метод | Путь | Описание |
+|-------|------|---------|
+| POST | `/api/transport/` | Создать TransportOffer |
+| GET | `/api/transport/` | Список предложений (публичный) |
+| GET | `/api/transport/{id}` | Детали предложения |
+| PATCH | `/api/transport/{id}` | Изменить своё предложение |
+| DELETE | `/api/transport/{id}` | Снять предложение |
+| POST | `/api/transport/{id}/request` | Откликнуться (грузовладелец) |
+| POST | `/api/transport-requests/{id}/accept` | Принять отклик (перевозчик) |
+| POST | `/api/transport-requests/{id}/reject` | Отклонить |
+| DELETE | `/api/transport-requests/{id}` | Отозвать отклик |
+| GET | `/api/transport-subscriptions/` | Мои подписки |
+| POST | `/api/transport-subscriptions/` | Создать подписку |
+| PATCH | `/api/transport-subscriptions/{id}` | Изменить |
+| DELETE | `/api/transport-subscriptions/{id}` | Удалить |
