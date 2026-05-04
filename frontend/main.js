@@ -1703,6 +1703,8 @@ function openPostLoad(){
   if(cl){const _T=TRANSLATIONS[lang]||TRANSLATIONS['ru']; cl.textContent=scope==='intl'?(_T.lbl_rate_intl||'Ставка ($)'):(_T.lbl_rate_form||'Ставка (₾)');}
   if(typeof updateFormForIntl==='function') updateFormForIntl();
   document.getElementById('postOverlay').classList.add('on');
+  _setupCityAutocomplete('fFrom', {lang: 'ru'});
+  _setupCityAutocomplete('fTo', {lang: 'ru'});
 }
 function doPostLoad(){
   const fromAddr=document.getElementById('pFromAddr').value||'Адрес не указан';
@@ -2192,7 +2194,7 @@ function switchCabTab(tab, el){
  if(tab === 'deals') renderCabDeals();
  if(tab === 'loads') renderCabLoads();
  if(tab === 'responses') renderCabResponses();
- if(tab === 'subscriptions') loadSubscriptions();
+ if(tab === 'subscriptions') { loadSubscriptions(); _setupCityAutocomplete('subFromCity', {lang: 'ru'}); _setupCityAutocomplete('subToCity', {lang: 'ru'}); }
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
@@ -3439,6 +3441,7 @@ function openSettings(){
   const role=document.getElementById('sRole');
   if(cf&&role) cf.style.display=(role.value==='shipper')?'none':'block';
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
+  _setupCityAutocomplete('sCityAll', {lang: 'ru'});
   var _so = document.getElementById('settingsOverlay');
   _so.classList.add('on');
   // Мобиль: bottom-sheet на весь экран через отдельные свойства (совместимо со старым Android)
@@ -3859,6 +3862,8 @@ if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',()=>{
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
+    _setupCityAutocomplete('fFrom', {lang: 'ru'});
+    _setupCityAutocomplete('fTo', {lang: 'ru'});
     // Применяем язык после загрузки DOM
     const saved = localStorage.getItem('ch_lang');
     if (saved && saved !== 'ru' && typeof applyLang === 'function') {
@@ -3870,6 +3875,8 @@ if(document.readyState==='loading'){
 } else {
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
+  _setupCityAutocomplete('fFrom', {lang: 'ru'});
+  _setupCityAutocomplete('fTo', {lang: 'ru'});
   // DOM уже готов — применяем язык сразу после sync
   const saved = localStorage.getItem('ch_lang');
   if (saved && saved !== 'ru' && typeof applyLang === 'function') {
@@ -4825,6 +4832,8 @@ window.openPostTransportOffer = function() {
       var m=overlay.querySelector('.modal'); if(m){ m.style.width='100%'; m.style.maxWidth='100%'; m.style.borderRadius='20px 20px 0 0'; m.style.maxHeight='92vh'; m.style.overflowY='auto'; }
     }
   }
+  _setupCityAutocomplete('ptFrom', {lang: 'ru'});
+  _setupCityAutocomplete('ptTo', {lang: 'ru'});
 };
 
 window.submitTransportOffer = async function() {
@@ -5124,3 +5133,73 @@ window.deleteTransportSub = async function(subId) {
     await loadMyTransportSubs();
   } catch(e) {}
 };
+
+// ─── Q-014: City Autocomplete ─────────────────────────────────────────────────
+function _setupCityAutocomplete(inputId, options) {
+  // options: { lang: 'ru', onSelect: function(city){} }
+  var input = document.getElementById(inputId);
+  if(!input) return;
+  // Идемпотентность — повторный вызов не создаёт дубли
+  if(input.dataset.autocompleteReady) return;
+  input.dataset.autocompleteReady = '1';
+
+  // Создаём выпадающий список
+  var dropdown = document.createElement('div');
+  dropdown.className = 'city-autocomplete-dropdown';
+  dropdown.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;display:none;min-width:200px';
+  input.parentElement.style.position = 'relative';
+  input.parentElement.appendChild(dropdown);
+
+  var debounceTimer = null;
+  var lastValue = '';
+
+  input.addEventListener('input', function() {
+    var q = this.value.trim();
+    if(q === lastValue) return;
+    lastValue = q;
+    clearTimeout(debounceTimer);
+    if(q.length < 2) { dropdown.style.display='none'; return; }
+    debounceTimer = setTimeout(function() {
+      _fetchCitySuggestions(q, options.lang || 'ru', function(results) {
+        if(!results.length) { dropdown.style.display='none'; return; }
+        dropdown.innerHTML = results.map(function(r) {
+          return '<div class="city-autocomplete-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5" data-name="' + r.display_name + '" data-local="' + (r.name_local||r.name_ru||r.display_name.split(',')[0]) + '">'
+            + '<span style="font-weight:600">' + (r.name_ru||r.display_name.split(',')[0]) + '</span>'
+            + '<span style="font-size:11px;color:#aaa;margin-left:6px">' + (r.name_local||'') + '</span>'
+            + '</div>';
+        }).join('');
+        dropdown.querySelectorAll('.city-autocomplete-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            var name = this.getAttribute('data-local') || this.getAttribute('data-name').split(',')[0];
+            input.value = name;
+            dropdown.style.display = 'none';
+            if(options.onSelect) options.onSelect({name: name, display: this.getAttribute('data-name')});
+          });
+          item.addEventListener('mouseover', function() { this.style.background='#f8f9fa'; });
+          item.addEventListener('mouseout',  function() { this.style.background=''; });
+        });
+        dropdown.style.display = 'block';
+      });
+    }, 300);
+  });
+
+  document.addEventListener('click', function(e) {
+    if(!input.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function _fetchCitySuggestions(q, lang, callback) {
+  fetch(API_BASE + '/api/cities/search?q=' + encodeURIComponent(q) + '&lang=' + lang + '&limit=6')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ callback(d.results || []); })
+    .catch(function() {
+      // Fallback на CITIES при недоступности API
+      var fallback = (typeof CITIES !== 'undefined' ? CITIES : [])
+        .filter(function(c){ return c.name.toLowerCase().includes(q.toLowerCase()); })
+        .slice(0,6)
+        .map(function(c){ return {name_ru: c.name, name_local: c.nameGe||c.name, display_name: c.name}; });
+      callback(fallback);
+    });
+}
