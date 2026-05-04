@@ -13,7 +13,7 @@
   active → canceled (владелец снял)
   taken  → completed (после rate)
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, field_validator
@@ -157,9 +157,10 @@ async def list_transport_offers(
 
 @router.post("/", status_code=201)
 async def create_transport_offer(
-    data: TransportOfferCreate,
-    db:   AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_user),
+    data:             TransportOfferCreate,
+    background_tasks: BackgroundTasks,
+    db:               AsyncSession = Depends(get_db),
+    current_user:     User = Depends(require_user),
 ):
     """Перевозчик публикует транспортное предложение."""
     if data.available_to and data.available_to <= data.available_from:
@@ -182,6 +183,11 @@ async def create_transport_offer(
     db.add(offer)
     await db.commit()
     await db.refresh(offer)
+
+    # Этап 3: матчинг с TransportSubscription в фоне
+    from app.services.transport_matcher import notify_transport_subscribers
+    background_tasks.add_task(notify_transport_subscribers, offer, db)
+
     return {"ok": True, "offer": _offer_to_dict(offer, current_user)}
 
 
