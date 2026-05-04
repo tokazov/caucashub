@@ -14,6 +14,65 @@ async def lifespan(app: FastAPI):
     """
     from sqlalchemy import text
 
+    # Аварийные inline-миграции (ADR-011 fallback):
+    # nixpacks [phases.migrate] может не поддерживаться на Railway Hobby.
+    # Применяем только недостающие колонки через IF NOT EXISTS — идемпотентно.
+    _emergency_migrations = [
+        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS price_gel FLOAT",
+        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
+        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
+        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS exchange_rate_snapshot FLOAT",
+        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_gel FLOAT",
+        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_usd FLOAT",
+        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS from_city_id INTEGER",
+        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS to_city_id INTEGER",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_this_month INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_month_reset TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE",
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$""",
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$""",
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$""",
+        """CREATE TABLE IF NOT EXISTS status_changes (
+            id SERIAL PRIMARY KEY,
+            entity_type VARCHAR(20) NOT NULL,
+            entity_id INTEGER NOT NULL,
+            from_status VARCHAR(30),
+            to_status VARCHAR(30) NOT NULL,
+            user_id INTEGER REFERENCES users(id),
+            changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            reason TEXT
+        )""",
+        """CREATE TABLE IF NOT EXISTS cities (
+            id SERIAL PRIMARY KEY,
+            name_ru VARCHAR(100) NOT NULL,
+            name_ge VARCHAR(100),
+            country_iso CHAR(2) NOT NULL,
+            lat FLOAT,
+            lon FLOAT,
+            is_popular BOOLEAN NOT NULL DEFAULT TRUE,
+            yandex_geo_id VARCHAR(50)
+        )""",
+        """CREATE TABLE IF NOT EXISTS reset_codes (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR NOT NULL,
+            code VARCHAR NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )""",
+    ]
+    async with engine.begin() as conn:
+        for sql in _emergency_migrations:
+            try:
+                await conn.execute(text(sql))
+            except Exception as e:
+                print(f"[MIGRATE] ⚠️ {sql[:50]}: {e}", flush=True)
+    print("[MIGRATE] ✅ Emergency migrations applied", flush=True)
+
     # Проверка соединения с БД
     try:
         async with engine.connect() as conn:
