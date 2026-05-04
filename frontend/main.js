@@ -3395,20 +3395,21 @@ document.addEventListener('click', function(e){
 // ── SETTINGS & ANALYTICS ──────────────────────────────
 function openSettings(){
   closeModal('profileOverlay');
+  // Безопасное заполнение — не падаем если элемент не найден
+  function _sfill(id, v){ const el=document.getElementById(id); if(el) el.value=v||''; }
   if(user){
-    document.getElementById('sName').value=user.name||'';
-    document.getElementById('sEmail').value=user.email||'';
-    document.getElementById('sPhone').value=user.phone||'';
-    document.getElementById('sTelegram').value=user.telegram||'';
+    _sfill('sName', user.name);
+    _sfill('sEmail', user.email);
+    _sfill('sPhone', user.phone);
+    _sfill('sTelegram', user.telegram);
     const sr=document.getElementById('sRole'); if(sr&&user.role) sr.value=user.role;
-    document.getElementById('sInn').value=user.inn||'';
-    document.getElementById('sInnAll').value=user.inn||'';
-    document.getElementById('sInnAll').value=user.inn||'';
+    _sfill('sInn', user.inn);
+    _sfill('sInnAll', user.inn);
     const sotAll=document.getElementById('sOrgTypeAll'); if(sotAll) sotAll.value=user.orgType||'';
-    document.getElementById('sCityAll').value=user.city||'';
+    _sfill('sCityAll', user.city);
     const sot=document.getElementById('sOrgType'); if(sot&&user.orgType) sot.value=user.orgType;
     const stt=document.getElementById('sTruckType'); if(stt&&user.truckType) stt.value=user.truckType;
-    document.getElementById('sTonnage').value=user.tonnage||'';
+    _sfill('sTonnage', user.tonnage);
   }
   // Показываем поля перевозчика только для carrier/both
   const cf=document.getElementById('sCarrierFields');
@@ -3422,7 +3423,7 @@ function openSettings(){
 function saveSettings(){
   const name=document.getElementById('sName').value;
   const phone=document.getElementById('sPhone').value;
-  const tg=document.getElementById('sTelegram').value;
+  const tg=(document.getElementById('sTelegram')?.value)||'';
   const role=document.getElementById('sRole').value;
   const inn=document.getElementById('sInn').value || document.getElementById('sInnAll').value;
   const orgType=document.getElementById('sOrgType').value || document.getElementById('sOrgTypeAll').value;
