@@ -68,6 +68,20 @@ async def seed_cities_endpoint(
     return {"seeded": count, "message": f"Added {count} cities" if count else "Already seeded"}
 
 
+@router.get("/search")
+async def search_cities(
+    q: str = Query(..., min_length=2),
+    lang: str = Query("ru"),
+    limit: int = Query(5, le=10),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск города через LocationIQ геокодер (ADR-015). Fallback в локальную БД."""
+    from app.services.geocoder import search_city
+
+    results = await search_city(q, lang=lang, limit=limit, db=db)
+    return {"results": results, "query": q, "lang": lang}
+
+
 @router.get("/{city_id}")
 async def get_city(city_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(City).where(City.id == city_id))
