@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request
+from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -156,7 +156,9 @@ async def get_loads(
     return {"loads": [load_to_dict(lo, user=users_map.get(lo.user_id)) for lo in loads], "total": len(loads)}
 
 @router.post("/")
-async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Depends(get_db),
+async def create_load(data: LoadCreate, request: Request,
+                      background_tasks: BackgroundTasks,
+                      db: AsyncSession = Depends(get_db),
                       authorization: Optional[str] = Header(None)):
     from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
     from app.services.idempotency import check_idempotency
@@ -237,6 +239,11 @@ async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Dep
     # Инвалидируем кеш счётчиков (Трек 11.2)
     from app.routers.stats import invalidate_counters_cache
     invalidate_counters_cache()
+
+    # Этап 2 подписок (ADR-014): матчинг и уведомления в фоне
+    from app.services.subscription_matcher import notify_subscribers
+    background_tasks.add_task(notify_subscribers, load, db)
+
     return load_to_dict(load, data.company_name)
 
 @router.put("/{load_id}")
