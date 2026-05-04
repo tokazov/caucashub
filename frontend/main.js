@@ -2200,6 +2200,9 @@ function showCabinet(){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(!tk){ if(empty) empty.style.display='block'; if(panel) panel.style.display='none'; return; }
   if(empty) empty.style.display='none';
+  // Скрываем старый ordersList — он не нужен пока открыт новый кабинет
+  var oldList = document.getElementById('ordersList');
+  if(oldList){ oldList.style.display='none'; oldList.innerHTML=''; }
   if(panel) panel.style.display='block';
  // Заполняем шапку кабинета
  var u = user || (localStorage.getItem('ch_user') ? JSON.parse(localStorage.getItem('ch_user')) : null);
@@ -3629,7 +3632,8 @@ document.addEventListener('click',function(e){
 function _renderOrders(){
   // Новый кабинет с вкладками активен — очищаем старый рендер
   var cab = document.getElementById('cabinetPanel');
-  if(cab && cab.style.display !== 'none') {
+  var cabVisible = cab && (cab.style.display === 'block' || getComputedStyle(cab).display !== 'none');
+  if(cabVisible) {
     // Скрываем все старые элементы кабинета
     var oldList = document.getElementById('ordersList');
     if(oldList) { oldList.style.display='none'; oldList.innerHTML=''; }
