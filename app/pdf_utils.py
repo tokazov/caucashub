@@ -72,37 +72,39 @@ def _get_canvas():
     font_name = "MainFont"
     registered = False
 
-    # Noto Sans поддерживает Georgian + Cyrillic
-    noto_candidates = (
+    # Приоритет 1: шрифт в репо (app/fonts/) — гарантированно есть на Railway
+    _here = os.path.dirname(os.path.abspath(__file__))
+    bundled_regular = os.path.join(_here, "fonts", "DejaVuSans.ttf")
+    bundled_bold    = os.path.join(_here, "fonts", "DejaVuSans-Bold.ttf")
+
+    candidates = []
+    if os.path.exists(bundled_regular):
+        candidates.append((bundled_regular, bundled_bold if os.path.exists(bundled_bold) else bundled_regular))
+
+    # Приоритет 2: системные шрифты (Noto → DejaVu → liberation)
+    system_fonts = (
         glob.glob("/nix/store/*/share/fonts/truetype/noto/NotoSans-Regular.ttf") +
         glob.glob("/nix/store/*/share/fonts/noto/NotoSans-Regular.ttf") +
-        glob.glob("/run/current-system/sw/share/fonts/*/NotoSans-Regular.ttf") +
         [
             "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
             "/usr/share/fonts/noto/NotoSans-Regular.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         ]
     )
-
-    for fp in noto_candidates:
+    for fp in system_fonts:
         if os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont(font_name, fp))
-                # Bold fallback (тот же шрифт)
-                try:
-                    bold_fp = fp.replace("Regular", "Bold").replace("regular", "bold")
-                    if os.path.exists(bold_fp):
-                        pdfmetrics.registerFont(TTFont(font_name + "-Bold", bold_fp))
-                    else:
-                        pdfmetrics.registerFont(TTFont(font_name + "-Bold", fp))
-                except Exception:
-                    pdfmetrics.registerFont(TTFont(font_name + "-Bold", fp))
-                registered = True
-                break
-            except Exception:
-                pass
+            bold_fp = fp.replace("Regular", "Bold").replace("regular", "bold")
+            candidates.append((fp, bold_fp if os.path.exists(bold_fp) else fp))
+
+    for fp, bold_fp in candidates:
+        try:
+            pdfmetrics.registerFont(TTFont(font_name, fp))
+            pdfmetrics.registerFont(TTFont(font_name + "-Bold", bold_fp))
+            registered = True
+            break
+        except Exception:
+            pass
 
     if not registered:
         font_name = "Helvetica"
