@@ -3419,7 +3419,11 @@ function openSettings(){
   const role=document.getElementById('sRole');
   if(cf&&role) cf.style.display=(role.value==='shipper')?'none':'block';
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
-  document.getElementById('settingsOverlay').classList.add('on');
+  var _so = document.getElementById('settingsOverlay');
+  _so.classList.add('on');
+  // Сбрасываем скролл на верх модалки
+  var _sm = _so.querySelector('.modal');
+  if(_sm) _sm.scrollTop = 0;
   // Инициализируем статус TG-подключения
   _initTgStatus();
 }
