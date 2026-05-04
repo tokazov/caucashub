@@ -19,11 +19,12 @@ class LoadScope(str, enum.Enum):
     intl  = "intl"
 
 class LoadStatus(str, enum.Enum):
-    active   = "active"
-    paused   = "paused"    # владелец заблокирован — груз скрыт из ленты
-    taken    = "taken"
-    expired  = "expired"
-    canceled = "canceled"
+    active    = "active"
+    paused    = "paused"     # владелец заблокирован — груз скрыт из ленты
+    taken     = "taken"      # отклик принят, создана сделка
+    completed = "completed"  # сделка завершена (rate_deal) — случай B, 05.05.2026
+    expired   = "expired"
+    canceled  = "canceled"
 
 class Load(Base):
     __tablename__ = "loads"
