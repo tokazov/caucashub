@@ -170,3 +170,28 @@
 | `services/user_display.py` | Отображение имени (с учётом is_deleted) |
 | `services/plan_check.py` | Проверка тарифного плана |
 | `services/telegram_notify.py` | Telegram уведомления |
+
+---
+
+## Доступ к контактам (ADR-013 B, принято 05.05.2026)
+
+### Правило
+Контактные данные (phone, email) участника сделки видны **только** другому участнику активной или завершённой сделки.
+
+### Где раскрываются контакты
+
+| Эндпоинт | Контакты | Условие |
+|----------|----------|---------|
+| `GET /api/loads/{id}` | **Никогда** | `owner_phone=None`, `owner_email=None` всегда |
+| `GET /api/users/{id}` | **Никогда** | публичный профиль без контактов |
+| `GET /api/deals/my` | ✅ Да | `viewer_is_participant = True` → shipper.phone, carrier.phone |
+| `GET /api/deals/{id}` | ✅ Да | только если viewer = shipper_id или carrier_id |
+
+### Что удалено
+- `PRICING_ENABLED` (env var) — полностью удалён из `plan_check.py`
+- `is_paid_plan()` — возвращает `True` для всех (заглушка до Pro-тарифа)
+- `check_can_respond()` — возвращает `(True, "ok")` для всех
+- Ограничения `responses_this_month` — счётчик сохранён в модели, но не проверяется
+
+### Контакты в фронте
+Компонент `renderDealCard()` показывает phone/email из `deal.shipper.phone` и `deal.carrier.phone`. Эти поля заполнены только если viewer — участник сделки.

@@ -316,9 +316,21 @@ async def get_my_deals(
         base["load_kg"]     = load.weight_kg if load else 0
         base["price"]       = d.agreed_price
         from app.services.user_display import display_name, display_phone
+        # ADR-013 B: контакты видны участнику сделки (viewer = shipper или carrier)
+        viewer_is_participant = (user_id == d.shipper_id or user_id == d.carrier_id)
         # 5.2.5: ИНН не раскрывается через deals API
-        base["shipper"]     = {"id": sh.id, "name": display_name(sh), "phone": display_phone(sh)} if sh else {}
-        base["carrier"]     = {"id": ca.id, "name": display_name(ca), "phone": display_phone(ca)} if ca else {}
+        base["shipper"] = {
+            "id":    sh.id if sh else None,
+            "name":  display_name(sh) if sh else "—",
+            "phone": display_phone(sh) if (sh and viewer_is_participant) else None,
+            "email": sh.email if (sh and viewer_is_participant) else None,
+        } if sh else {}
+        base["carrier"] = {
+            "id":    ca.id if ca else None,
+            "name":  display_name(ca) if ca else "—",
+            "phone": display_phone(ca) if (ca and viewer_is_participant) else None,
+            "email": ca.email if (ca and viewer_is_participant) else None,
+        } if ca else {}
         enriched.append(base)
     return {"deals": enriched, "total": total, "limit": limit, "offset": offset}
 

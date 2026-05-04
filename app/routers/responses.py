@@ -9,7 +9,7 @@ from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
 from app.services.telegram_notify import notify_new_response, notify_response_accepted
-from app.services.plan_check import check_can_respond
+# plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
 import httpx
 import asyncio
@@ -76,14 +76,8 @@ async def respond_to_load(
     from app.services.idempotency import check_idempotency
     await check_idempotency(request, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
 
-    # Проверка тарифного плана
-    can, reason = check_can_respond(current_user)
-    if not can:
-        plan_needed = "standard" if reason == "plan_required" else "standard"
-        raise HTTPException(
-            status_code=403,
-            detail={"code": reason, "plan": plan_needed}
-        )
+    # ADR-013 B: проверка тарифного плана удалена — все могут откликаться.
+    # Pro-лимиты добавим с billing-модулем.
 
     # Проверяем груз
     load_res = await db.execute(select(Load).where(Load.id == load_id))

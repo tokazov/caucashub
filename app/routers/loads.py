@@ -338,18 +338,11 @@ async def get_load(
     ur = await db.execute(select(User).where(User.id == load.user_id))
     owner = ur.scalar_one_or_none()
 
-    # Определяем показывать ли контакты (если PRICING_ENABLED=false — показываем всем авторизованным)
-    from app.services.plan_check import PRICING_ENABLED, is_paid_plan
+    # ADR-013 Вариант B: контакты только через сделку
+    # GET /api/loads/{id} никогда не раскрывает контакты напрямую.
+    # Контакты видны участнику сделки через GET /api/deals/my или /api/deals/{id}.
     show_contacts = False
-    viewer_id = get_user_id(authorization)
-    if viewer_id:
-        if not PRICING_ENABLED:
-            show_contacts = True  # Тарификация выключена — контакты всем
-        else:
-            viewer_res = await db.execute(select(User).where(User.id == viewer_id))
-            viewer = viewer_res.scalar_one_or_none()
-            if viewer:
-                show_contacts = is_paid_plan(viewer)
+    _ = get_user_id(authorization)  # сохраняем вызов для side-effects (логи)
 
     return load_to_dict(load, user=owner, show_contacts=show_contacts)
 
