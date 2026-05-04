@@ -6,14 +6,28 @@ from app.models.load import Load, LoadStatus, LoadScope
 from app.config import settings
 from pydantic import BaseModel
 from typing import Optional, List
-import google.generativeai as genai
+from google import genai as genai_new
 import json
 import re
 
 router = APIRouter()
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")
+# Используем новый SDK google-genai (google-generativeai deprecated)
+_genai_client = genai_new.Client(api_key=settings.GEMINI_API_KEY)
+_GEMINI_MODEL = "gemini-2.5-flash"
+
+
+class _ModelCompat:
+    """Совместимый враппер: model.generate_content(prompt) → новый SDK."""
+    def generate_content(self, prompt: str):
+        resp = _genai_client.models.generate_content(
+            model=_GEMINI_MODEL,
+            contents=prompt,
+        )
+        return resp
+
+
+model = _ModelCompat()
 
 SYSTEM_PROMPT = """
 Ты AI ассистент биржи грузов CaucasHub.ge — первой грузовой биржи Кавказа.
