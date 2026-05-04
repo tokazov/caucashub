@@ -300,8 +300,9 @@ async def get_my_deals(
         base["load_kg"]     = load.weight_kg if load else 0
         base["price"]       = d.agreed_price
         from app.services.user_display import display_name, display_phone
-        base["shipper"]     = {"id": sh.id, "name": display_name(sh), "phone": display_phone(sh), "inn": sh.inn} if sh else {}
-        base["carrier"]     = {"id": ca.id, "name": display_name(ca), "phone": display_phone(ca), "inn": ca.inn} if ca else {}
+        # 5.2.5: ИНН не раскрывается через deals API
+        base["shipper"]     = {"id": sh.id, "name": display_name(sh), "phone": display_phone(sh)} if sh else {}
+        base["carrier"]     = {"id": ca.id, "name": display_name(ca), "phone": display_phone(ca)} if ca else {}
         enriched.append(base)
     return {"deals": enriched}
 

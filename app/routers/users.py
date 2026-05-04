@@ -490,15 +490,14 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         return {"error": "Not found"}
+    # 5.2.5: Публичный профиль — минимум. ИНН, email, phone НЕ раскрываются.
     return {
         "id":           user.id,
         "company_name": user.company_name,
         "role":         user.role,
-        "plan":         user.plan,
         "rating":       round((user.rating or 50) / 10, 1),
         "trips_count":  user.trips_count or 0,
         "is_verified":  user.is_verified,
-        "inn":          user.inn,
         "org_type":     user.org_type,
         "city":         user.city,
     }

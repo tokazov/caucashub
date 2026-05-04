@@ -25,6 +25,7 @@ from app.main import app
 from app.database import engine, Base, AsyncSessionLocal
 from app.models.user import User, UserRole, UserPlan
 from app.models.load import Load, LoadStatus
+from app.routers.auth import _login_attempts
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
@@ -63,6 +64,7 @@ async def setup_db():
         db.add(user)
         await db.commit()
 
+    _login_attempts.clear()  # сбрасываем rate limit между тестами
     yield
 
 

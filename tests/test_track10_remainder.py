@@ -25,6 +25,7 @@ from app.models.load import Load, LoadStatus, TruckType, LoadScope
 from app.models.response import Response, ResponseStatus
 from app.models.deal import Deal, DealStatus
 from app.services import exchange_rate as er_module
+from app.routers.auth import _login_attempts
 from app.services.idempotency import clear_idempotency_cache
 from passlib.context import CryptContext
 from sqlalchemy import select, delete
@@ -50,6 +51,7 @@ async def setup_db():
         await seed_cities(db)
     er_module.invalidate_cache()
     clear_idempotency_cache()
+    _login_attempts.clear()
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

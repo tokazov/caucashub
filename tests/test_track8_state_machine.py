@@ -27,6 +27,7 @@ from sqlalchemy import select, delete
 import datetime
 from unittest.mock import patch, AsyncMock
 from app.services import exchange_rate as er_module
+from app.routers.auth import _login_attempts
 
 pwd = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
@@ -48,6 +49,7 @@ async def setup_db():
         await seed_cities(db)
 
     er_module.invalidate_cache()
+    _login_attempts.clear()
     yield
 
     async with engine.begin() as conn:

@@ -26,6 +26,28 @@ _RATE_LIMIT_WINDOW = 60   # секунд (окно)
 _RATE_LIMIT_BLOCK = 900   # секунд блокировки (15 минут)
 
 
+def _check_brute_force_generic(
+    ip: str, scope: str,
+    max_attempts: int = 5, window: int = 60, block: int = 900
+) -> None:
+    """Общий rate limiter по IP+scope. Thread-safe."""
+    now = time.time()
+    key = f"{scope}:{ip}"
+    with _login_lock:
+        entry = _login_attempts.get(key, {"count": 0, "window_start": now, "blocked_until": 0})
+        if entry["blocked_until"] > now:
+            secs = int(entry["blocked_until"] - now)
+            raise HTTPException(status_code=429, detail=f"Слишком много запросов. Попробуйте через {secs} сек.")
+        if now - entry["window_start"] > window:
+            entry = {"count": 0, "window_start": now, "blocked_until": 0}
+        entry["count"] += 1
+        if entry["count"] > max_attempts:
+            entry["blocked_until"] = now + block
+            _login_attempts[key] = entry
+            raise HTTPException(status_code=429, detail=f"Слишком много запросов. Попробуйте через {block // 60} мин.")
+        _login_attempts[key] = entry
+
+
 def _check_brute_force(ip: str) -> None:
     """Raises 429 if IP exceeded login attempts. Thread-safe."""
     now = time.time()
@@ -130,7 +152,10 @@ async def require_user(
     return user
 
 @router.post("/register")
-async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(data: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    # 5.5.4: Rate limit на регистрацию — 10 попыток/мин с одного IP
+    client_ip = request.client.host if request.client else "unknown"
+    _check_brute_force_generic(client_ip, "register", max_attempts=10, window=60, block=300)
     # Фикс 4: Валидация пароля
     validate_password(data.password)
     existing = await db.execute(select(User).where(User.email == data.email))
@@ -251,7 +276,10 @@ class ResetRequest(BaseModel):
     new_password: str
 
 @router.post("/forgot-password")
-async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db)):
+async def forgot_password(data: ForgotRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    # 5.5.4: Rate limit — 3 запроса кода в 10 минут с одного IP
+    client_ip = request.client.host if request.client else "unknown"
+    _check_brute_force_generic(client_ip, "forgot", max_attempts=3, window=600, block=600)
     import secrets
     from datetime import datetime, timedelta
     from app.models.user import ResetCode
