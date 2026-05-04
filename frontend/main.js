@@ -2162,9 +2162,19 @@ function filterLoads(){
   if(fromVal&&toVal){
     const fromCity=fromVal.split(',')[0].trim();
     const toCity=toVal.split(',')[0].trim();
-    const cf=CITIES.find(c=>c.name.toLowerCase().includes(fromCity))||selectedFrom;
-    const ct=CITIES.find(c=>c.name.toLowerCase().includes(toCity))||selectedTo;
+    var cf=CITIES.find(c=>c.name.toLowerCase().includes(fromCity))||selectedFrom;
+    var ct=CITIES.find(c=>c.name.toLowerCase().includes(toCity))||selectedTo;
     if(cf&&ct){ selectedFrom=cf; selectedTo=ct; showRouteMap(); }
+    else if(fromCity&&toCity){
+      // Город не в CITIES (например Натахтари) — геокодируем через LocationIQ
+      _fetchCitySuggestions(fromCity,'ru',function(rf){
+        if(rf&&rf[0]){ selectedFrom={name:fromCity,lat:rf[0].lat,lng:rf[0].lon}; }
+        _fetchCitySuggestions(toCity,'ru',function(rt){
+          if(rt&&rt[0]){ selectedTo={name:toCity,lat:rt[0].lat,lng:rt[0].lon}; }
+          if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
+        });
+      });
+    }
   }
 }
 
