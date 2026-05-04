@@ -2192,6 +2192,7 @@ function switchCabTab(tab, el){
  if(tab === 'deals') renderCabDeals();
  if(tab === 'loads') renderCabLoads();
  if(tab === 'responses') renderCabResponses();
+ if(tab === 'subscriptions') loadSubscriptions();
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -2710,6 +2711,7 @@ const TRANSLATIONS = {
     cab_rs_format: 'Формат совместим с rs.ge · Грузия',
     cab_export: 'Экспорт для rs.ge',
     cab_report: '📊 Отчёт',
+    cab_subscriptions: '🔔 Подписки',
     cab_see_rates: '📊 Посмотреть тарифы →',
     this_month: 'В этом месяце',
     earned_march: 'Заработано (март)',
@@ -3076,6 +3078,7 @@ const TRANSLATIONS = {
     cab_rs_format: 'ფორმატი თავსებადია rs.ge-სთან · საქართველო',
     cab_export: 'ექსპორტი rs.ge-სთვის',
     cab_report: '📊 ანგარიში',
+    cab_subscriptions: '🔔 გამოწერები',
     cab_see_rates: '📊 ტარიფების ნახვა →',
     this_month: 'ამ თვეში',
     earned_march: 'გამომუშავებული (მარ)',
@@ -4531,3 +4534,133 @@ document.addEventListener('keydown', function(e) {
     }
   }
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ПОДПИСКИ НА МАРШРУТЫ (ADR-014 Этап 3 — UI)
+// ══════════════════════════════════════════════════════════════════════════════
+
+var _subscriptions = [];
+
+async function loadSubscriptions() {
+  var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/subscriptions/', {headers:{'Authorization':'Bearer '+tk}});
+    var d = await r.json();
+    _subscriptions = d.subscriptions || [];
+    renderSubscriptions();
+  } catch(e) {
+    console.warn('[SUB] loadSubscriptions error', e);
+  }
+}
+
+function renderSubscriptions() {
+  var list = document.getElementById('subscriptionsList');
+  if(!list) return;
+  if(!_subscriptions.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">Нет подписок</div><div class="cab-empty-sub">Подпишитесь на маршрут — получите уведомление когда появится новый груз</div></div>';
+    return;
+  }
+  var html = '';
+  _subscriptions.forEach(function(s) {
+    var statusColor = s.is_active ? '#2ecc71' : '#aaa';
+    var statusText  = s.is_active ? 'Активна' : 'Отключена';
+    var channels = [];
+    if(s.notify_tg)    channels.push('TG');
+    if(s.notify_email) channels.push('Email');
+    var filters = [];
+    if(s.truck_type)   filters.push(s.truck_type);
+    if(s.max_weight_t) filters.push('до '+s.max_weight_t+' т');
+    html += '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin-bottom:10px;position:relative">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
+    html += '<div style="font-size:15px;font-weight:700;color:#1a1a2e">'+esc(s.from_city)+' → '+esc(s.to_city)+'</div>';
+    html += '<span style="font-size:11px;color:'+statusColor+';font-weight:600">● '+statusText+'</span>';
+    html += '</div>';
+    if(filters.length) {
+      html += '<div style="font-size:12px;color:#888;margin-bottom:6px">'+filters.join(' · ')+'</div>';
+    }
+    html += '<div style="font-size:12px;color:#aaa;margin-bottom:10px">Уведомления: '+(channels.join(', ')||'нет')+'</div>';
+    html += '<div style="display:flex;gap:8px">';
+    if(s.is_active) {
+      html += '<button onclick="toggleSubscription('+s.id+',false)" style="flex:1;background:#f0f2f5;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#666">⏸ Отключить</button>';
+    } else {
+      html += '<button onclick="toggleSubscription('+s.id+',true)" style="flex:1;background:#e8f8f0;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#2ecc71;font-weight:600">▶ Включить</button>';
+    }
+    html += '<button onclick="deleteSubscription('+s.id+')" style="flex:1;background:#fff5f5;border:1px solid #ffd5d5;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#e74c3c">🗑 Удалить</button>';
+    html += '</div>';
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+window.createSubscription = async function() {
+  var fromCity = (document.getElementById('subFromCity')||{}).value||'';
+  var toCity   = (document.getElementById('subToCity')||{}).value||'';
+  var errEl    = document.getElementById('subError');
+  if(!fromCity.trim() || !toCity.trim()) {
+    if(errEl){ errEl.textContent='Заполните города Откуда и Куда'; errEl.style.display='block'; }
+    return;
+  }
+  if(errEl) errEl.style.display='none';
+  var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+  if(!tk){ openAuth('login'); return; }
+  var payload = {
+    from_city:    fromCity.trim(),
+    to_city:      toCity.trim(),
+    notify_tg:    (document.getElementById('subNotifyTg')||{}).checked !== false,
+    notify_email: !!((document.getElementById('subNotifyEmail')||{}).checked),
+    truck_type:   (document.getElementById('subTruckType')||{}).value || null,
+    max_weight_t: parseInt((document.getElementById('subMaxWeight')||{}).value)||null,
+  };
+  if(!payload.truck_type) delete payload.truck_type;
+  if(!payload.max_weight_t) delete payload.max_weight_t;
+  try {
+    var r = await fetch(API_BASE + '/api/subscriptions/', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    var d = await r.json();
+    if(r.status === 201) {
+      // Сбрасываем форму
+      if(document.getElementById('subFromCity')) document.getElementById('subFromCity').value='';
+      if(document.getElementById('subToCity'))   document.getElementById('subToCity').value='';
+      if(document.getElementById('subMaxWeight')) document.getElementById('subMaxWeight').value='';
+      if(document.getElementById('subTruckType')) document.getElementById('subTruckType').value='';
+      await loadSubscriptions();
+      pushNotif('✅ Подписка создана', fromCity+' → '+toCity, []);
+    } else {
+      var msg = d.detail || 'Ошибка создания подписки';
+      if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+    }
+  } catch(e) {
+    if(errEl){ errEl.textContent='Ошибка сети. Попробуйте ещё раз.'; errEl.style.display='block'; }
+  }
+};
+
+window.toggleSubscription = async function(subId, active) {
+  var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+  if(!tk) return;
+  try {
+    await fetch(API_BASE + '/api/subscriptions/'+subId, {
+      method:'PATCH',
+      headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify({is_active: active})
+    });
+    await loadSubscriptions();
+  } catch(e) {}
+};
+
+window.deleteSubscription = async function(subId) {
+  if(!confirm('Удалить подписку?')) return;
+  var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+  if(!tk) return;
+  try {
+    await fetch(API_BASE + '/api/subscriptions/'+subId, {
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+tk}
+    });
+    await loadSubscriptions();
+    pushNotif('ℹ️ Подписка удалена', '', []);
+  } catch(e) {}
+};
