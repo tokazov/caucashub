@@ -81,6 +81,9 @@ async def create_truck(
     db.add(truck)
     await db.commit()
     await db.refresh(truck)
+    # Инвалидируем кеш счётчиков (новая машина — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return {"ok": True, "id": truck.id}
 
 @router.delete("/{truck_id}")
@@ -96,4 +99,7 @@ async def delete_truck(
         raise HTTPException(404, "Not found")
     await db.delete(truck)
     await db.commit()
+    # Инвалидируем кеш счётчиков (машина удалена — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return {"ok": True}

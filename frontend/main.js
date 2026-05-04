@@ -682,13 +682,15 @@ function renderLoads(data){
 
     // Класс карточки
     let cardCls = 'card-load';
-    if(d.badge==='urgent') cardCls += ' card-urgent';
+    if(d.is_demo) cardCls += ' card-demo';
+    else if(d.badge==='urgent') cardCls += ' card-urgent';
     else if(d.badge==='new') cardCls += ' card-fresh';
     else if(d.scope==='intl') cardCls += ' card-intl';
 
     // Бейдж
     let badgeHtml = '';
-    if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
+    if(d.is_demo) badgeHtml = `<span class="badge-demo">🟡 ДЕМО</span>`;
+    else if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
     else if(d.badge==='new') badgeHtml = `<span class="badge-fresh-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_new||'НОВЫЙ'}</span>`;
     else if(d.scope==='intl') badgeHtml = `<span class="badge-intl-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_intl||'МЕЖД.'}</span>`;
 
@@ -918,6 +920,21 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
+
+  // ADR-012: показываем/скрываем демо-плашку
+  const _demoBanner = document.getElementById('demoBanner');
+  if(_demoBanner){
+    if(d.is_demo){
+      const _demoText = lang==='ge'
+        ? 'დემო-განცხადება, არ არის გამოხმაურებისთვის'
+        : 'Демо-объявление, не для отклика';
+      document.getElementById('demoBannerText').textContent = _demoText;
+      _demoBanner.style.display = '';
+    } else {
+      _demoBanner.style.display = 'none';
+    }
+  }
+
   document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
@@ -968,7 +985,11 @@ function openCargo(d){
   const _isOwn = currentUserId && d.userId === currentUserId;
   const _actRow = document.getElementById('respondActions');
   if(_actRow){
-    if(_isOwn){
+    // ADR-012: демо-груз — кнопка «Откликнуться» открывает демо-модалку
+    if(d.is_demo && !_isOwn){
+      const _demoBtn = lang==='ge' ? 'გამოხმაურება' : 'Откликнуться';
+      _actRow.innerHTML = `<button onclick="openDemoNotice()" style="flex:1;background:#e8c200;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">🟡 ${_demoBtn}</button>`;
+    } else if(_isOwn){
       _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
     } else if(!currentUserId) {
       // ADR-008: незалогиненный — показываем приглашение войти, кнопки нет
@@ -3916,6 +3937,28 @@ window.setScope = setScope;
 window.setLang = setLang;
 window.openAuth = openAuth;
 window.switchAuth = switchAuth;
+// ── DEMO NOTICE MODAL (ADR-012) ────────────────────────
+function openDemoNotice(){
+  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
+  const titleEl = document.getElementById('demoNoticeTitle');
+  const textEl  = document.getElementById('demoNoticeText');
+  const dismissEl = document.getElementById('demoNoticeDismiss');
+  const regEl   = document.getElementById('demoNoticeRegister');
+  if(lang === 'ge'){
+    if(titleEl) titleEl.textContent = 'დემო-განცხადება';
+    if(textEl)  textEl.textContent  = 'ეს არის სადემო განცხადება. დარეგისტრირდით და მოძებნეთ რეალური ტვირთები.';
+    if(dismissEl) dismissEl.textContent = 'გასაგებია';
+    if(regEl)   regEl.textContent   = 'რეგისტრაცია';
+  } else {
+    if(titleEl) titleEl.textContent = 'Демо-объявление';
+    if(textEl)  textEl.textContent  = 'Это демо-объявление. Зарегистрируйтесь и ищите реальные грузы.';
+    if(dismissEl) dismissEl.textContent = 'Понятно';
+    if(regEl)   regEl.textContent   = 'Регистрация';
+  }
+  document.getElementById('demoNoticeOverlay').classList.add('on');
+}
+window.openDemoNotice = openDemoNotice;
+
 window.doLogout = doLogout;
 window.openPostLoad = openPostLoad;
 window.doPostLoad = doPostLoad;

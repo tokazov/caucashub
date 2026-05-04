@@ -91,6 +91,9 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
+    # Инвалидируем кеш счётчиков (новый пользователь — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return {"token": create_token(user.id), "user_id": user.id}
 
 @router.post("/login")

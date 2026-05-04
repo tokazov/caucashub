@@ -90,6 +90,9 @@ async def respond_to_load(
     load = load_res.scalar_one_or_none()
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
+    # ADR-012: демо-грузы не принимают реальные отклики
+    if getattr(load, 'is_demo', False):
+        raise HTTPException(status_code=400, detail="Demo loads cannot receive responses")
     if load.status != LoadStatus.active:
         raise HTTPException(status_code=400, detail="Load is no longer available")
     if load.user_id == current_user.id:

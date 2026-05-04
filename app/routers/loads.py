@@ -103,6 +103,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "trips": trips,
         "user_id": load.user_id,
         "views": load.views or 0,
+        "is_demo": getattr(load, 'is_demo', False),  # ADR-012
         "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
         "owner_phone": (user.phone if user else None) if show_contacts else None,
@@ -182,6 +183,9 @@ async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Dep
     db.add(load)
     await db.commit()
     await db.refresh(load)
+    # Инвалидируем кеш счётчиков (Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return load_to_dict(load, data.company_name)
 
 @router.put("/{load_id}")
@@ -199,6 +203,9 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
             setattr(load, k, v)
     await db.commit()
     await db.refresh(load)
+    # Инвалидируем кеш (статус мог измениться — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return load_to_dict(load)
 
 @router.delete("/{load_id}")
@@ -227,6 +234,9 @@ async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
             )
     load.status = LoadStatus.canceled
     await db.commit()
+    # Инвалидируем кеш (груз снят — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
     return {"ok": True}
 
 @router.get("/my/loads")

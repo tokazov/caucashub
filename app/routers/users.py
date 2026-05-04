@@ -237,6 +237,9 @@ async def delete_account(
     )
 
     await db.commit()
+    # Инвалидируем кеш счётчиков (пользователь удалён — Трек 11.2)
+    from app.routers.stats import invalidate_counters_cache
+    invalidate_counters_cache()
 
     # 4. Email-уведомление (асинхронно, не блокирует ответ)
     if old_email:
