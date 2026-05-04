@@ -14,7 +14,12 @@ import time
 import threading
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+# Фикс 2: bcrypt как основной алгоритм. sha256_crypt — deprecated (postlogin upgrade).
+# При логине: если хеш sha256_crypt → перехешируем в bcrypt прозрачно для пользователя.
+pwd_context = CryptContext(
+    schemes=["bcrypt", "sha256_crypt"],
+    deprecated=["sha256_crypt"],
+)
 bearer_scheme = HTTPBearer()
 
 # ── Brute-force protection (4.2.5) ───────────────────────────────────────────
@@ -126,8 +131,14 @@ def validate_password(password: str) -> None:
         )
 
 def create_token(user_id: int):
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    return jwt.encode({"sub": str(user_id), "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    now = datetime.utcnow()
+    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Фикс 3: iat (issued at) — используется для инвалидации после смены пароля
+    return jwt.encode(
+        {"sub": str(user_id), "exp": expire, "iat": int(now.timestamp())},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
+    )
 
 async def require_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
@@ -149,6 +160,15 @@ async def require_user(
     # 2.4.2: заблокированный пользователь не может действовать
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Аккаунт заблокирован. Обратитесь в поддержку.")
+    # Фикс 3 (OQ-008): Проверяем что токен выпущен ПОСЛЕ последней смены пароля
+    # Если password_changed_at > iat токена — токен устарел (выпущен до смены пароля)
+    token_iat = payload.get("iat")
+    pca = getattr(user, 'password_changed_at', None)
+    if token_iat and pca:
+        import calendar
+        pca_ts = calendar.timegm(pca.timetuple()) if pca.tzinfo is None else int(pca.timestamp())
+        if pca_ts > token_iat:
+            raise HTTPException(status_code=401, detail="Сессия устарела — войдите заново")
     return user
 
 @router.post("/register")
@@ -210,34 +230,14 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
     if not user or not user.hashed_password or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    # Фикс 2: Postlogin bcrypt upgrade — если хеш sha256_crypt, перехешируем в bcrypt
+    if pwd_context.needs_update(user.hashed_password):
+        user.hashed_password = pwd_context.hash(data.password)
+        await db.commit()
+
     # Успешный логин — сбрасываем счётчик
     _reset_brute_force(client_ip)
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
-
-@router.get("/debug-register")
-async def debug_register(db: AsyncSession = Depends(get_db)):
-    import traceback
-    try:
-        from sqlalchemy import text
-        result = await db.execute(text("SELECT COUNT(*) FROM users"))
-        count = result.scalar()
-        from datetime import datetime
-        test_email = f"debug_{int(datetime.utcnow().timestamp())}@test.ge"
-        test_user = User(
-            email=test_email,
-            hashed_password=pwd_context.hash("test123"),
-            company_name="Debug Test",
-            phone=None,
-            role=UserRole.carrier
-        )
-        db.add(test_user)
-        await db.commit()
-        await db.refresh(test_user)
-        await db.delete(test_user)
-        await db.commit()
-        return {"status": "ok", "users_count": count, "register_test": "passed"}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "tb": traceback.format_exc()[-500:]}
 
 @router.get("/admin/users")
 async def admin_list_users(secret: str, db: AsyncSession = Depends(get_db)):
@@ -263,6 +263,7 @@ async def admin_reset_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = hash_password(new_password)
+    user.password_changed_at = datetime.utcnow()  # Фикс 3: инвалидируем старые токены
     await db.commit()
     return {"ok": True, "email": email}
 
@@ -352,6 +353,7 @@ async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db))
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     user.hashed_password = hash_password(data.new_password)
+    user.password_changed_at = datetime.utcnow()  # Фикс 3
     await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
     await db.commit()
     return {"message": "Пароль успешно изменён"}
@@ -366,5 +368,6 @@ async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depend
         raise HTTPException(status_code=400, detail="Неверный текущий пароль")
     validate_password(data.new_password)
     current_user.hashed_password = hash_password(data.new_password)
+    current_user.password_changed_at = datetime.utcnow()  # Фикс 3
     await db.commit()
     return {"message": "Пароль успешно изменён"}

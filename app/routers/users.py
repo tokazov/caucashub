@@ -352,6 +352,7 @@ async def delete_account(
     current_user.full_name     = None
     current_user.telegram_id   = None
     current_user.hashed_password = "<deleted>"
+    current_user.password_changed_at = now  # Фикс 3: инвалидируем все активные токены
     current_user.is_active     = False
     current_user.is_deleted    = True
     current_user.deleted_at    = now
