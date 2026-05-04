@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,10 +10,56 @@ from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+import time
+import threading
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 bearer_scheme = HTTPBearer()
+
+# ── Brute-force protection (4.2.5) ───────────────────────────────────────────
+# In-memory store: {ip: {"count": int, "window_start": float, "blocked_until": float}}
+_login_attempts: dict = {}
+_login_lock = threading.Lock()
+_RATE_LIMIT_MAX = 5       # попыток в окне
+_RATE_LIMIT_WINDOW = 60   # секунд (окно)
+_RATE_LIMIT_BLOCK = 900   # секунд блокировки (15 минут)
+
+
+def _check_brute_force(ip: str) -> None:
+    """Raises 429 if IP exceeded login attempts. Thread-safe."""
+    now = time.time()
+    with _login_lock:
+        entry = _login_attempts.get(ip, {"count": 0, "window_start": now, "blocked_until": 0})
+
+        # Если IP заблокирован
+        if entry["blocked_until"] > now:
+            secs = int(entry["blocked_until"] - now)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Слишком много попыток. Попробуйте через {secs} секунд."
+            )
+
+        # Если окно истекло — сброс
+        if now - entry["window_start"] > _RATE_LIMIT_WINDOW:
+            entry = {"count": 0, "window_start": now, "blocked_until": 0}
+
+        entry["count"] += 1
+        if entry["count"] > _RATE_LIMIT_MAX:
+            entry["blocked_until"] = now + _RATE_LIMIT_BLOCK
+            _login_attempts[ip] = entry
+            raise HTTPException(
+                status_code=429,
+                detail=f"Слишком много попыток. Попробуйте через {_RATE_LIMIT_BLOCK // 60} минут."
+            )
+
+        _login_attempts[ip] = entry
+
+
+def _reset_brute_force(ip: str) -> None:
+    """Сбросить счётчик при успешном логине."""
+    with _login_lock:
+        _login_attempts.pop(ip, None)
 
 class RegisterRequest(BaseModel):
     email: str
@@ -69,7 +115,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         if phone_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Phone already registered")
 
-    from app.services.normalizers import normalize_user_fields
+    from app.services.normalizers import normalize_user_fields, sanitize_text
     from app.services.dictionaries import normalize_org_type
     normalized = normalize_user_fields(
         email=data.email,
@@ -77,6 +123,9 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
         company_name=data.company_name,
         inn=data.inn,
     )
+    # XSS-санитизация company_name
+    if normalized.get("company_name"):
+        normalized["company_name"] = sanitize_text(normalized["company_name"], max_length=200)
     user = User(
         email=normalized.get("email", data.email),
         hashed_password=hash_password(data.password),
@@ -97,7 +146,11 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
     return {"token": create_token(user.id), "user_id": user.id}
 
 @router.post("/login")
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    # 4.2.5: Brute-force protection — 5 попыток / минуту, блок 15 мин
+    client_ip = request.client.host if request.client else "unknown"
+    _check_brute_force(client_ip)
+
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
     # ADR-010: удалённый аккаунт — 401 без подсказки о пароле
@@ -105,6 +158,9 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Аккаунт не найден или удалён")
     if not user or not user.hashed_password or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Успешный логин — сбрасываем счётчик
+    _reset_brute_force(client_ip)
     return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
 
 @router.get("/debug-register")
@@ -219,9 +275,9 @@ async def forgot_password(data: ForgotRequest, db: AsyncSession = Depends(get_db
         except Exception:
             pass
 
-    # Возвращаем код всегда для надёжности (фронтенд подставит если письмо не дошло)
-    return {"message": "Если email зарегистрирован — код отправлен",
-            "dev_code": code if user else None}
+    # 4.3.2: НЕ раскрываем существование email (anti info-leak)
+    # Одинаковый ответ независимо от того, найден ли пользователь
+    return {"message": "Если такой email зарегистрирован — мы отправили код подтверждения"}
 
 
 @router.post("/reset-password")

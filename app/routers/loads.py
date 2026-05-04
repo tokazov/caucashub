@@ -172,6 +172,19 @@ async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Dep
         from app.services.dictionaries import normalize_payment_type
         load_data["payment_type"] = normalize_payment_type(load_data["payment_type"])
 
+    # Категория 4 Part A: XSS-санитизация текстовых полей
+    from app.services.normalizers import sanitize_text
+    if load_data.get("cargo_desc"):
+        load_data["cargo_desc"] = sanitize_text(load_data["cargo_desc"], max_length=1000)
+    if load_data.get("from_city"):
+        load_data["from_city"] = sanitize_text(load_data["from_city"], max_length=100)
+    if load_data.get("to_city"):
+        load_data["to_city"] = sanitize_text(load_data["to_city"], max_length=100)
+    if load_data.get("from_address"):
+        load_data["from_address"] = sanitize_text(load_data["from_address"], max_length=200)
+    if load_data.get("to_address"):
+        load_data["to_address"] = sanitize_text(load_data["to_address"], max_length=200)
+
     # ADR-006: получаем курс NBG и заполняем обе валюты
     rate = await get_usd_gel_rate()
     load_data["exchange_rate_at_creation"] = rate

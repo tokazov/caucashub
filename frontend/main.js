@@ -17,6 +17,22 @@
 //  12. Навигация (showSection, setScope, setLang)
 // ═══════════════════════════════════════════════════════
 
+// ── XSS ESCAPE (Part A security fix) ────────────────
+/**
+ * esc(s) — экранирует пользовательский контент для безопасной вставки в innerHTML.
+ * Заменяет &, <, >, ", ' на HTML-entities.
+ * Использовать для: имён, описаний, городов, телефонов, email, любых строк из БД.
+ */
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 // ── SAFE LOCALSTORAGE ─────────────────────────────────
 function _lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){window["_ls_"+k]=v;}}
 function _lsGet(k){try{return localStorage.getItem(k);}catch(e){return window["_ls_"+k]||null;}}
@@ -722,14 +738,14 @@ function renderLoads(data){
     const desktopHtml = `
       <div class="row-desktop">
         <div>
-          <div class="route">${translateCity(d.from)} <span class="arrow">→</span> ${translateCity(d.to)}</div>
-          <div class="sub">${d.co} ⭐${d.rat}</div>
+          <div class="route">${esc(translateCity(d.from))} <span class="arrow">→</span> ${esc(translateCity(d.to))}</div>
+          <div class="sub">${esc(d.co)} ⭐${esc(d.rat)}</div>
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
         <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
         <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span></div>
-        <div class="price">${d.cur||'₾'}${d.price.toLocaleString()}</div>
-        <div style="font-size:12px;font-weight:600;color:#555">${dateStr||'—'}</div>
+        <div class="price">${esc(d.cur||'₾')}${d.price.toLocaleString()}</div>
+        <div style="font-size:12px;font-weight:600;color:#555">${esc(dateStr||'—')}</div>
         <div onclick="event.stopPropagation()">${rightBtns}</div>
       </div>
     `;
@@ -739,14 +755,14 @@ function renderLoads(data){
       <div class="row-mobile">
         <div class="card-main-row">
           <div class="card-left">
-            <div class="card-route-new">${translateCity(d.from)} <span class="arr">→</span> ${translateCity(d.to)}</div>
+            <div class="card-route-new">${esc(translateCity(d.from))} <span class="arr">→</span> ${esc(translateCity(d.to))}</div>
             <div class="card-meta-row">
               ${badgeHtml}
-              <span class="card-co-new">${d.co} ⭐${d.rat}</span>
+              <span class="card-co-new">${esc(d.co)} ⭐${esc(d.rat)}</span>
             </div>
           </div>
           <div class="card-right-col">
-            <div class="card-price-new">${d.cur||'₾'}${d.price.toLocaleString()}</div>
+            <div class="card-price-new">${esc(d.cur||'₾')}${d.price.toLocaleString()}</div>
             <div onclick="event.stopPropagation()">${rightBtns}</div>
           </div>
         </div>
@@ -789,12 +805,12 @@ function renderTrucks(){
     const phone = t.phone ? t.phone : '+995 555 *** ***';
     row.innerHTML=`
       <div>
-        <div class="route">${typeof translateCity==="function"?translateCity(t.from):t.from} <span class="arrow">→</span> ${typeof translateCity==="function"?translateCity(t.to):t.to}</div>
-        <div class="sub">${t.plate||'—'}</div>
+        <div class="route">${esc(typeof translateCity==="function"?translateCity(t.from):t.from)} <span class="arrow">→</span> ${esc(typeof translateCity==="function"?translateCity(t.to):t.to)}</div>
+        <div class="sub">${esc(t.plate||'—')}</div>
       </div>
       <div>
-        <div style="font-size:13px;font-weight:600">${t.co}</div>
-        <div class="sub">★ ${t.rat}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
+        <div style="font-size:13px;font-weight:600">${esc(t.co)}</div>
+        <div class="sub">★ ${esc(t.rat)}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
@@ -950,12 +966,12 @@ function openCargo(d){
     : '';
   document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""}${_verifiedStr}${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${formatDateRange(d.date,d.date2)}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.from2))}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.to2))}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${esc(formatDateRange(d.date,d.date2))}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):d.typeLabel}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${typeof translatePay==='function'?translatePay(d.pay):d.pay}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):esc(d.typeLabel)}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_pay||'Оплата'}</div><div style="font-size:14px;font-weight:700">${esc(typeof translatePay==='function'?translatePay(d.pay):d.pay)}</div></div>
   `;
   const _descText = d.desc && d.desc !== 'Груз без описания' ? d.desc : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
   document.getElementById('mDesc').textContent=_descText;
@@ -968,8 +984,8 @@ function openCargo(d){
       _mContactBlock.style.display='';
       _mContactBlock.innerHTML=`
         <div style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Контакты грузовладельца</div>
-        ${d.owner_phone ? `<a href="tel:${d.owner_phone}" style="display:block;font-size:14px;font-weight:700;color:#1a6ec0;text-decoration:none;margin-bottom:4px">📞 ${d.owner_phone}</a>` : ''}
-        ${d.owner_email ? `<a href="mailto:${d.owner_email}" style="display:block;font-size:13px;color:#555;text-decoration:none">✉️ ${d.owner_email}</a>` : ''}
+        ${d.owner_phone ? `<a href="tel:${esc(d.owner_phone)}" style="display:block;font-size:14px;font-weight:700;color:#1a6ec0;text-decoration:none;margin-bottom:4px">📞 ${esc(d.owner_phone)}</a>` : ''}
+        ${d.owner_email ? `<a href="mailto:${esc(d.owner_email)}" style="display:block;font-size:13px;color:#555;text-decoration:none">✉️ ${esc(d.owner_email)}</a>` : ''}
       `;
     } else if(!_canSeeContacts){
       _mContactBlock.style.display='none'; // pricing disabled
@@ -1777,8 +1793,8 @@ function renderDealCard(d){
   <div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid ${st.border}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
       <div>
-        <div style="font-weight:700;font-size:14px">${d.from_city||'—'} → ${d.to_city||'—'}</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">Акт № ${d.act_number||'—'} · ${price}</div>
+        <div style="font-weight:700;font-size:14px">${esc(d.from_city||'—')} → ${esc(d.to_city||'—')}</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">Акт № ${esc(d.act_number||'—')} · ${esc(price)}</div>
       </div>
       <span style="background:${st.border}22;color:${st.color};padding:4px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${st.label}</span>
     </div>
@@ -2239,7 +2255,7 @@ function renderCabLoads(){
  }
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
- + '<div style="flex:1"><div class="cab-load-route">' + (typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + (typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
+ + '<div style="flex:1"><div class="cab-load-route">' + esc(typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + esc(typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
  + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (typeof getTypeLabel==='function'?getTypeLabel(l.type||'tent'):(l.typeLabel||'')) + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
@@ -2275,8 +2291,8 @@ function renderCabResponses(){
  ? '<div style="margin-top:8px"><button onclick="cancelMyResponse(' + o.id + ',' + (o.serverId||0) + ')" class="cab-btn del" style="width:100%;padding:7px;font-size:13px">✕ Отменить заявку</button></div>'
  : '';
  return '<div class="cab-resp-item">'
- + '<div><div class="cab-resp-route">🚛 ' + o.title + '</div>'
- + '<div class="cab-resp-meta">' + (o.price && o.price !== 'null' && o.price !== null ? '₾' + o.price + ' · ' : '') + o.co + (ts ? ' · ' + ts : '') + '</div>'
+ + '<div><div class="cab-resp-route">🚛 ' + esc(o.title) + '</div>'
+ + '<div class="cab-resp-meta">' + (o.price && o.price !== 'null' && o.price !== null ? '₾' + o.price + ' · ' : '') + esc(o.co) + (ts ? ' · ' + ts : '') + '</div>'
  + cancelBtn + '</div>'
  + '<span class="cab-status-badge ' + statusCls + '">' + statusLabel + '</span>'
  + '</div>';
@@ -2310,14 +2326,14 @@ function renderCabDeals(){
  var carrier = d.carrier_name || (d.carrier && d.carrier.name) || '';
  return '<div class="cab-deal-card">'
  + '<div class="cab-deal-header">'
- + '<div><div class="cab-deal-num">' + (d.deal_number||'#'+d.id) + '</div>'
- + '<div class="cab-deal-route">' + (typeof translateCity==='function'?translateCity(d.load_from||'?'):d.load_from||'?') + ' → ' + (typeof translateCity==='function'?translateCity(d.load_to||'?'):d.load_to||'?') + '</div></div>'
+ + '<div><div class="cab-deal-num">' + esc(d.deal_number||'#'+d.id) + '</div>'
+ + '<div class="cab-deal-route">' + esc(typeof translateCity==='function'?translateCity(d.load_from||'?'):d.load_from||'?') + ' → ' + esc(typeof translateCity==='function'?translateCity(d.load_to||'?'):d.load_to||'?') + '</div></div>'
  + '<div style="text-align:right"><div class="cab-deal-price">₾' + (d.price||d.agreed_price||0).toLocaleString() + '</div>'
  + '<span class="cab-status-badge ' + st.cls + '">' + st.l + '</span></div>'
  + '</div>'
  + '<div class="cab-deal-meta">'
  + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' ' + (_tr.unit_kg||'кг') + '</span>' : '')
- + (carrier ? '<span>🚛 ' + carrier + '</span>' : '')
+ + (carrier ? '<span>🚛 ' + esc(carrier) + '</span>' : '')
  + '</div>'
  + '<div class="cab-deal-actions">'
  + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>'

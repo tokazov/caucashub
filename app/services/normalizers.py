@@ -1,9 +1,42 @@
 """
 Нормализация данных пользователя (Трек 9).
 Вызывается при регистрации и обновлении профиля.
+XSS-санитизация (Категория 4, Part A).
 """
 import re
 from typing import Optional
+
+# Паттерны опасных HTML-конструкций
+_DANGEROUS_TAGS = re.compile(
+    r'<\s*(script|iframe|object|embed|form|input|button|link|meta|base|frame|frameset|applet|svg|math)[^>]*>',
+    re.IGNORECASE,
+)
+_DANGEROUS_ATTRS = re.compile(
+    r'\s(on\w+|javascript:|data:text/html)\s*=',
+    re.IGNORECASE,
+)
+_SCRIPT_CONTENT = re.compile(r'<script[\s\S]*?</script>', re.IGNORECASE)
+
+
+def sanitize_text(value: str, max_length: int = None) -> str:
+    """
+    Санитизирует пользовательский текст:
+    - Удаляет опасные HTML-теги и обработчики событий
+    - НЕ экранирует — хранит исходный текст (экранирование на фронте через esc())
+    - Обрезает до max_length если задан
+    """
+    if not value:
+        return value
+    s = str(value)
+    # Удаляем <script>...</script> блоки
+    s = _SCRIPT_CONTENT.sub('', s)
+    # Удаляем опасные теги
+    s = _DANGEROUS_TAGS.sub('', s)
+    # Удаляем on* атрибуты и javascript: ссылки
+    s = _DANGEROUS_ATTRS.sub(' ', s)
+    if max_length:
+        s = s[:max_length]
+    return s.strip()
 
 
 def normalize_email(email: str) -> str:

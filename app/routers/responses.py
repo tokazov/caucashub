@@ -117,11 +117,15 @@ async def respond_to_load(
     elif price_usd and not price_gel:
         price_gel = convert_usd_to_gel(price_usd, rate)
 
+    # Категория 4 Part A: XSS-санитизация сообщения отклика
+    from app.services.normalizers import sanitize_text
+    safe_message = sanitize_text(data.message, max_length=500) if data.message else None
+
     # Создаём отклик
     resp = Response(
         load_id=load_id,
         user_id=current_user.id,
-        message=data.message,
+        message=safe_message,
         price_gel=price_gel,
         price_usd=price_usd,
         exchange_rate_at_creation=rate,
