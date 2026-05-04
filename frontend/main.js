@@ -3276,7 +3276,13 @@ function setLang(l, btn) {
 
 // ── MODALS ────────────────────────────────────────────
 function closeModal(id){ 
-  document.getElementById(id).classList.remove('on');
+  var el = document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('on');
+  // Сбрасываем инлайн стили (которые мы ставим для мобиля)
+  el.style.cssText = '';
+  var modal = el.querySelector('.modal');
+  if(modal) modal.style.cssText = '';
   // Сбрасываем danger zone в настройках
   if(id==='settingsOverlay'){ var dz=document.getElementById('dangerZone'); if(dz){ dz.style.display='none'; var tb=dz.previousElementSibling; if(tb&&tb.tagName==='BUTTON') tb.style.display=''; } }
 }
@@ -3428,15 +3434,30 @@ function openSettings(){
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
   var _so = document.getElementById('settingsOverlay');
   _so.classList.add('on');
-  // Мобиль: принудительно растягиваем на весь экран через inline стили
+  // Мобиль: bottom-sheet на весь экран через отдельные свойства (совместимо со старым Android)
   if(window.innerWidth <= 540){
-    _so.style.cssText = 'display:flex!important;align-items:flex-end!important;padding:0!important;position:fixed!important;inset:0!important;z-index:1000!important;background:rgba(0,0,0,.6)!important;';
+    _so.style.display    = 'flex';
+    _so.style.alignItems = 'flex-end';
+    _so.style.padding    = '0';
+    _so.style.position   = 'fixed';
+    _so.style.top        = '0';
+    _so.style.left       = '0';
+    _so.style.right      = '0';
+    _so.style.bottom     = '0';
+    _so.style.zIndex     = '1000';
+    _so.style.background = 'rgba(0,0,0,.6)';
     var _sm = _so.querySelector('.modal');
-    if(_sm) _sm.style.cssText = 'width:100%!important;max-width:100%!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;padding:20px 16px 36px!important;margin:0!important;box-sizing:border-box!important;overflow-y:auto!important;background:#fff!important;';
-  } else {
-    _so.style.cssText = '';
-    var _sm = _so.querySelector('.modal');
-    if(_sm) _sm.style.cssText = '';
+    if(_sm){
+      _sm.style.width        = '100%';
+      _sm.style.maxWidth     = '100%';
+      _sm.style.borderRadius = '20px 20px 0 0';
+      _sm.style.maxHeight    = '92vh';
+      _sm.style.padding      = '20px 16px 36px';
+      _sm.style.margin       = '0';
+      _sm.style.boxSizing    = 'border-box';
+      _sm.style.overflowY    = 'auto';
+      _sm.style.background   = '#fff';
+    }
   }
   // Сбрасываем скролл на верх модалки
   var _sm2 = _so.querySelector('.modal');
