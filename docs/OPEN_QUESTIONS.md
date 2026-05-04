@@ -227,3 +227,56 @@
 **Текущий статус ADR-016:** Этап 1 (модели/миграции) закоммичен — полезен и не откатывается. Этапы 2–8 — заморожены до явного «ADR-016 принят, реализуй» от Тимура.
 
 **Статус Q-016:** RESOLVED — правило зафиксировано.
+
+---
+
+## Q-017: Процесс миграций PostgreSQL enum — пробел (2026-05-05)
+
+**Контекст:** После добавления `LoadStatus.completed` в Python enum (`app/models/load.py`)
+деплой прошёл успешно, но первый же UPDATE с `status='completed'` вернул 500:
+`invalid input value for enum loadstatus: "completed"`.
+
+### Что произошло (разбор)
+
+1. **Alembic-миграция добавляющая `completed` в enum loadstatus — не была написана.**
+   Добавлено только в Python-объект `LoadStatus(str, enum.Enum)` — это не меняет схему PostgreSQL.
+
+2. **Alembic не генерирует `ALTER TYPE ... ADD VALUE` автоматически.**
+   При `alembic revision --autogenerate` изменения в `Enum` не обнаруживаются.
+   Это известный limitation SQLAlchemy+Alembic для PostgreSQL native enums.
+
+3. **Emergency migrations (main.py) исправили ситуацию** — но только после того как падение уже произошло.
+
+4. **ADR-011 Вариант D (healthcheck `/health`) не поймал 500.**
+   `/health` проверяет `SELECT 1` — соединение с БД. После деплоя он возвращал 200.
+   500 возникал только при конкретном UPDATE с новым enum-значением, не при старте сервиса.
+   Вариант D ловит краши при запуске, но не ловит runtime-ошибки в редко используемых эндпоинтах.
+
+### Системный фикс (план)
+
+**Вариант 1 — Всегда писать явную Alembic-миграцию при изменении enum:**
+```python
+# В новой миграции:
+def upgrade():
+    op.execute("ALTER TYPE loadstatus ADD VALUE IF NOT EXISTS 'completed'")
+```
+
+**Вариант 2 — Перейти с PostgreSQL native enum на VARCHAR:**
+```python
+# В модели:
+status = Column(String(20), default='active', index=True)
+# Проверка через Python-валидацию, не БД
+```
+Плюс: новые значения не требуют миграции. Минус: нет DB-level constraint.
+
+**Вариант 3 — Добавить шаг проверки в pre-deploy:**
+В `nixpacks.toml` в `[phases.migrate]` добавить проверку enum перед `alembic upgrade head`:
+```bash
+python -c "from app.models import *; print('enum check OK')"
+```
+Это не ловит все случаи, но хоть что-то.
+
+**Рекомендация:** Вариант 1 (явные миграции) + добавить в checklist разработки:
+> При изменении `class XxxStatus(str, enum.Enum)` → написать Alembic-миграцию с `ALTER TYPE`.
+
+**Статус:** OPEN — требует выбора варианта и реализации.

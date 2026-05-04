@@ -96,6 +96,7 @@ class DispatcherMessage(BaseModel):
     message: str
     history: List[dict] = []   # [{role: "user"|"assistant", text: "..."}]
     state: dict = {}            # накопленные данные {role, from, to, weight_cap, truck, date, ...}
+    user_role: Optional[str] = None   # "carrier" | "shipper" | "both" | None (ADR-016.4)
 
 @router.get("/dispatcher/test")
 async def dispatcher_test():
@@ -138,25 +139,55 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 
     state_json = json.dumps(req.state, ensure_ascii=False)
 
+    # ADR-016.4: режим Мари зависит от роли пользователя
+    user_role = req.user_role  # "carrier" | "shipper" | "both" | None
+    role_context = ""
+    if user_role == "carrier":
+        role_context = """
+РЕЖИМ ПОЛЬЗОВАТЕЛЯ: ПЕРЕВОЗЧИК (carrier)
+- Если пользователь описывает свой транспорт (маршрут + тип + тоннаж + дата + цена) — это ТРАНСПОРТНОЕ ПРЕДЛОЖЕНИЕ (TransportOffer), НЕ поиск груза!
+- ready_to_post_transport=true когда: from + to + truck + capacity заполнены
+- Пример: «Тент Тбилиси-Батуми завтра 5т 800₾» → TransportOffer, НЕ Load!
+- Если ищет грузы — как обычно (ready_to_search=true)
+"""
+    elif user_role == "shipper":
+        role_context = """
+РЕЖИМ ПОЛЬЗОВАТЕЛЯ: ГРУЗОВЛАДЕЛЕЦ (shipper)
+- Если пользователь описывает что нужно перевезти (откуда/куда/вес/дата) — это ГРУЗ (Load)
+- ready_to_post=true когда: from + to + weight_cap заполнены
+- Тот же текст «Тент Тбилиси-Батуми завтра 5т» = размещение груза, НЕ транспортного предложения
+"""
+    elif user_role == "both":
+        role_context = """
+РЕЖИМ ПОЛЬЗОВАТЕЛЯ: BOTH (перевозчик и грузовладелец)
+- Если пользователь пишет объявление — ОБЯЗАТЕЛЬНО задай один уточняющий вопрос:
+  «Вы хотите разместить груз (вам нужна машина) или предложить транспорт (у вас есть машина)?»
+- Не угадывай самостоятельно — спроси явно.
+- После ответа действуй как carrier или shipper соответственно.
+"""
+    else:
+        role_context = """
+РЕЖИМ: НЕЗАЛОГИНЕННЫЙ ПОЛЬЗОВАТЕЛЬ
+- Помогай с вопросами, показывай грузы из ленты
+- Если хочет разместить объявление — предложи зарегистрироваться
+"""
+
     system_prompt = f"""Ты Мари — AI диспетчер биржи грузов CaucasHub.ge.
 Биржа для Кавказа: Грузия, Армения, Азербайджан, Турция, Россия.
-
-ТВОЯ ЗАДАЧА:
+{role_context}
+ОБЩИЕ ПРАВИЛА ОБЩЕНИЯ:
 1. Общайся живо и естественно — как опытный диспетчер, не как бот
 2. Понимай любой формат: сокращения, опечатки, смешанный язык
 3. Параллельно извлекай данные для поиска/размещения
-
-ПРАВИЛА ОБЩЕНИЯ:
-- Не задавай больше одного вопроса за раз
+- Не задавай больше одного вопроса за раз (кроме роли both)
 - Не повторяй то что уже знаешь из контекста
 - Короткие живые ответы, без воды
-- Если пользователь написал откуда едет — сразу ищи грузы из этого города, НЕ переспрашивай куда
-- Если перевозчик говорит "в любом направлении" или "куда угодно" — показывай все грузы из его города
-- Если в базе нет подходящих грузов — честно скажи и предложи подписаться на уведомления
+- Если пользователь написал откуда едет — сразу ищи грузы из этого города
+- Если в базе нет подходящих грузов — честно скажи и предложи подписаться
 
-РОЛИ:
-- carrier (перевозчик): ищет грузы. Если знаем from — уже можно искать (to необязательно)
-- shipper (грузовладелец): размещает груз. Нужно: from, to, вес, что везём, дата
+РОЛИ (справочно):
+- carrier (перевозчик): ищет грузы ИЛИ размещает транспортное предложение
+- shipper (грузовладелец): размещает груз ИЛИ ищет транспорт
 
 АКТИВНЫЕ ГРУЗЫ НА БИРЖЕ:
 {loads_ctx}
@@ -168,13 +199,16 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
 {history_text}
 
 ФОРМАТ ОТВЕТА — строго JSON, без markdown:
-{{"reply":"...","state":{{"role":null,"from":null,"to":null,"weight_cap":null,"truck":null,"date":null,"cargo_desc":null,"price":null,"ready_to_search":false,"ready_to_post":false}},"search_filters":null}}
+{{"reply":"...","state":{{"role":null,"from":null,"to":null,"weight_cap":null,"truck":null,"date":null,"cargo_desc":null,"price":null,"ready_to_search":false,"ready_to_post":false,"ready_to_post_transport":false,"awaiting_role_clarification":false}},"search_filters":null,"action":null}}
 
 Правила state:
 - ВСЕГДА копируй все заполненные поля из предыдущего state, не обнуляй их
 - ready_to_search=true когда role=carrier и from заполнен (to необязательно)
 - ready_to_post=true когда role=shipper и from, to, weight_cap заполнены
+- ready_to_post_transport=true когда role=carrier И описан транспорт (from+to+truck+capacity)
+- awaiting_role_clarification=true только для role=both когда неясно что хочет
 - search_filters заполняй когда ready_to_search=true: {{"from":"...","to":null_или_строка,"max_kg":null}}
+- action: "post_load" | "post_transport" | "search" | null
 """
 
     try:
@@ -233,7 +267,8 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
             "reply": reply_text,
             "state": data.get("state", req.state),
             "search_filters": data.get("search_filters"),
-            "loads": matched_loads
+            "loads": matched_loads,
+            "action": data.get("action"),  # ADR-016.4: "post_load" | "post_transport" | "search"
         }
     except Exception as e:
         import traceback
@@ -266,22 +301,95 @@ def _load_matches(load: Load, filters: Optional[dict]) -> bool:
 
 
 @router.post("/parse-load")
-async def parse_load_from_text(text: str):
-    """AI парсинг груза из свободного текста"""
-    prompt = f"""
-    Извлеки данные о грузе из текста и верни JSON:
-    Текст: "{text}"
+async def parse_load_from_text(text: str, user_role: Optional[str] = None):
+    """AI парсинг объявления из свободного текста.
 
-    Верни JSON: {{
-        "from_city": "...",
-        "to_city": "...",
-        "weight_kg": число или null,
-        "truck_type": "tent/ref/bort/termos/gazel или null",
-        "load_date": "сегодня/завтра/дата или null",
-        "price_usd": число или null,
-        "cargo_desc": "описание груза"
-    }}
-    Только JSON, без пояснений.
+    ADR-016.4: Если user_role=carrier → парсит в TransportOffer.
+              Если user_role=shipper → парсит в Load.
+              Если user_role=both → возвращает оба варианта и requires_clarification=true.
     """
-    response = model.generate_content(prompt)
-    return {"parsed": response.text}
+    if user_role == "carrier":
+        # Перевозчик описывает свой транспорт → TransportOffer
+        prompt = f"""Перевозчик описывает своё транспортное предложение. Извлеки данные и верни JSON.
+Текст: "{text}"
+
+Верни JSON (TransportOffer):
+{{
+    "object_type": "transport_offer",
+    "from_city": "...",
+    "to_city": "...",
+    "truck_type": "tent/gazel/ref/open/container/autovoz/lowboy или null",
+    "capacity_kg": число (вместимость в кг) или null,
+    "available_from": "сегодня/завтра/дата или null",
+    "price": число в GEL или null,
+    "price_per_km": число или null,
+    "notes": "доп. информация или null"
+}}
+Только JSON, без пояснений."""
+
+    elif user_role == "shipper":
+        # Грузовладелец описывает груз → Load
+        prompt = f"""Грузовладелец описывает груз для перевозки. Извлеки данные и верни JSON.
+Текст: "{text}"
+
+Верни JSON (Load):
+{{
+    "object_type": "load",
+    "from_city": "...",
+    "to_city": "...",
+    "weight_kg": число или null,
+    "truck_type": "tent/ref/gazel/open/container или null",
+    "load_date": "сегодня/завтра/дата или null",
+    "price_gel": число или null,
+    "cargo_desc": "описание груза или null"
+}}
+Только JSON, без пояснений."""
+
+    elif user_role == "both":
+        # Роль both — возвращаем оба варианта и флаг уточнения
+        prompt = f"""Пользователь пишет объявление. Определи ОБА возможных варианта и верни JSON.
+Текст: "{text}"
+
+Верни JSON:
+{{
+    "requires_clarification": true,
+    "question": "Вы хотите разместить груз (вам нужна машина) или предложить транспорт (у вас есть машина)?",
+    "as_load": {{
+        "object_type": "load",
+        "from_city": "...", "to_city": "...", "weight_kg": null,
+        "truck_type": null, "load_date": null, "cargo_desc": null
+    }},
+    "as_transport_offer": {{
+        "object_type": "transport_offer",
+        "from_city": "...", "to_city": "...", "truck_type": null,
+        "capacity_kg": null, "available_from": null, "price": null
+    }}
+}}
+Только JSON, без пояснений."""
+
+    else:
+        # Без роли — универсальный парсинг
+        prompt = f"""Извлеки данные о перевозке из текста и верни JSON.
+Текст: "{text}"
+
+Верни JSON: {{
+    "from_city": "...",
+    "to_city": "...",
+    "weight_kg": число или null,
+    "truck_type": "tent/ref/bort/termos/gazel или null",
+    "load_date": "сегодня/завтра/дата или null",
+    "price_usd": число или null,
+    "cargo_desc": "описание груза"
+}}
+Только JSON, без пояснений."""
+
+    try:
+        response = model.generate_content(prompt)
+        raw = response.text.strip()
+        raw = re.sub(r'^```json\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'^```\s*', '', raw, flags=re.MULTILINE)
+        raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
+        parsed = json.loads(raw.strip())
+        return {"parsed": parsed, "user_role": user_role}
+    except Exception as e:
+        return {"parsed": None, "error": str(e), "raw": response.text if 'response' in dir() else None}
