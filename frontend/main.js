@@ -944,7 +944,11 @@ function openCargo(d){
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}` : '';
-  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""} · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅${respondTxt}`;
+  // 2.4.4: показываем ✅ только если owner_verified=true
+  const _verifiedStr = d.owner_verified
+    ? ` · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅`
+    : '';
+  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""}${_verifiedStr}${respondTxt}`;
   document.getElementById('mGrid').innerHTML=`
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.from2)}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${translateCity(d.to2)}</div></div>

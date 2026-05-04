@@ -15,7 +15,8 @@
    ═══════════════════════════════════════════════════════ */
 
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f5; color:#1a1a2e;  overflow-x:hidden; }
+/* Inter включает U+20BE (₾). Fallback: system-ui для совместимости. (11.4) */
+body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f0f2f5; color:#1a1a2e;  overflow-x:hidden; }
 
 /* HEADER */
 .header { background:#1a1a2e; padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:54px; position:sticky; top:0; z-index:200; }

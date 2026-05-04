@@ -104,6 +104,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "user_id": load.user_id,
         "views": load.views or 0,
         "is_demo": getattr(load, 'is_demo', False),  # ADR-012
+        "owner_verified": bool(user.is_verified) if user else False,  # 2.4.4
         "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
         "owner_phone": (user.phone if user else None) if show_contacts else None,

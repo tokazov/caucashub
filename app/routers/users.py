@@ -313,6 +313,29 @@ async def admin_block_user(
         raise HTTPException(404, str(e))
 
 
+@router.post("/admin/{user_id}/verify")
+async def admin_verify_user(
+    user_id: int,
+    secret: str,
+    verified: bool = True,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Admin: установить/снять верификацию пользователя (2.4.4).
+    POST /api/users/admin/{id}/verify?secret=...&verified=true
+    """
+    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
+    if secret != admin_secret:
+        raise HTTPException(403, "Forbidden")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.is_verified = verified
+    await db.commit()
+    return {"ok": True, "user_id": user_id, "is_verified": verified}
+
+
 @router.post("/admin/{user_id}/unblock")
 async def admin_unblock_user(
     user_id: int,
