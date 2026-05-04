@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
@@ -230,12 +230,24 @@ async def get_load_responses(
 
 @router.get("/my")
 async def my_responses(
+    limit:  int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user)
 ):
-    """Перевозчик видит свои отклики"""
+    """Перевозчик видит свои отклики (с пагинацией)."""
+    # Общее кол-во
+    count_res = await db.execute(
+        select(func.count()).where(Response.user_id == current_user.id)
+    )
+    total = count_res.scalar_one()
+
     resp_res = await db.execute(
-        select(Response).where(Response.user_id == current_user.id)
+        select(Response)
+        .where(Response.user_id == current_user.id)
+        .order_by(Response.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     responses = resp_res.scalars().all()
 
@@ -254,7 +266,7 @@ async def my_responses(
             "created_at": r.created_at.isoformat() if r.created_at else None,
         })
 
-    return {"responses": result, "total": len(result)}
+    return {"responses": result, "total": total, "limit": limit, "offset": offset}
 
 @router.post("/accept/{response_id}")
 async def accept_response(

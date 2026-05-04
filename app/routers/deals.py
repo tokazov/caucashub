@@ -6,7 +6,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response as FastAPIResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.models.deal import Deal, DealStatus
 from app.models.load import Load, LoadStatus
@@ -279,13 +279,23 @@ async def confirm_delivery(
 # ── Получить мои сделки ──────────────────────────────────────────────
 @router.get("/my")
 async def get_my_deals(
+    limit:  int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_user),
 ):
+    # Общее кол-во
+    count_res = await db.execute(
+        select(func.count()).where(
+            (Deal.shipper_id == user_id) | (Deal.carrier_id == user_id)
+        )
+    )
+    total = count_res.scalar_one()
+
     result = await db.execute(
         select(Deal).where(
             (Deal.shipper_id == user_id) | (Deal.carrier_id == user_id)
-        ).order_by(Deal.created_at.desc())
+        ).order_by(Deal.created_at.desc()).limit(limit).offset(offset)
     )
     deals = result.scalars().all()
     enriched = []
@@ -310,7 +320,7 @@ async def get_my_deals(
         base["shipper"]     = {"id": sh.id, "name": display_name(sh), "phone": display_phone(sh)} if sh else {}
         base["carrier"]     = {"id": ca.id, "name": display_name(ca), "phone": display_phone(ca)} if ca else {}
         enriched.append(base)
-    return {"deals": enriched}
+    return {"deals": enriched, "total": total, "limit": limit, "offset": offset}
 
 
 # ── Скачать PDF акт ──────────────────────────────────────────────────

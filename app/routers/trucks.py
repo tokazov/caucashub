@@ -24,7 +24,8 @@ class TruckCreate(BaseModel):
 async def get_trucks(
     from_city: Optional[str] = Query(None),
     truck_type: Optional[str] = Query(None),
-    limit: int = Query(50, le=200),
+    limit:  int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db)
 ):
     q = select(Truck, User).join(User, Truck.user_id == User.id).where(Truck.is_available)
@@ -32,7 +33,7 @@ async def get_trucks(
         q = q.where(Truck.available_from.ilike(f"%{from_city}%"))
     if truck_type:
         q = q.where(Truck.truck_type == truck_type)
-    q = q.order_by(Truck.created_at.desc()).limit(limit)
+    q = q.order_by(Truck.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(q)
     trucks = []
     for truck, user in result.all():
