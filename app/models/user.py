@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 import enum
 from app.database import Base
 
@@ -48,6 +49,9 @@ class User(Base):
     # Soft delete (ADR-010 GDPR)
     is_deleted  = Column(Boolean, default=False, nullable=False)
     deleted_at  = Column(DateTime(timezone=True), nullable=True)
+
+    # Подписки на маршруты (ADR-014)
+    subscriptions = relationship("RouteSubscription", back_populates="user", cascade="all, delete-orphan")
 
 
 class ResetCode(Base):

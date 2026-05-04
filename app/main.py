@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities, dictionaries, stats
+from app.routers import loads, trucks, auth, ai, users, deals, responses, tg_bot, cities, dictionaries, stats, subscriptions
 from app.database import engine
 from app.models import user, load, truck, response, deal, city, status_change  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
@@ -66,6 +66,22 @@ async def lifespan(app: FastAPI):
             expires_at TIMESTAMP NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )""",
+        """CREATE TABLE IF NOT EXISTS route_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            from_city VARCHAR(100) NOT NULL,
+            to_city VARCHAR(100) NOT NULL,
+            notify_tg BOOLEAN NOT NULL DEFAULT TRUE,
+            notify_email BOOLEAN NOT NULL DEFAULT FALSE,
+            truck_type VARCHAR(50),
+            max_weight_t INTEGER,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            last_notified_at TIMESTAMP WITH TIME ZONE
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_route_subscriptions_user_id ON route_subscriptions(user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_route_subscriptions_is_active ON route_subscriptions(is_active)",
+        "CREATE INDEX IF NOT EXISTS ix_route_sub_route ON route_subscriptions(from_city, to_city, is_active)",
     ]
     async with engine.begin() as conn:
         for sql in _emergency_migrations:
@@ -123,6 +139,7 @@ app.include_router(tg_bot.router,   prefix="/api/tg",     tags=["telegram"])
 app.include_router(cities.router,        prefix="/api/cities",        tags=["cities"])
 app.include_router(dictionaries.router,  prefix="/api/dictionaries",  tags=["dictionaries"])
 app.include_router(stats.router,         prefix="/api/stats",         tags=["stats"])
+app.include_router(subscriptions.router, tags=["subscriptions"])
 
 @app.get("/")
 def root():
