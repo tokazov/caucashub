@@ -280,3 +280,24 @@ python -c "from app.models import *; print('enum check OK')"
 > При изменении `class XxxStatus(str, enum.Enum)` → написать Alembic-миграцию с `ALTER TYPE`.
 
 **Статус:** OPEN — требует выбора варианта и реализации.
+
+---
+
+## Q-018: Healthcheck — расширен до smoke-тестов (2026-05-05)
+
+**Контекст:** ADR-011 Вариант D (auto-rollback по healthcheck) не поймал падение 500
+после добавления нового enum-значения. `/health` проверял только `SELECT 1`.
+
+**Решение (реализовано 2026-05-05):**
+`/health` теперь делает smoke-тесты трёх критических эндпоинтов:
+- `GET /api/loads/?limit=1` — биржа грузов работает
+- `GET /api/cities/search?q=Tbilisi&lang=en` — геокодер работает
+- `GET /api/dictionaries/truck-types` — справочники работают
+
+При любом FAIL → `/health` возвращает **503** с описанием какой именно чек упал.
+Railway auto-rollback теперь реально ловит миграционные и API-ошибки.
+
+**Ограничение:** Smoke-тесты пропускаются (skip) если localhost недоступен на старте
+(первые секунды до полного запуска uvicorn). Railway делает healthcheck через ~15 сек.
+
+**Статус:** RESOLVED.

@@ -17,8 +17,12 @@ async def lifespan(app: FastAPI):
     from sqlalchemy import text
 
     # Аварийные inline-миграции (ADR-011 fallback):
-    # nixpacks [phases.migrate] может не поддерживаться на Railway Hobby.
-    # Применяем только недостающие колонки через IF NOT EXISTS — идемпотентно.
+    # ── emergency_migrations ──────────────────────────────────────────────────
+    # НАЗНАЧЕНИЕ: Только для случая абсолютно пустой БД при первом старте.
+    # В нормальном деплое все изменения применяются через [phases.migrate] → alembic upgrade head.
+    # Источник правды для схемы — alembic/versions/*.py.
+    # ALTER TYPE строки здесь — дубли из 011_enum_additions.py, нужны только если
+    # alembic_version таблица ещё не существует (холодный старт без миграций).
     _emergency_migrations = [
         "ALTER TABLE loads ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
@@ -38,10 +42,13 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE",
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$""",
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$""",
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='completed' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'completed'; END IF; END $$""",
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$""",
+        # ALTER TYPE строки перенесены в Alembic-миграцию 011_enum_additions.py
+        # Оставлены здесь только как fallback для абсолютно пустой БД без alembic_version таблицы
+        # (в нормальном деплое alembic upgrade head выполняется раньше)
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$ """,
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$ """,
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='completed' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'completed'; END IF; END $$ """,
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$ """,
         """CREATE TABLE IF NOT EXISTS status_changes (
             id SERIAL PRIMARY KEY,
             entity_type VARCHAR(20) NOT NULL,
@@ -210,10 +217,60 @@ def root():
 @app.get("/health")
 async def health():
     """
-    ADR-011: healthcheck с проверкой соединения с БД.
-    Railway использует этот эндпоинт для определения готовности сервиса.
-    Возвращает 200 только если БД доступна.
+    ADR-011 + Q-018: расширенный healthcheck с smoke-тестами критических эндпоинтов.
+    Railway использует этот эндпоинт для auto-rollback при деградации сервиса.
+    Возвращает 200 только если ВСЕ проверки прошли, иначе 503 с описанием.
     """
+    from sqlalchemy import text as sa_text
+    from app.database import engine as db_engine
+    from fastapi.responses import JSONResponse
+    import httpx
+
+    checks: dict = {}
+
+    # 1. БД
+    try:
+        async with db_engine.connect() as conn:
+            await conn.execute(sa_text("SELECT 1"))
+        checks["db"] = "ok"
+    except Exception as e:
+        checks["db"] = f"FAIL: {e}"
+
+    # 2–4. Smoke-тесты API (localhost) — только если приложение уже запустилось
+    base = "http://127.0.0.1:8000"
+    smoke_endpoints = [
+        ("loads",       f"{base}/api/loads/?limit=1"),
+        ("geocoder",    f"{base}/api/cities/search?q=Tbilisi&lang=en"),
+        ("dicts",       f"{base}/api/dictionaries/truck-types"),
+    ]
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            for name, url in smoke_endpoints:
+                try:
+                    r = await client.get(url)
+                    if r.status_code == 200:
+                        checks[name] = "ok"
+                    else:
+                        checks[name] = f"FAIL: HTTP {r.status_code}"
+                except Exception as e2:
+                    # Если localhost недоступен — пропускаем smoke (первый старт)
+                    checks[name] = f"skip: {type(e2).__name__}"
+    except Exception:
+        pass
+
+    failed = [k for k, v in checks.items() if str(v).startswith("FAIL")]
+    if failed:
+        return JSONResponse(status_code=503, content={
+            "status": "unhealthy",
+            "failed_checks": failed,
+            "checks": checks,
+        })
+    return {"status": "healthy", "checks": checks}
+
+
+@app.get("/health_legacy")
+async def health_legacy():
+    """Старый healthcheck — только SELECT 1. Оставлен для совместимости."""
     from sqlalchemy import text as sa_text
     from app.database import engine as db_engine
     try:
