@@ -2414,7 +2414,7 @@ function showSection(name, el){
   const _secEl = document.getElementById('sec-'+name);
   if(_secEl) _secEl.classList.add('active');
   if(name==='deals') setTimeout(loadDeals, 50);
-  if(name==='trucks') setTimeout(syncTrucksFromServer, 50);
+  if(name==='trucks') { setTimeout(syncTrucksFromServer, 50); if(typeof loadTransportOffers==='function') loadTransportOffers(); }
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
   localStorage.setItem('ch_tab', name);
@@ -4688,4 +4688,185 @@ window.deleteSubscription = async function(subId) {
     await loadSubscriptions();
     pushNotif('ℹ️ Подписка удалена', '', []);
   } catch(e) {}
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ЛЕНТА ТРАНСПОРТА (ADR-016 Этап 4 — UI)
+// ══════════════════════════════════════════════════════════════════════════════
+
+var _transportOffers = [];
+var _transportTotal  = 0;
+
+window.filterAndLoadTransport = async function() {
+  var from = (document.getElementById('tFilterFrom') || {}).value || '';
+  var to   = (document.getElementById('tFilterTo')   || {}).value || '';
+  var type = (document.getElementById('tFilterType') || {}).value || '';
+  await loadTransportOffers(from, to, type);
+};
+
+window.loadTransportOffers = async function(fromCity, toCity, truckType, offset) {
+  var list = document.getElementById('transportList');
+  var cnt  = document.getElementById('transportCount');
+  if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
+
+  var params = new URLSearchParams({limit: 50, offset: offset || 0});
+  if(fromCity) params.set('from_city', fromCity);
+  if(toCity)   params.set('to_city', toCity);
+  if(truckType) params.set('truck_type', truckType);
+
+  try {
+    var r = await fetch(API_BASE + '/api/transport/?' + params.toString());
+    var d = await r.json();
+    _transportOffers = d.offers || [];
+    _transportTotal  = d.total  || 0;
+    if(cnt) cnt.textContent = _transportTotal + ' предложений транспорта';
+    renderTransportOffers();
+  } catch(e) {
+    if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
+  }
+};
+
+function renderTransportOffers() {
+  var list = document.getElementById('transportList');
+  if(!list) return;
+  if(!_transportOffers.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет предложений</div><div class="cab-empty-sub">Попробуйте изменить фильтры или добавьте своё предложение</div></div>';
+    return;
+  }
+  var tk   = typeof getToken === 'function' ? getToken() : null;
+  var html = _transportOffers.map(function(o) {
+    var urgBadge = o.urgent ? '<span class="badge-urgent">⚡ СРОЧНО</span>' : '';
+    var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
+    var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
+    var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
+    var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
+    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Заинтересован</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Войти</button>';
+
+    return '<div class="card-load transport-card" style="border-left: 3px solid #2ecc71">' +
+      '<div class="card-main">' +
+        '<div class="card-route">' + esc(o.from_city) + ' → ' + esc(o.to_city) + ' ' + urgBadge + '</div>' +
+        '<div class="card-meta">' +
+          '<span>' + esc(o.company_name || 'Перевозчик') + '</span>' +
+          '<span>★ ' + (o.rating || '5.0') + '</span>' +
+        '</div>' +
+        (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
+      '</div>' +
+      '<div class="card-right">' +
+        '<div class="card-info"><b>' + (cap || '—') + '</b> <span style="color:#888">вмест.</span></div>' +
+        '<div class="card-info">' + esc(o.truck_type || '') + '</div>' +
+        (price ? '<div class="card-price">' + price + '</div>' : '') +
+        '<div class="card-info" style="color:#888">' + dateFrom + dateTo + '</div>' +
+        '<div style="margin-top:6px">' + actionBtn + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  list.innerHTML = html;
+}
+
+// Открыть модалку отклика на транспортное предложение
+var _currentTransportOfferId = null;
+window.openTransportRequest = function(offerId) {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) { openAuth('register'); return; }
+  _currentTransportOfferId = offerId;
+  var overlay = document.getElementById('transportRequestOverlay');
+  if(overlay) {
+    overlay.classList.add('on');
+    if(window.innerWidth <= 540) {
+      overlay.style.display='flex'; overlay.style.alignItems='flex-end'; overlay.style.padding='0';
+      var m=overlay.querySelector('.modal'); if(m){ m.style.width='100%'; m.style.maxWidth='100%'; m.style.borderRadius='20px 20px 0 0'; m.style.maxHeight='70vh'; }
+    }
+  }
+};
+
+window.submitTransportRequest = async function() {
+  if(!_currentTransportOfferId) return;
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) { openAuth('login'); return; }
+  var desc   = (document.getElementById('trDesc')   || {}).value || '';
+  var weight = parseFloat((document.getElementById('trWeight') || {}).value) || null;
+  var msg    = (document.getElementById('trMsg')    || {}).value || '';
+  var errEl  = document.getElementById('trError');
+
+  try {
+    var r = await fetch(API_BASE + '/api/transport/' + _currentTransportOfferId + '/request', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
+      body: JSON.stringify({cargo_description: desc, weight_kg: weight, message: msg}),
+    });
+    var d = await r.json();
+    if(r.ok) {
+      closeModal('transportRequestOverlay');
+      pushNotif('✅ Отклик отправлен', 'Перевозчик рассмотрит ваш запрос', []);
+    } else {
+      if(errEl){ errEl.textContent = d.detail || 'Ошибка'; errEl.style.display = 'block'; }
+    }
+  } catch(e) {
+    if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
+  }
+};
+
+// Форма размещения транспортного предложения
+window.openPostTransportOffer = function() {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) { openAuth('register'); return; }
+  // Устанавливаем min дату
+  var today = new Date().toISOString().split('T')[0];
+  var df = document.getElementById('ptDateFrom'); if(df) { df.min = today; if(!df.value) df.value = today; }
+  var overlay = document.getElementById('postTransportOverlay');
+  if(overlay) {
+    overlay.classList.add('on');
+    if(window.innerWidth <= 540) {
+      overlay.style.display='flex'; overlay.style.alignItems='flex-end'; overlay.style.padding='0';
+      var m=overlay.querySelector('.modal'); if(m){ m.style.width='100%'; m.style.maxWidth='100%'; m.style.borderRadius='20px 20px 0 0'; m.style.maxHeight='92vh'; m.style.overflowY='auto'; }
+    }
+  }
+};
+
+window.submitTransportOffer = async function() {
+  var from     = (document.getElementById('ptFrom')      || {}).value || '';
+  var to       = (document.getElementById('ptTo')        || {}).value || '';
+  var type     = (document.getElementById('ptTruckType') || {}).value || '';
+  var cap      = parseFloat((document.getElementById('ptCapacity') || {}).value) || 0;
+  var dateFrom = (document.getElementById('ptDateFrom')  || {}).value || '';
+  var dateTo   = (document.getElementById('ptDateTo')    || {}).value || '';
+  var price    = parseFloat((document.getElementById('ptPrice')   || {}).value) || null;
+  var notes    = (document.getElementById('ptNotes')     || {}).value || '';
+  var urgent   = !!((document.getElementById('ptUrgent') || {}).checked);
+  var errEl    = document.getElementById('ptError');
+  if(errEl) errEl.style.display = 'none';
+
+  if(!from.trim() || !to.trim()){ if(errEl){ errEl.textContent='Укажите маршрут'; errEl.style.display='block'; } return; }
+  if(!cap || cap < 100){ if(errEl){ errEl.textContent='Укажите вместимость (мин. 100 кг)'; errEl.style.display='block'; } return; }
+  if(!dateFrom){ if(errEl){ errEl.textContent='Укажите дату'; errEl.style.display='block'; } return; }
+
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) { openAuth('register'); return; }
+
+  var payload = {
+    from_city: from.trim(), to_city: to.trim(),
+    truck_type: type, capacity_kg: cap,
+    available_from: new Date(dateFrom).toISOString(),
+    available_to: dateTo ? new Date(dateTo).toISOString() : null,
+    price: price, urgent: urgent,
+    notes: notes.trim() || null,
+  };
+
+  try {
+    var r = await fetch(API_BASE + '/api/transport/', {
+      method: 'POST',
+      headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    var d = await r.json();
+    if(r.status === 201) {
+      var succ = document.getElementById('postTransportSuccess');
+      if(succ) { succ.style.display = 'block'; setTimeout(function(){ succ.style.display='none'; }, 2000); }
+      setTimeout(function(){ closeModal('postTransportOverlay'); loadTransportOffers(); }, 1500);
+    } else {
+      if(errEl){ errEl.textContent = d.detail || 'Ошибка'; errEl.style.display = 'block'; }
+    }
+  } catch(e) {
+    if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
+  }
 };

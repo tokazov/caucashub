@@ -105,7 +105,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1777907608">
+<link rel="stylesheet" href="styles.css?v=1777933623">
 </head>
 <body>
 
@@ -230,18 +230,119 @@
 
 <!-- ═══ SECTION: TRUCKS ═══ -->
 <div class="section" id="sec-trucks">
-  <!-- Панель действий -->
-  <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-    <span style="font-size:13px;color:#888" id="truckCount">Свободные машины</span>
-    <button onclick="openPostTruck()" style="background:#2ecc71;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer"><span data-i18n="btn_add_truck">+ Добавить машину</span></button>
+  <!-- Панель: фильтры + кнопка разместить -->
+  <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <input id="tFilterFrom" class="form-input" placeholder="Откуда" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <input id="tFilterTo"   class="form-input" placeholder="Куда"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <select id="tFilterType" class="form-input" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+        <option value="">Любой кузов</option>
+        <option value="tent">Тент</option>
+        <option value="gazel">Газель</option>
+        <option value="ref">Рефрижератор</option>
+        <option value="open">Открытый</option>
+        <option value="container">Контейнер</option>
+        <option value="autovoz">Автовоз</option>
+        <option value="lowboy">Низкорамник</option>
+      </select>
+      <button onclick="filterAndLoadTransport()" class="btn-primary" style="padding:8px 14px;font-size:13px;white-space:nowrap">🔍 Найти</button>
+      <button onclick="openPostTransportOffer()" style="background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">+ Предложить транспорт</button>
+    </div>
+    <div style="font-size:12px;color:#888" id="transportCount">Загрузка...</div>
   </div>
-  <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 90px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
-    <div data-i18n="th_truck_route">МАШИНА / МАРШРУТ</div><div data-i18n="th_company">КОМПАНИЯ</div><div data-i18n="th_tonnage">ТОННАЖ</div><div data-i18n="th_truck">КУЗОВ</div><div data-i18n="th_date2">ДАТА</div><div></div>
+
+  <!-- Заголовок таблицы (десктоп) -->
+  <div class="thead transport-thead" style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 100px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
+    <div>МАРШРУТ</div><div>ПЕРЕВОЗЧИК</div><div>ВМЕСТИМОСТЬ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
   </div>
-  <div id="truckList"></div>
+
+  <!-- Лента транспортных предложений -->
+  <div id="transportList">
+    <div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем предложения...</div>
+  </div>
+</div>
+
+<!-- MODAL: Разместить транспортное предложение -->
+<div class="overlay" id="postTransportOverlay" onclick="closeOverlay('postTransportOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('postTransportOverlay')">✕</button>
+    <div class="modal-title">🚛 Предложить транспорт</div>
+    <div class="modal-sub">Укажите маршрут и характеристики вашей машины</div>
+    <div id="postTransportSuccess" class="success-msg" style="display:none">✅ Предложение размещено!</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="form-group" style="flex:1">
+        <label>Откуда</label>
+        <input class="form-input" id="ptFrom" placeholder="Тбилиси">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Куда</label>
+        <input class="form-input" id="ptTo" placeholder="Батуми">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="form-group" style="flex:1">
+        <label>Тип кузова</label>
+        <select class="form-input" id="ptTruckType">
+          <option value="tent">Тент</option>
+          <option value="gazel">Газель</option>
+          <option value="ref">Рефрижератор</option>
+          <option value="open">Открытый</option>
+          <option value="container">Контейнер</option>
+          <option value="autovoz">Автовоз</option>
+          <option value="lowboy">Низкорамник</option>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Вместимость (кг)</label>
+        <input class="form-input" type="number" id="ptCapacity" placeholder="10000" min="100" max="100000">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <div class="form-group" style="flex:1">
+        <label>Дата с</label>
+        <input class="form-input" type="date" id="ptDateFrom">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Дата по (опц.)</label>
+        <input class="form-input" type="date" id="ptDateTo">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Цена (₾, опц.)</label>
+      <input class="form-input" type="number" id="ptPrice" placeholder="800" min="0">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Примечание (опц.)</label>
+      <input class="form-input" id="ptNotes" placeholder="Готов к загрузке сразу">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="ptUrgent"> ⚡ Срочно
+      </label>
+    </div>
+    <button class="btn-primary" onclick="submitTransportOffer()" style="width:100%">📤 Разместить</button>
+    <div id="ptError" style="display:none;color:#e74c3c;font-size:12px;margin-top:8px"></div>
+  </div>
 </div>
 
 <!-- ═══ MODAL: POST TRUCK ═══ -->
+<!-- MODAL: Отклик на транспортное предложение -->
+<div class="overlay" id="transportRequestOverlay" onclick="closeOverlay('transportRequestOverlay',event)">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('transportRequestOverlay')">✕</button>
+    <div class="modal-title">📦 Отклик на транспорт</div>
+    <div class="modal-sub">Опишите свой груз — перевозчик рассмотрит запрос</div>
+    <div class="form-group"><label>Описание груза (опц.)</label>
+      <input class="form-input" id="trDesc" placeholder="Строительные материалы"></div>
+    <div class="form-group"><label>Вес груза, кг (опц.)</label>
+      <input class="form-input" type="number" id="trWeight" placeholder="5000" min="1"></div>
+    <div class="form-group"><label>Сообщение</label>
+      <input class="form-input" id="trMsg" placeholder="Нужна машина с 1 июня"></div>
+    <button class="btn-primary" onclick="submitTransportRequest()" style="width:100%;margin-top:8px">📤 Отправить запрос</button>
+    <div id="trError" style="display:none;color:#e74c3c;font-size:12px;margin-top:8px"></div>
+  </div>
+</div>
+
 <div class="overlay" id="postTruckOverlay" onclick="closeOverlay('postTruckOverlay',event)">
   <div class="modal">
     <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
@@ -1207,10 +1308,10 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=1777907608"></script>
-<script src="main.js?v=1777924363"></script>
+<script src="api.js?v=1777933623"></script>
+<script src="main.js?v=1777933623"></script>
 <script src="push.js" defer></script>
-<script src="ai-dispatcher.js?v=1777907608"></script>
+<script src="ai-dispatcher.js?v=1777933623"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">
   <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center">
