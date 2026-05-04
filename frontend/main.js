@@ -3272,7 +3272,11 @@ function setLang(l, btn) {
 }
 
 // ── MODALS ────────────────────────────────────────────
-function closeModal(id){ document.getElementById(id).classList.remove('on'); }
+function closeModal(id){ 
+  document.getElementById(id).classList.remove('on');
+  // Сбрасываем danger zone в настройках
+  if(id==='settingsOverlay'){ var dz=document.getElementById('dangerZone'); if(dz){ dz.style.display='none'; var tb=dz.previousElementSibling; if(tb&&tb.tagName==='BUTTON') tb.style.display=''; } }
+}
 function closeOverlay(id,e){ if(e.target===document.getElementById(id)) closeModal(id); }
 
 // ── COUNTRY FILTER ────────────────────────────────────

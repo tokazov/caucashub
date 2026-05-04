@@ -1027,15 +1027,14 @@
     <button class="btn-secondary" onclick="closeModal('settingsOverlay')" data-i18n="btn_cancel_form">Отмена</button>
   </div>
 
-  <!-- DANGER ZONE: Удаление аккаунта (ADR-010) -->
-  <div style="margin-top:32px;padding:20px;border:1.5px solid #e74c3c;border-radius:12px;background:#fff5f5">
-    <h4 style="color:#e74c3c;margin:0 0 8px;font-size:15px">⚠️ Опасная зона — Удаление аккаунта</h4>
-    <p style="font-size:13px;color:#666;margin:0 0 14px;line-height:1.5">
-      Удаление необратимо. Активные грузы будут отменены.
-      История завершённых сделок сохранится анонимно (требование налоговой Грузии).
-      Ваше имя в отзывах будет заменено на «Удалённый пользователь».
-    </p>
-    <button onclick="openDeleteAccountModal()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🗑️ Удалить аккаунт</button>
+  <!-- DANGER ZONE: Удаление аккаунта (ADR-010) — скрыта по умолчанию -->
+  <div style="margin-top:24px">
+    <button onclick="this.style.display='none';document.getElementById('dangerZone').style.display='block'" style="background:none;border:none;color:#e74c3c;font-size:13px;cursor:pointer;padding:0;text-decoration:underline">⚠️ Удалить аккаунт</button>
+    <div id="dangerZone" style="display:none;padding:16px;border:1.5px solid #e74c3c;border-radius:12px;background:#fff5f5;margin-top:8px">
+      <h4 style="color:#e74c3c;margin:0 0 8px;font-size:15px">⚠️ Опасная зона</h4>
+      <p style="font-size:13px;color:#666;margin:0 0 14px;line-height:1.5">Удаление необратимо. Активные грузы будут отменены. История сделок сохранится анонимно.</p>
+      <button onclick="openDeleteAccountModal()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🗑️ Удалить аккаунт</button>
+    </div>
   </div>
 </div>
 
