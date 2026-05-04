@@ -481,7 +481,10 @@
         </div>
         <div id="forgotError2" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
         <button class="btn-primary" onclick="doForgotStep2()">Сменить пароль</button>
-        <div style="text-align:center;margin-top:10px"><a href="#" onclick="doForgotStep1()" style="font-size:12px;color:#888">Отправить код повторно</a></div>
+        <!-- 3.6: cooldown кнопки повторной отправки -->
+        <div style="text-align:center;margin-top:10px">
+          <button id="btnResendCode" onclick="doResendCode()" style="background:none;border:none;font-size:12px;color:#888;cursor:pointer;text-decoration:underline" disabled>Отправить код повторно (<span id="resendCountdown">60</span>с)</button>
+        </div>
       </div>
       <div id="forgotSuccess" style="display:none;text-align:center;padding:20px">
         <div style="font-size:40px;margin-bottom:10px">✅</div>

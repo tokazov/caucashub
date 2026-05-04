@@ -61,6 +61,8 @@ async def get_me(
         "responses_limit":       PLAN_LIMITS.get(plan_val, 0),
         "rating":                round((user.rating or 50) / 10, 1),
         "trips_count":           user.trips_count or 0,
+        "completed_deals_count": getattr(user, 'completed_deals_count', 0) or 0,   # 3.1
+        "ratings_received_count": getattr(user, 'ratings_received_count', 0) or 0, # 3.1
         "is_verified":           user.is_verified,
         "inn":                   user.inn,
         "org_type":              user.org_type,
@@ -493,12 +495,14 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
         return {"error": "Not found"}
     # 5.2.5: Публичный профиль — минимум. ИНН, email, phone НЕ раскрываются.
     return {
-        "id":           user.id,
-        "company_name": user.company_name,
-        "role":         user.role,
-        "rating":       round((user.rating or 50) / 10, 1),
-        "trips_count":  user.trips_count or 0,
-        "is_verified":  user.is_verified,
-        "org_type":     user.org_type,
-        "city":         user.city,
+        "id":                    user.id,
+        "company_name":          user.company_name,
+        "role":                  user.role,
+        "rating":                round((user.rating or 50) / 10, 1),
+        "trips_count":           user.trips_count or 0,
+        "completed_deals_count": getattr(user, 'completed_deals_count', 0) or 0,   # 3.1
+        "ratings_received_count": getattr(user, 'ratings_received_count', 0) or 0, # 3.1
+        "is_verified":           user.is_verified,
+        "org_type":              user.org_type,
+        "city":                  user.city,
     }

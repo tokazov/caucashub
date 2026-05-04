@@ -381,10 +381,34 @@ async def accept_response(
         """
         await send_email(carrier.email, f"✅ Ваш отклик принят — {route}", html)
 
+    # 3.2: Email грузовладельцу — симметричное уведомление о создании сделки
+    deal_num = deal.act_number or f"CH-{deal.id:04d}"
+    if current_user.email:
+        carrier_name = carrier.company_name if carrier else "Перевозчик"
+        html_shipper = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <div style="background:#1a1a2e;padding:20px;text-align:center">
+            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
+          </div>
+          <div style="padding:24px;background:#fff">
+            <h3>✅ Сделка создана!</h3>
+            <p>Вы приняли отклик перевозчика <b>{carrier_name}</b>. Сделка <b>{deal_num}</b> создана.</p>
+            <div style="background:#e8f5e9;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #2ecc71">
+              <b>Маршрут:</b> {route}<br>
+              <b>Номер сделки:</b> {deal_num}<br>
+              <b>Перевозчик:</b> {carrier_name}
+              {f"<br><b>Телефон:</b> {carrier.phone}" if carrier and carrier.phone else ""}
+            </div>
+            <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a>
+            → "Мои сделки" чтобы отслеживать статус доставки.</p>
+          </div>
+        </div>"""
+        await send_email(current_user.email, f"✅ Сделка {deal_num} создана — {route}", html_shipper)
+
     return {
         "ok": True,
         "deal_id": deal.id,
-        "deal_number": deal.act_number or f"CH-{deal.id:04d}",
+        "deal_number": deal_num,
         "status": deal.status,
     }
 

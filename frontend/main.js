@@ -990,7 +990,18 @@ function openCargo(d){
   const _verifiedStr = d.owner_verified
     ? ` · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅`
     : '';
-  document.getElementById('mStats').textContent=`★ ${d.rat}${d.trips ? " · " + d.trips + " " + tripsWord(d.trips, lang) : ""}${_verifiedStr}${respondTxt}`;
+  // 3.1: новый формат «10 сделок · 8 оценок · 4.9★» если есть новые поля
+  let _statsStr = `★ ${esc(d.rat)}`;
+  if(d.completed_deals != null && d.completed_deals > 0){
+    _statsStr += ` · ${d.completed_deals} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_deals||'сделок'}`;
+  } else if(d.trips){
+    _statsStr += ` · ${d.trips} ${tripsWord(d.trips, lang)}`;
+  }
+  if(d.ratings_received != null && d.ratings_received > 0){
+    _statsStr += ` · ${d.ratings_received} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_ratings||'оценок'}`;
+  }
+  _statsStr += _verifiedStr + respondTxt;
+  document.getElementById('mStats').textContent = _statsStr;
   document.getElementById('mGrid').innerHTML=`
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.from2))}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.to2))}</div></div>
@@ -1622,6 +1633,25 @@ async function doRegister(){
     closeModal('authOverlay');
     showUserState();
     if(typeof syncLoadsFromServer==='function') syncLoadsFromServer();
+    // 3.4: Если после регистрации есть сохранённый груз от Мари — открываем форму заполненной
+    try{
+      const _aiLoad = JSON.parse(localStorage.getItem('ch_ai_parsed_load')||'null');
+      if(_aiLoad && (_aiLoad.from || _aiLoad.to)){
+        localStorage.removeItem('ch_ai_parsed_load');
+        setTimeout(()=>{
+          if(typeof openPostLoad==='function') openPostLoad();
+          // Заполняем поля формы если элементы есть
+          const fill = (id, v) => { const el=document.getElementById(id); if(el&&v&&v!=='—') el.value=v; };
+          fill('pFromAddr', _aiLoad.from);
+          fill('pToAddr', _aiLoad.to);
+          fill('pDesc', _aiLoad.desc);
+          const kg = parseInt((_aiLoad.weight||'').replace(/[^\d]/g,''));
+          if(kg>0) fill('pWeight', kg);
+          const price = parseInt((_aiLoad.price||'').replace(/[^\d]/g,''));
+          if(price>0) fill('pPrice', price);
+        }, 500);
+      }
+    }catch(e){}
   },400);
   if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_register_submit||'Создать аккаунт';btn.disabled=false;}
 }
@@ -1800,13 +1830,13 @@ function renderDealCard(d){
     const _isCarrierDeal = user && d.carrier_id === user.userId;
     const _isShipperDeal = user && d.shipper_id === user.userId;
     actions = _isCarrierDeal
-      ? `<button onclick="dealAction(${d.id},'delivered')" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">🏁 Груз доставлен</button>`
+      ? `<div><button onclick="dealAction(${d.id},'delivered')" style="background:#f7b731;color:#1a1a2e;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">🏁 Я доставил груз</button><div style="font-size:11px;color:#888;margin-top:4px">Нажмите когда груз передан получателю</div></div>`
       : `<span style="font-size:13px;color:#888">⏳ Ожидаем подтверждения доставки от перевозчика</span>`;
   } else if(d.status === 'delivered'){
     const myConfirmed = (isShipper && d.shipper_confirmed) || (isCarrier && d.carrier_confirmed);
     actions = myConfirmed
       ? `<span style="font-size:12px;color:#2ecc71">✅ Вы подтвердили — ждём вторую сторону</span>`
-      : `<button onclick="confirmDelivery(${d.id})" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">✅ Подтвердить получение</button>`;
+      : `<div><button onclick="confirmDelivery(${d.id})" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:700">✅ Я получил груз</button><div style="font-size:11px;color:#888;margin-top:4px">Подтвердите получение груза от перевозчика</div></div>`;
   } else if(d.status === 'completed' || d.status === 'rated'){
     const _showRate = d.status === 'completed';
     actions = `<div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -4052,6 +4082,44 @@ window.doRegister = doRegister;
 window.cancelMyResponse = cancelMyResponse;
 window.doForgotStep1 = doForgotStep1;
 window.doForgotStep2 = doForgotStep2;
+
+// 3.6: Cooldown кнопки повторной отправки кода
+let _resendTimer = null;
+function _startResendCooldown(seconds) {
+  const btn = document.getElementById('btnResendCode');
+  const countdown = document.getElementById('resendCountdown');
+  if(!btn || !countdown) return;
+  let left = seconds;
+  btn.disabled = true;
+  countdown.textContent = left;
+  clearInterval(_resendTimer);
+  _resendTimer = setInterval(() => {
+    left--;
+    countdown.textContent = left;
+    if(left <= 0){
+      clearInterval(_resendTimer);
+      btn.disabled = false;
+      btn.textContent = 'Отправить код повторно';
+    }
+  }, 1000);
+}
+
+async function doResendCode(){
+  // Повторная отправка кода — используем тот же email из шага 1
+  const email = document.getElementById('forgotEmail')?.value || window._forgotEmail;
+  if(!email) return;
+  _startResendCooldown(60);
+  await doForgotStep1(true); // reuse doForgotStep1 с пометкой resend
+}
+window.doResendCode = doResendCode;
+
+// Запускаем cooldown автоматически после первой отправки
+const _origDoForgotStep1 = doForgotStep1;
+doForgotStep1 = async function(isResend){
+  await _origDoForgotStep1.call(this);
+  if(!isResend) _startResendCooldown(60);
+};
+window.doForgotStep1 = doForgotStep1;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};

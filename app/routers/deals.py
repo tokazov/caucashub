@@ -462,7 +462,7 @@ async def export_deals(
         price = d.agreed_price or 0
         cur = d.currency or "GEL"
         row = {
-            "act_number":    d.act_number or f"CH-{d.id}",
+            "act_number":    d.act_number or _act_number(d.id),
             "date":          _fmt(d.completed_at or d.created_at),
             "shipper":       _company(d.shipper_id),
             "carrier":       _company(d.carrier_id),
@@ -549,12 +549,21 @@ async def rate_deal(
     if user_id not in [deal.shipper_id, deal.carrier_id]:
         raise HTTPException(403, "Это не ваша сделка")
     rated_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
+    rater_id = user_id  # тот кто ставит оценку
+
     rated = await db.get(User, rated_id)
+    rater = await db.get(User, rater_id)
     if rated:
         old_r = rated.rating or 50
         old_t = rated.trips_count or 0
         rated.rating = min(50, max(0, round((old_r * old_t + data.score * 10) / (old_t + 1))))
         rated.trips_count = old_t + 1
+        # 3.1: ratings_received_count — у того кого оценивают
+        rated.ratings_received_count = (rated.ratings_received_count or 0) + 1
+    if rater:
+        # 3.1: completed_deals_count — у того кто оценивает (завершил сделку)
+        rater.completed_deals_count = (rater.completed_deals_count or 0) + 1
+
     # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
     from sqlalchemy import text
     await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})

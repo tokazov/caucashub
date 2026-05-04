@@ -29,7 +29,9 @@ class User(Base):
     is_active     = Column(Boolean, default=True)
     telegram_id   = Column(String, nullable=True)
     rating        = Column(Integer, default=50)  # 0-50 → display as 0-5.0
-    trips_count   = Column(Integer, default=0)
+    trips_count   = Column(Integer, default=0)   # DEPRECATED alias → completed_deals_count
+    completed_deals_count = Column(Integer, default=0)  # 3.1: сделок завершено
+    ratings_received_count = Column(Integer, default=0)  # 3.1: получено оценок
     lang          = Column(String, default="ru")  # ru / ge / en
     # Реквизиты (для документов / rs.ge)
     inn           = Column(String, nullable=True)   # ИНН / ID код Грузия

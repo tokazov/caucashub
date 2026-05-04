@@ -287,8 +287,38 @@
     _appendMsg('ai', _t('welcome'));
   };
 
-  // ── aiPostLoad ────────────────────────────────────
+  // ── aiPostLoad (3.4: для незалогиненных — сохранить и предложить регистрацию) ──
   window.aiPostLoad = function(){
+    // Сохраняем спарсенные данные в localStorage для заполнения после регистрации
+    var tpl = document.getElementById('aiTemplate');
+    if(tpl && tpl.style.display !== 'none'){
+      var parsedData = {
+        from:   (document.getElementById('tFrom') || {}).textContent || '',
+        to:     (document.getElementById('tTo') || {}).textContent || '',
+        desc:   (document.getElementById('tDesc') || {}).textContent || '',
+        weight: (document.getElementById('tWeight') || {}).textContent || '',
+        truck:  (document.getElementById('tTruck') || {}).textContent || '',
+        price:  (document.getElementById('tPrice') || {}).textContent || '',
+        date:   (document.getElementById('tDate') || {}).textContent || '',
+      };
+      try { localStorage.setItem('ch_ai_parsed_load', JSON.stringify(parsedData)); } catch(e){}
+    }
+    // Если не залогинен — предлагаем регистрацию
+    var token = typeof getToken === 'function' ? getToken() : localStorage.getItem('ch_token');
+    if(!token){
+      // Показываем приглашение прямо в чате
+      _appendMsg('ai', '📋 Данные сохранены! Чтобы разместить груз, зарегистрируйтесь за 30 секунд — и форма уже будет заполнена.');
+      var regBtn = document.createElement('button');
+      regBtn.textContent = '🚀 Зарегистрироваться';
+      regBtn.style.cssText = 'background:#f7b731;color:#1a1a2e;border:none;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin:8px 0 0 36px;display:block';
+      regBtn.onclick = function(){
+        window.closeAI();
+        if(typeof openAuth === 'function') openAuth('register');
+      };
+      var msgs = document.getElementById('aiMessages');
+      if(msgs) msgs.appendChild(regBtn);
+      return;
+    }
     if(typeof openPostLoad === 'function'){
       openPostLoad();
     } else {

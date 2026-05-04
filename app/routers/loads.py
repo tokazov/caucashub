@@ -75,9 +75,13 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
     # Рейтинг и рейсы из профиля
     rat = "5.0"
     trips = 0
+    completed_deals = 0
+    ratings_received = 0
     if user:
         rat   = f"{user.rating / 10:.1f}" if user.rating else "5.0"
         trips = user.trips_count or 0
+        completed_deals = getattr(user, 'completed_deals_count', 0) or 0
+        ratings_received = getattr(user, 'ratings_received_count', 0) or 0
 
     return {
         "id": load.id,
@@ -101,6 +105,8 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "co": co,
         "rat": rat,
         "trips": trips,
+        "completed_deals": completed_deals,   # 3.1
+        "ratings_received": ratings_received,  # 3.1
         "user_id": load.user_id,
         "views": load.views or 0,
         "is_demo": getattr(load, 'is_demo', False),  # ADR-012
