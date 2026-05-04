@@ -595,12 +595,12 @@ async def rate_deal(
     # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
     from sqlalchemy import text
     await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
-    # Помечаем источник сделки как завершённый
+    # Случай B (решение 05.05.2026): Load и TransportOffer симметричны —
+    # оба переходят в 'completed' при rate_deal.
+    # Переразмещение грузов (taken→active) не реализовано, taken≡completed поведенчески.
     if deal.load_id:
-        # Грузовой путь — убираем груз из публичного списка
-        await db.execute(text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+        await db.execute(text("UPDATE loads SET status = 'completed' WHERE id = :id"), {"id": deal.load_id})
     elif deal.transport_offer_id:
-        # Транспортный путь (ADR-016) — закрываем транспортное предложение
         await db.execute(text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"),
                          {"id": deal.transport_offer_id})
     await db.commit()

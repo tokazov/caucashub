@@ -11,11 +11,13 @@ from fastapi import HTTPException
 # ── Load.status ───────────────────────────────────────────────────────────────
 # Кто инициирует указан в комментарии
 LOAD_TRANSITIONS: dict[str, list[str]] = {
-    "active":   ["taken", "canceled", "paused"],  # paused: system (owner blocked)
-    "paused":   ["active", "canceled"],            # active: system (owner unblocked)
-    "taken":    ["active", "canceled"],
-    "expired":  [],                                # терминальный
-    "canceled": [],                                # терминальный
+    "active":    ["taken", "canceled", "paused"],  # paused: system (owner blocked)
+    "paused":    ["active", "canceled"],            # active: system (owner unblocked)
+    "taken":     ["completed", "canceled"],         # completed: при rate_deal (случай B, 05.05.2026)
+    # taken→active (переразмещение) удалено: фича не реализована, taken≡completed поведенчески
+    "completed": [],                                # терминальный (после rate_deal)
+    "expired":   [],                                # терминальный
+    "canceled":  [],                                # терминальный
 }
 
 # ── Response.status ───────────────────────────────────────────────────────────
@@ -39,10 +41,30 @@ DEAL_TRANSITIONS: dict[str, list[str]] = {
     "canceled":   [],                           # терминальный
 }
 
+# ── TransportOffer.status (ADR-016, симметрично Load) ─────────────────────────
+TRANSPORT_OFFER_TRANSITIONS: dict[str, list[str]] = {
+    "active":    ["taken", "canceled"],  # taken: при accept TransportRequest
+    "taken":     ["completed", "canceled", "active"],
+    # taken→active: при deal.canceled (возврат в публичную ленту)
+    # taken→completed: при rate_deal
+    "completed": [],   # терминальный
+    "canceled":  [],   # терминальный
+}
+
+# ── TransportRequest.status ───────────────────────────────────────────────────
+TRANSPORT_REQUEST_TRANSITIONS: dict[str, list[str]] = {
+    "pending":  ["accepted", "rejected", "canceled"],
+    "accepted": [],   # терминальный
+    "rejected": [],   # терминальный
+    "canceled": [],   # терминальный
+}
+
 _TRANSITION_MAP = {
-    "load":     LOAD_TRANSITIONS,
-    "response": RESPONSE_TRANSITIONS,
-    "deal":     DEAL_TRANSITIONS,
+    "load":               LOAD_TRANSITIONS,
+    "response":           RESPONSE_TRANSITIONS,
+    "deal":               DEAL_TRANSITIONS,
+    "transport_offer":    TRANSPORT_OFFER_TRANSITIONS,
+    "transport_request":  TRANSPORT_REQUEST_TRANSITIONS,
 }
 
 
