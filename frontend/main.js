@@ -2193,6 +2193,10 @@ function switchCabTab(tab, el){
  if(tab === 'loads') renderCabLoads();
  if(tab === 'responses') renderCabResponses();
  if(tab === 'subscriptions') loadSubscriptions();
+ if(tab === 'my-transport') loadMyTransportOffers();
+ if(tab === 'transport-requests-in') loadIncomingTransportRequests();
+ if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
+ if(tab === 'transport-subs') loadMyTransportSubs();
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -4869,4 +4873,254 @@ window.submitTransportOffer = async function() {
   } catch(e) {
     if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
   }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// КАБИНЕТ: ТРАНСПОРТНЫЕ ВКЛАДКИ (ADR-016 Этап 5)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function _showTransportTabs() {
+  var role = (user && user.role) ? user.role : '';
+  var isCarrier = (role === 'carrier' || role === 'both');
+  var isShipper = (role === 'shipper' || role === 'both');
+  document.querySelectorAll('.cab-tab-carrier').forEach(function(el) {
+    el.style.display = isCarrier ? '' : 'none';
+  });
+  document.querySelectorAll('.cab-tab-shipper').forEach(function(el) {
+    el.style.display = isShipper ? '' : 'none';
+  });
+}
+
+// Вызываем при открытии кабинета
+var _origShowCabinet = window.showCabinet;
+window.showCabinet = function() {
+  if(typeof _origShowCabinet === 'function') _origShowCabinet();
+  _showTransportTabs();
+};
+
+// ── Мои транспортные предложения ─────────────────────────────────────────────
+async function loadMyTransportOffers() {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/transport/my', {headers: {'Authorization': 'Bearer ' + tk}});
+    var d = await r.json();
+    renderMyTransportOffers(d.offers || []);
+  } catch(e) {}
+}
+
+function renderMyTransportOffers(offers) {
+  var list = document.getElementById('myTransportList');
+  if(!list) return;
+  if(!offers.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет предложений</div></div>';
+    return;
+  }
+  var statusLabels = {active:'🟢 Активно', taken:'🔵 Занято', completed:'✅ Завершено', canceled:'⛔ Снято'};
+  list.innerHTML = offers.map(function(o) {
+    var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
+    var price = o.price ? o.price + ' ₾' : '';
+    var status = statusLabels[o.status] || o.status;
+    var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}) : '';
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+        '<div><div style="font-weight:700">' + esc(o.from_city) + ' → ' + esc(o.to_city) + '</div>' +
+          '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.truck_type||'') + (cap?' · '+cap:'') + (price?' · '+price:'') + (dateFrom?' · '+dateFrom:'') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
+          '<span style="font-size:11px">' + status + '</span>' +
+          (o.status === 'active' ? '<button onclick="deleteMyTransportOffer(' + o.id + ')" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Снять</button>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+window.deleteMyTransportOffer = async function(offerId) {
+  if(!confirm('Снять предложение?')) return;
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/transport/' + offerId, {method:'DELETE', headers:{'Authorization':'Bearer '+tk}});
+    if(r.ok) { await loadMyTransportOffers(); pushNotif('ℹ️ Снято', 'Предложение транспорта снято', []); }
+  } catch(e) {}
+};
+
+// ── Входящие запросы на мой транспорт ────────────────────────────────────────
+async function loadIncomingTransportRequests() {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    // Загружаем активные предложения, потом их запросы
+    var r = await fetch(API_BASE + '/api/transport/my', {headers: {'Authorization': 'Bearer ' + tk}});
+    var d = await r.json();
+    var offers = (d.offers || []).filter(function(o){ return o.status === 'active' || o.status === 'taken'; });
+    var allRequests = [];
+    for(var i=0; i<offers.length; i++) {
+      try {
+        var rr = await fetch(API_BASE + '/api/transport/' + offers[i].id + '/requests', {headers: {'Authorization': 'Bearer ' + tk}});
+        var dd = await rr.json();
+        (dd.requests||[]).forEach(function(req){ req._offer = offers[i]; allRequests.push(req); });
+      } catch(e2) {}
+    }
+    renderIncomingTransportRequests(allRequests);
+  } catch(e) {}
+}
+
+function renderIncomingTransportRequests(requests) {
+  var list = document.getElementById('myTransportRequestsIn');
+  if(!list) return;
+  var pending = requests.filter(function(r){ return r.status === 'pending'; });
+  if(!requests.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📥</div><div class="cab-empty-title">Нет запросов</div></div>';
+    return;
+  }
+  var statusLabels = {pending:'⏳ Ожидает', accepted:'✅ Принят', rejected:'❌ Отклонён', canceled:'⛔ Отозван'};
+  list.innerHTML = requests.map(function(req) {
+    var offer = req._offer || {};
+    var actions = '';
+    if(req.status === 'pending') {
+      actions = '<div style="display:flex;gap:6px;margin-top:8px">' +
+        '<button onclick="acceptTransportReq(' + req.id + ')" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">✓ Принять</button>' +
+        '<button onclick="rejectTransportReq(' + req.id + ')" style="flex:1;background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">✕ Отклонить</button>' +
+        '</div>';
+    }
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #f7b731">' +
+      '<div style="font-size:12px;color:#888;margin-bottom:4px">По предложению: ' + esc(offer.from_city||'') + ' → ' + esc(offer.to_city||'') + '</div>' +
+      '<div style="font-weight:700">' + esc(req.shipper_name||'Грузовладелец') + ' <span style="font-size:11px;color:#888">' + (statusLabels[req.status]||req.status) + '</span></div>' +
+      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">Груз: ' + esc(req.cargo_description) + '</div>' : '') +
+      (req.weight_kg ? '<div style="font-size:12px;color:#888">Вес: ' + req.weight_kg + ' кг</div>' : '') +
+      (req.message ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(req.message) + '</div>' : '') +
+      (req.status === 'accepted' && req.shipper_phone ? '<a href="tel:' + req.shipper_phone + '" style="font-size:12px;color:#1a6ec0;display:block;margin-top:4px">📞 ' + req.shipper_phone + '</a>' : '') +
+      actions +
+    '</div>';
+  }).join('');
+}
+
+window.acceptTransportReq = async function(reqId) {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/transport-requests/' + reqId + '/accept', {method:'POST', headers:{'Authorization':'Bearer '+tk}});
+    var d = await r.json();
+    if(r.ok) {
+      await loadIncomingTransportRequests();
+      pushNotif('✅ Принято!', 'Сделка #' + d.act_number + ' создана. Перейдите в «Сделки»', []);
+    }
+  } catch(e) {}
+};
+
+window.rejectTransportReq = async function(reqId) {
+  if(!confirm('Отклонить запрос?')) return;
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    await fetch(API_BASE + '/api/transport-requests/' + reqId + '/reject', {method:'POST', headers:{'Authorization':'Bearer '+tk}});
+    await loadIncomingTransportRequests();
+  } catch(e) {}
+};
+
+// ── Мои отклики на транспорт (грузовладелец) ─────────────────────────────────
+async function loadMyTransportRequestsOut() {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/transport-requests/my', {headers: {'Authorization': 'Bearer ' + tk}});
+    var d = await r.json();
+    renderMyTransportRequestsOut(d.requests || []);
+  } catch(e) {}
+}
+
+function renderMyTransportRequestsOut(requests) {
+  var list = document.getElementById('myTransportRequestsOut');
+  if(!list) return;
+  if(!requests.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📤</div><div class="cab-empty-title">Нет откликов</div></div>';
+    return;
+  }
+  var statusLabels = {pending:'⏳ Ожидает', accepted:'✅ Принят', rejected:'❌ Отклонён', canceled:'⛔ Отозван'};
+  list.innerHTML = requests.map(function(req) {
+    var cancelBtn = req.status === 'pending' ? '<button onclick="cancelMyTransportReq(' + req.id + ')" style="margin-top:6px;background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Отозвать</button>' : '';
+    return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #3498db">' +
+      '<div style="font-weight:700">Предложение #' + req.transport_offer_id + ' <span style="font-size:11px;color:#888">' + (statusLabels[req.status]||req.status) + '</span></div>' +
+      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">Груз: ' + esc(req.cargo_description) + '</div>' : '') +
+      (req.message ? '<div style="font-size:12px;color:#888">' + esc(req.message) + '</div>' : '') +
+      (req.status === 'accepted' ? '<div style="font-size:12px;color:#2ecc71;margin-top:4px">✅ Перевозчик принял — проверьте «Сделки»</div>' : '') +
+      cancelBtn +
+    '</div>';
+  }).join('');
+}
+
+window.cancelMyTransportReq = async function(reqId) {
+  if(!confirm('Отозвать отклик?')) return;
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    await fetch(API_BASE + '/api/transport-requests/' + reqId, {method:'DELETE', headers:{'Authorization':'Bearer '+tk}});
+    await loadMyTransportRequestsOut();
+  } catch(e) {}
+};
+
+// ── Подписки на транспорт ─────────────────────────────────────────────────────
+async function loadMyTransportSubs() {
+  var tk = typeof getToken === 'function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    var r = await fetch(API_BASE + '/api/transport-subscriptions/', {headers: {'Authorization': 'Bearer ' + tk}});
+    var d = await r.json();
+    renderMyTransportSubs(d.subscriptions || []);
+  } catch(e) {}
+}
+
+function renderMyTransportSubs(subs) {
+  var list = document.getElementById('myTransportSubsList');
+  if(!list) return;
+  if(!subs.length) {
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">Нет подписок на транспорт</div></div>';
+    return;
+  }
+  list.innerHTML = subs.map(function(s) {
+    return '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin:8px 16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div style="font-weight:700">' + esc(s.from_city) + ' → ' + esc(s.to_city) + ' <span style="color:' + (s.is_active?'#2ecc71':'#aaa') + ';font-size:11px">● ' + (s.is_active?'Активна':'Отключена') + '</span></div>' +
+        '<button onclick="deleteTransportSub(' + s.id + ')" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>' +
+      '</div>' +
+      '<div style="font-size:12px;color:#aaa;margin-top:4px">TG: ' + (s.notify_tg?'✅':'—') + ' · Email: ' + (s.notify_email?'✅':'—') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+window.createTransportSub = async function() {
+  var from = (document.getElementById('tsSubFrom')||{}).value||'';
+  var to   = (document.getElementById('tsSubTo')  ||{}).value||'';
+  var errEl = document.getElementById('tsSubError');
+  if(!from.trim()||!to.trim()){ if(errEl){errEl.textContent='Заполните оба города';errEl.style.display='block';} return; }
+  if(errEl) errEl.style.display='none';
+  var tk = typeof getToken==='function' ? getToken() : null;
+  if(!tk){ openAuth('login'); return; }
+  try {
+    var r = await fetch(API_BASE + '/api/transport-subscriptions/', {
+      method:'POST', headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify({from_city: from.trim(), to_city: to.trim()}),
+    });
+    var d = await r.json();
+    if(r.status===201) {
+      if(document.getElementById('tsSubFrom')) document.getElementById('tsSubFrom').value='';
+      if(document.getElementById('tsSubTo'))   document.getElementById('tsSubTo').value='';
+      await loadMyTransportSubs();
+      pushNotif('✅ Подписка создана', from+' → '+to, []);
+    } else {
+      if(errEl){errEl.textContent=d.detail||'Ошибка';errEl.style.display='block';}
+    }
+  } catch(e) { if(errEl){errEl.textContent='Ошибка сети';errEl.style.display='block';} }
+};
+
+window.deleteTransportSub = async function(subId) {
+  if(!confirm('Удалить подписку?')) return;
+  var tk = typeof getToken==='function' ? getToken() : null;
+  if(!tk) return;
+  try {
+    await fetch(API_BASE + '/api/transport-subscriptions/' + subId, {method:'DELETE', headers:{'Authorization':'Bearer '+tk}});
+    await loadMyTransportSubs();
+  } catch(e) {}
 };
