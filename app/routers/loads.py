@@ -256,6 +256,10 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Not found")
     if load.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not your load")
+    # 7.6.4: нельзя редактировать отменённый/завершённый груз
+    current_status = load.status.value if hasattr(load.status, "value") else str(load.status)
+    if current_status in ("canceled", "completed"):
+        raise HTTPException(status_code=400, detail=f"Нельзя редактировать груз со статусом {current_status}")
     updates = data.model_dump(exclude_none=True)
     # Фикс 1: Валидация при обновлении
     if "weight_kg" in updates:
