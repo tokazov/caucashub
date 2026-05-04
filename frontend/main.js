@@ -17,6 +17,32 @@
 //  12. Навигация (showSection, setScope, setLang)
 // ═══════════════════════════════════════════════════════
 
+// ── Password strength indicator (Фикс 4) ─────────────
+const _WEAK_PASS = new Set(["password","password1","123456","12345678","qwerty","abc123",
+  "letmein","monkey","iloveyou","master","sunshine","passw0rd","shadow","123123",
+  "superman","football","welcome","hello","hello123","admin","root","test","demo",
+  "pass","pass123","qwerty123","1q2w3e4r","qwertyuiop"]);
+
+function updatePassStrength(val, barId) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  const inner = bar.firstElementChild;
+  if (!inner) return;
+  const v = val || '';
+  let score = 0;
+  if (v.length >= 8) score++;
+  if (v.length >= 12) score++;
+  if (/[A-Z]/.test(v)) score++;
+  if (/[0-9]/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  if (_WEAK_PASS.has(v.toLowerCase())) score = 0;
+  const pct = Math.min(100, score * 20) + '%';
+  const color = score <= 1 ? '#e74c3c' : score <= 2 ? '#f39c12' : score <= 3 ? '#f7b731' : '#2ecc71';
+  inner.style.width = v.length > 0 ? pct : '0';
+  inner.style.background = color;
+}
+window.updatePassStrength = updatePassStrength;
+
 // ── XSS ESCAPE (Part A security fix) ────────────────
 /**
  * esc(s) — экранирует пользовательский контент для безопасной вставки в innerHTML.
@@ -4274,6 +4300,89 @@ async function doDeleteAccount(){
 window.openDeleteAccountModal = openDeleteAccountModal;
 window.checkDeleteConfirm = checkDeleteConfirm;
 window.doDeleteAccount = doDeleteAccount;
+
+// ── Фикс 3: Смена телефона с подтверждением (4.6.4) ────────────────────────
+function openPhoneChange(){
+  const b = document.getElementById('phoneChangeBlock');
+  if(b){ b.style.display=''; }
+  const s1 = document.getElementById('phoneChangeStep1');
+  const s2 = document.getElementById('phoneChangeStep2');
+  if(s1) s1.style.display='';
+  if(s2) s2.style.display='none';
+  const inp = document.getElementById('sPhoneNew');
+  if(inp) inp.value = '';
+}
+window.openPhoneChange = openPhoneChange;
+
+function closePhoneChange(){
+  const b = document.getElementById('phoneChangeBlock');
+  if(b) b.style.display='none';
+}
+window.closePhoneChange = closePhoneChange;
+
+async function sendPhoneCode(){
+  const newPhone = (document.getElementById('sPhoneNew')?.value||'').trim();
+  const errEl = document.getElementById('phoneChangeErr1');
+  if(!newPhone){ if(errEl){errEl.textContent='Введите новый телефон';errEl.style.display='';} return; }
+  const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  if(!tk){ if(errEl){errEl.textContent='Необходима авторизация';errEl.style.display='';} return; }
+  const btn = event.target;
+  if(btn){ btn.disabled=true; btn.textContent='Отправляем...'; }
+  try{
+    const r = await fetch(API_BASE+'/api/users/me/request-phone-change', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify({new_phone: newPhone})
+    });
+    const d = await r.json();
+    if(r.ok){
+      const s1 = document.getElementById('phoneChangeStep1');
+      const s2 = document.getElementById('phoneChangeStep2');
+      if(s1) s1.style.display='none';
+      if(s2) s2.style.display='';
+      if(errEl) errEl.style.display='none';
+    } else {
+      if(errEl){errEl.textContent = d.detail||'Ошибка';errEl.style.display='';}
+    }
+  } catch(e){
+    if(errEl){errEl.textContent='Ошибка соединения';errEl.style.display='';}
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='Отправить код на email'; }
+  }
+}
+window.sendPhoneCode = sendPhoneCode;
+
+async function confirmPhoneCode(){
+  const code = (document.getElementById('sPhoneCode')?.value||'').trim();
+  const errEl = document.getElementById('phoneChangeErr2');
+  if(!code||code.length!==6){ if(errEl){errEl.textContent='Введите 6-значный код';errEl.style.display='';} return; }
+  const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  const btn = event.target;
+  if(btn){ btn.disabled=true; btn.textContent='Проверяем...'; }
+  try{
+    const r = await fetch(API_BASE+'/api/users/me/confirm-phone-change', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify({code})
+    });
+    const d = await r.json();
+    if(r.ok && d.ok){
+      // Обновляем UI
+      const sPhone = document.getElementById('sPhone');
+      if(sPhone) sPhone.value = d.phone||'';
+      if(user){ user.phone = d.phone; _lsSet('ch_user', JSON.stringify(user)); }
+      closePhoneChange();
+      pushNotif('✅ Телефон изменён', 'Новый номер: '+d.phone, []);
+    } else {
+      if(errEl){errEl.textContent = d.detail||'Неверный код';errEl.style.display='';}
+    }
+  } catch(e){
+    if(errEl){errEl.textContent='Ошибка соединения';errEl.style.display='';}
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='✅ Подтвердить'; }
+  }
+}
+window.confirmPhoneCode = confirmPhoneCode;
 
 // ── 3.8.3: Глобальный Escape handler — закрывает верхнюю открытую модалку ──
 document.addEventListener('keydown', function(e) {

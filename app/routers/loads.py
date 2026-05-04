@@ -157,6 +157,16 @@ async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Dep
     user_id = require_user(authorization)
     await check_idempotency(request, scope="create_load", user_id=user_id)
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
+
+    # Фикс 1: Серверная валидация веса и цены (P1 Cat4)
+    w = load_data.get("weight_kg")
+    if w is None or w <= 0 or w > 50000:
+        raise HTTPException(status_code=422, detail="weight_kg должен быть от 1 до 50000 кг")
+    p_gel = load_data.get("price_gel") or 0
+    p_usd = load_data.get("price_usd") or 0
+    if p_gel <= 0 and p_usd <= 0:
+        raise HTTPException(status_code=422, detail="Укажите цену груза (price_gel или price_usd > 0)")
+
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()
     else:
@@ -185,6 +195,27 @@ async def create_load(data: LoadCreate, request: Request, db: AsyncSession = Dep
     if load_data.get("to_address"):
         load_data["to_address"] = sanitize_text(load_data["to_address"], max_length=200)
 
+    # Фикс 2: Валидация date_end >= date_start (P1 Cat4)
+    if data.load_date_end:
+        try:
+            # Парсим dd.mm.yy или dd.mm.yyyy
+            parts = data.load_date_end.split(".")
+            if len(parts) == 3:
+                y = int(parts[2]) + 2000 if len(parts[2]) == 2 else int(parts[2])
+                from datetime import date as _date
+                date_end = _date(y, int(parts[1]), int(parts[0]))
+                date_start = load_data["load_date"]
+                if hasattr(date_start, 'date'):
+                    date_start = date_start.date()
+                elif hasattr(date_start, 'replace'):
+                    date_start = date_start.date() if hasattr(date_start, 'date') else date_start
+                if date_end < date_start:
+                    raise HTTPException(status_code=422, detail="Дата окончания не может быть раньше даты начала")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # невалидный формат — пропускаем
+
     # ADR-006: получаем курс NBG и заполняем обе валюты
     rate = await get_usd_gel_rate()
     load_data["exchange_rate_at_creation"] = rate
@@ -212,7 +243,18 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Not found")
     if load.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not your load")
-    for k, v in data.model_dump(exclude_none=True).items():
+    updates = data.model_dump(exclude_none=True)
+    # Фикс 1: Валидация при обновлении
+    if "weight_kg" in updates:
+        w = updates["weight_kg"]
+        if w <= 0 or w > 50000:
+            raise HTTPException(status_code=422, detail="weight_kg должен быть от 1 до 50000 кг")
+    if "price_gel" in updates or "price_usd" in updates:
+        new_gel = updates.get("price_gel", load.price_gel or 0)
+        new_usd = updates.get("price_usd", load.price_usd or 0)
+        if (new_gel or 0) <= 0 and (new_usd or 0) <= 0:
+            raise HTTPException(status_code=422, detail="Укажите цену груза > 0")
+    for k, v in updates.items():
         if hasattr(load, k) and k != "load_date_end":
             setattr(load, k, v)
     await db.commit()

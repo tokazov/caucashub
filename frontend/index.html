@@ -584,7 +584,8 @@
 
         <div class="form-group">
           <label>Пароль</label>
-          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов">
+          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов" minlength="8" oninput="updatePassStrength(this.value,'regPassStrength')">
+          <div id="regPassStrength" style="height:4px;border-radius:2px;margin-top:4px;background:#eee;overflow:hidden"><div style="height:100%;width:0;transition:width .3s,background .3s"></div></div>
         </div>
 
         <input type="hidden" id="regRole">
@@ -697,7 +698,7 @@
     <div class="form-row">
       <div class="form-group">
         <label><span data-i18n="None"><span data-i18n="post_weight_label"><span data-i18n="lbl_weight_form">Вес (кг)</span></span></span></label>
-        <input class="form-input" type="number" id="pWeight" placeholder="5000">
+        <input class="form-input" type="number" id="pWeight" placeholder="5000" min="1" max="50000">
       </div>
       <div class="form-group">
         <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
@@ -711,13 +712,13 @@
       <div style="display:flex;align-items:center;gap:6px">
         <input class="form-input" type="date" id="pDate" style="flex:1;min-width:0" oninput="syncDateMin()">
         <span style="font-size:12px;color:#aaa;white-space:nowrap" data-i18n="date_separator">по</span>
-        <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0">
+        <input class="form-input" type="date" id="pDate2" style="flex:1;min-width:0" oninput="syncDateMin()">
       </div>
       <div style="font-size:11px;color:#aaa;margin-top:3px"><span data-i18n="None"><span data-i18n="post_date_hint"><span data-i18n="hint_flexible_date">Если груз гибкий — укажите диапазон</span></span></span></div>
     </div>
     <div class="form-group">
       <label id="priceCurLabel"><span data-i18n="lbl_rate_form">Ставка (₾)</span></label>
-      <input class="form-input" type="number" id="pPrice" placeholder="350">
+      <input class="form-input" type="number" id="pPrice" placeholder="350" min="1">
     </div>
     <div class="form-group">
       <label><span data-i18n="None"><span data-i18n="lbl_cargo_desc">Описание груза</span></span></label>
@@ -915,12 +916,32 @@
     <div class="form-row">
       <div class="form-group">
         <label data-i18n="lbl_phone">Телефон</label>
-        <input class="form-input" id="sPhone" placeholder="+995 555 ___">
+        <!-- Фикс 3: телефон — readonly, меняется только через подтверждение кодом -->
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="form-input" id="sPhone" placeholder="+995 555 ___" readonly style="background:#f8f9fa;flex:1">
+          <button type="button" onclick="openPhoneChange()" style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">✏️ Изменить</button>
+        </div>
       </div>
       <div class="form-group">
         <label data-i18n="lbl_email">Email</label>
-        <input class="form-input" id="sEmail" type="email" placeholder="you@email.com">
+        <input class="form-input" id="sEmail" type="email" placeholder="you@email.com" readonly style="background:#f8f9fa">
       </div>
+    </div>
+    <!-- Виджет смены телефона (скрыт по умолчанию) -->
+    <div id="phoneChangeBlock" style="display:none;background:#fff8e6;border:1.5px solid #f7b731;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">📱 Смена телефона</div>
+      <div id="phoneChangeStep1">
+        <input class="form-input" id="sPhoneNew" placeholder="Новый телефон (+995...)" style="margin-bottom:8px">
+        <button type="button" onclick="sendPhoneCode()" style="width:100%;background:#1a1a2e;color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">Отправить код на email</button>
+        <div id="phoneChangeErr1" style="color:#e74c3c;font-size:12px;margin-top:6px;display:none"></div>
+      </div>
+      <div id="phoneChangeStep2" style="display:none">
+        <div style="font-size:12px;color:#888;margin-bottom:8px">Код отправлен на ваш email</div>
+        <input class="form-input" id="sPhoneCode" placeholder="6-значный код" maxlength="6" style="margin-bottom:8px">
+        <button type="button" onclick="confirmPhoneCode()" style="width:100%;background:#2ecc71;color:#fff;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✅ Подтвердить</button>
+        <div id="phoneChangeErr2" style="color:#e74c3c;font-size:12px;margin-top:6px;display:none"></div>
+      </div>
+      <button type="button" onclick="closePhoneChange()" style="margin-top:8px;background:transparent;border:none;color:#888;font-size:12px;cursor:pointer">Отмена</button>
     </div>
     <div class="form-group">
       <label data-i18n="lbl_you">Вы:</label>

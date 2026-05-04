@@ -63,7 +63,7 @@ async def setup_db():
 
 async def _reg(client, email, phone, role="carrier"):
     r = await client.post("/api/auth/register", json={
-        "email": email, "password": "pass123",
+        "email": email, "password": "TestPass123!",
         "company_name": f"Co {role}", "phone": phone, "role": role,
         "inn": "123456789",
     })
@@ -160,12 +160,12 @@ async def test_login_after_deletion_returns_401():
 
         # Пробуем залогиниться по старому email — 401 (email изменён на placeholder)
         login_r = await client.post("/api/auth/login",
-                                    json={"email": "del4@test.ge", "password": "pass123"})
+                                    json={"email": "del4@test.ge", "password": "TestPass123!"})
         assert login_r.status_code == 401
 
         # Пробуем по placeholder email — тоже 401 (hashed_password = "<deleted>")
         login_r2 = await client.post("/api/auth/login",
-                                     json={"email": "deleted_@caucashub.deleted", "password": "pass123"})
+                                     json={"email": "deleted_@caucashub.deleted", "password": "TestPass123!"})
         assert login_r2.status_code == 401
 
 
@@ -199,7 +199,7 @@ async def test_anonymization_preserves_tax_id():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Регистрируем с INN
         r = await client.post("/api/auth/register", json={
-            "email": "del6@test.ge", "password": "pass123",
+            "email": "del6@test.ge", "password": "TestPass123!",
             "company_name": "My Company", "phone": "+99591001007",
             "role": "carrier", "inn": "987654321",
         })
@@ -272,5 +272,5 @@ async def test_wrong_confirmation_word_returns_400():
 
         # Аккаунт не удалён — логин всё ещё работает
         login_r = await client.post("/api/auth/login",
-                                    json={"email": "del8@test.ge", "password": "pass123"})
+                                    json={"email": "del8@test.ge", "password": "TestPass123!"})
         assert login_r.status_code == 200, "Аккаунт не должен быть удалён при неверном слове"

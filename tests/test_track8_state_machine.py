@@ -56,7 +56,7 @@ async def setup_db():
 
 async def _register(client, email, phone, role="carrier"):
     r = await client.post("/api/auth/register", json={
-        "email": email, "password": "pass123",
+        "email": email, "password": "TestPass123!",
         "company_name": f"Test {role}", "phone": phone, "role": role,
     })
     assert r.status_code == 200, r.text

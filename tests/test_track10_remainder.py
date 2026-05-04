@@ -57,7 +57,7 @@ async def setup_db():
 
 async def _reg(client, email, phone, role="carrier"):
     r = await client.post("/api/auth/register", json={
-        "email": email, "password": "pass123",
+        "email": email, "password": "TestPass123!",
         "company_name": f"Co {role}", "phone": phone, "role": role,
     })
     assert r.status_code == 200, r.text
@@ -112,7 +112,7 @@ async def test_blocked_user_cannot_login():
                           params={"secret": ADMIN_SECRET})
 
         login_r = await client.post("/api/auth/login",
-                                    json={"email": "block2@test.ge", "password": "pass123"})
+                                    json={"email": "block2@test.ge", "password": "TestPass123!"})
         # Заблокированный → учётные данные верны, но is_active=False
         # login возвращает 401 (no email) или токен — зависит от реализации
         # По нашей логике: require_user проверяет is_active после логина

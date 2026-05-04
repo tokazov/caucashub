@@ -40,7 +40,7 @@ async def setup_db():
 
         user = User(
             email="owner@test.ge",
-            hashed_password=pwd.hash("pass123"),
+            hashed_password=pwd.hash("TestPass456!"),
             company_name="Owner LLC",
             phone="+99599111111",
             role=UserRole.shipper,
@@ -131,7 +131,7 @@ async def test_after_login_can_respond():
         # Регистрируем нового пользователя (перевозчик)
         reg = await client.post("/api/auth/register", json={
             "email": "newcarrier@test.ge",
-            "password": "pass456",
+            "password": "TestPass456!",
             "company_name": "New Carrier",
             "phone": "+99599222222",
             "role": "carrier",

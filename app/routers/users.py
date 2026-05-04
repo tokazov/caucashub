@@ -16,7 +16,7 @@ router = APIRouter()
 
 class UpdateProfileRequest(BaseModel):
     company_name: Optional[str] = None
-    phone:        Optional[str] = None
+    # phone убран из прямого обновления — используй /me/request-phone-change (Фикс 3)
     inn:          Optional[str] = None
     org_type:     Optional[str] = None
     city:         Optional[str] = None
@@ -83,8 +83,6 @@ async def update_me(
 
     if data.company_name is not None:
         user.company_name = data.company_name
-    if data.phone is not None:
-        user.phone = data.phone
     if data.inn is not None:
         user.inn = data.inn
     if data.org_type is not None:
@@ -108,6 +106,138 @@ async def update_me(
         "org_type":     user.org_type,
         "city":         user.city,
     }
+
+
+# ── Фикс 3: Подтверждение смены телефона через email ──────────────────────────
+
+# In-memory хранилище кодов подтверждения телефона
+# {user_id: {"new_phone": str, "code": str, "expires_at": float}}
+_phone_change_codes: dict = {}
+
+
+class PhoneChangeRequest(BaseModel):
+    new_phone: str
+
+
+class PhoneChangeConfirm(BaseModel):
+    code: str
+
+
+@router.post("/me/request-phone-change")
+async def request_phone_change(
+    data: PhoneChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user_obj),
+):
+    """
+    Шаг 1: Запросить смену телефона.
+    Отправляет 6-значный код на email пользователя.
+    Новый телефон НЕ сохраняется до подтверждения.
+    """
+    import secrets
+    from app.services.normalizers import normalize_phone
+
+    new_phone = normalize_phone(data.new_phone)
+    if not new_phone:
+        raise HTTPException(status_code=422, detail="Неверный формат телефона")
+
+    # Проверяем что такой телефон не занят другим пользователем
+    existing = await db.execute(
+        select(User).where(User.phone == new_phone, User.id != current_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Этот телефон уже используется другим аккаунтом")
+
+    code = str(secrets.randbelow(900000) + 100000)
+    _phone_change_codes[current_user.id] = {
+        "new_phone": new_phone,
+        "code": code,
+        "expires_at": __import__("time").time() + 900,  # 15 минут
+    }
+
+    # Отправляем код на email (SMS нет — OQ-007)
+    if current_user.email:
+        import httpx
+        RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+        html = f"""
+        <div style="font-family:Arial;padding:20px;max-width:480px">
+          <div style="background:#1a1a2e;padding:16px;text-align:center;border-radius:10px 10px 0 0">
+            <span style="color:#fff;font-weight:900;font-size:20px">Caucas<span style="color:#f7b731">Hub</span></span>
+          </div>
+          <div style="background:#fff;padding:24px;border-radius:0 0 10px 10px;border:1px solid #eee">
+            <p style="margin:0 0 12px;font-size:15px;color:#333">Подтверждение смены телефона</p>
+            <p style="color:#666;font-size:14px">Новый номер: <b>{new_phone}</b></p>
+            <div style="background:#f8f9fa;border:2px solid #f7b731;border-radius:10px;padding:16px;text-align:center;margin:16px 0">
+              <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#1a1a2e">{code}</div>
+            </div>
+            <p style="font-size:12px;color:#888">⏱ Код действует 15 минут. Если вы не запрашивали смену — проигнорируйте.</p>
+          </div>
+        </div>"""
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+                    json={
+                        "from": "CaucasHub <onboarding@resend.dev>",
+                        "to": [current_user.email],
+                        "subject": "CaucasHub — подтверждение нового телефона",
+                        "html": html,
+                    },
+                    timeout=10,
+                )
+        except Exception:
+            pass
+
+    return {"message": "Код подтверждения отправлен на ваш email"}
+
+
+@router.post("/me/confirm-phone-change")
+async def confirm_phone_change(
+    data: PhoneChangeConfirm,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user_obj),
+):
+    """
+    Шаг 2: Подтвердить смену телефона кодом из email.
+    """
+    import time
+
+    entry = _phone_change_codes.get(current_user.id)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Нет активного запроса смены телефона")
+    if time.time() > entry["expires_at"]:
+        _phone_change_codes.pop(current_user.id, None)
+        raise HTTPException(status_code=400, detail="Код истёк. Запросите новый")
+    if entry["code"] != data.code.strip():
+        raise HTTPException(status_code=400, detail="Неверный код")
+
+    old_phone = current_user.phone
+    current_user.phone = entry["new_phone"]
+    _phone_change_codes.pop(current_user.id, None)
+    await db.commit()
+
+    # Уведомление на email о смене телефона
+    if current_user.email and old_phone:
+        import httpx
+        RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+                    json={
+                        "from": "CaucasHub <onboarding@resend.dev>",
+                        "to": [current_user.email],
+                        "subject": "CaucasHub — ваш телефон изменён",
+                        "html": f"<p>Ваш телефон в CaucasHub изменён с <b>{old_phone}</b> на <b>{current_user.phone}</b>. Если это не вы — обратитесь в поддержку: <a href='https://t.me/caucashub_bot'>@caucashub_bot</a></p>",
+                    },
+                    timeout=10,
+                )
+        except Exception:
+            pass
+
+    return {"ok": True, "phone": current_user.phone}
 
 
 @router.post("/me/plan")

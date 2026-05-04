@@ -79,6 +79,30 @@ class LoginRequest(BaseModel):
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+# Топ-50 популярных паролей (Фикс 4)
+_WEAK_PASSWORDS = {
+    "password","password1","123456","12345678","qwerty","abc123","monkey","1234567",
+    "letmein","trustno1","dragon","baseball","iloveyou","master","sunshine","ashley",
+    "bailey","passw0rd","shadow","123123","654321","superman","qazwsx","michael",
+    "football","Password","login","welcome","solo","princess","starwars","whatever",
+    "qwerty123","12345","1234","111111","1111","password2","iloveyou1","000000",
+    "pass","1q2w3e","1q2w3e4r","zxcvbnm","123qwe","qwertyuiop","qwerty1","pass123",
+    "admin","root","user","test","guest","demo","hello","hello123","summer","winter",
+}
+
+def validate_password(password: str) -> None:
+    """Фикс 4: Проверяет пароль на минимальную длину и слабые значения."""
+    if not password or len(password) < 8:
+        raise HTTPException(
+            status_code=422,
+            detail="Пароль слишком короткий — минимум 8 символов"
+        )
+    if password.lower() in _WEAK_PASSWORDS:
+        raise HTTPException(
+            status_code=422,
+            detail="Пароль слишком простой — выберите более надёжный"
+        )
+
 def create_token(user_id: int):
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode({"sub": str(user_id), "exp": expire}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -107,6 +131,8 @@ async def require_user(
 
 @router.post("/register")
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    # Фикс 4: Валидация пароля
+    validate_password(data.password)
     existing = await db.execute(select(User).where(User.email == data.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -290,6 +316,8 @@ async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db))
     rc = rc_result.scalar_one_or_none()
     if not rc or datetime.utcnow() > rc.expires_at:
         raise HTTPException(status_code=400, detail="Неверный или просроченный код")
+    # Фикс 4: Валидация нового пароля при сбросе
+    validate_password(data.new_password)
     # Меняем пароль
     result = await db.execute(select(User).where(User.email == data.email))
     user = result.scalar_one_or_none()
@@ -308,8 +336,7 @@ class ChangePasswordRequest(BaseModel):
 async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_user)):
     if not pwd_context.verify(data.old_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Неверный текущий пароль")
-    if len(data.new_password) < 8:
-        raise HTTPException(status_code=400, detail="Новый пароль минимум 8 символов")
+    validate_password(data.new_password)
     current_user.hashed_password = hash_password(data.new_password)
     await db.commit()
     return {"message": "Пароль успешно изменён"}
