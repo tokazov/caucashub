@@ -137,7 +137,13 @@ async def update_status(
     now = datetime.now(timezone.utc)
 
     # Трек 8: Валидация перехода через state machine
-    validate_transition("deal", current_status, new_status_str)
+    # delivered_carrier / delivered_shipper — составные команды (→ delivered или → completed)
+    # они не статусы Deal, поэтому валидируем отдельно
+    if new_status_str in ("delivered_carrier", "delivered_shipper"):
+        if current_status not in ("in_transit", "delivered"):
+            raise HTTPException(400, f"Нельзя подтвердить доставку из статуса '{current_status}'")
+    else:
+        validate_transition("deal", current_status, new_status_str)
 
     # Загружаем участников для email
     shipper_res = await db.execute(select(User).where(User.id == deal.shipper_id))
