@@ -40,6 +40,7 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE",
         """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$""",
         """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$""",
+        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='completed' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'completed'; END IF; END $$""",
         """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$""",
         """CREATE TABLE IF NOT EXISTS status_changes (
             id SERIAL PRIMARY KEY,
