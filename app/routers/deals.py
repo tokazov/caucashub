@@ -201,12 +201,12 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
-            # Закрываем источник сделки (ADR-016: load или transport_offer)
+            # Симметрия Load/TransportOffer: оба остаются в 'taken' до rate_deal
+            # (completed выставляется только в rate_deal — симметрично с Load)
             from sqlalchemy import text as sql_text
             if deal.load_id:
                 await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
-            elif deal.transport_offer_id:
-                await db.execute(sql_text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"), {"id": deal.transport_offer_id})
+            # transport_offer остаётся 'taken' — переход в 'completed' в rate_deal
         else:
             deal.status = DealStatus.delivered
 
@@ -221,12 +221,10 @@ async def update_status(
             deal.completed_at = now
             if email_available:
                 _send_completed_emails(shipper, carrier, deal_num)
-            # Закрываем источник сделки (ADR-016: load или transport_offer)
+            # Симметрия: transport_offer остаётся 'taken' до rate_deal
             from sqlalchemy import text as sql_text
             if deal.load_id:
                 await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
-            elif deal.transport_offer_id:
-                await db.execute(sql_text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"), {"id": deal.transport_offer_id})
         else:
             deal.status = DealStatus.delivered
 
