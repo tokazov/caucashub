@@ -3425,9 +3425,19 @@ function openSettings(){
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
   var _so = document.getElementById('settingsOverlay');
   _so.classList.add('on');
+  // Мобиль: принудительно растягиваем на весь экран через inline стили
+  if(window.innerWidth <= 540){
+    _so.style.cssText = 'display:flex!important;align-items:flex-end!important;padding:0!important;position:fixed!important;inset:0!important;z-index:1000!important;background:rgba(0,0,0,.6)!important;';
+    var _sm = _so.querySelector('.modal');
+    if(_sm) _sm.style.cssText = 'width:100%!important;max-width:100%!important;border-radius:20px 20px 0 0!important;max-height:92vh!important;padding:20px 16px 36px!important;margin:0!important;box-sizing:border-box!important;overflow-y:auto!important;background:#fff!important;';
+  } else {
+    _so.style.cssText = '';
+    var _sm = _so.querySelector('.modal');
+    if(_sm) _sm.style.cssText = '';
+  }
   // Сбрасываем скролл на верх модалки
-  var _sm = _so.querySelector('.modal');
-  if(_sm) _sm.scrollTop = 0;
+  var _sm2 = _so.querySelector('.modal');
+  if(_sm2) _sm2.scrollTop = 0;
   // Инициализируем статус TG-подключения
   _initTgStatus();
 }
