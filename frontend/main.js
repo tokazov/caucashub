@@ -2347,7 +2347,7 @@ function renderCabResponses(){
  var el = document.getElementById('myResponsesList');
  if(!el) return;
  if(!_orders || !_orders.length){
- el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет активных откликов</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>';
+ el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_responses||'Нет активных откликов') + '</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>';
  var badge = document.getElementById('cabRespBadge');
  if(badge) badge.style.display = 'none';
  return;
@@ -2975,6 +2975,12 @@ const TRANSLATIONS = {
     empty_trucks: 'მანქანები არ არის. დაამატეთ პირველი!',
     empty_myloads: 'განთავსებული ტვირთი არ არის',
     empty_deals: 'გარიგებები არ არის',
+    sub_empty_title: 'გამოწერები არ არის',
+    sub_created: 'გამოწერა შეიქმნა',
+    sub_deleted: 'გამოწერა წაიშალა',
+    err_create_sub: 'გამოწერის შექმნის შეცდომა',
+    offer_removed: 'მოხსნილია',
+    offer_removed_sub: 'ტრანსპორტის შეთავაზება მოხსნილია',
     empty_deals_sub: 'მიიღეთ გამოხმაურება ტვირთზე გარიგების შესაქმნელად',
     login_for_deals: 'შედით გარიგებების სანახავად',
     rates_subtitle: 'საშუალო ტარიფები მარშრუტებზე · განახლდა დღეს',
@@ -4782,7 +4788,7 @@ function renderSubscriptions() {
   var list = document.getElementById('subscriptionsList');
   if(!list) return;
   if(!_subscriptions.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">Нет подписок</div><div class="cab-empty-sub">Подпишитесь на маршрут — получите уведомление когда появится новый груз</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_title||'Нет подписок') + '</div><div class="cab-empty-sub">Подпишитесь на маршрут — получите уведомление когда появится новый груз</div></div>';
     return;
   }
   var html = '';
@@ -4853,9 +4859,9 @@ window.createSubscription = async function() {
       if(document.getElementById('subMaxWeight')) document.getElementById('subMaxWeight').value='';
       if(document.getElementById('subTruckType')) document.getElementById('subTruckType').value='';
       await loadSubscriptions();
-      pushNotif('✅ Подписка создана', fromCity+' → '+toCity, []);
+      pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), fromCity+' → '+toCity, []);
     } else {
-      var msg = d.detail || 'Ошибка создания подписки';
+      var msg = d.detail || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_create_sub||'Ошибка создания подписки');
       if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
     }
   } catch(e) {
@@ -4886,7 +4892,7 @@ window.deleteSubscription = async function(subId) {
       headers:{'Authorization':'Bearer '+tk}
     });
     await loadSubscriptions();
-    pushNotif('ℹ️ Подписка удалена', '', []);
+    pushNotif('ℹ️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_deleted||'Подписка удалена'), '', []);
   } catch(e) {}
 };
 
@@ -5140,7 +5146,7 @@ window.deleteMyTransportOffer = async function(offerId) {
   if(!tk) return;
   try {
     var r = await fetch(API_BASE + '/api/transport/' + offerId, {method:'DELETE', headers:{'Authorization':'Bearer '+tk}});
-    if(r.ok) { await loadMyTransportOffers(); pushNotif('ℹ️ Снято', 'Предложение транспорта снято', []); }
+    if(r.ok) { await loadMyTransportOffers(); pushNotif('ℹ️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).offer_removed||'Снято'), (TRANSLATIONS[lang]||TRANSLATIONS['ru']).offer_removed_sub||'Предложение транспорта снято', []); }
   } catch(e) {}
 };
 
@@ -5306,7 +5312,7 @@ window.createTransportSub = async function() {
       if(document.getElementById('tsSubFrom')) document.getElementById('tsSubFrom').value='';
       if(document.getElementById('tsSubTo'))   document.getElementById('tsSubTo').value='';
       await loadMyTransportSubs();
-      pushNotif('✅ Подписка создана', from+' → '+to, []);
+      pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), from+' → '+to, []);
     } else {
       if(errEl){errEl.textContent=d.detail||'Ошибка';errEl.style.display='block';}
     }
