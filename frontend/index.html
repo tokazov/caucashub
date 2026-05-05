@@ -1211,7 +1211,7 @@
       <div class="form-group">
         <label><span data-i18n="None"><span data-i18n="reg_org_form2">Форма организации</span></span></label>
         <select class="form-select" id="sOrgTypeAll">
-          <option value="">— выберите —</option>
+          <option value="" data-i18n="opt_choose">— выберите —</option>
           <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option><span data-i18n="None"><span data-i18n="reg_private">Частное лицо</span></span></option>
         </select>
       </div>
@@ -1222,7 +1222,7 @@
     </div>
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:600;margin-bottom:10px"><span data-i18n="None"><span data-i18n="cab_notifications">🔔 Уведомления</span></span></div>
-    <button id="pushToggleBtn" onclick="togglePushNotification()" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px">🔔 Включить push-уведомления</button>
+    <button id="pushToggleBtn" onclick="togglePushNotification()" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px" data-i18n="btn_push_enable">🔔 Включить push-уведомления</button>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_new_responses">Новые отклики на мои грузы</span></label>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_my_routes">Грузы по моим маршрутам</span></label>
