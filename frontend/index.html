@@ -101,7 +101,15 @@
   }
   </script>
 
-<script src="https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=ru_RU" type="text/javascript" defer></script>
+<script>
+(function(){
+  var _ymLang = localStorage.getItem('ch_lang') === 'ge' ? 'ka_GE' : 'ru_RU';
+  var _s = document.createElement('script');
+  _s.src = 'https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=' + _ymLang;
+  _s.defer = true;
+  document.head.appendChild(_s);
+})();
+</script>
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
@@ -1447,8 +1455,8 @@
   </div>
 </div>
 
-<script src="api.js?v=1778015479"></script>
-<script src="main.js?v=1778015479"></script>
-<script src="ai-dispatcher.js?v=1778015479"></script>
+<script src="api.js?v=1778015741"></script>
+<script src="main.js?v=1778015741"></script>
+<script src="ai-dispatcher.js?v=1778015741"></script>
 </body>
 </html>
