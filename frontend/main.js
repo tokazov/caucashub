@@ -5013,7 +5013,7 @@ function renderTransportOffers() {
 
     return '<div class="card-load transport-card" style="border-left: 3px solid #2ecc71">' +
       '<div class="card-main">' +
-        '<div class="card-route">' + esc(o.from_city) + ' → ' + esc(o.to_city) + ' ' + urgBadge + '</div>' +
+        '<div class="card-route">' + esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city) + ' ' + urgBadge + '</div>' +
         '<div class="card-meta">' +
           '<span>' + esc(o.company_name || 'Перевозчик') + '</span>' +
           '<span>★ ' + (o.rating || '5.0') + '</span>' +
@@ -5191,7 +5191,7 @@ function renderMyTransportOffers(offers) {
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}) : '';
     return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
-        '<div><div style="font-weight:700">' + esc(o.from_city) + ' → ' + esc(o.to_city) + '</div>' +
+        '<div><div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city) + '</div>' +
           '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.truck_type||'') + (cap?' · '+cap:'') + (price?' · '+price:'') + (dateFrom?' · '+dateFrom:'') + '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
@@ -5349,7 +5349,7 @@ function renderMyTransportSubs(subs) {
   list.innerHTML = subs.map(function(s) {
     return '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin:8px 16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
-        '<div style="font-weight:700">' + esc(s.from_city) + ' → ' + esc(s.to_city) + ' <span style="color:' + (s.is_active?'#2ecc71':'#aaa') + ';font-size:11px">● ' + (s.is_active?'Активна':'Отключена') + '</span></div>' +
+        '<div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(s.from_city):s.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(s.to_city):s.to_city) + ' <span style="color:' + (s.is_active?'#2ecc71':'#aaa') + ';font-size:11px">● ' + (s.is_active?((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_active||'Активна'):((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_inactive||'Отключена')) + '</span></div>' +
         '<button onclick="deleteTransportSub(' + s.id + ')" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>' +
       '</div>' +
       '<div style="font-size:12px;color:#aaa;margin-top:4px">TG: ' + (s.notify_tg?'✅':'—') + ' · Email: ' + (s.notify_email?'✅':'—') + '</div>' +
