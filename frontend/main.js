@@ -557,7 +557,7 @@ function showRouteMap(){
   wrap.classList.add('open');
   const f=selectedFrom, t=selectedTo;
   document.getElementById('mapRouteLabel').textContent=`${f.name||f.addr} → ${t.name||t.addr}`;
-  document.getElementById('mapDist').textContent='⏳ Строим маршрут...';
+  document.getElementById('mapDist').textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).map_building||'⏳ Строим маршрут...';
 
   ymaps.ready(()=>{
     if(!ymap){
@@ -2163,8 +2163,8 @@ function filterLoads(){
   if(fromVal&&toVal){
     const fromCity=fromVal.split(',')[0].trim();
     const toCity=toVal.split(',')[0].trim();
-    var cf=CITIES.find(c=>c.name.toLowerCase().includes(fromCity))||selectedFrom;
-    var ct=CITIES.find(c=>c.name.toLowerCase().includes(toCity))||selectedTo;
+    var cf=CITIES.find(c=>c.name.toLowerCase().includes(fromCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(fromCity.toLowerCase())))||selectedFrom;
+    var ct=CITIES.find(c=>c.name.toLowerCase().includes(toCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(toCity.toLowerCase())))||selectedTo;
     if(cf&&ct){ selectedFrom=cf; selectedTo=ct; showRouteMap(); }
     else if(fromCity&&toCity){
       // Город не в CITIES (например Натахтари) — геокодируем через LocationIQ
@@ -3318,6 +3318,7 @@ const TRANSLATIONS = {
     transport_sub_to_ph: 'ბათუმი',
     transport_sub_btn: '🔔 გამოწერა',
     loading_map: '⏳ რუკა იტვირთება...',
+    map_building: '⏳ მარშრუტი შენდება...',
     loading_generic: '⏳ იტვირთება...',
     empty_orders: 'აქტიური შეკვეთები არ არის',
     empty_responses: 'აქტიური გამოხმაურებები არ არის',
