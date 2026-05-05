@@ -501,23 +501,23 @@
 
   <!-- Форма создания подписки -->
   <div style="background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:16px">
-   <div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:12px">➕ Новая подписка</div>
+   <div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:12px" data-i18n="sub_new_title">➕ Новая подписка</div>
    <div style="display:flex;gap:8px;margin-bottom:10px">
     <div style="flex:1">
-     <div style="font-size:11px;color:#888;margin-bottom:4px">Откуда</div>
+     <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_from">Откуда</div>
      <input id="subFromCity" class="form-input" placeholder="Тбилиси" style="width:100%;box-sizing:border-box">
     </div>
     <div style="display:flex;align-items:flex-end;padding-bottom:8px;color:#888;font-size:18px">→</div>
     <div style="flex:1">
-     <div style="font-size:11px;color:#888;margin-bottom:4px">Куда</div>
+     <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_to">Куда</div>
      <input id="subToCity" class="form-input" placeholder="Батуми" style="width:100%;box-sizing:border-box">
     </div>
    </div>
    <div style="display:flex;gap:8px;margin-bottom:12px">
     <div style="flex:1">
-     <div style="font-size:11px;color:#888;margin-bottom:4px">Тип кузова (опц.)</div>
+     <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_trucktype_opt">Тип кузова (опц.)</div>
      <select id="subTruckType" class="form-input" style="width:100%;box-sizing:border-box">
-      <option value="">Любой</option>
+      <option value="" data-i18n="opt_any">Любой</option>
       <option value="tent">Тент</option>
       <option value="gazel">Газель</option>
       <option value="ref">Рефрижератор</option>
@@ -526,7 +526,7 @@
      </select>
     </div>
     <div style="flex:1">
-     <div style="font-size:11px;color:#888;margin-bottom:4px">Макс. вес (т, опц.)</div>
+     <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_maxweight_opt">Макс. вес (т, опц.)</div>
      <input id="subMaxWeight" type="number" min="1" max="100" class="form-input" placeholder="20" style="width:100%;box-sizing:border-box">
     </div>
    </div>
@@ -538,7 +538,7 @@
      <input type="checkbox" id="subNotifyEmail"> Email
     </label>
    </div>
-   <button onclick="createSubscription()" class="btn-primary" style="width:100%">🔔 Подписаться</button>
+   <button onclick="createSubscription()" class="btn-primary" id="subCreateBtn" data-i18n="sub_btn_subscribe" style="width:100%">🔔 Подписаться</button>
    <div id="subError" style="display:none;color:#e74c3c;font-size:12px;margin-top:8px"></div>
   </div>
 
