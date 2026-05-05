@@ -264,9 +264,9 @@
 
 <!-- MODAL: Разместить транспортное предложение -->
 <div class="overlay" id="postTransportOverlay" onclick="closeOverlay('postTransportOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="postTransportTitle">
     <button class="close-btn" onclick="closeModal('postTransportOverlay')">✕</button>
-    <div class="modal-title">🚛 Предложить транспорт</div>
+    <div class="modal-title" id="postTransportTitle">🚛 Предложить транспорт</div>
     <div class="modal-sub">Укажите маршрут и характеристики вашей машины</div>
     <div id="postTransportSuccess" class="success-msg" style="display:none">✅ Предложение размещено!</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -328,9 +328,9 @@
 <!-- ═══ MODAL: POST TRUCK ═══ -->
 <!-- MODAL: Отклик на транспортное предложение -->
 <div class="overlay" id="transportRequestOverlay" onclick="closeOverlay('transportRequestOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="transportRequestTitle">
     <button class="close-btn" onclick="closeModal('transportRequestOverlay')">✕</button>
-    <div class="modal-title">📦 Отклик на транспорт</div>
+    <div class="modal-title" id="transportRequestTitle">📦 Отклик на транспорт</div>
     <div class="modal-sub">Опишите свой груз — перевозчик рассмотрит запрос</div>
     <div class="form-group"><label>Описание груза (опц.)</label>
       <input class="form-input" id="trDesc" placeholder="Строительные материалы"></div>
@@ -344,9 +344,9 @@
 </div>
 
 <div class="overlay" id="postTruckOverlay" onclick="closeOverlay('postTruckOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="postTruckTitle">
     <button class="overlay-close" onclick="closeModal('postTruckOverlay')">✕</button>
-    <div style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center"><span data-i18n="btn_add_truck2">🚛 Добавить машину</span></div>
+    <div id="postTruckTitle" style="font-size:18px;font-weight:900;margin-bottom:16px;text-align:center"><span data-i18n="btn_add_truck2">🚛 Добавить машину</span></div>
     <div id="postTruckSuccess" class="success-msg"><span data-i18n="None"><span data-i18n="msg_truck_added">✅ Машина добавлена в список!</span></span></div>
     <div class="form-group">
       <label>Маршрут — Откуда</label>
@@ -623,9 +623,9 @@
 
 <!-- ═══ MODAL: AUTH ═══ -->
 <div class="overlay" id="authOverlay" onclick="closeOverlay('authOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
-    <div style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
+    <div id="authTitle" style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
       <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
       <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')">Регистрация</button>
     </div>
@@ -813,9 +813,9 @@
 
 <!-- ═══ MODAL: POST LOAD ═══ -->
 <div class="overlay" id="postOverlay" onclick="closeOverlay('postOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle">
     <button class="close-btn" onclick="closeModal('postOverlay')">✕</button>
-    <div class="modal-title" data-i18n="modal_post_title">Разместить груз</div>
+    <div class="modal-title" id="postModalTitle" data-i18n="modal_post_title">Разместить груз</div>
     <div class="modal-sub"><span data-i18n="None"><span data-i18n="post_hint">Заполните данные — перевозчики увидят ваш груз сразу</span></span></div>
     <div class="success-msg" id="postSuccess"><span data-i18n="None"><span data-i18n="msg_load_posted">✅ Груз размещён! Перевозчики уже видят ваше объявление.</span></span></div>
     <div class="form-group" id="countryFromWrap" style="display:none">
@@ -945,7 +945,7 @@
 
 <!-- ═══ MODAL: PAYWALL ═══ -->
 <div class="overlay" id="paywallOverlay" onclick="closeOverlay('paywallOverlay',event)">
-  <div class="modal" style="max-width:760px;padding:16px">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="paywallTitle" style="max-width:760px;padding:16px">
     <button class="close-btn" onclick="closeModal('paywallOverlay')">✕</button>
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:32px;margin-bottom:6px">💳</div>
@@ -1063,7 +1063,7 @@
 
 <!-- ═══ MODAL: PROFILE ═══ -->
 <div class="overlay" id="profileOverlay" onclick="closeOverlay('profileOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profileName">
     <button class="close-btn" onclick="closeModal('profileOverlay')">✕</button>
     <div style="text-align:center;margin-bottom:20px">
       <div style="width:64px;height:64px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a2e;font-weight:900;font-size:24px;margin:0 auto 10px" id="profileAva">ТК</div>
@@ -1108,9 +1108,9 @@
 
 <!-- MODAL: SETTINGS -->
 <div class="overlay" id="settingsOverlay" onclick="closeOverlay('settingsOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <button class="close-btn" onclick="closeModal('settingsOverlay')">✕</button>
-    <div class="modal-title"><span data-i18n="None"><span data-i18n="cab_settings">⚙️ Настройки аккаунта</span></span></div>
+    <div class="modal-title" id="settingsTitle"><span data-i18n="None"><span data-i18n="cab_settings">⚙️ Настройки аккаунта</span></span></div>
     <div class="modal-sub"><span data-i18n="None"><span data-i18n="cab_settings_sub">Управление профилем и уведомлениями</span></span></div>
     <div class="form-group">
       <label><span data-i18n="None"><span data-i18n="reg_name_label"><span data-i18n="lbl_company_name">Имя / Название компании</span></span></span></label>
@@ -1238,9 +1238,9 @@
 
 <!-- MODAL: DELETE ACCOUNT (ADR-010) -->
 <div class="overlay" id="deleteAccountOverlay" onclick="closeOverlay('deleteAccountOverlay',event)">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="deleteAccountTitle" style="max-width:420px">
     <button class="close-btn" onclick="closeModal('deleteAccountOverlay')">✕</button>
-    <h3 style="color:#e74c3c;margin:0 0 12px">🗑️ Удалить аккаунт</h3>
+    <h3 id="deleteAccountTitle" style="color:#e74c3c;margin:0 0 12px">🗑️ Удалить аккаунт</h3>
     <div style="background:#fff5f5;border:1px solid #fcc;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#555;line-height:1.5">
       <b>Это действие необратимо.</b> После удаления:
       <ul style="margin:8px 0 0;padding-left:20px">
@@ -1266,9 +1266,9 @@
 
 <!-- MODAL: ANALYTICS -->
 <div class="overlay" id="analyticsOverlay" onclick="closeOverlay('analyticsOverlay',event)">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="analyticsTitle">
     <button class="close-btn" onclick="closeModal('analyticsOverlay')">✕</button>
-    <div class="modal-title"><span data-i18n="None"><span data-i18n="cab_analytics">📊 Моя аналитика</span></span></div>
+    <div class="modal-title" id="analyticsTitle"><span data-i18n="None"><span data-i18n="cab_analytics">📊 Моя аналитика</span></span></div>
     <div class="modal-sub" id="analyticsUser" data-i18n="analytics_sub">Статистика аккаунта</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
       <div style="background:#f8f9fa;border-radius:10px;padding:16px;text-align:center">
@@ -1370,9 +1370,9 @@
 
 <!-- ═══ MODAL: ПРАВИЛА ═══ -->
 <div class="overlay" id="rulesOverlay" onclick="closeOverlay('rulesOverlay',event)">
-  <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle" style="max-width:600px;max-height:85vh;overflow-y:auto">
     <button class="close-btn" onclick="closeModal('rulesOverlay')">✕</button>
-    <div class="modal-title" data-i18n="rules_title">📋 Правила использования</div>
+    <div class="modal-title" id="rulesTitle" data-i18n="rules_title">📋 Правила использования</div>
     <div id="rulesContent" style="font-size:13px;line-height:1.7;color:#333">
 
       <div style="background:#fff8e6;border-left:3px solid #f7b731;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:12px;color:#888">
@@ -1439,7 +1439,7 @@
 
 <!-- ═══ MODAL: DEMO NOTICE (ADR-012) ═══ -->
 <div class="overlay" id="demoNoticeOverlay" onclick="closeOverlay('demoNoticeOverlay',event)" style="z-index:9999">
-  <div class="modal" style="max-width:380px;text-align:center">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="demoNoticeTitle" style="max-width:380px;text-align:center">
     <div style="font-size:40px;margin-bottom:12px">🟡</div>
     <div class="modal-title" id="demoNoticeTitle">Демо-объявление</div>
     <div style="font-size:14px;color:#666;margin:12px 0 20px;line-height:1.5" id="demoNoticeText">
