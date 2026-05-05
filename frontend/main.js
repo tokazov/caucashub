@@ -4277,7 +4277,7 @@ window.openRouteMap = function(){
   const block = document.getElementById('routeMapBlock');
   if(!block) return;
   
-  if(block.style.display !== 'none'){
+  if(block.style.display !== 'none' && block.style.display !== ''){
     block.style.display = 'none';
     if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
     const _mapBtn2 = document.querySelector('[onclick="openRouteMap()"]'); if(_mapBtn2) _mapBtn2.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_show_route||'🗺️ Показать маршрут на карте';
