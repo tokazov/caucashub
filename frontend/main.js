@@ -3207,6 +3207,10 @@ const TRANSLATIONS = {
     lbl_get_code: 'კოდის მიღება',
     err_connection: 'კავშირის შეცდომა',
     lbl_enter_open: 'გახსენით წვდომა',
+    // ── transport table headers ──
+    th_route_transport: 'მარშრუტი',
+    th_carrier: 'გადამზიდველი',
+    transport_loading: '⏳ იტვირთება...',
     // ── ADR-016: ტრანსპორტის ბირჟა ──────────────────────────────────────
     cab_transport_offers: '🚛 ჩემი ტრანსპორტი',
     cab_transport_requests_in: '📥 მოთხოვნები',
