@@ -2774,6 +2774,11 @@ const TRANSLATIONS = {
     btn_show_route: '🗺️ Показать маршрут на карте',
     respond_sent: '✅ Заявка отправлена',
     btn_cancel: '✕ Отменить',
+    sub_new_title: '➕ Новая подписка',
+    lbl_trucktype_opt: 'Тип кузова (опц.)',
+    lbl_maxweight_opt: 'Макс. вес (т, опц.)',
+    opt_any: 'Любой',
+    sub_btn_subscribe: '🔔 Подписаться',
     btn_disable: 'Отключить',
     btn_enable: 'Включить',
     btn_cancel_req: 'Отменить заявку',
@@ -3274,6 +3279,11 @@ const TRANSLATIONS = {
     transport_sub_from_ph: 'თბილისი',
     transport_sub_to_ph: 'ბათუმი',
     transport_sub_btn: '🔔 გამოწერა',
+    sub_new_title: '➕ ახალი გამოწერა',
+    lbl_trucktype_opt: 'კუზოვის ტიპი (სურ.)',
+    lbl_maxweight_opt: 'მაქს. წონა (ტ, სურ.)',
+    opt_any: 'ნებისმიერი',
+    sub_btn_subscribe: '🔔 გამოწერა',
     btn_disable: 'გამორთვა',
     btn_enable: 'ჩართვა',
     btn_cancel_req: 'განაცხადის გაუქმება',
@@ -3891,7 +3901,7 @@ function _renderOrders(){
   const ordersHtml = _orders.map(o=>{
     const s=_STATUS[o.status]||_STATUS.pending;
     let act='';
-    if(o.status==='pending') act=`<button onclick="cancelMyResponse(${o.id},${o.serverId||0})" style="margin-top:8px;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">✕ Отменить заявку</button>`;
+    if(o.status==='pending') act=`<button onclick="cancelMyResponse(${o.id},${o.serverId||0})" style="margin-top:8px;background:#fee;color:#e74c3c;border:1px solid #fcc;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600">✕ ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).btn_cancel_req||"Отменить заявку"}</button>`;
     if(o.status==='accepted') act=`<div style="margin-top:8px;font-size:12px;color:#2980b9;background:#e3f2fd;padding:6px 12px;border-radius:6px">✅ ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted||'Принят'} — ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).resp_accepted_hint||'следите за статусом в разделе'} <strong>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).nav_deals||'Сделки'}</strong></div>`;
     if(o.status==='done') act=`<button onclick="_rate(${o.id})" style="margin-top:8px;background:#f0f2f5;border:none;padding:5px 14px;border-radius:6px;font-size:13px;cursor:pointer">⭐ Оставить отзыв</button>`;
     const ts=new Date(o.created).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
