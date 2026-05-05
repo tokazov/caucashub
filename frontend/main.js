@@ -3376,6 +3376,7 @@ const TRANSLATIONS = {
     post_transport_err_network: 'ქსელის შეცდომა',
   }
 };
+window.TRANSLATIONS = TRANSLATIONS; // expose for setLang/applyLang
 
 function applyLang(l) {
   const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
