@@ -191,31 +191,44 @@ async def notify_transport_subscribers(offer: TransportOffer, db: AsyncSession) 
     BackgroundTask — вызывается после POST /api/transport/.
     Находит матчащие подписки и отправляет уведомления.
     """
-    matched = await find_matching_transport_subscriptions(offer, db)
-    if not matched:
+    import traceback as _traceback
+    try:
+        matched = await find_matching_transport_subscriptions(offer, db)
+        if not matched:
+            return 0
+
+        sent = 0
+        for sub in matched:
+            if _is_debounced(sub.id, offer.id):
+                continue
+
+            user_res = await db.execute(select(User).where(User.id == sub.user_id))
+            user = user_res.scalar_one_or_none()
+            if not user or user.is_deleted:
+                continue
+
+            ok = False
+
+            if sub.notify_tg and user.telegram_id and not user.telegram_id.startswith("pending:"):
+                ok = await _send_tg_notification(user.telegram_id, offer)
+
+            if not ok and sub.notify_email and user.email:
+                ok = await _send_email_notification(user.email, offer)
+
+            if ok:
+                _mark_debounce(sub.id, offer.id)
+                sent += 1
+                logger.info(f"[TRANSPORT SUB] notified sub={sub.id} user={sub.user_id} offer={offer.id}")
+
+        return sent
+    except Exception as e:
+        logger.error(
+            "[BackgroundTask] notify_transport_subscribers failed",
+            extra={
+                "task": "notify_transport_subscribers",
+                "offer_id": getattr(offer, "id", None),
+                "error": str(e),
+                "traceback": _traceback.format_exc(),
+            }
+        )
         return 0
-
-    sent = 0
-    for sub in matched:
-        if _is_debounced(sub.id, offer.id):
-            continue
-
-        user_res = await db.execute(select(User).where(User.id == sub.user_id))
-        user = user_res.scalar_one_or_none()
-        if not user or user.is_deleted:
-            continue
-
-        ok = False
-
-        if sub.notify_tg and user.telegram_id and not user.telegram_id.startswith("pending:"):
-            ok = await _send_tg_notification(user.telegram_id, offer)
-
-        if not ok and sub.notify_email and user.email:
-            ok = await _send_email_notification(user.email, offer)
-
-        if ok:
-            _mark_debounce(sub.id, offer.id)
-            sent += 1
-            logger.info(f"[TRANSPORT SUB] notified sub={sub.id} user={sub.user_id} offer={offer.id}")
-
-    return sent
