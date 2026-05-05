@@ -177,7 +177,59 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[SEED] ⚠️ Cities seed failed: {e}", flush=True)
 
+    # Запускаем фоновый цикл smoke-тестов
+    _asyncio.create_task(_smoke_loop())
     yield
+
+# ── Background smoke-test cache (ADR-011 + Q-018 fix) ─────────────────────────
+import asyncio as _asyncio
+import time as _time
+
+_smoke_cache: dict = {
+    "checks": {},
+    "last_run": 0.0,
+    "running": False,
+}
+_SMOKE_INTERVAL = 60  # секунды между прогонами smoke-тестов
+
+
+async def _run_smoke_tests() -> dict:
+    """Выполняет smoke-тесты и возвращает dict checks."""
+    import httpx as _httpx
+    checks: dict = {}
+    base = "http://127.0.0.1:8000"
+    smoke_endpoints = [
+        ("loads",    f"{base}/api/loads/?limit=1"),
+        ("geocoder", f"{base}/api/cities/search?q=Tbilisi&lang=en"),
+        ("dicts",    f"{base}/api/dictionaries/truck-types"),
+    ]
+    try:
+        async with _httpx.AsyncClient(timeout=5.0) as client:
+            for name, url in smoke_endpoints:
+                try:
+                    r = await client.get(url)
+                    checks[name] = "ok" if r.status_code == 200 else f"FAIL: HTTP {r.status_code}"
+                except Exception as e2:
+                    checks[name] = f"FAIL: {type(e2).__name__}"
+    except Exception:
+        pass
+    return checks
+
+
+async def _smoke_loop():
+    """Фоновая задача: обновляет smoke-кеш раз в 60 секунд."""
+    # Первый прогон — небольшая задержка, чтобы сервер успел полностью подняться
+    await _asyncio.sleep(10)
+    while True:
+        try:
+            checks = await _run_smoke_tests()
+            _smoke_cache["checks"] = checks
+            _smoke_cache["last_run"] = _time.monotonic()
+        except Exception:
+            pass
+        await _asyncio.sleep(_SMOKE_INTERVAL)
+
+
 
 app = FastAPI(
     title="CaucasHub API",
@@ -217,18 +269,18 @@ def root():
 @app.get("/health")
 async def health():
     """
-    ADR-011 + Q-018: расширенный healthcheck с smoke-тестами критических эндпоинтов.
-    Railway использует этот эндпоинт для auto-rollback при деградации сервиса.
-    Возвращает 200 только если ВСЕ проверки прошли, иначе 503 с описанием.
+    ADR-011 + Q-018: расширенный healthcheck с кешированными smoke-тестами.
+    Smoke-тесты выполняются в фоне раз в 60 сек. /health возвращает последний
+    кешированный результат — никаких "skip" из-за таймаутов при синхронном запросе.
+    Railway использует этот эндпоинт для auto-rollback при деградации.
     """
     from sqlalchemy import text as sa_text
     from app.database import engine as db_engine
     from fastapi.responses import JSONResponse
-    import httpx
 
     checks: dict = {}
 
-    # 1. БД
+    # 1. БД — всегда проверяем синхронно (быстро, надёжно)
     try:
         async with db_engine.connect() as conn:
             await conn.execute(sa_text("SELECT 1"))
@@ -236,29 +288,20 @@ async def health():
     except Exception as e:
         checks["db"] = f"FAIL: {e}"
 
-    # 2–4. Smoke-тесты API (localhost) — только если приложение уже запустилось
-    base = "http://127.0.0.1:8000"
-    smoke_endpoints = [
-        ("loads",       f"{base}/api/loads/?limit=1"),
-        ("geocoder",    f"{base}/api/cities/search?q=Tbilisi&lang=en"),
-        ("dicts",       f"{base}/api/dictionaries/truck-types"),
-    ]
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            for name, url in smoke_endpoints:
-                try:
-                    r = await client.get(url)
-                    if r.status_code == 200:
-                        checks[name] = "ok"
-                    else:
-                        checks[name] = f"FAIL: HTTP {r.status_code}"
-                except Exception as e2:
-                    # Если localhost недоступен — пропускаем smoke (первый старт)
-                    checks[name] = f"skip: {type(e2).__name__}"
-    except Exception:
-        pass
+    # 2–4. Smoke-тесты — из кеша (обновляется фоновой задачей каждые 60 сек)
+    cached = _smoke_cache.get("checks", {})
+    age = _time.monotonic() - _smoke_cache.get("last_run", 0.0)
+    if cached:
+        checks.update(cached)
+        checks["_smoke_age_sec"] = round(age, 1)
+    else:
+        # Кеш ещё не прогрелся (первые ~10 сек после старта)
+        checks["loads"] = "warming_up"
+        checks["geocoder"] = "warming_up"
+        checks["dicts"] = "warming_up"
 
-    failed = [k for k, v in checks.items() if str(v).startswith("FAIL")]
+    failed = [k for k, v in checks.items()
+              if isinstance(v, str) and v.startswith("FAIL")]
     if failed:
         return JSONResponse(status_code=503, content={
             "status": "unhealthy",
