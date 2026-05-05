@@ -237,11 +237,11 @@
       <input id="tFilterTo"   class="form-input" placeholder="Куда"   data-i18n-ph="ph_to"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
       <select id="tFilterType" class="form-input" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
         <option value="" data-i18n="opt_any_body">Любой кузов</option>
-        <option value="tent">Тент</option>
-        <option value="gazel">Газель</option>
-        <option value="ref">Рефрижератор</option>
-        <option value="open">Открытый</option>
-        <option value="container">Контейнер</option>
+        <option value="tent" data-i18n="truck_tent">Тент</option>
+        <option value="gazel" data-i18n="truck_gazel">Газель</option>
+        <option value="ref" data-i18n="truck_ref">Рефрижератор</option>
+        <option value="open" data-i18n="truck_open">Открытый</option>
+        <option value="container" data-i18n="truck_container">Контейнер</option>
         <option value="autovoz">Автовоз</option>
         <option value="lowboy">Низкорамник</option>
       </select>
@@ -464,10 +464,10 @@
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)"><span data-i18n="None"><span data-i18n="cab_deals">🤝 Сделки</span></span></button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('subscriptions',this)"><span data-i18n="cab_subscriptions">🔔 Подписки</span></button>
  <!-- Транспортные вкладки — скрыты по умолчанию, показываются по роли -->
- <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('my-transport',this)">🚛 Транспорт</button>
- <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('transport-requests-in',this)">📥 Запросы</button>
- <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-requests-out',this)">📤 На транспорт</button>
- <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)">🔔 Подписки тр.</button>
+ <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('my-transport',this)" data-i18n="cab_my_transport">🚛 ჩემი ტრანსპორტი</button>
+ <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('transport-requests-in',this)" data-i18n="cab_transport_req_in">📥 მოთხოვნები</button>
+ <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-requests-out',this)" data-i18n="cab_transport_req_out">📤 ტრანსპორტზე</button>
+ <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)" data-i18n="cab_transport_subs">🔔 გამოწ. ტრ.</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)"><span data-i18n="None"><span data-i18n="cab_report">📊 Отчёт</span></span></button>
  </div>
 
@@ -477,21 +477,21 @@
  <!-- Вкладка: МОИ ГРУЗЫ -->
  <div id="cabTab-loads" class="cab-tab-content">
  <div id="myLoadsList">
- <div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title">Загружаем грузы...</div></div>
+ <div class="cab-empty"><div class="cab-empty-icon">📦</div><div class="cab-empty-title" data-i18n="loading_loads">Загружаем грузы...</div></div>
  </div>
  </div>
 
  <!-- Вкладка: ОТКЛИКИ -->
  <div id="cabTab-responses" class="cab-tab-content" style="display:none">
  <div id="myResponsesList">
- <div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет активных откликов</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>
+ <div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title" data-i18n="empty_responses">Нет активных откликов</div><div class="cab-empty-sub">Откликнитесь на грузы — они появятся здесь</div></div>
  </div>
  </div>
 
  <!-- Вкладка: СДЕЛКИ -->
  <div id="cabTab-deals" class="cab-tab-content" style="display:none">
  <div id="myDealsList">
- <div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>
+ <div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title" data-i18n="empty_deals">Нет сделок</div><div class="cab-empty-sub">Примите отклик на груз чтобы создать сделку</div></div>
  </div>
  </div>
 
