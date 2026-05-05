@@ -2610,6 +2610,10 @@ const TRANSLATIONS = {
     trips_suffix: 'рейсов',
     empty_orders: 'Нет активных заказов',
     empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
+    cab_my_loads: '📦 Мои грузы',
+    cab_my_responses: '🚛 Мои отклики',
+    badge_my_load: '📦 Мой груз',
+    no_responses_yet: 'Откликов пока нет',
     empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
     btn_post_load: '+ Разместить груз',
     btn_post_new: '+ Разместить новый груз',
@@ -3026,6 +3030,9 @@ const TRANSLATIONS = {
     lbl_responses: 'გამოხმაურებები',
     no_responses: 'გამ. არ არის',
     no_responses_yet: 'გამოხმაურება ჯერ არ არის',
+    cab_my_loads: '📦 ჩემი ტვირთები',
+    cab_my_responses: '🚛 ჩემი გამოხმაურებები',
+    badge_my_load: '📦 ჩემი ტვირთი',
     unit_respond_short: 'გამ.',
     resp_accepted: 'მიღებულია',
     resp_rejected: 'უარყოფილია',
@@ -3926,7 +3933,7 @@ function _renderOrders(){
             </div>
           </div>
         `).join('')}
-      </div>` : `<div style="font-size:12px;color:#aaa;margin-top:8px;text-align:center">Откликов пока нет</div>`;
+      </div>` : `<div style="font-size:12px;color:#aaa;margin-top:8px;text-align:center">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).no_responses_yet||"Откликов пока нет"}</div>`;
 
     return `
     <div id="myload-${l.id}" style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">
@@ -3937,7 +3944,7 @@ function _renderOrders(){
           <div style="font-size:12px;color:#888;margin-top:1px">${l.desc||''}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-          <span style="background:#e8f5e9;color:#2e7d32;padding:4px 8px;border-radius:10px;font-size:11px;white-space:nowrap">📦 Мой груз</span>
+          <span style="background:#e8f5e9;color:#2e7d32;padding:4px 8px;border-radius:10px;font-size:11px;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_my_load||"📦 Мой груз"}</span>
           <div style="display:flex;flex-direction:column;gap:4px">
             <button onclick="editMyLoad(${l.id})" style="background:#f0f7ff;color:#1a6ec0;border:1px solid #bee3f8;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
             <button onclick="deleteMyLoad(${l.id})" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap">✕ ${((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).btn_delete||"Удалить"}</button>
@@ -3977,13 +3984,13 @@ function _renderOrders(){
 
   const myLoadsHeader = _myLoads.length ? `
     <div style="padding:10px 16px 6px;background:#f8f9fa;border-bottom:1px solid #eee">
-      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">📦 Мои грузы</div>
+      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).cab_my_loads||"📦 Мои грузы"}</div>
     </div>
   ` : '';
 
   const ordersHeader = _orders.length ? `
     <div style="padding:10px 16px 6px;background:#f8f9fa;border-bottom:1px solid #eee">
-      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">🚛 Мои отклики</div>
+      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).cab_my_responses||"🚛 Мои отклики"}</div>
     </div>
   ` : '';
 
