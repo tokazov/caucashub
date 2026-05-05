@@ -4016,42 +4016,31 @@ if(_dateInput){
   const _today=new Date();
   _dateInput.min=_today.toISOString().split('T')[0];
 }
-// Восстанавливаем язык ДО рендера — сразу меняем переменную lang
+// Язык восстанавливается ниже через setLang() вместе с рендером
+
+// Гарантируем рендер после загрузки DOM
+// Применяем язык ДО рендера — чтобы renderLoads сразу взял правильный lang
 (function() {
-  const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru') {
-    lang = saved;
-    document.documentElement.lang = saved === 'ge' ? 'ka' : saved;
+  const _saved = localStorage.getItem('ch_lang');
+  if (_saved && _saved !== 'ru' && typeof setLang === 'function') {
+    const _btn = document.querySelector('.lang-btn[onclick*="' + _saved + '"]');
+    setLang(_saved, _btn || null);
   }
 })();
 
-// Гарантируем рендер после загрузки DOM
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',()=>{
+    // Язык уже установлен выше — renderLoads и sync подхватят его
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
-    _setupCityAutocomplete('fFrom', {lang: 'ru'});
-    _setupCityAutocomplete('fTo', {lang: 'ru'});
-    // Применяем язык после загрузки DOM (setLang делает полный ре-рендер)
-    const saved = localStorage.getItem('ch_lang');
-    if (saved && saved !== 'ru' && typeof setLang === 'function') {
-      const btn = document.querySelector('.lang-btn[onclick*="' + saved + '"]');
-      setLang(saved, btn || null);
-    }
+    _setupCityAutocomplete('fFrom', {lang: lang});
+    _setupCityAutocomplete('fTo', {lang: lang});
   });
 } else {
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
-  _setupCityAutocomplete('fFrom', {lang: 'ru'});
-  _setupCityAutocomplete('fTo', {lang: 'ru'});
-  // DOM уже готов — применяем язык после рендера данных
-  const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru' && typeof setLang === 'function') {
-    setTimeout(function() {
-      const btn = document.querySelector('.lang-btn[onclick*="' + saved + '"]');
-      setLang(saved, btn || null);
-    }, 150);
-  }
+  _setupCityAutocomplete('fFrom', {lang: lang});
+  _setupCityAutocomplete('fTo', {lang: lang});
 }
 
 function openPlansModal(e){ 
