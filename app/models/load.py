@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -46,9 +46,9 @@ class Load(Base):
     cargo_desc    = Column(Text, nullable=True)
 
     # Цена
-    price_usd     = Column(Float, nullable=True)
-    price_gel     = Column(Float, nullable=True)
-    exchange_rate_at_creation = Column(Float, nullable=True)  # GEL/USD из NBG на момент создания
+    price_usd     = Column(Numeric(12, 2), nullable=True)
+    price_gel     = Column(Numeric(12, 2), nullable=True)
+    exchange_rate_at_creation = Column(Numeric(12, 6), nullable=True)  # GEL/USD из NBG на момент создания
     payment_type  = Column(String, nullable=True)  # нал/безнал
 
     # Даты
