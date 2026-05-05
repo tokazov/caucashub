@@ -863,7 +863,7 @@ function callTruck(co, plate, phone){
 function openPostTruck(){
   if(!user){ openAuth('register'); return; }
   document.getElementById('postTruckSuccess').style.display='none';
-  document.getElementById('postTruckOverlay').classList.add('on');
+  var _ptOvr = document.getElementById('postTruckOverlay'); _ptOvr.classList.add('on'); var _ptMdl = _ptOvr.querySelector('.modal'); if(_ptMdl) trapFocus(_ptMdl);
 }
 
 function doPostTruck(){
@@ -1070,7 +1070,7 @@ function openCargo(d){
     const btn = document.getElementById('btnRespond');
     if(btn){ btn.disabled=false; btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_load||'Откликнуться на груз'; }
   }
-  document.getElementById('cargoOverlay').classList.add('on');
+  var _cgOvr = document.getElementById('cargoOverlay'); _cgOvr.classList.add('on'); var _cgMdl = _cgOvr.querySelector('.modal'); if(_cgMdl) trapFocus(_cgMdl);
 }
 
 // ── RESPOND ───────────────────────────────────────────
@@ -1113,7 +1113,7 @@ function doRespond(){
       if(r.status === 403){
         btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_back||'Откликнуться'; btn.disabled=false;
         closeModal('cargoOverlay');
-        document.getElementById('paywallOverlay').classList.add('on');
+        var _pwOvr = document.getElementById('paywallOverlay'); _pwOvr.classList.add('on'); var _pwMdl = _pwOvr.querySelector('.modal'); if(_pwMdl) trapFocus(_pwMdl);
         return;
       }
       // 401 — токен истёк, открываем логин
@@ -1377,7 +1377,7 @@ function showPhone(){
 
 // ── AUTH ──────────────────────────────────────────────
 function openAuth(tab){
-  document.getElementById('authOverlay').classList.add('on');
+  var _authOvr = document.getElementById('authOverlay'); _authOvr.classList.add('on'); var _authMdl = _authOvr.querySelector('.modal'); if(_authMdl) trapFocus(_authMdl);
   switchAuth(tab);
 }
 function switchAuth(tab){
@@ -1688,7 +1688,7 @@ function doLogout(){
 }
 function openProfile(){
   if(!user){openAuth('login');return;}
-  document.getElementById('profileOverlay').classList.add('on');
+  var _profOvr = document.getElementById('profileOverlay'); _profOvr.classList.add('on'); var _profMdl = _profOvr.querySelector('.modal'); if(_profMdl) trapFocus(_profMdl);
 }
 
 // ── POST LOAD ─────────────────────────────────────────
@@ -1702,7 +1702,7 @@ function openPostLoad(){
   const cl=document.getElementById('priceCurLabel');
   if(cl){const _T=TRANSLATIONS[lang]||TRANSLATIONS['ru']; cl.textContent=scope==='intl'?(_T.lbl_rate_intl||'Ставка ($)'):(_T.lbl_rate_form||'Ставка (₾)');}
   if(typeof updateFormForIntl==='function') updateFormForIntl();
-  document.getElementById('postOverlay').classList.add('on');
+  var _postOvr = document.getElementById('postOverlay'); _postOvr.classList.add('on'); var _postMdl = _postOvr.querySelector('.modal'); if(_postMdl) trapFocus(_postMdl);
   _setupCityAutocomplete('fFrom', {lang: 'ru'});
   _setupCityAutocomplete('fTo', {lang: 'ru'});
 }
@@ -3377,6 +3377,46 @@ function setLang(l, btn) {
   if(typeof aiReset === 'function') aiReset();
 }
 
+
+// ── ACCESSIBILITY: focusTrap ──────────────────────────────────────────────────
+/**
+ * Traps keyboard focus inside a modal element (Tab cycles within).
+ * Esc closes the modal (closes first parent overlay with class "on").
+ * Call trapFocus(modalEl) whenever a modal is opened.
+ */
+function trapFocus(modalEl) {
+  const focusable = modalEl.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last  = focusable[focusable.length - 1];
+
+  // Remove any previous listener to avoid duplicates
+  if (modalEl._trapFocusHandler) {
+    modalEl.removeEventListener('keydown', modalEl._trapFocusHandler);
+  }
+
+  modalEl._trapFocusHandler = function(e) {
+    if (e.key === 'Escape') {
+      // Close the overlay
+      const overlay = modalEl.closest('.overlay');
+      if (overlay && overlay.id) closeModal(overlay.id);
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+    }
+  };
+  modalEl.addEventListener('keydown', modalEl._trapFocusHandler);
+  // Move focus to the first focusable element
+  setTimeout(function() { first.focus(); }, 50);
+}
+window.trapFocus = trapFocus;
+
 // ── MODALS ────────────────────────────────────────────
 function closeModal(id){ 
   var el = document.getElementById(id);
@@ -3537,7 +3577,7 @@ function openSettings(){
   if(role) role.onchange=()=>{ if(cf) cf.style.display=(role.value==='shipper')?'none':'block'; };
   _setupCityAutocomplete('sCityAll', {lang: 'ru'});
   var _so = document.getElementById('settingsOverlay');
-  _so.classList.add('on');
+  _so.classList.add('on'); var _soMdl = _so.querySelector('.modal'); if(_soMdl) trapFocus(_soMdl);
   // Мобиль: bottom-sheet на весь экран через отдельные свойства (совместимо со старым Android)
   if(window.innerWidth <= 540){
     _so.style.display    = 'flex';
@@ -4217,7 +4257,7 @@ function openDemoNotice(){
     if(dismissEl) dismissEl.textContent = 'Понятно';
     if(regEl)   regEl.textContent   = 'Регистрация';
   }
-  document.getElementById('demoNoticeOverlay').classList.add('on');
+  var _dnOvr = document.getElementById('demoNoticeOverlay'); _dnOvr.classList.add('on'); var _dnMdl = _dnOvr.querySelector('.modal'); if(_dnMdl) trapFocus(_dnMdl);
 }
 window.openDemoNotice = openDemoNotice;
 
@@ -4483,7 +4523,7 @@ function openDeleteAccountModal(){
   const btn = document.getElementById('btnDeleteConfirm');
   if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
   closeModal('settingsOverlay');
-  document.getElementById('deleteAccountOverlay').classList.add('on');
+  var _daOvr = document.getElementById('deleteAccountOverlay'); _daOvr.classList.add('on'); var _daMdl = _daOvr.querySelector('.modal'); if(_daMdl) trapFocus(_daMdl);
 }
 
 function checkDeleteConfirm(){
@@ -4920,7 +4960,7 @@ window.openPostTransportOffer = function() {
   var df = document.getElementById('ptDateFrom'); if(df) { df.min = today; if(!df.value) df.value = today; }
   var overlay = document.getElementById('postTransportOverlay');
   if(overlay) {
-    overlay.classList.add('on');
+    overlay.classList.add('on'); var _ptoMdl = overlay.querySelector('.modal'); if(_ptoMdl) trapFocus(_ptoMdl);
     if(window.innerWidth <= 540) {
       overlay.style.display='flex'; overlay.style.alignItems='flex-end'; overlay.style.padding='0';
       var m=overlay.querySelector('.modal'); if(m){ m.style.width='100%'; m.style.maxWidth='100%'; m.style.borderRadius='20px 20px 0 0'; m.style.maxHeight='92vh'; m.style.overflowY='auto'; }
