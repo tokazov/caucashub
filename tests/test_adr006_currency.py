@@ -108,9 +108,9 @@ async def test_load_created_in_gel_fills_price_usd():
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Load).where(Load.from_city == "Тбилиси"))
         load = result.scalar_one()
-        assert load.price_gel == 819.0
+        assert float(load.price_gel) == 819.0
         assert load.price_usd is not None
-        assert abs(load.price_usd - 819.0 / TEST_RATE) < 0.05  # ±5 центов
+        assert abs(float(load.price_usd) - 819.0 / TEST_RATE) < 0.05  # ±5 центов
         assert load.exchange_rate_at_creation == TEST_RATE
 
 
@@ -135,9 +135,9 @@ async def test_load_created_in_usd_fills_price_gel():
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Load).where(Load.from_city == "Кутаиси"))
         load = result.scalar_one()
-        assert load.price_usd == 300.0
+        assert float(load.price_usd) == 300.0
         assert load.price_gel is not None
-        assert abs(load.price_gel - 300.0 * TEST_RATE) < 0.1
+        assert abs(float(load.price_gel) - 300.0 * TEST_RATE) < 0.1
         assert load.exchange_rate_at_creation == TEST_RATE
 
 
@@ -172,9 +172,9 @@ async def test_response_in_gel_fills_price_usd():
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Response).where(Response.id == resp_id))
         resp = result.scalar_one()
-        assert resp.price_gel == 380.0
+        assert float(resp.price_gel) == 380.0
         assert resp.price_usd is not None
-        assert abs(resp.price_usd - 380.0 / TEST_RATE) < 0.05
+        assert abs(float(resp.price_usd) - 380.0 / TEST_RATE) < 0.05
         assert resp.exchange_rate_at_creation == TEST_RATE
 
 
@@ -217,8 +217,8 @@ async def test_deal_has_exchange_rate_snapshot():
         assert deal.exchange_rate_snapshot == TEST_RATE
         assert deal.final_price_gel is not None
         assert deal.final_price_usd is not None
-        assert abs(deal.final_price_gel - 480.0) < 0.1
-        assert abs(deal.final_price_usd - 480.0 / TEST_RATE) < 0.1
+        assert abs(float(deal.final_price_gel) - 480.0) < 0.1
+        assert abs(float(deal.final_price_usd) - 480.0 / TEST_RATE) < 0.1
 
 
 # ── TEST 5: Курс кешируется ───────────────────────────────────────────────────
