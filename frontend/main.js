@@ -456,6 +456,8 @@ function translatePay(pay) {
     'Безнал 7 дней': T.pay_cashless7||pay,
     '50% предоплата': T.pay_prepay||pay,
     'Безнал': T.pay_cashless||'უნაღდო',
+    'Доска': T.pay_board||'დაფა',
+    'Бартер': T.pay_barter||'ბარტერი',
   };
   return map[pay] || pay;
 }
@@ -3205,6 +3207,8 @@ const TRANSLATIONS = {
     lbl_distance: 'მანძილი',
     pay_cash_short: 'ნაღდი',
     pay_cashless: 'უნაღდო',
+    pay_board: 'დაფა',
+    pay_barter: 'ბარტერი',
     modal_post_title: 'ტვირთის განთავსება',
     modal_edit_title: '✏️ ტვირთის რედაქტირება',
     lbl_weight_form: 'წონა (კგ)',
