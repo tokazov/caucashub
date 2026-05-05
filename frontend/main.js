@@ -661,6 +661,7 @@ function userHasPlan(min){
 }
 
 let scope='local', lang='ru', user=null, cargoData=[...LOCAL];
+window.__getLang = function() { return lang; };
 Object.defineProperty(window, 'scope', { get: ()=>scope });
 Object.defineProperty(window, 'currentUserId', { get: ()=>currentUserId, set: (v)=>{ currentUserId=v; } });
 Object.defineProperty(window, 'user', { get: ()=>user, set: (v)=>{ user=v; } });
@@ -706,7 +707,7 @@ function renderLoads(data){
   if (!data) data = [];
   // Фильтруем занятые грузы
   data = data.filter(d=>d.status!=='taken');
-  const T = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[typeof lang!=='undefined'?lang:'ru']) || {};
+  const _l = (typeof lang !== 'undefined' && lang) || 'ru'; const T = (typeof TRANSLATIONS !== 'undefined' && (TRANSLATIONS[_l] || TRANSLATIONS['ru'])) || {};
   document.getElementById('fcount').textContent = data.length + ' ' + (T.fcount_suffix || 'грузов');
   const list=document.getElementById('cargoList');
   list.innerHTML='';
@@ -3452,6 +3453,7 @@ function applyLang(l) {
 
 function setLang(l, btn) {
   lang = l;
+  window.__currentLang = l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   applyLang(l);
