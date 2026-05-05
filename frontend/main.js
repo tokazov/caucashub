@@ -4002,12 +4002,11 @@ if(document.readyState==='loading'){
     syncLoadsFromServer();
     _setupCityAutocomplete('fFrom', {lang: 'ru'});
     _setupCityAutocomplete('fTo', {lang: 'ru'});
-    // Применяем язык после загрузки DOM
+    // Применяем язык после загрузки DOM (setLang делает полный ре-рендер)
     const saved = localStorage.getItem('ch_lang');
-    if (saved && saved !== 'ru' && typeof applyLang === 'function') {
-      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
-      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-      applyLang(saved);
+    if (saved && saved !== 'ru' && typeof setLang === 'function') {
+      const btn = document.querySelector('.lang-btn[onclick*="' + saved + '"]');
+      setLang(saved, btn || null);
     }
   });
 } else {
@@ -4015,14 +4014,13 @@ if(document.readyState==='loading'){
   syncLoadsFromServer();
   _setupCityAutocomplete('fFrom', {lang: 'ru'});
   _setupCityAutocomplete('fTo', {lang: 'ru'});
-  // DOM уже готов — применяем язык сразу после sync
+  // DOM уже готов — применяем язык после рендера данных
   const saved = localStorage.getItem('ch_lang');
-  if (saved && saved !== 'ru' && typeof applyLang === 'function') {
+  if (saved && saved !== 'ru' && typeof setLang === 'function') {
     setTimeout(function() {
-      const btn = document.querySelector('.lang-btn[onclick*="\'ge\'"]');
-      if (btn) { document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
-      applyLang(saved);
-    }, 100);
+      const btn = document.querySelector('.lang-btn[onclick*="' + saved + '"]');
+      setLang(saved, btn || null);
+    }, 150);
   }
 }
 
