@@ -4831,7 +4831,7 @@ function renderSubscriptions() {
     if(s.max_weight_t) filters.push('до '+s.max_weight_t+' т');
     html += '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin-bottom:10px;position:relative">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
-    html += '<div style="font-size:15px;font-weight:700;color:#1a1a2e">'+esc(s.from_city)+' → '+esc(s.to_city)+'</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:#1a1a2e">'+(typeof translateCity==='function'?translateCity(s.from_city):esc(s.from_city))+' → '+(typeof translateCity==='function'?translateCity(s.to_city):esc(s.to_city))+'</div>';
     html += '<span style="font-size:11px;color:'+statusColor+';font-weight:600">● '+statusText+'</span>';
     html += '</div>';
     if(filters.length) {
