@@ -2781,6 +2781,7 @@ const TRANSLATIONS = {
     respond_hint: '📞 После принятия отклика грузовладелец свяжется с вами',
     respond_login_hint: 'Войдите, чтобы откликнуться на груз',
     btn_show_route: '🗺️ Показать маршрут на карте',
+    map_hide: '🗺️ Скрыть карту',
     respond_sent: '✅ Заявка отправлена',
     btn_cancel: '✕ Отменить',
     opt_any_body: 'Любой кузов',
@@ -3196,6 +3197,7 @@ const TRANSLATIONS = {
     respond_hint: '📞 გამოხმაურების მიღების შემდეგ ტვირთის მფლობელი დაგიკავშირდებათ',
     respond_login_hint: 'გამოეხმაურეთ ტვირთს შესვლის შემდეგ',
     btn_show_route: '🗺️ მარშრუტის ჩვენება რუკაზე',
+    map_hide: '🗺️ რუკის დამალვა',
     respond_sent: '✅ განაცხადი გაგზავნილია',
     btn_cancel: '✕ გაუქმება',
     btn_edit: '✏️ რედაქტირება',
@@ -4282,7 +4284,7 @@ window.openRouteMap = function(){
   }
   
   block.style.display = 'block';
-  document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Скрыть карту';
+  var _T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']); document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ ' + (_T.map_hide||'Скрыть карту');
   
   if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
   
