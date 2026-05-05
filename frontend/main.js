@@ -3326,6 +3326,7 @@ const TRANSLATIONS = {
     transport_sub_btn: '🔔 გამოწერა',
     loading_map: '⏳ რუკა იტვირთება...',
     map_building: '⏳ მარშრუტი შენდება...',
+    map_hide: 'რუკის დამალვა',
     loading_generic: '⏳ იტვირთება...',
     empty_orders: 'აქტიური შეკვეთები არ არის',
     empty_responses: 'აქტიური გამოხმაურებები არ არის',
@@ -4262,101 +4263,121 @@ setTimeout(renderNotifs, 100);
 // ═══ ЯНДЕКС КАРТА В МОДАЛЕ ═══
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
-  let from = '', to = '';
-  // Берём из локальной переменной currentCargoId (устанавливается в openCargo)
+  let from = '', to = '', routeLabel = '';
   if(typeof currentCargoId !== 'undefined' && currentCargoId && allLoads){
     const d = allLoads.find(l=>l.id===currentCargoId);
-    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; }
+    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; routeLabel = (d.from||'')+' → '+(d.to||''); }
   } else if(window.currentCargoId && window.allLoads){
     const d = window.allLoads.find(l=>l.id===window.currentCargoId);
-    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; }
+    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; routeLabel = (d.from||'')+' → '+(d.to||''); }
   }
-  // fallback: читаем из mGrid
-  if(!from || !to){
+  if(!from && !to){
     const cells = document.querySelectorAll('#mGrid > div > div:last-child');
-    if(cells.length >= 2){ from = cells[0].textContent.trim(); to = cells[1].textContent.trim(); }
+    if(cells.length >= 2){ from = cells[0].textContent.trim(); to = cells[1].textContent.trim(); routeLabel = from+' → '+to; }
   }
-  if(!from || !to){ console.warn('[Map] no route from/to'); return; }
-  
-  const block = document.getElementById('routeMapBlock');
-  if(!block) return;
-  
-  if(block.style.display !== 'none' && block.style.display !== ''){
-    block.style.display = 'none';
-    if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-    const _mapBtn2 = document.querySelector('[onclick="openRouteMap()"]'); if(_mapBtn2) _mapBtn2.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_show_route||'🗺️ Показать маршрут на карте';
+  if(!from || !to){ console.warn('[Map] no route'); return; }
+
+  const T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
+
+  // Используем полноэкранный overlay (вне overflow:hidden контейнеров)
+  const ovl = document.getElementById('mapOverlay');
+  if(!ovl) return;
+
+  // Если карта уже открыта — закрываем
+  if(ovl.style.display === 'flex'){
+    closeMapOverlay();
     return;
   }
-  
-  block.style.display = 'block';
-  document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Скрыть карту';
-  // Скроллим modal-bottom к карте
-  setTimeout(function(){
-    var _modal = document.querySelector('#cargoOverlay .modal-bottom') || document.querySelector('.modal-bottom');
-    if(_modal) _modal.scrollTop = _modal.scrollHeight;
-    else block.scrollIntoView({behavior:'smooth', block:'nearest'});
-  }, 150);
-  
-  if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-  
-  var mapEl = document.getElementById('routeMapModal');
-  mapEl.innerHTML='<div style="padding:30px;text-align:center;color:#aaa;font-size:14px">⏳ Загружаем карту...</div>';
-  
+
+  // Обновляем заголовок
+  const titleEl = document.getElementById('mapOverlayTitle');
+  if(titleEl) titleEl.textContent = '🗺️ ' + translateCity(from.split(',')[0].trim()) + ' → ' + translateCity(to.split(',')[0].trim());
+  const distEl = document.getElementById('mapOverlayDist');
+  if(distEl) distEl.textContent = '⏳ ' + (T.map_building||'Строим маршрут...');
+
+  // Обновляем кнопку в карточке
+  const _mapBtn = document.querySelector('[onclick="openRouteMap()"]');
+  if(_mapBtn) _mapBtn.textContent = '🗺️ ' + (T.map_hide||'Скрыть карту');
+
+  // Показываем overlay
+  ovl.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  // Инициализируем карту
+  const mapEl = document.getElementById('mapOverlayContainer');
+  if(!mapEl) return;
+  mapEl.innerHTML = '';
+  if(_routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap = null; }
+
   function _initMap(){
-    if(typeof ymaps === 'undefined'){
-      // ymaps ещё не загрузился — ждём
-      setTimeout(_initMap, 300);
-      return;
-    }
-    mapEl.innerHTML='';
-    if(_routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap=null; }
-  ymaps.ready(function(){
-    // Растягиваем modal-bottom для карты
-    var _mb = document.querySelector('#cargoOverlay .modal-bottom');
-    if(_mb){ _mb.style.maxHeight='95vh'; _mb.style.overflowY='auto'; }
-    _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
-    // Скроллим к карте
-    setTimeout(function(){ 
-      var b=document.getElementById('routeMapBlock'); 
-      if(b&&_mb) _mb.scrollTop=b.offsetTop;
-      if(_routeMap) _routeMap.container.fitToViewport();
-    }, 200);
-    // Конвертируем GE название → RU для геокодинга Яндекса
-    function _toRu(name) {
-      if(!name) return name;
-      if(typeof CITIES !== 'undefined') {
-        const c = CITIES.find(x => x.nameGe && x.nameGe === name);
-        if(c) return c.name;
-      }
-      if(typeof REGION_NAMES_GE !== 'undefined') {
-        for(const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
-          if(ge === name) return ru;
+    if(typeof ymaps === 'undefined'){ setTimeout(_initMap, 300); return; }
+    ymaps.ready(function(){
+      _routeMap = new ymaps.Map('mapOverlayContainer', {
+        center:[41.7151,44.8271], zoom:7,
+        controls:['zoomControl','typeSelector']
+      });
+
+      function _toRu(name) {
+        if(!name) return name;
+        if(typeof CITIES !== 'undefined') {
+          const c = CITIES.find(x => x.nameGe && x.nameGe === name);
+          if(c) return c.name;
         }
+        if(typeof REGION_NAMES_GE !== 'undefined') {
+          for(const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
+            if(ge === name) return ru;
+          }
+        }
+        return name;
       }
-      return name; // если не нашли — используем как есть
-    }
-    const fromRu = _toRu(from.split(',')[0].trim());
-    const toRu = _toRu(to.split(',')[0].trim());
-    ymaps.geocode(fromRu+', Грузия',{results:1}).then(function(res){
-      const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
-      ymaps.geocode(toRu+', Грузия',{results:1}).then(function(res2){
-        const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
-        if(!fromCoords||!toCoords) return;
-        
-        const route = new ymaps.multiRouter.MultiRoute({
-          referencePoints: [fromCoords, toCoords],
-          params: {routingMode:'auto'}
-        },{wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
-        
-        _routeMap.geoObjects.add(route);
-        route.model.events.add('requestsuccess', function(){
-          _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
+
+      const fromRu = _toRu(from.split(',')[0].trim());
+      const toRu   = _toRu(to.split(',')[0].trim());
+
+      ymaps.geocode(fromRu+', Грузия',{results:1}).then(function(res){
+        const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
+        ymaps.geocode(toRu+', Грузия',{results:1}).then(function(res2){
+          const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
+          if(!fromCoords||!toCoords){
+            if(distEl) distEl.textContent = '⚠️ Маршрут не найден';
+            return;
+          }
+
+          const route = new ymaps.multiRouter.MultiRoute({
+            referencePoints: [fromCoords, toCoords],
+            params: {routingMode:'auto'}
+          },{
+            wayPointFinishIconColor:'#e74c3c',
+            routeActiveStrokeWidth:5,
+            routeActiveStrokeColor:'#f7b731'
+          });
+
+          _routeMap.geoObjects.add(route);
+          route.model.events.add('requestsuccess', function(){
+            _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
+            const activeRoute = route.getActiveRoute();
+            if(activeRoute && distEl){
+              const dist = Math.round(activeRoute.properties.get('distance').value / 1000);
+              const dur  = Math.round(activeRoute.properties.get('duration').value / 3600 * 10) / 10;
+              distEl.textContent = dist + ' км · ~' + dur + ' ч';
+            }
+          });
         });
       });
     });
-  }); // ymaps.ready
-  } // _initMap
+  }
   _initMap();
+}
+
+window.closeMapOverlay = function(){
+  const ovl = document.getElementById('mapOverlay');
+  if(ovl) ovl.style.display = 'none';
+  document.body.style.overflow = '';
+  if(_routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap = null; }
+  // Восстанавливаем кнопку
+  const T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
+  const _mapBtn = document.querySelector('[onclick="openRouteMap()"]');
+  if(_mapBtn) _mapBtn.textContent = '🗺️ ' + (T.btn_show_route||'Показать маршрут на карте');
 }
 
 
