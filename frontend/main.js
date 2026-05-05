@@ -4309,6 +4309,7 @@ window.openRouteMap = function(){
       return;
     }
     mapEl.innerHTML='';
+    if(_routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap=null; }
   ymaps.ready(function(){
     _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
     // Конвертируем GE название → RU для геокодинга Яндекса
