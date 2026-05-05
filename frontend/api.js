@@ -353,7 +353,7 @@ window.mapServerLoad = mapServerLoad;
 window.getToken = getToken;
 window.setToken = setToken;
 window.decodeJwtUserId = decodeJwtUserId;
-window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRouteMap_(); };
+// openRouteMap defined in main.js
 
 // ── Загрузка реальных счётчиков из API ───────────────────────────────────────
 (function loadStatsCounters(){
