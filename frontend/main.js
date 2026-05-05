@@ -4844,7 +4844,7 @@ function renderSubscriptions() {
     } else {
       html += '<button onclick="toggleSubscription('+s.id+',true)" style="flex:1;background:#e8f8f0;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#2ecc71;font-weight:600">▶ Включить</button>';
     }
-    html += '<button onclick="deleteSubscription('+s.id+')" style="flex:1;background:#fff5f5;border:1px solid #ffd5d5;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#e74c3c">🗑 Удалить</button>';
+    html += '<button onclick="deleteSubscription('+s.id+')" style="flex:1;background:#fff5f5;border:1px solid #ffd5d5;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#e74c3c">🗑 ' + (_T2.btn_delete||'Удалить') + '</button>';
     html += '</div>';
     html += '</div>';
   });
