@@ -822,6 +822,7 @@ try { _myTrucks = JSON.parse(localStorage.getItem('ch_my_trucks')||'[]'); } catc
 
 function renderTrucks(){
   const list=document.getElementById('truckList');
+  if(!list) return;
   list.innerHTML='';
   const allTrucks = [..._myTrucks, ...(window._serverTrucks||[]), ...((_myTrucks.length||(window._serverTrucks||[]).length)?[]:TRUCKS)];
   const countEl = document.getElementById('truckCount');
@@ -3465,10 +3466,10 @@ function applyLang(l) {
 function setLang(l, btn) {
   lang = l;
   window.__currentLang = l;
+  localStorage.setItem('ch_lang', l);
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   applyLang(l);
-  localStorage.setItem('ch_lang', l);
   // Перерендерим динамические блоки
   if(typeof renderLoads === 'function') renderLoads();
   if(typeof renderTrucks === 'function') renderTrucks();
