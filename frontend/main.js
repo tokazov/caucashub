@@ -4297,9 +4297,25 @@ window.openRouteMap = function(){
     mapEl.innerHTML='';
   ymaps.ready(function(){
     _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
-    ymaps.geocode(from+', Грузия',{results:1}).then(function(res){
+    // Конвертируем GE название → RU для геокодинга Яндекса
+    function _toRu(name) {
+      if(!name) return name;
+      if(typeof CITIES !== 'undefined') {
+        const c = CITIES.find(x => x.nameGe && x.nameGe === name);
+        if(c) return c.name;
+      }
+      if(typeof REGION_NAMES_GE !== 'undefined') {
+        for(const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
+          if(ge === name) return ru;
+        }
+      }
+      return name; // если не нашли — используем как есть
+    }
+    const fromRu = _toRu(from.split(',')[0].trim());
+    const toRu = _toRu(to.split(',')[0].trim());
+    ymaps.geocode(fromRu+', Грузия',{results:1}).then(function(res){
       const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
-      ymaps.geocode(to+', Грузия',{results:1}).then(function(res2){
+      ymaps.geocode(toRu+', Грузия',{results:1}).then(function(res2){
         const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
         if(!fromCoords||!toCoords) return;
         
