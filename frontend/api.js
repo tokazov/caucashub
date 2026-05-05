@@ -296,56 +296,6 @@ window.openPlansModal = function(e){
 };
 
 
-// ═══ ЯНДЕКС КАРТА В МОДАЛЕ ═══
-var _routeMap = null;
-window.openRouteMap = function(){
-  var title = document.getElementById('mTitle') ? document.getElementById('mTitle').textContent.trim() : '';
-  var parts = title.split(' → ');
-  var from = parts[0] ? parts[0].trim() : '';
-  var to = parts[1] ? parts[1].trim() : '';
-  if(!from || !to){ alert('Не указан маршрут'); return; }
-  
-  var block = document.getElementById('routeMapBlock');
-  var btn = document.querySelector('[onclick="openRouteMap()"]');
-  if(!block) return;
-  
-  if(block.style.display !== 'none'){
-    block.style.display = 'none';
-    if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-    if(btn) btn.textContent = '🗺️ Показать маршрут на карте';
-    return;
-  }
-  
-  block.style.display = 'block';
-  if(btn) btn.textContent = '🗺️ Скрыть карту';
-  
-  if(typeof ymaps === 'undefined'){ 
-    document.getElementById('routeMap').innerHTML='<div style="padding:20px;text-align:center;color:#999">Карты загружаются...</div>';
-    return;
-  }
-  
-  if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
-  
-  ymaps.ready(function(){
-    _routeMap = new ymaps.Map('routeMap', {center:[41.7151,44.8271], zoom:7});
-    ymaps.geocode(from+', Грузия', {results:1}).then(function(res){
-      var fromCoords = res.geoObjects.get(0) ? res.geoObjects.get(0).geometry.getCoordinates() : null;
-      ymaps.geocode(to+', Грузия', {results:1}).then(function(res2){
-        var toCoords = res2.geoObjects.get(0) ? res2.geoObjects.get(0).geometry.getCoordinates() : null;
-        if(!fromCoords || !toCoords) return;
-        var route = new ymaps.multiRouter.MultiRoute(
-          {referencePoints:[fromCoords, toCoords], params:{routingMode:'auto'}},
-          {routeActiveStrokeWidth:5, routeActiveStrokeColor:'#f7b731'}
-        );
-        _routeMap.geoObjects.add(route);
-        route.model.events.add('requestsuccess', function(){
-          _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
-        });
-      });
-    });
-  });
-};
-
 // Явная регистрация в window
 window.CaucasAPI = CaucasAPI;
 window.syncLoadsFromServer = syncLoadsFromServer;
@@ -353,7 +303,6 @@ window.mapServerLoad = mapServerLoad;
 window.getToken = getToken;
 window.setToken = setToken;
 window.decodeJwtUserId = decodeJwtUserId;
-window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRouteMap_(); };
 
 // ── Загрузка реальных счётчиков из API ───────────────────────────────────────
 (function loadStatsCounters(){
