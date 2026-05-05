@@ -3461,9 +3461,12 @@ function setLang(l, btn) {
   // Перерендерим динамические блоки
   if(typeof renderLoads === 'function') renderLoads();
   if(typeof renderTrucks === 'function') renderTrucks();
-  if(_currentCabTab === 'loads' && typeof renderCabLoads === 'function') renderCabLoads();
-  if(_currentCabTab === 'responses' && typeof renderCabResponses === 'function') renderCabResponses();
-  if(_currentCabTab === 'deals' && typeof renderCabDeals === 'function') renderCabDeals();
+  // Перерисовываем все кабинетные вкладки при смене языка
+  if(typeof renderCabLoads === 'function') renderCabLoads();
+  if(typeof renderCabResponses === 'function') renderCabResponses();
+  if(typeof renderCabDeals === 'function') renderCabDeals();
+  if(_currentCabTab === 'subscriptions' && typeof loadSubscriptions === 'function') { loadSubscriptions(); if(typeof applyLang==='function') applyLang(l); }
+  if(_currentCabTab === 'transport-subs' && typeof loadMyTransportSubs === 'function') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(l); }
   // AI чат placeholder и приветствие
   var aiInp = document.getElementById('aiInput');
   if(aiInp){ var phs={ru:'Напишите о грузе...',ge:'დაწერეთ ტვირთის შესახებ...',en:'Describe your cargo...'}; aiInp.placeholder=phs[l]||phs['ru']; }
