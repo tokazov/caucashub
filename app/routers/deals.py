@@ -436,11 +436,14 @@ async def download_act(
 async def export_deals(
     format: str = "json",   # json | csv
     status: str = "all",
+    date_from: Optional[str] = Query(None, alias="from"),   # 12.2.4: фильтр по периоду YYYY-MM-DD
+    date_to:   Optional[str] = Query(None, alias="to"),     # 12.2.4: фильтр по периоду YYYY-MM-DD
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(require_user),
 ):
     """Экспорт сделок для бухгалтерии / rs.ge.
-    format=json → JSON  |  format=csv → CSV файл"""
+    format=json → JSON  |  format=csv → CSV файл
+    Поддерживает фильтрацию: from=YYYY-MM-DD, to=YYYY-MM-DD"""
     result = await db.execute(
         select(Deal).where(
             (Deal.shipper_id == user_id) | (Deal.carrier_id == user_id)
@@ -453,6 +456,22 @@ async def export_deals(
         try:
             st = DealStatus(status)
             all_deals = [d for d in all_deals if d.status == st]
+        except ValueError:
+            pass
+
+    # 12.2.4: Фильтрация по периоду дат
+    if date_from:
+        try:
+            from datetime import date as _date
+            df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            all_deals = [d for d in all_deals if (d.completed_at or d.created_at) and (d.completed_at or d.created_at) >= df]
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import date as _date
+            dt = datetime.strptime(date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+            all_deals = [d for d in all_deals if (d.completed_at or d.created_at) and (d.completed_at or d.created_at) <= dt]
         except ValueError:
             pass
 
