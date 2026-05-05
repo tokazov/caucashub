@@ -4,7 +4,7 @@ TransportOffer — предложение транспорта от перево
 Перевозчик размещает: маршрут, дату, тип кузова, вместимость, цену.
 Грузовладелец видит и откликается через TransportRequest.
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -39,8 +39,8 @@ class TransportOffer(Base):
     available_to   = Column(DateTime(timezone=True), nullable=True)    # по какую дату
 
     # Цена
-    price        = Column(Float, nullable=True)    # цена перевозки (в GEL)
-    price_usd    = Column(Float, nullable=True)    # цена в USD
+    price        = Column(Numeric(12, 2), nullable=True)    # цена перевозки (в GEL)
+    price_usd    = Column(Numeric(12, 2), nullable=True)    # цена в USD
 
     # Доп. поля
     status       = Column(String(20), default="active", index=True)
