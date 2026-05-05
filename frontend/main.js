@@ -963,6 +963,10 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
+  // Сбрасываем карту при открытии новой карточки
+  var _rmb = document.getElementById('routeMapBlock');
+  if(_rmb){ _rmb.style.display='none'; }
+  if(typeof _routeMap !== 'undefined' && _routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap=null; }
 
   // ADR-012: показываем/скрываем демо-плашку
   const _demoBanner = document.getElementById('demoBanner');
