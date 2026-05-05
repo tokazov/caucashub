@@ -4286,6 +4286,8 @@ window.openRouteMap = function(){
   
   block.style.display = 'block';
   document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Скрыть карту';
+  // Скроллим к карте в модалке
+  setTimeout(function(){ block.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 100);
   
   if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
   
