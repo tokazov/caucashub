@@ -4815,7 +4815,7 @@ function renderSubscriptions() {
   var list = document.getElementById('subscriptionsList');
   if(!list) return;
   if(!_subscriptions.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_title||'Нет подписок') + '</div><div class="cab-empty-sub">Подпишитесь на маршрут — получите уведомление когда появится новый груз</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_title||'Нет подписок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_sub||'Подпишитесь на маршрут — получите уведомление когда появится новый груз') + '</div></div>';
     return;
   }
   var html = '';
