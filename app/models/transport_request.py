@@ -4,7 +4,7 @@ TransportRequest — отклик грузовладельца на TransportOff
 Симметрично Response (отклик перевозчика на груз),
 но инвертировано: грузовладелец откликается на транспорт.
 """
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -31,7 +31,7 @@ class TransportRequest(Base):
     weight_kg          = Column(Float, nullable=True)
 
     # Предложенная цена (опционально)
-    price              = Column(Float, nullable=True)   # в GEL
+    price              = Column(Numeric(12, 2), nullable=True)   # в GEL
     message            = Column(Text, nullable=True)
 
     # Статус
