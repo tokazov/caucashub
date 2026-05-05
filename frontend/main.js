@@ -4290,8 +4290,12 @@ window.openRouteMap = function(){
   
   block.style.display = 'block';
   document.querySelector('[onclick="openRouteMap()"]').textContent = '🗺️ Скрыть карту';
-  // Скроллим к карте в модалке
-  setTimeout(function(){ block.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 100);
+  // Скроллим modal-bottom к карте
+  setTimeout(function(){
+    var _modal = document.querySelector('#cargoOverlay .modal-bottom') || document.querySelector('.modal-bottom');
+    if(_modal) _modal.scrollTop = _modal.scrollHeight;
+    else block.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 150);
   
   if(_routeMap){ _routeMap.destroy(); _routeMap=null; }
   
