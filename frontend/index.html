@@ -253,12 +253,12 @@
 
   <!-- Заголовок таблицы (десктоп) -->
   <div class="thead transport-thead" style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 100px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
-    <div>МАРШРУТ</div><div>ПЕРЕВОЗЧИК</div><div>ВМЕСТИМОСТЬ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
+    <div data-i18n="th_route_transport">МАРШРУТ</div><div data-i18n="th_carrier">ПЕРЕВОЗЧИК</div><div>ВМЕСТИМОСТЬ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
   </div>
 
   <!-- Лента транспортных предложений -->
   <div id="transportList">
-    <div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем предложения...</div>
+    <div style="text-align:center;padding:40px;color:#aaa" data-i18n="transport_loading">⏳ Загружаем предложения...</div>
   </div>
 </div>
 
@@ -266,22 +266,22 @@
 <div class="overlay" id="postTransportOverlay" onclick="closeOverlay('postTransportOverlay',event)">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="postTransportTitle">
     <button class="close-btn" onclick="closeModal('postTransportOverlay')">✕</button>
-    <div class="modal-title" id="postTransportTitle">🚛 Предложить транспорт</div>
-    <div class="modal-sub">Укажите маршрут и характеристики вашей машины</div>
+    <div class="modal-title" id="postTransportTitle" data-i18n="post_transport_title">🚛 Предложить транспорт</div>
+    <div class="modal-sub" data-i18n="post_transport_sub">Укажите маршрут и характеристики вашей машины</div>
     <div id="postTransportSuccess" class="success-msg" style="display:none">✅ Предложение размещено!</div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <div class="form-group" style="flex:1">
-        <label>Откуда</label>
+        <label data-i18n="post_transport_lbl_from">Откуда</label>
         <input class="form-input" id="ptFrom" placeholder="Тбилиси">
       </div>
       <div class="form-group" style="flex:1">
-        <label>Куда</label>
+        <label data-i18n="post_transport_lbl_to">Куда</label>
         <input class="form-input" id="ptTo" placeholder="Батуми">
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <div class="form-group" style="flex:1">
-        <label>Тип кузова</label>
+        <label data-i18n="post_transport_lbl_type">Тип кузова</label>
         <select class="form-input" id="ptTruckType">
           <option value="tent">Тент</option>
           <option value="gazel">Газель</option>
@@ -293,13 +293,13 @@
         </select>
       </div>
       <div class="form-group" style="flex:1">
-        <label>Вместимость (кг)</label>
+        <label data-i18n="post_transport_lbl_capacity">Вместимость (кг)</label>
         <input class="form-input" type="number" id="ptCapacity" placeholder="10000" min="100" max="100000">
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <div class="form-group" style="flex:1">
-        <label>Дата с</label>
+        <label data-i18n="post_transport_lbl_date_from">Дата с</label>
         <input class="form-input" type="date" id="ptDateFrom">
       </div>
       <div class="form-group" style="flex:1">
