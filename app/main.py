@@ -194,25 +194,48 @@ _SMOKE_INTERVAL = 60  # секунды между прогонами smoke-те�
 
 
 async def _run_smoke_tests() -> dict:
-    """Выполняет smoke-тесты и возвращает dict checks."""
-    import httpx as _httpx
+    """Выполняет smoke-тесты через прямые SQL-запросы (без HTTP self-loopback).
+    
+    Антипаттерн HTTP 127.0.0.1:8000 не работает в Railway-контейнере.
+    Вместо этого — прямые SELECT к каждой критичной таблице.
+    ADR-011 + Q-018.
+    """
+    from sqlalchemy import text as _sa_text
     checks: dict = {}
-    base = "http://127.0.0.1:8000"
-    smoke_endpoints = [
-        ("loads",    f"{base}/api/loads/?limit=1"),
-        ("geocoder", f"{base}/api/cities/search?q=Tbilisi&lang=en"),
-        ("dicts",    f"{base}/api/dictionaries/truck-types"),
-    ]
+
+    # Получаем сессию напрямую из engine (без HTTP)
     try:
-        async with _httpx.AsyncClient(timeout=5.0) as client:
-            for name, url in smoke_endpoints:
-                try:
-                    r = await client.get(url)
-                    checks[name] = "ok" if r.status_code == 200 else f"FAIL: HTTP {r.status_code}"
-                except Exception as e2:
-                    checks[name] = f"FAIL: {type(e2).__name__}"
-    except Exception:
-        pass
+        from app.database import engine as _engine
+        async with _engine.connect() as conn:
+            # 1. loads — основная таблица грузов
+            try:
+                result = await conn.execute(_sa_text("SELECT id FROM loads LIMIT 1"))
+                result.fetchone()
+                checks["loads"] = "ok"
+            except Exception as e:
+                checks["loads"] = f"FAIL: {type(e).__name__}: {str(e)[:80]}"
+
+            # 2. cities — таблица городов (geocoder)
+            try:
+                result = await conn.execute(_sa_text("SELECT id FROM cities LIMIT 1"))
+                result.fetchone()
+                checks["geocoder"] = "ok"
+            except Exception as e:
+                checks["geocoder"] = f"FAIL: {type(e).__name__}: {str(e)[:80]}"
+
+            # 3. dictionaries — проверяем через Python (нет таблицы, это in-memory)
+            try:
+                from app.services.dictionaries import TRUCK_TYPES
+                checks["dicts"] = "ok" if TRUCK_TYPES else "FAIL: empty"
+            except Exception as e:
+                checks["dicts"] = f"FAIL: {type(e).__name__}: {str(e)[:80]}"
+
+    except Exception as e:
+        # Если engine недоступен — все тесты упали
+        for k in ("loads", "geocoder", "dicts"):
+            if k not in checks:
+                checks[k] = f"FAIL: engine: {type(e).__name__}"
+
     return checks
 
 
