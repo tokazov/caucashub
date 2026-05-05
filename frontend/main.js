@@ -2602,7 +2602,7 @@ const TRANSLATIONS = {
     rates_subtitle: 'Средние ставки на маршрутах · обновлено сегодня',
     map_choose_route: 'Выберите маршрут',
     pop_routes: '🗺️ Популярные маршруты',
-    loading_loads: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).loading_loads||'⏳ Загружаем грузы...',
+    loading_loads: '⏳ Загружаем грузы...',
     btn_add_truck: '+ Добавить машину',
     btn_add_truck2: '🚛 Добавить машину',
     btn_post_truck: '📤 Разместить машину',
