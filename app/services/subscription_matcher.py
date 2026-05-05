@@ -204,35 +204,48 @@ async def notify_subscribers(load: Load, db: AsyncSession) -> int:
     Главная функция — вызывается из BackgroundTasks после создания груза.
     Возвращает кол-во отправленных уведомлений.
     """
-    matched = await find_matching_subscriptions(load, db)
-    if not matched:
+    import traceback as _traceback
+    try:
+        matched = await find_matching_subscriptions(load, db)
+        if not matched:
+            return 0
+
+        sent = 0
+        for sub in matched:
+            if _is_debounced(sub.id, load.id):
+                logger.debug(f"[SUB] debounce skip sub={sub.id} load={load.id}")
+                continue
+
+            # Загружаем пользователя
+            user_res = await db.execute(select(User).where(User.id == sub.user_id))
+            user = user_res.scalar_one_or_none()
+            if not user or user.is_deleted:
+                continue
+
+            ok = False
+
+            # Telegram — приоритет
+            if sub.notify_tg and user.telegram_id and not user.telegram_id.startswith("pending:"):
+                ok = await _send_tg_notification(user.telegram_id, load)
+
+            # Email — fallback
+            if not ok and sub.notify_email and user.email:
+                ok = await _send_email_notification(user.email, load)
+
+            if ok:
+                _mark_debounce(sub.id, load.id)
+                sent += 1
+                logger.info(f"[SUB] notified sub={sub.id} user={sub.user_id} load={load.id}")
+
+        return sent
+    except Exception as e:
+        logger.error(
+            "[BackgroundTask] notify_subscribers failed",
+            extra={
+                "task": "notify_subscribers",
+                "load_id": getattr(load, "id", None),
+                "error": str(e),
+                "traceback": _traceback.format_exc(),
+            }
+        )
         return 0
-
-    sent = 0
-    for sub in matched:
-        if _is_debounced(sub.id, load.id):
-            logger.debug(f"[SUB] debounce skip sub={sub.id} load={load.id}")
-            continue
-
-        # Загружаем пользователя
-        user_res = await db.execute(select(User).where(User.id == sub.user_id))
-        user = user_res.scalar_one_or_none()
-        if not user or user.is_deleted:
-            continue
-
-        ok = False
-
-        # Telegram — приоритет
-        if sub.notify_tg and user.telegram_id and not user.telegram_id.startswith("pending:"):
-            ok = await _send_tg_notification(user.telegram_id, load)
-
-        # Email — fallback
-        if not ok and sub.notify_email and user.email:
-            ok = await _send_email_notification(user.email, load)
-
-        if ok:
-            _mark_debounce(sub.id, load.id)
-            sent += 1
-            logger.info(f"[SUB] notified sub={sub.id} user={sub.user_id} load={load.id}")
-
-    return sent
