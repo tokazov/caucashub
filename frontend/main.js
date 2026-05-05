@@ -4311,7 +4311,16 @@ window.openRouteMap = function(){
     mapEl.innerHTML='';
     if(_routeMap){ try{_routeMap.destroy();}catch(e){} _routeMap=null; }
   ymaps.ready(function(){
+    // Растягиваем modal-bottom для карты
+    var _mb = document.querySelector('#cargoOverlay .modal-bottom');
+    if(_mb){ _mb.style.maxHeight='95vh'; _mb.style.overflowY='auto'; }
     _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
+    // Скроллим к карте
+    setTimeout(function(){ 
+      var b=document.getElementById('routeMapBlock'); 
+      if(b&&_mb) _mb.scrollTop=b.offsetTop;
+      if(_routeMap) _routeMap.container.fitToViewport();
+    }, 200);
     // Конвертируем GE название → RU для геокодинга Яндекса
     function _toRu(name) {
       if(!name) return name;
