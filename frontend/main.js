@@ -4263,7 +4263,11 @@ setTimeout(renderNotifs, 100);
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
   let from = '', to = '';
-  if(window.currentCargoId && window.allLoads){
+  // Берём из локальной переменной currentCargoId (устанавливается в openCargo)
+  if(typeof currentCargoId !== 'undefined' && currentCargoId && allLoads){
+    const d = allLoads.find(l=>l.id===currentCargoId);
+    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; }
+  } else if(window.currentCargoId && window.allLoads){
     const d = window.allLoads.find(l=>l.id===window.currentCargoId);
     if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; }
   }
@@ -4272,7 +4276,7 @@ window.openRouteMap = function(){
     const cells = document.querySelectorAll('#mGrid > div > div:last-child');
     if(cells.length >= 2){ from = cells[0].textContent.trim(); to = cells[1].textContent.trim(); }
   }
-  if(!from || !to){ alert('Не указан маршрут'); return; }
+  if(!from || !to){ console.warn('[Map] no route from/to'); return; }
   
   const block = document.getElementById('routeMapBlock');
   if(!block) return;
