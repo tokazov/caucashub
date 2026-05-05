@@ -2204,11 +2204,11 @@ function switchCabTab(tab, el){
  if(tab === 'deals') renderCabDeals();
  if(tab === 'loads') renderCabLoads();
  if(tab === 'responses') renderCabResponses();
- if(tab === 'subscriptions') { loadSubscriptions(); _setupCityAutocomplete('subFromCity', {lang: 'ru'}); _setupCityAutocomplete('subToCity', {lang: 'ru'}); }
+ if(tab === 'subscriptions') { loadSubscriptions(); _setupCityAutocomplete('subFromCity', {lang: lang}); _setupCityAutocomplete('subToCity', {lang: lang}); if(typeof applyLang==='function') applyLang(lang); }
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
- if(tab === 'transport-subs') loadMyTransportSubs();
+ if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); }
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
