@@ -1666,7 +1666,7 @@ function showUserState(){
   const pb=document.getElementById('profilePlanBadge');
   if(pb) pb.innerHTML=getPlanBadge();
   // показываем заказы
-  document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
+  document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
   const nb=document.getElementById('notifBtn');if(nb)nb.style.display='';
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
@@ -1682,7 +1682,7 @@ function doLogout(){
   document.getElementById('userAvatar').style.display='none';
   document.getElementById('ordersList').innerHTML='';
   document.getElementById('ordersEmpty').style.display='block';
-  document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div><div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div><button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth(\'login\')">Войти</button>';
+  document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div><button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth(\'login\')">Войти</button>';
   document.getElementById('ordersList').style.display='none';
   closeModal('profileOverlay');
 }
@@ -2593,7 +2593,7 @@ const TRANSLATIONS = {
     unit_trips: 'рейсов',
     verified: 'Верифицирован',
     empty_loads: 'Грузов не найдено',
-    empty_responses: 'Нет активных откликов',
+    empty_responses: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_responses||'Нет активных откликов',
     empty_trucks: 'Нет машин. Добавьте первую!',
     empty_myloads: 'Нет размещённых грузов',
     empty_deals: 'Нет сделок',
@@ -2602,13 +2602,13 @@ const TRANSLATIONS = {
     rates_subtitle: 'Средние ставки на маршрутах · обновлено сегодня',
     map_choose_route: 'Выберите маршрут',
     pop_routes: '🗺️ Популярные маршруты',
-    loading_loads: '⏳ Загружаем грузы...',
+    loading_loads: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).loading_loads||'⏳ Загружаем грузы...',
     btn_add_truck: '+ Добавить машину',
     btn_add_truck2: '🚛 Добавить машину',
     btn_post_truck: '📤 Разместить машину',
     online_indicator: '● Онлайн 24/7',
     trips_suffix: 'рейсов',
-    empty_orders: 'Нет активных заказов',
+    empty_orders: (TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов',
     empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
     empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
     btn_post_load: '+ Разместить груз',
@@ -3293,6 +3293,11 @@ const TRANSLATIONS = {
     transport_sub_from_ph: 'თბილისი',
     transport_sub_to_ph: 'ბათუმი',
     transport_sub_btn: '🔔 გამოწერა',
+    loading_map: '⏳ რუკა იტვირთება...',
+    loading_generic: '⏳ იტვირთება...',
+    empty_orders: 'აქტიური შეკვეთები არ არის',
+    empty_responses: 'აქტიური გამოხმაურებები არ არის',
+    empty_deals: 'გარიგებები არ არის',
     opt_any_body: 'ნებისმიერი კუზოვი',
     btn_find_transport: '🔍 ძიება',
     btn_offer_transport: '+ ტრანსპორტის შეთავაზება',
@@ -3868,9 +3873,9 @@ function _renderOrders(){
     if(empty){
       empty.style.display='block';
       if(_tok){
-        empty.innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
+        empty.innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
       } else {
-        empty.innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Нет активных заказов</div><div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div><button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth(\'login\')">Войти</button>';
+        empty.innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px;margin-bottom:20px">Войдите в аккаунт чтобы видеть свои заказы</div><button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth(\'login\')">Войти</button>';
       }
     }
     if(list)list.style.display='none';
