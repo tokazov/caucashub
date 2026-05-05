@@ -3465,10 +3465,10 @@ function setLang(l, btn) {
   // Перерендерим динамические блоки
   if(typeof renderLoads === 'function') renderLoads();
   if(typeof renderTrucks === 'function') renderTrucks();
-  // Перерисовываем все кабинетные вкладки при смене языка (только если кабинет в DOM)
-  if(typeof renderCabLoads === 'function' && document.getElementById('myLoadsList')) renderCabLoads();
-  if(typeof renderCabResponses === 'function' && document.getElementById('myResponsesList')) renderCabResponses();
-  if(typeof renderCabDeals === 'function' && document.getElementById('myDealsList')) renderCabDeals();
+  // Перерисовываем все кабинетные вкладки при смене языка (с защитой от ошибок)
+  try { if(typeof renderCabLoads === 'function' && document.getElementById('myLoadsList')) renderCabLoads(); } catch(e) {}
+  try { if(typeof renderCabResponses === 'function' && document.getElementById('myResponsesList')) renderCabResponses(); } catch(e) {}
+  try { if(typeof renderCabDeals === 'function' && document.getElementById('myDealsList')) renderCabDeals(); } catch(e) {}
   if(_currentCabTab === 'subscriptions' && typeof loadSubscriptions === 'function') { loadSubscriptions(); if(typeof applyLang==='function') applyLang(l); }
   if(_currentCabTab === 'transport-subs' && typeof loadMyTransportSubs === 'function') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(l); }
   // AI чат placeholder и приветствие
