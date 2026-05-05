@@ -2364,7 +2364,7 @@ function renderCabResponses(){
  var ts = '';
  try { ts = new Date(o.created).toLocaleString('ru', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}); } catch(e){}
  var cancelBtn = o.status === 'pending'
- ? '<div style="margin-top:8px"><button onclick="cancelMyResponse(' + o.id + ',' + (o.serverId||0) + ')" class="cab-btn del" style="width:100%;padding:7px;font-size:13px">✕ Отменить заявку</button></div>'
+ ? '<div style="margin-top:8px"><button onclick="cancelMyResponse(' + o.id + ',' + (o.serverId||0) + ')" class="cab-btn del" style="width:100%;padding:7px;font-size:13px">✕ '+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel_req||'Отменить заявку')+'</button></div>'
  : '';
  return '<div class="cab-resp-item">'
  + '<div><div class="cab-resp-route">🚛 ' + esc(o.title) + '</div>'
@@ -2774,6 +2774,16 @@ const TRANSLATIONS = {
     btn_show_route: '🗺️ Показать маршрут на карте',
     respond_sent: '✅ Заявка отправлена',
     btn_cancel: '✕ Отменить',
+    btn_disable: 'Отключить',
+    btn_enable: 'Включить',
+    btn_cancel_req: 'Отменить заявку',
+    sub_status_active: 'Активна',
+    sub_status_inactive: 'Отключена',
+    sub_notify_label: 'Уведомления',
+    sub_notify_none: 'нет',
+    confirm_delete_sub: 'Удалить подписку?',
+    err_fill_cities: 'Заполните города Откуда и Куда',
+    err_network: 'Ошибка сети',
     btn_edit: '✏️ Редактировать',
     lbl_rate_modal: 'Ставка',
     lbl_distance: 'Расстояние',
@@ -3264,6 +3274,16 @@ const TRANSLATIONS = {
     transport_sub_from_ph: 'თბილისი',
     transport_sub_to_ph: 'ბათუმი',
     transport_sub_btn: '🔔 გამოწერა',
+    btn_disable: 'გამორთვა',
+    btn_enable: 'ჩართვა',
+    btn_cancel_req: 'განაცხადის გაუქმება',
+    sub_status_active: 'აქტიური',
+    sub_status_inactive: 'გამორთული',
+    sub_notify_label: 'შეტყობინებები',
+    sub_notify_none: 'არ არის',
+    confirm_delete_sub: 'წაშლა?',
+    err_fill_cities: 'შეიყვანეთ ქალაქები',
+    err_network: 'ქსელის შეცდომა',
     transport_sub_empty: 'ტრანსპორტის გამოწერები არ არის',
     transport_sub_empty_sub: 'გამოიწერეთ მარშრუტი — მიიღეთ შეტყობინება',
     transport_sub_active: '● აქტიური',
@@ -4736,7 +4756,8 @@ function renderSubscriptions() {
   var html = '';
   _subscriptions.forEach(function(s) {
     var statusColor = s.is_active ? '#2ecc71' : '#aaa';
-    var statusText  = s.is_active ? 'Активна' : 'Отключена';
+    var _T2 = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+    var statusText  = s.is_active ? (_T2.sub_status_active||'Активна') : (_T2.sub_status_inactive||'Отключена');
     var channels = [];
     if(s.notify_tg)    channels.push('TG');
     if(s.notify_email) channels.push('Email');
@@ -4751,7 +4772,7 @@ function renderSubscriptions() {
     if(filters.length) {
       html += '<div style="font-size:12px;color:#888;margin-bottom:6px">'+filters.join(' · ')+'</div>';
     }
-    html += '<div style="font-size:12px;color:#aaa;margin-bottom:10px">Уведомления: '+(channels.join(', ')||'нет')+'</div>';
+    html += '<div style="font-size:12px;color:#aaa;margin-bottom:10px">' + (_T2.sub_notify_label||'Уведомления') + ': '+(channels.join(', ')||(_T2.sub_notify_none||'нет'))+'</div>';
     html += '<div style="display:flex;gap:8px">';
     if(s.is_active) {
       html += '<button onclick="toggleSubscription('+s.id+',false)" style="flex:1;background:#f0f2f5;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;color:#666">⏸ Отключить</button>';
@@ -4824,7 +4845,7 @@ window.toggleSubscription = async function(subId, active) {
 };
 
 window.deleteSubscription = async function(subId) {
-  if(!confirm('Удалить подписку?')) return;
+  if(!confirm((TRANSLATIONS[lang]||TRANSLATIONS['ru']).confirm_delete_sub||'Удалить подписку?')) return;
   var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
   if(!tk) return;
   try {
@@ -5239,7 +5260,7 @@ window.createTransportSub = async function() {
   var from = (document.getElementById('tsSubFrom')||{}).value||'';
   var to   = (document.getElementById('tsSubTo')  ||{}).value||'';
   var errEl = document.getElementById('tsSubError');
-  if(!from.trim()||!to.trim()){ if(errEl){errEl.textContent='Заполните оба города';errEl.style.display='block';} return; }
+  if(!from.trim()||!to.trim()){ if(errEl){errEl.textContent=((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_fill_cities||'Заполните оба города');errEl.style.display='block';} return; }
   if(errEl) errEl.style.display='none';
   var tk = typeof getToken==='function' ? getToken() : null;
   if(!tk){ openAuth('login'); return; }
@@ -5257,11 +5278,11 @@ window.createTransportSub = async function() {
     } else {
       if(errEl){errEl.textContent=d.detail||'Ошибка';errEl.style.display='block';}
     }
-  } catch(e) { if(errEl){errEl.textContent='Ошибка сети';errEl.style.display='block';} }
+  } catch(e) { if(errEl){errEl.textContent=((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_network||'Ошибка сети');errEl.style.display='block';} }
 };
 
 window.deleteTransportSub = async function(subId) {
-  if(!confirm('Удалить подписку?')) return;
+  if(!confirm((TRANSLATIONS[lang]||TRANSLATIONS['ru']).confirm_delete_sub||'Удалить подписку?')) return;
   var tk = typeof getToken==='function' ? getToken() : null;
   if(!tk) return;
   try {
