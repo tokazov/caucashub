@@ -3207,6 +3207,90 @@ const TRANSLATIONS = {
     lbl_get_code: 'კოდის მიღება',
     err_connection: 'კავშირის შეცდომა',
     lbl_enter_open: 'გახსენით წვდომა',
+    // ── ADR-016: ტრანსპორტის ბირჟა ──────────────────────────────────────
+    cab_transport_offers: '🚛 ჩემი ტრანსპორტი',
+    cab_transport_requests_in: '📥 მოთხოვნები',
+    cab_transport_requests_out: '📤 ტრანსპორტზე',
+    cab_transport_subs: '🔔 გამოწ. ტრ.',
+    // ტრანსპორტის ლენტა
+    transport_offer_new_title: '🚛 ტრანსპორტის შეთავაზება',
+    transport_offer_subtitle: 'მიუთითეთ თქვენი მარშრუტი და მანქანის მახასიათებლები',
+    transport_offer_posted: '✅ შეთავაზება განთავსდა!',
+    transport_filter_from: 'საიდან',
+    transport_filter_to: 'სად',
+    transport_filter_type: 'ნებისმიერი კუზოვი',
+    transport_btn_find: '🔍 ძიება',
+    transport_btn_offer: '+ ტრანსპორტის შეთავაზება',
+    transport_count_suffix: 'ტრანსპორტის შეთავაზება',
+    transport_empty_title: 'შეთავაზებები არ არის',
+    transport_empty_sub: 'სცადეთ ფილტრების შეცვლა',
+    transport_interested: 'მაინტერესებს',
+    transport_capacity: 'ტვირთამწ.',
+    // ტრანსპორტის კაბინეტი
+    my_transport_title: 'ჩემი სატრანსპორტო შეთავაზებები',
+    my_transport_add: '+ დამატება',
+    my_transport_empty: 'შეთავაზებები არ არის',
+    my_transport_empty_sub: 'განათავსეთ სატრანსპორტო შეთავაზება',
+    transport_status_active: '🟢 აქტიური',
+    transport_status_taken: '🔵 დაკავებული',
+    transport_status_completed: '✅ დასრულებული',
+    transport_status_canceled: '⛔ გაუქმებული',
+    transport_btn_remove: 'გაუქმება',
+    // შემომავალი მოთხოვნები
+    transport_req_in_title: 'ტვირთის მფლობელთა მოთხოვნები',
+    transport_req_empty: 'მოთხოვნები არ არის',
+    transport_req_empty_sub: 'როცა ტვირთის მფლობელი გამოეხმაურება — მოთხოვნა გამოჩნდება',
+    transport_req_offer_label: 'შეთავაზებაზე:',
+    transport_req_status_pending: '⏳ მოლოდინი',
+    transport_req_status_accepted: '✅ მიღებული',
+    transport_req_status_rejected: '❌ უარყოფილი',
+    transport_req_status_canceled: '⛔ გაუქმებული',
+    transport_req_btn_accept: '✓ მიღება',
+    transport_req_btn_reject: '✕ უარყოფა',
+    transport_req_cargo: 'ტვირთი:',
+    transport_req_weight: 'წონა:',
+    // გამავალი მოთხოვნები (ტვირთის მფლობელი)
+    transport_req_out_title: 'ჩემი გამოხმაურებები სატრანსპორტო შეთავაზებებზე',
+    transport_req_out_empty: 'გამოხმაურებები არ არის',
+    transport_req_out_empty_sub: 'გადადით «ტრანსპორტი»-ს განყოფილებაში',
+    transport_req_accepted_hint: '✅ გადამზიდველმა მიიღო — შეამოწმეთ «გარიგებები»',
+    transport_req_btn_cancel: 'გაუქმება',
+    // ტრანსპორტის გამოწერები
+    transport_sub_title: '➕ ტრანსპორტის გამოწერა',
+    transport_sub_from_ph: 'თბილისი',
+    transport_sub_to_ph: 'ბათუმი',
+    transport_sub_btn: '🔔 გამოწერა',
+    transport_sub_empty: 'ტრანსპორტის გამოწერები არ არის',
+    transport_sub_empty_sub: 'გამოიწერეთ მარშრუტი — მიიღეთ შეტყობინება',
+    transport_sub_active: '● აქტიური',
+    transport_sub_inactive: '● გამორთული',
+    transport_sub_tg: 'TG:',
+    transport_sub_email: 'Email:',
+    // TransportRequest modal
+    transport_req_modal_title: '📦 ტრანსპორტზე გამოხმაურება',
+    transport_req_modal_sub: 'აღწერეთ თქვენი ტვირთი',
+    transport_req_cargo_ph: 'სამშენებლო მასალები',
+    transport_req_weight_ph: '5000',
+    transport_req_msg_ph: 'მჭირდება მანქანა 1 ივნისიდან',
+    transport_req_btn_send: '📤 მოთხოვნის გაგზავნა',
+    transport_req_err_network: 'ქსელის შეცდომა',
+    // PostTransport modal
+    post_transport_title: '🚛 ტრანსპორტის შეთავაზება',
+    post_transport_sub: 'მიუთითეთ მარშრუტი და თქვენი მანქანის მახასიათებლები',
+    post_transport_lbl_from: 'საიდან',
+    post_transport_lbl_to: 'სად',
+    post_transport_lbl_type: 'კუზოვის ტიპი',
+    post_transport_lbl_capacity: 'ტვირთამწეობა (კგ)',
+    post_transport_lbl_date_from: 'თარიღიდან',
+    post_transport_lbl_date_to: 'თარიღამდე (სურვ.)',
+    post_transport_lbl_price: 'ფასი (₾, სურვ.)',
+    post_transport_lbl_notes: 'შენიშვნა (სურვ.)',
+    post_transport_lbl_urgent: '⚡ სასწრაფო',
+    post_transport_btn: '📤 განთავსება',
+    post_transport_err_route: 'მიუთითეთ მარშრუტი',
+    post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
+    post_transport_err_date: 'მიუთითეთ თარიღი',
+    post_transport_err_network: 'ქსელის შეცდომა',
   }
 };
 
@@ -4740,7 +4824,7 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
     var d = await r.json();
     _transportOffers = d.offers || [];
     _transportTotal  = d.total  || 0;
-    if(cnt) cnt.textContent = _transportTotal + ' предложений транспорта';
+    if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
     renderTransportOffers();
   } catch(e) {
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
@@ -4751,7 +4835,7 @@ function renderTransportOffers() {
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет предложений</div><div class="cab-empty-sub">Попробуйте изменить фильтры или добавьте своё предложение</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_title||'Нет предложений') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_sub||'Попробуйте изменить фильтры') + '</div></div>';
     return;
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
@@ -4761,7 +4845,7 @@ function renderTransportOffers() {
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
-    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Заинтересован</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Войти</button>';
+    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Войти</button>';
 
     return '<div class="card-load transport-card" style="border-left: 3px solid #2ecc71">' +
       '<div class="card-main">' +
@@ -4932,10 +5016,10 @@ function renderMyTransportOffers(offers) {
   var list = document.getElementById('myTransportList');
   if(!list) return;
   if(!offers.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет предложений</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).my_transport_empty||'Нет предложений') + '</div></div>';
     return;
   }
-  var statusLabels = {active:'🟢 Активно', taken:'🔵 Занято', completed:'✅ Завершено', canceled:'⛔ Снято'};
+  var statusLabels = {active:'🟢 ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_status_active||'Активно'), taken:'🔵 ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_status_taken||'Занято'), completed:'✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_status_completed||'Завершено'), canceled:'⛔ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_status_canceled||'Снято')};
   list.innerHTML = offers.map(function(o) {
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price + ' ₾' : '';
@@ -4956,7 +5040,7 @@ function renderMyTransportOffers(offers) {
 }
 
 window.deleteMyTransportOffer = async function(offerId) {
-  if(!confirm('Снять предложение?')) return;
+  if(!confirm((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_offer_confirm_remove||'Снять предложение?')) return;
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) return;
   try {
@@ -4991,10 +5075,10 @@ function renderIncomingTransportRequests(requests) {
   if(!list) return;
   var pending = requests.filter(function(r){ return r.status === 'pending'; });
   if(!requests.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📥</div><div class="cab-empty-title">Нет запросов</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📥</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_empty||'Нет запросов') + '</div></div>';
     return;
   }
-  var statusLabels = {pending:'⏳ Ожидает', accepted:'✅ Принят', rejected:'❌ Отклонён', canceled:'⛔ Отозван'};
+  var statusLabels = {pending:'⏳ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_pending||'Ожидает'), accepted:'✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_accepted||'Принят'), rejected:'❌ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_rejected||'Отклонён'), canceled:'⛔ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_canceled||'Отозван')};
   list.innerHTML = requests.map(function(req) {
     var offer = req._offer || {};
     var actions = '';
@@ -5024,13 +5108,13 @@ window.acceptTransportReq = async function(reqId) {
     var d = await r.json();
     if(r.ok) {
       await loadIncomingTransportRequests();
-      pushNotif('✅ Принято!', 'Сделка #' + d.act_number + ' создана. Перейдите в «Сделки»', []);
+      pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_accepted||'Принято') + '!', ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).deal_created_hint||'Сделка #') + d.act_number + ' создана. Перейдите в «Сделки»', []);
     }
   } catch(e) {}
 };
 
 window.rejectTransportReq = async function(reqId) {
-  if(!confirm('Отклонить запрос?')) return;
+  if(!confirm((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_confirm_reject||'Отклонить запрос?')) return;
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) return;
   try {
@@ -5054,7 +5138,7 @@ function renderMyTransportRequestsOut(requests) {
   var list = document.getElementById('myTransportRequestsOut');
   if(!list) return;
   if(!requests.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📤</div><div class="cab-empty-title">Нет откликов</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">📤</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_out_empty||'Нет откликов') + '</div></div>';
     return;
   }
   var statusLabels = {pending:'⏳ Ожидает', accepted:'✅ Принят', rejected:'❌ Отклонён', canceled:'⛔ Отозван'};
@@ -5071,7 +5155,7 @@ function renderMyTransportRequestsOut(requests) {
 }
 
 window.cancelMyTransportReq = async function(reqId) {
-  if(!confirm('Отозвать отклик?')) return;
+  if(!confirm((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_confirm_cancel||'Отозвать отклик?')) return;
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) return;
   try {
@@ -5095,7 +5179,7 @@ function renderMyTransportSubs(subs) {
   var list = document.getElementById('myTransportSubsList');
   if(!list) return;
   if(!subs.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">Нет подписок на транспорт</div></div>';
+    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_sub_empty||'Нет подписок на транспорт') + '</div></div>';
     return;
   }
   list.innerHTML = subs.map(function(s) {
