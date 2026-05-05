@@ -2367,8 +2367,11 @@ function renderCabResponses(){
  var cancelBtn = o.status === 'pending'
  ? '<div style="margin-top:8px"><button onclick="cancelMyResponse(' + o.id + ',' + (o.serverId||0) + ')" class="cab-btn del" style="width:100%;padding:7px;font-size:13px">✕ '+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel_req||'Отменить заявку')+'</button></div>'
  : '';
+ // Переводим маршрут
+ var _rt = o.title || '';
+ if(typeof translateCity==='function' && _rt.includes(' → ')){ var _p=_rt.split(' → '); _rt=translateCity(_p[0].trim())+' → '+translateCity(_p[1].trim()); }
  return '<div class="cab-resp-item">'
- + '<div><div class="cab-resp-route">🚛 ' + esc(o.title) + '</div>'
+ + '<div><div class="cab-resp-route">🚛 ' + esc(_rt) + '</div>'
  + '<div class="cab-resp-meta">' + (o.price && o.price !== 'null' && o.price !== null ? '₾' + o.price + ' · ' : '') + esc(o.co) + (ts ? ' · ' + ts : '') + '</div>'
  + cancelBtn + '</div>'
  + '<span class="cab-status-badge ' + statusCls + '">' + statusLabel + '</span>'
