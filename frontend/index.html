@@ -236,7 +236,7 @@
       <input id="tFilterFrom" class="form-input" placeholder="Откуда" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
       <input id="tFilterTo"   class="form-input" placeholder="Куда"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
       <select id="tFilterType" class="form-input" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
-        <option value="">Любой кузов</option>
+        <option value="" data-i18n="opt_any_body">Любой кузов</option>
         <option value="tent">Тент</option>
         <option value="gazel">Газель</option>
         <option value="ref">Рефрижератор</option>
@@ -245,15 +245,15 @@
         <option value="autovoz">Автовоз</option>
         <option value="lowboy">Низкорамник</option>
       </select>
-      <button onclick="filterAndLoadTransport()" class="btn-primary" style="padding:8px 14px;font-size:13px;white-space:nowrap">🔍 Найти</button>
-      <button onclick="openPostTransportOffer()" style="background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">+ Предложить транспорт</button>
+      <button onclick="filterAndLoadTransport()" class="btn-primary" id="btnFindTransport" data-i18n="btn_find_transport" style="padding:8px 14px;font-size:13px;white-space:nowrap">🔍 Найти</button>
+      <button onclick="openPostTransportOffer()" id="btnOfferTransport" data-i18n="btn_offer_transport" style="background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">+ Предложить транспорт</button>
     </div>
     <div style="font-size:12px;color:#888" id="transportCount">Загрузка...</div>
   </div>
 
   <!-- Заголовок таблицы (десктоп) -->
   <div class="thead transport-thead" style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1.2fr 1fr 100px;padding:8px 16px;background:#e8eaf0;font-size:10px;color:#777;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #d0d4df;">
-    <div data-i18n="th_route_transport">МАРШРУТ</div><div data-i18n="th_carrier">ПЕРЕВОЗЧИК</div><div>ВМЕСТИМОСТЬ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
+    <div data-i18n="th_route_transport">МАРШРУТ</div><div data-i18n="th_carrier">ПЕРЕВОЗЧИК</div><div data-i18n="th_capacity">ВМЕСТИМОСТЬ</div><div data-i18n="th_body">КУЗОВ</div><div data-i18n="th_date_short">ДАТА</div><div></div>
   </div>
 
   <!-- Лента транспортных предложений -->
@@ -431,7 +431,7 @@
   <!-- Шапка кабинета — для незалогиненных -->
   <div id="ordersEmpty" style="text-align:center;padding:60px 20px">
     <div style="font-size:48px;margin-bottom:12px">📋</div>
-    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">Личный кабинет</div>
+    <div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px" data-i18n="cabinet_title">Личный кабинет</div>
     <div style="font-size:14px;color:#aaa;margin-bottom:20px"><span data-i18n="None"><span data-i18n="login_for_cab">Войдите чтобы видеть свои грузы, отклики и сделки</span></span></div>
     <button class="btn-primary" style="max-width:200px;margin:0 auto" onclick="openAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
   </div>
@@ -627,7 +627,7 @@
     <button class="close-btn" onclick="closeModal('authOverlay')">✕</button>
     <div id="authTitle" style="display:flex;border-bottom:1px solid #f0f0f0;margin-bottom:20px">
       <button class="tab-auth active" id="tabLogin" onclick="switchAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
-      <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')">Регистрация</button>
+      <button class="tab-auth" id="tabRegister" onclick="switchAuth('register')" data-i18n="auth_tab_register">Регистрация</button>
     </div>
 
     <!-- LOGIN -->
@@ -646,7 +646,7 @@
       </div>
       <div id="loginErrorMsg" style="display:none;color:#e74c3c;font-size:13px;text-align:center;margin-bottom:10px;padding:8px;background:#fef0f0;border-radius:8px"></div>
       <button class="btn-primary" onclick="doLogin()"><span data-i18n="None"><span data-i18n="login_title"><span data-i18n="btn_login_submit">Войти в аккаунт</span></span></span></button>
-      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700"><span data-i18n="None"><span data-i18n="btn_register2"><span data-i18n="btn_register_submit">Зарегистрироваться</span></span></span></a></div>
+      <div style="text-align:center;margin-top:12px;font-size:13px;color:#888" data-i18n-prefix="no_account_q"><span data-i18n="no_account_q">Нет аккаунта?</span> <a href="#" onclick="switchAuth('register')" style="color:#f7b731;font-weight:700"><span data-i18n="None"><span data-i18n="btn_register2"><span data-i18n="btn_register_submit">Зарегистрироваться</span></span></span></a></div>
     </div>
 
     <!-- FORGOT PASSWORD -->
