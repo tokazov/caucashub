@@ -284,10 +284,10 @@
         <label data-i18n="post_transport_lbl_type">Тип кузова</label>
         <select class="form-input" id="ptTruckType">
           <option value="tent">Тент</option>
-          <option value="gazel" data-i18n="truck_gazel">Газель</option>
-          <option value="ref" data-i18n="truck_ref">Рефрижератор</option>
-          <option value="open" data-i18n="truck_open">Открытый</option>
-          <option value="container" data-i18n="truck_container">Контейнер</option>
+          <option value="gazel">Газель</option>
+          <option value="ref">Рефрижератор</option>
+          <option value="open">Открытый</option>
+          <option value="container">Контейнер</option>
           <option value="autovoz">Автовоз</option>
           <option value="lowboy">Низкорамник</option>
         </select>
@@ -505,12 +505,12 @@
    <div style="display:flex;gap:8px;margin-bottom:10px">
     <div style="flex:1">
      <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_from">Откуда</div>
-     <input id="subFromCity" class="form-input" placeholder="Тбилиси" data-i18n-ph="sub_from_ph" style="width:100%;box-sizing:border-box">
+     <input id="subFromCity" class="form-input" placeholder="Тбилиси" style="width:100%;box-sizing:border-box">
     </div>
     <div style="display:flex;align-items:flex-end;padding-bottom:8px;color:#888;font-size:18px">→</div>
     <div style="flex:1">
      <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_to">Куда</div>
-     <input id="subToCity" class="form-input" placeholder="Батуми" data-i18n-ph="sub_to_ph" style="width:100%;box-sizing:border-box">
+     <input id="subToCity" class="form-input" placeholder="Батуми" style="width:100%;box-sizing:border-box">
     </div>
    </div>
    <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1447,19 +1447,8 @@
   </div>
 </div>
 
-<script src="api.js?v=1778011418"></script>
-<script src="main.js?v=1778011418"></script>
-<script src="ai-dispatcher.js?v=1778011418"></script>
-
-<!-- ═══ MAP OVERLAY (полноэкранная карта) ═══ -->
-<div id="mapOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:10000;background:#fff;flex-direction:column">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1a1a2e;color:#fff">
-    <div id="mapOverlayTitle" style="font-size:15px;font-weight:700">🗺️ Маршрут</div>
-    <button onclick="closeMapOverlay()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
-  </div>
-  <div id="mapOverlayDist" style="padding:8px 16px;background:#f8f9fa;font-size:13px;color:#555;border-bottom:1px solid #eee"></div>
-  <div id="mapOverlayContainer" style="flex:1;width:100%;min-height:0"></div>
-</div>
-
+<script src="api.js?v=1778011666"></script>
+<script src="main.js?v=1778011666"></script>
+<script src="ai-dispatcher.js?v=1778011666"></script>
 </body>
 </html>
