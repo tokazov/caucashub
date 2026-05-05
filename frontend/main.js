@@ -2616,6 +2616,7 @@ const TRANSLATIONS = {
     empty_orders_sub: 'Откликайтесь на грузы — они появятся здесь',
     cab_my_loads: '📦 Мои грузы',
     cab_my_responses: '🚛 Мои отклики',
+    transport_req_out_title: 'Мои отклики на транспортные предложения',
     badge_my_load: '📦 Мой груз',
     no_responses_yet: 'Откликов пока нет',
     empty_myloads_sub: 'Разместите груз и перевозчики сразу увидят его',
