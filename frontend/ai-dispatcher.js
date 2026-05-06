@@ -53,16 +53,6 @@
     if(inp) inp.placeholder = _t('placeholder');
   }
 
-  // Обновляем шапку чата и placeholder при смене языка
-  function _updateChatLang(){
-    var nameEl = document.querySelector('.ai-name');
-    var statusEl = document.querySelector('.ai-status');
-    var inp = document.getElementById('aiInput');
-    if(nameEl) nameEl.textContent = _t('name');
-    if(statusEl) statusEl.textContent = _t('status');
-    if(inp) inp.placeholder = _t('placeholder');
-  }
-
   // ── toggle чата ───────────────────────────────────
   window.toggleAI = function(){
     var chat = document.getElementById('aiChat');
@@ -284,7 +274,10 @@
     if(tpl) tpl.style.display = 'none';
     var btn = document.getElementById('aiPostBtn');
     if(btn) btn.style.display = 'none';
-    _appendMsg('ai', _t('welcome'));
+    var _w = _t('welcome');
+    _appendMsg('ai', _w);
+    _chatHistory.push({role:'ai', text: _w});
+    _welcomeShown = true;
   };
 
   // ── aiPostLoad (3.4: для незалогиненных — сохранить и предложить регистрацию) ──
