@@ -7,8 +7,8 @@ const API_BASE = 'https://api-production-f3ea.up.railway.app';
 function getToken(){ return localStorage.getItem('ch_token') || null; }
 function setToken(t){ if(t) localStorage.setItem('ch_token',t); else localStorage.removeItem('ch_token'); }
 
-async function apiRequest(method, path, body=null){
-  const headers = { 'Content-Type': 'application/json' };
+async function apiRequest(method, path, body=null, extraHeaders={}){
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   const token = getToken();
   if(token) headers['Authorization'] = 'Bearer ' + token;
 
@@ -92,11 +92,13 @@ const CaucasAPI = {
       company_name: load.co,
       load_date: new Date().toISOString(),
     };
-    const r = await apiRequest('POST', '/api/loads/', body);
+    // Idempotency-Key: предотвращает дубли при double-submit или retry
+    const idempotencyKey = `load-${load.id || Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    const r = await apiRequest('POST', '/api/loads/', body, { 'Idempotency-Key': idempotencyKey });
     if(r.ok && r.data?.id){
       return { ok: true, load: { ...load, id: r.data.id, serverId: r.data.id } };
     }
-    return { ok: false, error: 'Ошибка сохранения' };
+    return { ok: false, error: r.data?.detail || 'Ошибка сохранения' };
   },
 
   async updateLoad(serverId, updates){
