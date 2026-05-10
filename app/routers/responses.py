@@ -8,7 +8,10 @@ from app.models.user import User
 from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
-from app.services.telegram_notify import notify_new_response, notify_response_accepted
+from app.services.telegram_notify import (
+    notify_new_response, notify_response_accepted,
+    notify_deal_created, notify_response_rejected, notify_response_withdrawn,
+)
 # plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
 import httpx
@@ -144,12 +147,13 @@ async def respond_to_load(
     owner_res = await db.execute(select(User).where(User.id == load.user_id))
     owner = owner_res.scalar_one_or_none()
 
-    # TG-уведомление грузоотправителю
+    # TG-уведомление грузоотправителю (имя перевозчика скрыто — ADR-013)
     if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
-        carrier_name = current_user.company_name or current_user.email.split("@")[0]
         price_val = float(data.price) if data.price else 0
+        carrier_rating = round((current_user.rating or 50) / 10, 1)
+        carrier_deals  = current_user.completed_deals_count or 0
         asyncio.create_task(notify_new_response(
-            owner.telegram_id, carrier_name,
+            owner.telegram_id, carrier_rating, carrier_deals,
             load.from_city, load.to_city, price_val, "₾",
             lang=owner.lang or "ru"
         ))
@@ -356,7 +360,7 @@ async def accept_response(
     await db.commit()
     await db.refresh(deal)
 
-    # TG-уведомление перевозчику
+    # TG-уведомление перевозчику: отклик принят + контакты грузовладельца (задача 5)
     carrier_res = await db.execute(select(User).where(User.id == resp.user_id))
     carrier = carrier_res.scalar_one_or_none()
     if carrier and carrier.telegram_id and not carrier.telegram_id.startswith("pending:"):
@@ -365,7 +369,22 @@ async def accept_response(
             carrier.telegram_id, shipper_name,
             load.from_city, load.to_city,
             float(resp.price_usd or load.price_gel or 0), "₾",
+            shipper_phone=current_user.phone,
+            shipper_email=current_user.email,
             lang=carrier.lang or "ru"
+        ))
+
+    # TG-уведомление грузовладельцу: сделка создана + контакты перевозчика (задача 2)
+    if current_user.telegram_id and not current_user.telegram_id.startswith("pending:"):
+        asyncio.create_task(notify_deal_created(
+            current_user.telegram_id,
+            deal_num=deal.act_number or f"CH-{deal.id:04d}",
+            from_city=load.from_city,
+            to_city=load.to_city,
+            carrier_name=carrier.company_name if carrier else "—",
+            carrier_phone=carrier.phone if carrier else None,
+            carrier_email=carrier.email if carrier else None,
+            lang=current_user.lang or "ru",
         ))
 
     # Email перевозчику
@@ -452,9 +471,19 @@ async def reject_response(
     resp.status = ResponseStatus.rejected
     await db.commit()
 
-    # Email перевозчику
+    # TG + Email перевозчику
     carrier_res = await db.execute(select(User).where(User.id == resp.user_id))
     carrier = carrier_res.scalar_one_or_none()
+
+    # Задача 6: TG-уведомление перевозчику об отклонении
+    if carrier and carrier.telegram_id and not carrier.telegram_id.startswith("pending:"):
+        price_val = float(resp.price_gel or resp.price_usd or 0)
+        asyncio.create_task(notify_response_rejected(
+            carrier.telegram_id,
+            load.from_city, load.to_city,
+            price_val, "₾",
+            lang=carrier.lang or "ru",
+        ))
     if carrier and carrier.email:
         route = f"{load.from_city} → {load.to_city}"
         html = f"""
@@ -500,4 +529,18 @@ async def cancel_response(
     resp.status = ResponseStatus.withdrawn
     await log_status_change(db, "response", resp.id, current_status, "withdrawn", current_user.id)
     await db.commit()
+
+    # Задача 6: TG-уведомление грузовладельцу об отзыве отклика
+    load_res2 = await db.execute(select(Load).where(Load.id == resp.load_id))
+    load2 = load_res2.scalar_one_or_none()
+    if load2:
+        owner_res = await db.execute(select(User).where(User.id == load2.user_id))
+        owner = owner_res.scalar_one_or_none()
+        if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
+            asyncio.create_task(notify_response_withdrawn(
+                owner.telegram_id,
+                load2.from_city, load2.to_city,
+                lang=owner.lang or "ru",
+            ))
+
     return {"ok": True, "status": "withdrawn"}

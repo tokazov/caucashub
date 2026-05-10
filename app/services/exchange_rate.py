@@ -65,8 +65,10 @@ async def _fetch_rate_from_nbg() -> float:
         raise ValueError("USD not found in NBG response")
 
     except Exception as exc:
-        logger.warning(f"[NBG] Failed to fetch rate: {exc}. Using fallback {FALLBACK_RATE}")
-        return FALLBACK_RATE
+        # Задача 8: возвращаем последний успешно полученный курс из кеша.
+        # FALLBACK_RATE используется только если кеш пуст (первый запрос после рестарта).
+        logger.warning(f"[NBG] Failed: {exc}. Using last known.")
+        return _cache["rate"] if _cache["rate"] else FALLBACK_RATE
 
 
 def convert_gel_to_usd(amount_gel: float, rate: float) -> float:

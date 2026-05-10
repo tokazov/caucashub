@@ -66,6 +66,10 @@ def normalize_phone(phone: str) -> Optional[str]:
     if cleaned.startswith('7') and len(cleaned) == 11:
         cleaned = '+' + cleaned
 
+    # Грузинский формат 05X: 0551234567 → +995551234567 (задача 7)
+    if cleaned.startswith('0') and len(cleaned) == 10:
+        cleaned = '+995' + cleaned[1:]
+
     # Минимальная длина E.164: +[code][number] ≥ 10 символов
     if len(cleaned) >= 10:
         return cleaned

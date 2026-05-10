@@ -37,19 +37,47 @@ async def send_tg_message(chat_id: int | str, text: str, parse_mode: str = "HTML
 
 TEMPLATES = {
     "ru": {
+        # Задача 1: убрано имя перевозчика, добавлен рейтинг и кол-во сделок
         "new_response": (
             "📩 <b>Новый отклик на ваш груз</b>\n\n"
-            "🚛 Перевозчик: <b>{carrier}</b>\n"
+            "⭐ Рейтинг перевозчика: <b>{carrier_rating} / 5.0</b>\n"
+            "✅ Сделок завершено: <b>{carrier_deals}</b>\n"
             "📍 Маршрут: {from_city} → {to_city}\n"
             "💰 Ставка: {price} {cur}\n\n"
             "Войдите в <a href='https://caucashub.ge'>CaucasHub</a> чтобы принять или отклонить."
         ),
+        # Задача 5: добавлены контакты грузовладельца
         "response_accepted": (
             "✅ <b>Ваш отклик принят!</b>\n\n"
             "📦 Грузовладелец: <b>{shipper}</b>\n"
             "📍 Маршрут: {from_city} → {to_city}\n"
-            "💰 Сумма: {price} {cur}\n\n"
+            "💰 Сумма: {price} {cur}\n"
+            "📞 Телефон: {shipper_phone}\n"
+            "✉️ Email: {shipper_email}\n\n"
             "Войдите в <a href='https://caucashub.ge'>CaucasHub</a> для управления сделкой."
+        ),
+        # Задача 2: новый шаблон — сделка создана (уходит грузовладельцу)
+        "deal_created": (
+            "🤝 <b>Сделка создана!</b>\n\n"
+            "📋 {deal_num}\n"
+            "📍 {from_city} → {to_city}\n"
+            "👤 Перевозчик: <b>{carrier_name}</b>\n"
+            "📞 Телефон: {carrier_phone}\n"
+            "✉️ Email: {carrier_email}\n\n"
+            "Управлять сделкой → <a href='https://caucashub.ge'>caucashub.ge</a>"
+        ),
+        # Задача 6: отклик отклонён (уходит перевозчику)
+        "response_rejected": (
+            "❌ <b>Отклик не принят</b>\n\n"
+            "📍 {from_city} → {to_city}\n"
+            "💰 Ваша ставка: {price} {cur}\n\n"
+            "Посмотрите другие грузы → <a href='https://caucashub.ge'>caucashub.ge</a>"
+        ),
+        # Задача 6: перевозчик сам отозвал (уходит грузовладельцу)
+        "response_withdrawn": (
+            "↩️ <b>Перевозчик отозвал отклик</b>\n\n"
+            "📍 {from_city} → {to_city}\n\n"
+            "Посмотрите другие отклики → <a href='https://caucashub.ge'>caucashub.ge</a>"
         ),
         "deal_status": (
             "🔄 <b>Статус сделки обновлён</b>\n\n"
@@ -91,19 +119,47 @@ TEMPLATES = {
         ),
     },
     "ge": {
+        # Задача 1: убрано имя перевозчика, добавлен рейтинг и кол-во сделок (ge)
         "new_response": (
             "📩 <b>თქვენს ტვირთზე ახალი გამოხმაურება</b>\n\n"
-            "🚛 გადამზიდი: <b>{carrier}</b>\n"
+            "⭐ გადამზიდის რეიტინგი: <b>{carrier_rating} / 5.0</b>\n"
+            "✅ დასრულებული გარიგებები: <b>{carrier_deals}</b>\n"
             "📍 მარშრუტი: {from_city} → {to_city}\n"
             "💰 ფასი: {price} {cur}\n\n"
             "შედით <a href='https://caucashub.ge'>CaucasHub</a>-ზე მისაღებად ან უარსაყოფად."
         ),
+        # Задача 5: добавлены контакты грузовладельца (ge)
         "response_accepted": (
             "✅ <b>თქვენი გამოხმაურება მიღებულია!</b>\n\n"
             "📦 დამქირავებელი: <b>{shipper}</b>\n"
             "📍 მარშრუტი: {from_city} → {to_city}\n"
-            "💰 თანხა: {price} {cur}\n\n"
+            "💰 თანხა: {price} {cur}\n"
+            "📞 ტელეფონი: {shipper_phone}\n"
+            "✉️ Email: {shipper_email}\n\n"
             "შედით <a href='https://caucashub.ge'>CaucasHub</a>-ზე გარიგების სამართავად."
+        ),
+        # Задача 2: deal_created (ge)
+        "deal_created": (
+            "🤝 <b>გარიგება შეიქმნა!</b>\n\n"
+            "📋 {deal_num}\n"
+            "📍 {from_city} → {to_city}\n"
+            "👤 გადამზიდი: <b>{carrier_name}</b>\n"
+            "📞 ტელეფონი: {carrier_phone}\n"
+            "✉️ Email: {carrier_email}\n\n"
+            "გარიგების მართვა → <a href='https://caucashub.ge'>caucashub.ge</a>"
+        ),
+        # Задача 6: response_rejected (ge)
+        "response_rejected": (
+            "❌ <b>გამოხმაურება არ მიღებულა</b>\n\n"
+            "📍 {from_city} → {to_city}\n"
+            "💰 თქვენი ფასი: {price} {cur}\n\n"
+            "სხვა ტვირთები → <a href='https://caucashub.ge'>caucashub.ge</a>"
+        ),
+        # Задача 6: response_withdrawn (ge)
+        "response_withdrawn": (
+            "↩️ <b>გადამზიდმა გამოხმაურება გაიხმო</b>\n\n"
+            "📍 {from_city} → {to_city}\n\n"
+            "სხვა გამოხმაურებები → <a href='https://caucashub.ge'>caucashub.ge</a>"
         ),
         "deal_status": (
             "🔄 <b>გარიგების სტატუსი განახლდა</b>\n\n"
@@ -152,22 +208,65 @@ def _t(lang: str, key: str) -> str:
     return TEMPLATES.get(lang, TEMPLATES["ru"]).get(key, TEMPLATES["ru"][key])
 
 
+def _fmt_price(price: float) -> str:
+    return str(int(price)) if price == int(price) else str(price)
+
+
 # ── Функции уведомлений ──────────────────────────────────────────────
 
-async def notify_new_response(chat_id, carrier_name: str, from_city: str, to_city: str,
+# Задача 1: убран carrier_name, добавлены carrier_rating и carrier_deals
+async def notify_new_response(chat_id, carrier_rating: float, carrier_deals: int,
+                               from_city: str, to_city: str,
                                price: float, cur: str, lang: str = "ru"):
     text = _t(lang, "new_response").format(
-        carrier=carrier_name, from_city=from_city, to_city=to_city,
-        price=int(price) if price == int(price) else price, cur=cur
+        carrier_rating=carrier_rating, carrier_deals=carrier_deals,
+        from_city=from_city, to_city=to_city,
+        price=_fmt_price(price), cur=cur,
     )
     await send_tg_message(chat_id, text)
 
 
+# Задача 5: добавлены shipper_phone и shipper_email
 async def notify_response_accepted(chat_id, shipper_name: str, from_city: str, to_city: str,
-                                    price: float, cur: str, lang: str = "ru"):
+                                    price: float, cur: str,
+                                    shipper_phone: str = "—", shipper_email: str = "—",
+                                    lang: str = "ru"):
     text = _t(lang, "response_accepted").format(
         shipper=shipper_name, from_city=from_city, to_city=to_city,
-        price=int(price) if price == int(price) else price, cur=cur
+        price=_fmt_price(price), cur=cur,
+        shipper_phone=shipper_phone or "—",
+        shipper_email=shipper_email or "—",
+    )
+    await send_tg_message(chat_id, text)
+
+
+# Задача 2: новая функция — сделка создана (уходит грузовладельцу)
+async def notify_deal_created(chat_id, deal_num: str, from_city: str, to_city: str,
+                               carrier_name: str, carrier_phone: str, carrier_email: str,
+                               lang: str = "ru"):
+    text = _t(lang, "deal_created").format(
+        deal_num=deal_num, from_city=from_city, to_city=to_city,
+        carrier_name=carrier_name,
+        carrier_phone=carrier_phone or "—",
+        carrier_email=carrier_email or "—",
+    )
+    await send_tg_message(chat_id, text)
+
+
+# Задача 6: отклик отклонён (уходит перевозчику)
+async def notify_response_rejected(chat_id, from_city: str, to_city: str,
+                                    price: float, cur: str, lang: str = "ru"):
+    text = _t(lang, "response_rejected").format(
+        from_city=from_city, to_city=to_city,
+        price=_fmt_price(price), cur=cur,
+    )
+    await send_tg_message(chat_id, text)
+
+
+# Задача 6: перевозчик отозвал отклик (уходит грузовладельцу)
+async def notify_response_withdrawn(chat_id, from_city: str, to_city: str, lang: str = "ru"):
+    text = _t(lang, "response_withdrawn").format(
+        from_city=from_city, to_city=to_city,
     )
     await send_tg_message(chat_id, text)
 
@@ -184,7 +283,7 @@ async def notify_deal_completed(chat_id, deal_num: str, from_city: str, to_city:
                                  price: float, cur: str, lang: str = "ru"):
     text = _t(lang, "deal_completed").format(
         deal_num=deal_num, from_city=from_city, to_city=to_city,
-        price=int(price) if price == int(price) else price, cur=cur
+        price=_fmt_price(price), cur=cur,
     )
     await send_tg_message(chat_id, text)
 
