@@ -24,6 +24,13 @@ def upgrade() -> None:
         CREATE TABLE IF NOT EXISTS idempotency_keys (
             id               SERIAL PRIMARY KEY,
             key              VARCHAR(255)  NOT NULL,
+            -- user_id: INTEGER без FK на users.id — намеренно.
+            -- Idempotency-записи живут максимум 24 часа (TTL).
+            -- FK на users.id намеренно отсутствует: при soft-delete юзера
+            -- (ADR-010) его токен инвалидирован через password_changed_at,
+            -- новые запросы невозможны, существующие записи протухнут
+            -- по TTL естественно. ON DELETE CASCADE создал бы ненужную
+            -- связанность без практической пользы.
             user_id          INTEGER       NOT NULL,
             scope            VARCHAR(64)   NOT NULL,
             request_hash     VARCHAR(64)   NOT NULL,
