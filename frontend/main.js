@@ -1711,6 +1711,13 @@ function openPostLoad(){
   _setupCityAutocomplete('fTo', {lang: 'ru'});
 }
 function doPostLoad(){
+  // Anti-double-submit: блокируем кнопку сразу
+  const _submitBtn = document.querySelector('#postOverlay .btn-primary');
+  if(_submitBtn){
+    if(_submitBtn.disabled) return; // уже отправляем — игнорируем второй клик
+    _submitBtn.disabled = true;
+    _submitBtn.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_sending||'⏳ Отправляем...';
+  }
   const fromAddr=document.getElementById('pFromAddr').value||'Адрес не указан';
   const toAddr=document.getElementById('pToAddr').value||'Адрес не указан';
   // Город — первое слово из адреса
@@ -1762,6 +1769,7 @@ function doPostLoad(){
         console.log('[createLoad] Saved to server, id='+r.load.serverId);
       } else {
         console.warn('[createLoad] Server rejected:', r.error);
+        if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
         const li=LOCAL.findIndex(l=>l.id===newLoad.id);
         if(li>-1) LOCAL.splice(li,1);
         renderLoads(scope==='local'?LOCAL:INTL);
@@ -1778,6 +1786,7 @@ function doPostLoad(){
       }
     }).catch((err)=>{
       console.warn('[createLoad] Network error:', err);
+      if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
       alert('⚠️ Нет соединения. Груз не сохранён. Проверьте интернет и попробуйте снова.');
       const li=LOCAL.findIndex(l=>l.id===newLoad.id);
       if(li>-1) LOCAL.splice(li,1);
