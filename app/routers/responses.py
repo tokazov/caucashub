@@ -208,12 +208,14 @@ async def get_load_responses(
     for r in responses:
         carrier_res = await db.execute(select(User).where(User.id == r.user_id))
         carrier = carrier_res.scalar_one_or_none()
+        # ADR-013: контакты перевозчика только после принятия отклика
+        resp_accepted = (r.status.value if hasattr(r.status, 'value') else str(r.status)) == "accepted"
         result.append({
             "id": r.id,
             "carrier_id": r.user_id,
             "carrier_name": carrier.company_name if carrier else "—",
-            "carrier_phone": carrier.phone if carrier else None,
-            "carrier_email": carrier.email if carrier else None,
+            "carrier_phone": carrier.phone if (carrier and resp_accepted) else None,
+            "carrier_email": carrier.email if (carrier and resp_accepted) else None,
             "message": r.message,
             "price": r.price_usd,
             "status": r.status,
