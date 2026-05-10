@@ -5268,6 +5268,10 @@ function _showTransportTabs() {
   document.querySelectorAll('.cab-tab-shipper').forEach(function(el) {
     el.style.display = isShipper ? '' : 'none';
   });
+  // Применяем переводы после показа табов — иначе остаётся хардкод из HTML
+  if (typeof applyLang === 'function' && typeof lang !== 'undefined') {
+    applyLang(lang);
+  }
 }
 
 // Вызываем при открытии кабинета
