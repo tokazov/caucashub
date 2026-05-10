@@ -208,18 +208,62 @@
     msgs.scrollTop = msgs.scrollHeight;
   }
 
+  // Кеш грузов от Мари — чтобы openCargo мог открыть карточку
+  var _mariLoadsCache = {};
+
   function _showLoadsInChat(loads){
     var msgs = document.getElementById('aiMessages');
     if(!msgs) return;
 
+    // Сохраняем грузы в кеш и добавляем в allLoads если их там нет
+    loads.forEach(function(l){
+      if(!l.id) return;
+      _mariLoadsCache[l.id] = l;
+      // Нормализуем объект под формат openCargo
+      var normalized = {
+        id: l.id, serverId: l.id,
+        from: l.from || l.from_city || '?',
+        to:   l.to   || l.to_city   || '?',
+        from2: l.from || l.from_city || '',
+        to2:   l.to   || l.to_city   || '',
+        kg: l.kg || l.weight_kg || 0,
+        type: l.truck || l.truck_type || 'tent',
+        typeLabel: l.typeLabel || '',
+        price: l.price || l.price_gel || 0,
+        cur: l.cur || '₾',
+        co: l.company || l.co || '—',
+        rat: l.rat || '5.0',
+        trips: l.trips || 0,
+        status: 'active',
+        is_demo: false,
+        scope: l.scope || 'local',
+      };
+      // Добавляем в allLoads если нет (чтобы openCargo нашёл)
+      if(window.allLoads && !window.allLoads.find(function(x){ return x.id == l.id; })){
+        window.allLoads.unshift(normalized);
+      }
+      _mariLoadsCache[l.id] = normalized;
+    });
+
     var div = document.createElement('div');
     div.style.cssText = 'margin-bottom:12px;';
     var inner = loads.map(function(l){
-      var price = l.price ? (l.cur||'₾') + l.price.toLocaleString() : '—';
+      var price = l.price ? (l.cur||'₾') + parseFloat(l.price).toLocaleString() : '—';
+      var loadId = l.id || 0;
       return '<div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">' +
-        '<div style="font-weight:700;font-size:14px;color:#1a1a2e;">' + (l.from||'?') + ' → ' + (l.to||'?') + '</div>' +
+        '<div style="font-weight:700;font-size:14px;color:#1a1a2e;">' + (l.from||l.from_city||'?') + ' → ' + (l.to||l.to_city||'?') + '</div>' +
         '<div style="font-size:12px;color:#888;margin-top:3px;">' + (l.kg||0).toLocaleString() + ' кг · ' + price + (l.company && l.company!=='—' ? ' · '+l.company : '') + '</div>' +
-        '<button onclick="closeAI()" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
+        '<button onclick="(function(id){' +
+          'closeAI();' +
+          'var lo=(window._mariDispatcher&&window._mariDispatcher.cache&&window._mariDispatcher.cache[id])' +
+          '||(window.allLoads&&window.allLoads.find(function(x){return x.id==id;}));' +
+          'if(lo&&typeof openCargo===\'function\'){setTimeout(function(){openCargo(lo);},150);}' +
+          'else{' +
+            'fetch(window.CaucasAPI&&CaucasAPI.base?CaucasAPI.base:\'\'+\'/api/loads/\'+id)' +
+            '.then(function(r){return r.json();})' +
+            '.then(function(d){if(d&&d.id&&typeof openCargo===\'function\')setTimeout(function(){openCargo(d);},150);});' +
+          '}' +
+        '})(' + loadId + ')" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
         '</div>';
     }).join('');
     div.innerHTML = inner;
@@ -251,6 +295,9 @@
       if(loader) loader.remove();
     }
   }
+
+  // Экспортируем кеш грузов Мари в window для доступа из onclick
+  window._mariDispatcher = { cache: _mariLoadsCache };
 
   // ── closeAI ──────────────────────────────────────
   window.closeAI = function(){
