@@ -129,12 +129,21 @@ async def save_idempotency(
     now = datetime.now(timezone.utc)
 
     # Сериализуем тело в plain dict (JSONifiable).
-    # Decimal → float (после миграции ADR-006 prices хранятся как NUMERIC).
+    # Defensive serializer: обрабатывает все типы которые могут встретиться в response_body.
     from decimal import Decimal
+    import enum
     def _json_default(obj):
         if isinstance(obj, Decimal):
             return float(obj)
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, enum.Enum):
+            return obj.value
+        # UUID, bytes и прочее — через str
+        try:
+            return str(obj)
+        except Exception:
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
     try:
         response_body = json.loads(json.dumps(response_body, default=_json_default))

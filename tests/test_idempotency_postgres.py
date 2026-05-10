@@ -221,3 +221,105 @@ async def test_idempotency_expired(_mock_notify):
         assert load_id_2 != load_id_1, \
             "Expected new load after expiry, but got the same id"
         assert "Idempotency-Replayed" not in r2.headers
+
+
+@pytest.mark.asyncio
+@patch("app.services.subscription_matcher.notify_subscribers", new_callable=AsyncMock)
+async def test_idempotency_payload_mismatch_first_not_overwritten(_mock_notify):
+    """
+    При payload_mismatch первый груз остался нетронутым в БД.
+    """
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        token = await _register_user(client, "mismatch2")
+        headers = {"Authorization": f"Bearer {token}"}
+        idem_key = "test-mismatch-overwrite-0004"
+
+        body1 = _load_body(from_city="Тбилиси", weight=1000)
+        body2 = _load_body(from_city="Поти", weight=3000)
+
+        r1 = await client.post("/api/loads/", json=body1,
+                                headers={**headers, "Idempotency-Key": idem_key})
+        assert r1.status_code == 200
+        original_id = r1.json().get("id") or r1.json().get("load_id")
+
+        r2 = await client.post("/api/loads/", json=body2,
+                                headers={**headers, "Idempotency-Key": idem_key})
+        assert r2.status_code == 422
+
+        # Проверяем: в БД ровно 1 груз и это именно первый
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(select(Load))
+            loads = res.scalars().all()
+        assert len(loads) == 1, f"Expected 1 load (first not overwritten), got {len(loads)}"
+        assert loads[0].id == original_id
+
+
+@pytest.mark.asyncio
+@patch("app.services.subscription_matcher.notify_subscribers", new_callable=AsyncMock)
+async def test_idempotency_cross_user_isolation(_mock_notify):
+    """
+    Один и тот же Idempotency-Key от разных пользователей — независимые операции.
+    Каждый должен получить свой груз, не replay.
+    """
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        token_a = await _register_user(client, "crossA", role="shipper")
+        token_b = await _register_user(client, "crossB", role="shipper")
+
+        body_a = _load_body(from_city="Тбилиси", weight=1000)
+        body_b = _load_body(from_city="Батуми", weight=2000)
+        shared_key = "shared-key-cross-user-0005"
+
+        r_a = await client.post("/api/loads/", json=body_a,
+                                 headers={"Authorization": f"Bearer {token_a}",
+                                          "Idempotency-Key": shared_key})
+        assert r_a.status_code == 200, r_a.text
+        id_a = r_a.json().get("id") or r_a.json().get("load_id")
+
+        r_b = await client.post("/api/loads/", json=body_b,
+                                 headers={"Authorization": f"Bearer {token_b}",
+                                          "Idempotency-Key": shared_key})
+        assert r_b.status_code == 200, r_b.text
+        id_b = r_b.json().get("id") or r_b.json().get("load_id")
+
+        # Разные пользователи → разные грузы
+        assert id_a != id_b, "Cross-user with same key must create independent loads"
+        assert "Idempotency-Replayed" not in r_b.headers
+
+        # В БД два груза
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(select(Load))
+            loads = res.scalars().all()
+        assert len(loads) == 2, f"Expected 2 loads (one per user), got {len(loads)}"
+
+
+@pytest.mark.asyncio
+@patch("app.services.subscription_matcher.notify_subscribers", new_callable=AsyncMock)
+async def test_idempotency_not_saved_on_validation_error(_mock_notify):
+    """
+    Если запрос падает с ошибкой валидации (422 от бизнес-логики),
+    idempotency-запись НЕ сохраняется.
+    Следующий запрос с тем же ключом + валидным телом → создаётся нормально.
+    """
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        token = await _register_user(client, "valerr1")
+        headers = {"Authorization": f"Bearer {token}"}
+        idem_key = "test-valerr-uuid-0006"
+
+        # Невалидный груз: weight_kg = 0 → 422
+        bad_body = _load_body(weight=0)
+        r_bad = await client.post("/api/loads/", json=bad_body,
+                                   headers={**headers, "Idempotency-Key": idem_key})
+        assert r_bad.status_code == 422, r_bad.text
+
+        # idempotency-запись не должна была создаться
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(select(IdempotencyKey))
+            keys = res.scalars().all()
+        assert len(keys) == 0, f"Expected no idem record after 422, got {len(keys)}"
+
+        # Повторный запрос с тем же ключом + валидным телом → успех
+        good_body = _load_body(weight=1000)
+        r_good = await client.post("/api/loads/", json=good_body,
+                                    headers={**headers, "Idempotency-Key": idem_key})
+        assert r_good.status_code == 200, r_good.text
+        assert "Idempotency-Replayed" not in r_good.headers
