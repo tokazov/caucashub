@@ -7,8 +7,8 @@ const API_BASE = 'https://api-production-f3ea.up.railway.app';
 function getToken(){ return localStorage.getItem('ch_token') || null; }
 function setToken(t){ if(t) localStorage.setItem('ch_token',t); else localStorage.removeItem('ch_token'); }
 
-async function apiRequest(method, path, body=null){
-  const headers = { 'Content-Type': 'application/json' };
+async function apiRequest(method, path, body=null, extraHeaders={}){
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   const token = getToken();
   if(token) headers['Authorization'] = 'Bearer ' + token;
 

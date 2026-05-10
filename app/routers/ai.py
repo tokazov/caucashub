@@ -56,7 +56,10 @@ class RateRequest(BaseModel):
 async def ai_chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
     # Получаем последние грузы для контекста
     result = await db.execute(
-        select(Load).where(Load.status == LoadStatus.active).limit(10)
+        select(Load).where(
+            Load.status == LoadStatus.active,
+            Load.is_demo.is_(False)
+        ).limit(10)
     )
     loads = result.scalars().all()
     loads_ctx = "\n".join([
@@ -121,7 +124,10 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
     loads_ctx = "Грузов пока нет"
     try:
         result = await db.execute(
-            select(Load).where(Load.status == LoadStatus.active).limit(20)
+            select(Load).where(
+                Load.status == LoadStatus.active,
+                Load.is_demo.is_(False)
+            ).limit(20)
         )
         loads = result.scalars().all()
         loads_ctx = "\n".join([
