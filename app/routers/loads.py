@@ -7,7 +7,7 @@ from app.models.user import User
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-# ADR-010: используем require_user из auth (проверяет is_deleted, is_active, password_changed_at)
+# ADR-010: require_user из auth — проверяет is_deleted, is_active, password_changed_at
 from app.routers.auth import require_user
 
 router = APIRouter()
@@ -144,9 +144,11 @@ async def create_load(data: LoadCreate, request: Request,
                       db: AsyncSession = Depends(get_db),
                       current_user: User = Depends(require_user)):
     from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
-    from app.services.idempotency import check_idempotency
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
     user_id = current_user.id
-    await check_idempotency(request, scope="create_load", user_id=user_id)
+    cached, replayed = await check_idempotency(request, db, scope="create_load", user_id=user_id)
+    if replayed:
+        return make_idempotent_response(cached)
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
 
     # Фикс 1: Серверная валидация веса и цены (P1 Cat4)
@@ -227,7 +229,10 @@ async def create_load(data: LoadCreate, request: Request,
     from app.services.subscription_matcher import notify_subscribers
     background_tasks.add_task(notify_subscribers, load, db)
 
-    return load_to_dict(load, data.company_name)
+    response_dict = load_to_dict(load, data.company_name)
+    await save_idempotency(request, db, scope="create_load", user_id=user_id,
+                           response_status=200, response_body=response_dict)
+    return response_dict
 
 @router.put("/{load_id}")
 async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends(get_db),

@@ -72,9 +72,11 @@ async def respond_to_load(
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
-    # 2.5.4: idempotency check — защита от двойного отклика
-    from app.services.idempotency import check_idempotency
-    await check_idempotency(request, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
+    # 2.5.4: idempotency check — защита от двойного отклика (Postgres-backed)
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    cached, replayed = await check_idempotency(request, db, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
+    if replayed:
+        return make_idempotent_response(cached)
 
     # ADR-013 B: проверка тарифного плана удалена — все могут откликаться.
     # Pro-лимиты добавим с billing-модулем.
@@ -181,11 +183,15 @@ async def respond_to_load(
         """
         await send_email(owner.email, f"Новый отклик на груз {route}", html)
 
-    return {
+    resp_result = {
         "ok": True,
         "response_id": resp.id,
-        "status": resp.status
+        "status": resp.status.value if hasattr(resp.status, "value") else str(resp.status),
     }
+    await save_idempotency(request, db, scope=f"respond_to_load:{load_id}",
+                           user_id=current_user.id, response_status=200,
+                           response_body=resp_result)
+    return resp_result
 
 @router.get("/load/{load_id}")
 async def get_load_responses(
@@ -272,8 +278,10 @@ async def accept_response(
     current_user: User = Depends(require_user)
 ):
     """Грузоотправитель принимает отклик → создаётся сделка"""
-    from app.services.idempotency import check_idempotency
-    await check_idempotency(request, scope=f"accept_response:{response_id}", user_id=current_user.id)
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    cached, replayed = await check_idempotency(request, db, scope=f"accept_response:{response_id}", user_id=current_user.id)
+    if replayed:
+        return make_idempotent_response(cached)
     from app.services.state_machine import validate_transition
     from app.services.audit_log import log_status_change
     from app.models.deal import Deal as DealModel
@@ -413,12 +421,16 @@ async def accept_response(
         </div>"""
         await send_email(current_user.email, f"✅ Сделка {deal_num} создана — {route}", html_shipper)
 
-    return {
+    accept_result = {
         "ok": True,
         "deal_id": deal.id,
         "deal_number": deal_num,
-        "status": deal.status,
+        "status": deal.status.value if hasattr(deal.status, "value") else str(deal.status),
     }
+    await save_idempotency(request, db, scope=f"accept_response:{response_id}",
+                           user_id=current_user.id, response_status=200,
+                           response_body=accept_result)
+    return accept_result
 
 @router.post("/reject/{response_id}")
 async def reject_response(
