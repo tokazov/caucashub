@@ -29,3 +29,26 @@ async def log_status_change(
     # flush без commit — вызывающий сделает commit сам
     await db.flush()
     return entry
+
+
+async def log_failed_deletion_attempt(
+    db: AsyncSession,
+    user_id: int,
+    reason: str,
+) -> StatusChange:
+    """
+    Логирует неудачную попытку удаления аккаунта.
+    reason: 'wrong_confirmation' | 'wrong_password' | 'active_deals' | 'rate_limit'
+    Использует ту же таблицу status_changes что и log_status_change.
+    """
+    entry = StatusChange(
+        entity_type="user_deletion_attempt",
+        entity_id=user_id,
+        from_status=None,
+        to_status=reason,
+        user_id=user_id,
+        reason=f"failed_delete: {reason}",
+    )
+    db.add(entry)
+    await db.flush()
+    return entry

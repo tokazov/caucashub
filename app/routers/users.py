@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.user import User, UserPlan
 from app.routers.loads import require_user         # возвращает int (user_id)
 from app.routers.auth import require_user as require_user_obj  # возвращает User object
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 router = APIRouter()
@@ -26,6 +26,8 @@ class UpdateProfileRequest(BaseModel):
 
 class DeleteAccountRequest(BaseModel):
     confirmation: str  # должно быть "УДАЛИТЬ"
+    current_password: str = Field(..., min_length=1, max_length=255,
+                                  description="Текущий пароль пользователя")
 
 
 class SetPlanRequest(BaseModel):
@@ -285,16 +287,36 @@ async def delete_account(
     from app.models.deal import Deal, DealStatus
     from app.models.load import Load, LoadStatus
     from app.models.response import Response, ResponseStatus
-    from app.services.audit_log import log_status_change
+    from app.services.audit_log import log_status_change, log_failed_deletion_attempt
+    from app.services.rate_limit import check_rate_limit
+    from datetime import timedelta
+
+    user_id = current_user.id
+
+    # 0. Rate limit: 3 попытки в час на user_id
+    if not check_rate_limit(f"delete_account:{user_id}", limit=3, window=timedelta(hours=1)):
+        await log_failed_deletion_attempt(db, user_id, reason="rate_limit")
+        await db.commit()
+        raise HTTPException(
+            status_code=429,
+            detail="Слишком много попыток удаления. Попробуйте через час."
+        )
 
     # 1. Проверка подтверждения (case-sensitive)
     if data.confirmation != "УДАЛИТЬ":
+        await log_failed_deletion_attempt(db, user_id, reason="wrong_confirmation")
+        await db.commit()
         raise HTTPException(
             status_code=400,
             detail="Для подтверждения введите слово УДАЛИТЬ (точно, с учётом регистра)"
         )
 
-    user_id = current_user.id
+    # 1b. Проверка пароля
+    from app.routers.auth import pwd_context
+    if not pwd_context.verify(data.current_password, current_user.hashed_password):
+        await log_failed_deletion_attempt(db, user_id, reason="wrong_password")
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Неверный пароль")
 
     # 2. Проверяем активные сделки (confirmed, loading, in_transit, delivered, disputed)
     BLOCKING_STATUSES = [
@@ -329,9 +351,18 @@ async def delete_account(
         select(Load).where(Load.user_id == user_id, Load.status == LoadStatus.active)
     )
     canceled_count = 0
+    notify_responders: list = []  # (load, [responses]) для уведомлений после commit
     for load in loads_res.scalars().all():
         load.status = LoadStatus.canceled
         canceled_count += 1
+        # Собираем перевозчиков с pending/accepted откликами для уведомления
+        resp_for_load_res = await db.execute(
+            select(Response).where(
+                Response.load_id == load.id,
+                Response.status.in_([ResponseStatus.pending, ResponseStatus.accepted])
+            )
+        )
+        notify_responders.append((load, resp_for_load_res.scalars().all()))
 
     # 3b. Отзываем все pending-отклики
     resp_res = await db.execute(
@@ -341,9 +372,14 @@ async def delete_account(
         )
     )
     withdrawn_count = 0
+    notify_shippers: list = []  # (response, load) для уведомлений грузовладельцев
     for resp in resp_res.scalars().all():
         resp.status = ResponseStatus.withdrawn
         withdrawn_count += 1
+        # Собираем грузовладельцев для уведомления
+        load_obj = await db.get(Load, resp.load_id)
+        if load_obj:
+            notify_shippers.append((resp, load_obj))
 
     # 3c. Анонимизируем пользователя
     # email: уникальный индекс + NOT NULL → используем placeholder вместо NULL
@@ -358,6 +394,7 @@ async def delete_account(
     current_user.is_active     = False
     current_user.is_deleted    = True
     current_user.deleted_at    = now
+    current_user.plan          = UserPlan.free  # сброс плана (будущая платная подписка)
     # inn — сохраняем для rs.ge (налоговое хранение 6 лет)
 
     # 3d. Audit log
@@ -377,6 +414,33 @@ async def delete_account(
     # 4. Email-уведомление (асинхронно, не блокирует ответ)
     if old_email:
         asyncio.create_task(_send_deletion_email(old_email, user_id, now))
+
+    # 5. Уведомления другой стороне (после commit, асинхронно)
+    from app.services.telegram_notify import (
+        notify_load_canceled_by_owner_deletion,
+        notify_response_withdrawn_by_carrier_deletion,
+    )
+    for load_obj, responders in notify_responders:
+        for resp in responders:
+            responder = await db.get(User, resp.user_id)
+            if responder and responder.telegram_id:
+                asyncio.create_task(notify_load_canceled_by_owner_deletion(
+                    chat_id=responder.telegram_id,
+                    load_id=load_obj.id,
+                    from_city=getattr(load_obj, 'from_city', ''),
+                    to_city=getattr(load_obj, 'to_city', ''),
+                    lang=getattr(responder, 'lang', 'ru') or 'ru',
+                ))
+    for resp_obj, load_obj in notify_shippers:
+        shipper = await db.get(User, load_obj.user_id)
+        if shipper and shipper.telegram_id:
+            asyncio.create_task(notify_response_withdrawn_by_carrier_deletion(
+                chat_id=shipper.telegram_id,
+                load_id=load_obj.id,
+                from_city=getattr(load_obj, 'from_city', ''),
+                to_city=getattr(load_obj, 'to_city', ''),
+                lang=getattr(shipper, 'lang', 'ru') or 'ru',
+            ))
 
     return {
         "deleted": True,

@@ -4731,6 +4731,8 @@ function openDeleteAccountModal(){
   if(!getToken()){ openAuth('login'); return; }
   const inp = document.getElementById('deleteConfirmInput');
   if(inp) inp.value = '';
+  const pwdInp = document.getElementById('deletePasswordInput');
+  if(pwdInp) pwdInp.value = '';
   const btn = document.getElementById('btnDeleteConfirm');
   if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; }
   closeModal('settingsOverlay');
@@ -4739,9 +4741,10 @@ function openDeleteAccountModal(){
 
 function checkDeleteConfirm(){
   const val = (document.getElementById('deleteConfirmInput')?.value || '').trim();
+  const pwd = (document.getElementById('deletePasswordInput')?.value || '').trim();
   const btn = document.getElementById('btnDeleteConfirm');
   if(!btn) return;
-  const ok = (val === 'УДАЛИТЬ');
+  const ok = (val === 'УДАЛИТЬ') && pwd.length > 0;
   btn.disabled = !ok;
   btn.style.opacity = ok ? '1' : '0.5';
   btn.style.cursor = ok ? 'pointer' : 'not-allowed';
@@ -4750,23 +4753,39 @@ function checkDeleteConfirm(){
 async function doDeleteAccount(){
   const btn = document.getElementById('btnDeleteConfirm');
   const val = (document.getElementById('deleteConfirmInput')?.value || '').trim();
+  const pwd = (document.getElementById('deletePasswordInput')?.value || '').trim();
   if(val !== 'УДАЛИТЬ'){
     alert('⚠️ Введите слово УДАЛИТЬ для подтверждения');
     return;
   }
+  if(!pwd){ alert('⚠️ Введите текущий пароль'); return; }
   if(btn){ btn.textContent = '⏳ Удаляем...'; btn.disabled = true; }
 
   try {
     const r = await fetch('https://api-production-f3ea.up.railway.app/api/users/me', {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + getToken(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmation: 'УДАЛИТЬ' })
+      body: JSON.stringify({ confirmation: 'УДАЛИТЬ', current_password: pwd })
     });
     const data = await r.json();
 
+    if(r.status === 429){
+      const pwdErr = document.getElementById('deletePasswordError');
+      if(pwdErr){ pwdErr.textContent = '⏳ Слишком много попыток. Попробуйте через час.'; pwdErr.style.display='block'; }
+      else { alert('⏳ Слишком много попыток удаления. Попробуйте через час.'); }
+      if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
+      return;
+    }
     if(r.status === 400 && data?.detail?.active_deal_ids){
       const ids = data.detail.active_deal_ids.join(', ');
       alert(`❌ ${data.detail.message}\n\nАктивные сделки: #${ids}`);
+      if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
+      return;
+    }
+    if(r.status === 400 && typeof data?.detail === 'string' && data.detail.includes('пароль')){
+      const pwdErr = document.getElementById('deletePasswordError');
+      if(pwdErr){ pwdErr.textContent = '❌ ' + data.detail; pwdErr.style.display='block'; }
+      else { alert('❌ ' + data.detail); }
       if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
       return;
     }
