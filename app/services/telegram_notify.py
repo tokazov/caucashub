@@ -48,8 +48,20 @@ TEMPLATES = {
             "✅ <b>Ваш отклик принят!</b>\n\n"
             "📦 Грузовладелец: <b>{shipper}</b>\n"
             "📍 Маршрут: {from_city} → {to_city}\n"
-            "💰 Сумма: {price} {cur}\n\n"
+            "💰 Сумма: {price} {cur}\n"
+            "{contacts_block}"
             "Войдите в <a href='https://caucashub.ge'>CaucasHub</a> для управления сделкой."
+        ),
+        "response_rejected": (
+            "❌ <b>Отклик не принят</b>\n\n"
+            "📍 {from_city} → {to_city}\n"
+            "💰 Ваша ставка: {price} {cur}\n\n"
+            "Посмотрите другие грузы → https://caucashub.ge"
+        ),
+        "response_withdrawn": (
+            "↩️ <b>Перевозчик отозвал отклик</b>\n\n"
+            "📍 {from_city} → {to_city}\n\n"
+            "Посмотрите другие отклики → https://caucashub.ge"
         ),
         "deal_status": (
             "🔄 <b>Статус сделки обновлён</b>\n\n"

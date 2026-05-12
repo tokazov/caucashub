@@ -66,6 +66,10 @@ def normalize_phone(phone: str) -> Optional[str]:
     if cleaned.startswith('7') and len(cleaned) == 11:
         cleaned = '+' + cleaned
 
+    # Грузинский локальный формат: 0551234567 → +995551234567
+    if cleaned.startswith('0') and len(cleaned) == 10:
+        cleaned = '+995' + cleaned[1:]
+
     # Минимальная длина E.164: +[code][number] ≥ 10 символов
     if len(cleaned) >= 10:
         return cleaned
@@ -88,7 +92,8 @@ def normalize_tax_id(tax_id: str, country: str = "GE") -> Optional[str]:
         return None
     digits = re.sub(r'\D', '', tax_id.strip())
     if country == "GE" and len(digits) != 9:
-        return None  # невалидный
+        # Task 12: возвращаем как есть, не None — валидация на уровне Pydantic
+        return tax_id.strip() if isinstance(tax_id, str) else tax_id
     return digits
 
 

@@ -41,7 +41,11 @@ def _mark_debounce(sub_id: int, load_id: int) -> None:
 
 
 def _normalize(city: str) -> str:
-    return city.strip().lower()
+    import re
+    if not city:
+        return ""
+    s = city.strip().lower()
+    return re.sub(r'[-\s]+', ' ', s)
 
 
 def _cities_match(sub_city: str, load_city: str) -> bool:
@@ -211,14 +215,20 @@ async def notify_subscribers(load: Load, db: AsyncSession) -> int:
             return 0
 
         sent = 0
+        # Task 9: batch SELECT users (N+1 → 1 запрос)
+        user_ids = [sub.user_id for sub in matched]
+        if user_ids:
+            users_res = await db.execute(select(User).where(User.id.in_(user_ids)))
+            users_map = {u.id: u for u in users_res.scalars().all()}
+        else:
+            users_map = {}
+
         for sub in matched:
             if _is_debounced(sub.id, load.id):
                 logger.debug(f"[SUB] debounce skip sub={sub.id} load={load.id}")
                 continue
 
-            # Загружаем пользователя
-            user_res = await db.execute(select(User).where(User.id == sub.user_id))
-            user = user_res.scalar_one_or_none()
+            user = users_map.get(sub.user_id)
             if not user or user.is_deleted:
                 continue
 

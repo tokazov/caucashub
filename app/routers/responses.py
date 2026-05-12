@@ -8,7 +8,8 @@ from app.models.user import User
 from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
-from app.services.telegram_notify import notify_new_response, notify_response_accepted
+from app.services.telegram_notify import (notify_new_response, notify_response_accepted,
+    notify_response_rejected, notify_response_withdrawn)
 # plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
 import httpx
@@ -437,6 +438,20 @@ async def reject_response(
 
     resp.status = ResponseStatus.rejected
     await db.commit()
+
+    # Telegram уведомление перевозчику (Task 6 — ADR-013)
+    carrier_res_tg = await db.execute(select(User).where(User.id == resp.user_id))
+    carrier_tg = carrier_res_tg.scalar_one_or_none()
+    if carrier_tg and carrier_tg.telegram_id:
+        import asyncio
+        asyncio.create_task(notify_response_rejected(
+            chat_id=carrier_tg.telegram_id,
+            from_city=load.from_city,
+            to_city=load.to_city,
+            price=resp.price_gel or resp.price_usd or 0,
+            cur="GEL" if resp.price_gel else "USD",
+            lang=getattr(carrier_tg, 'lang', 'ru') or 'ru',
+        ))
 
     # Email перевозчику
     carrier_res = await db.execute(select(User).where(User.id == resp.user_id))
