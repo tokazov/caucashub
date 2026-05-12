@@ -38,11 +38,21 @@ async def send_tg_message(chat_id: int | str, text: str, parse_mode: str = "HTML
 TEMPLATES = {
     "ru": {
         "new_response": (
-            "📩 <b>Новый отклик на ваш груз</b>\n\n"
-            "🚛 Перевозчик: <b>{carrier}</b>\n"
+            "📩 <b>Новый отклик на ваш груз</b>\n"
+            "📋 Груз #{load_id}\n\n"
+            "⭐ Рейтинг перевозчика: {carrier_rating} / 5.0\n"
+            "✅ Сделок завершено: {carrier_deals}\n"
             "📍 Маршрут: {from_city} → {to_city}\n"
             "💰 Ставка: {price} {cur}\n\n"
             "Войдите в <a href='https://caucashub.ge'>CaucasHub</a> чтобы принять или отклонить."
+        ),
+        "deal_created": (
+            "🤝 <b>Сделка создана!</b>\n\n"
+            "📋 Сделка: <b>{deal_num}</b>\n"
+            "📍 Маршрут: {from_city} → {to_city}\n"
+            "🚛 Перевозчик: <b>{carrier_name}</b>\n"
+            "{contacts}"
+            "\n<a href='https://caucashub.ge'>Открыть CaucasHub</a>"
         ),
         "response_accepted": (
             "✅ <b>Ваш отклик принят!</b>\n\n"
@@ -92,11 +102,21 @@ TEMPLATES = {
     },
     "ge": {
         "new_response": (
-            "📩 <b>თქვენს ტვირთზე ახალი გამოხმაურება</b>\n\n"
-            "🚛 გადამზიდი: <b>{carrier}</b>\n"
+            "📩 <b>თქვენს ტვირთზე ახალი გამოხმაურება</b>\n"
+            "📋 ტვირთი #{load_id}\n\n"
+            "⭐ გადამზიდის რეიტინგი: {carrier_rating} / 5.0\n"
+            "✅ დასრულებული გარიგებები: {carrier_deals}\n"
             "📍 მარშრუტი: {from_city} → {to_city}\n"
             "💰 ფასი: {price} {cur}\n\n"
             "შედით <a href='https://caucashub.ge'>CaucasHub</a>-ზე მისაღებად ან უარსაყოფად."
+        ),
+        "deal_created": (
+            "🤝 <b>გარიგება შეიქმნა!</b>\n\n"
+            "📋 გარიგება: <b>{deal_num}</b>\n"
+            "📍 მარშრუტი: {from_city} → {to_city}\n"
+            "🚛 გადამზიდი: <b>{carrier_name}</b>\n"
+            "{contacts}"
+            "\n<a href='https://caucashub.ge'>CaucasHub-ის გახსნა</a>"
         ),
         "response_accepted": (
             "✅ <b>თქვენი გამოხმაურება მიღებულია!</b>\n\n"
@@ -154,11 +174,44 @@ def _t(lang: str, key: str) -> str:
 
 # ── Функции уведомлений ──────────────────────────────────────────────
 
-async def notify_new_response(chat_id, carrier_name: str, from_city: str, to_city: str,
-                               price: float, cur: str, lang: str = "ru"):
+async def notify_new_response(chat_id, from_city: str, to_city: str,
+                               price: float, cur: str,
+                               carrier_rating: float = 0.0, carrier_deals: int = 0,
+                               load_id: int = 0, lang: str = "ru"):
     text = _t(lang, "new_response").format(
-        carrier=carrier_name, from_city=from_city, to_city=to_city,
+        load_id=load_id,
+        carrier_rating=round(carrier_rating, 1),
+        carrier_deals=carrier_deals,
+        from_city=from_city, to_city=to_city,
         price=int(price) if price == int(price) else price, cur=cur
+    )
+    await send_tg_message(chat_id, text)
+
+
+async def notify_deal_created(chat_id, deal_num: str, from_city: str, to_city: str,
+                               carrier_name: str = None, carrier_phone: str = None,
+                               carrier_email: str = None, lang: str = "ru"):
+    """Уведомление грузоотправителю о создании сделки с контактами перевозчика."""
+    contact_lines = []
+    if carrier_phone is not None:
+        contact_lines.append(f"📞 {carrier_phone}")
+    if carrier_email is not None:
+        contact_lines.append(f"📧 {carrier_email}")
+
+    if not contact_lines and carrier_name is None:
+        # Все поля None — fallback
+        contacts = "<a href='https://caucashub.ge'>Контакты в личном кабинете</a>\n"
+        carrier_name_str = "—"
+    else:
+        contacts = "\n".join(contact_lines) + "\n" if contact_lines else ""
+        carrier_name_str = carrier_name or "—"
+
+    text = _t(lang, "deal_created").format(
+        deal_num=deal_num,
+        from_city=from_city,
+        to_city=to_city,
+        carrier_name=carrier_name_str,
+        contacts=contacts,
     )
     await send_tg_message(chat_id, text)
 
