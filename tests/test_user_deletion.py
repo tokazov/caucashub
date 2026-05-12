@@ -373,3 +373,106 @@ async def test_delete_resets_plan_to_free():
     async with AsyncSessionTest() as db:
         user = await db.get(User, user_id)
         assert user.plan == UserPlan.free
+
+
+# ── КРИТИЧНЫЕ ТЕСТЫ БЕЗОПАСНОСТИ (добавлены 12 мая 2026) ────────────────────
+
+@pytest.mark.asyncio
+async def test_delete_invalidates_jwt():
+    """JWT после удаления аккаунта должен возвращать 401."""
+    user_id, token = await _make_user("jwt@del.ge")
+
+    with patch("app.routers.users._send_deletion_email", new_callable=AsyncMock):
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            r = await c.request(
+                "DELETE", "/api/users/me",
+                headers=auth(token),
+                content=json.dumps({"confirmation": "УДАЛИТЬ", "current_password": "TestPass99!"}),
+            )
+    assert r.status_code == 200
+
+    # Тот же JWT — должен вернуть 401
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r2 = await c.get("/api/users/me", headers=auth(token))
+    assert r2.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_audit_records_survive_rollback():
+    """Запись audit_log создаётся и коммитится ДО raise HTTPException."""
+    user_id, token = await _make_user("auditsurvive@del.ge")
+
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.request(
+            "DELETE", "/api/users/me",
+            headers=auth(token),
+            content=json.dumps({"confirmation": "УДАЛИТЬ", "current_password": "WrongPass!"}),
+        )
+    assert r.status_code == 400
+
+    # Новая сессия — запись должна быть в БД
+    async with AsyncSessionTest() as db2:
+        res = await db2.execute(
+            select(StatusChange).where(
+                StatusChange.entity_id == user_id,
+                StatusChange.to_status == "wrong_password",
+            )
+        )
+        entry = res.scalar_one_or_none()
+        assert entry is not None, "Audit log должен быть закоммичен до HTTPException"
+        assert entry.entity_type == "user_deletion_attempt"
+
+
+@pytest.mark.asyncio
+async def test_delete_notifies_responders_when_loads_canceled():
+    """При удалении владельца — перевозчики с откликами получают TG уведомление."""
+    from unittest.mock import patch as mock_patch
+    import asyncio
+
+    owner_id, owner_token = await _make_user("owner_notify@del.ge")
+    b_id, _ = await _make_user("carrier_b_n@del.ge")
+    c_id, _ = await _make_user("carrier_c_n@del.ge")
+
+    async with AsyncSessionTest() as db:
+        for uid, tg in [(b_id, "tg_b"), (c_id, "tg_c")]:
+            u = await db.get(User, uid)
+            u.telegram_id = tg
+        await db.commit()
+
+    async with AsyncSessionTest() as db:
+        load = Load(
+            user_id=owner_id, from_city="Tbilisi", to_city="Moscow",
+            weight_kg=5, cargo_desc="x", status=LoadStatus.active,
+            price_gel=100, truck_type=TruckType.tent,
+            load_date=datetime.now(timezone.utc),
+        )
+        db.add(load)
+        await db.flush()
+        for carrier_id in [b_id, c_id]:
+            db.add(Response(user_id=carrier_id, load_id=load.id,
+                            status=ResponseStatus.pending, price_gel=80))
+        await db.commit()
+
+    sent_to = []
+
+    async def mock_send(chat_id, text, **kw):
+        sent_to.append((str(chat_id), text))
+        return True
+
+    with mock_patch("app.services.telegram_notify.send_tg_message", side_effect=mock_send), \
+         mock_patch("app.routers.users._send_deletion_email", new_callable=AsyncMock):
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            r = await c.request(
+                "DELETE", "/api/users/me",
+                headers=auth(owner_token),
+                content=json.dumps({"confirmation": "УДАЛИТЬ", "current_password": "TestPass99!"}),
+            )
+        assert r.status_code == 200
+        await asyncio.sleep(0.2)
+
+    notified = [cid for cid, _ in sent_to]
+    assert "tg_b" in notified, "Перевозчик B должен получить уведомление"
+    assert "tg_c" in notified, "Перевозчик C должен получить уведомление"
+    for cid, text in sent_to:
+        if cid in ("tg_b", "tg_c"):
+            assert "отменён" in text.lower() or "Груз" in text
