@@ -153,3 +153,18 @@ PR #8 содержит миграцию `014_add_missing_indexes.py` с 8 инд
 
 **Дубликатов с emergency_migrations: 0.**  
 Миграция 014 из PR #8 безопасна — создаст новые индексы через `CREATE INDEX IF NOT EXISTS`, не конфликтует с emergency.
+
+---
+
+## Resolution
+
+4 drift items resolved via Alembic migration 016
+(in this same PR #14):
+
+- `users.responses_this_month` → migration 016
+- `users.responses_month_reset` → migration 016
+- `users.is_verified` → migration 016
+- `reset_codes` table → migration 016
+
+After PR #14 merge: schema drift = **0**.
+`emergency_migrations` and Alembic now have full parity.
