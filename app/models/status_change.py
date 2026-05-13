@@ -8,7 +8,7 @@ class StatusChange(Base):
     __tablename__ = "status_changes"
 
     id          = Column(Integer, primary_key=True, autoincrement=True)
-    entity_type = Column(String(20), nullable=False, index=True)   # load / response / deal
+    entity_type = Column(String(50), nullable=False, index=True)   # load / response / deal / user_deletion_attempt
     entity_id   = Column(Integer, nullable=False, index=True)
     from_status = Column(String(30), nullable=True)   # None при создании
     to_status   = Column(String(30), nullable=False)
