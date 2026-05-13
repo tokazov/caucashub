@@ -1248,6 +1248,7 @@ async function cancelMyResponse(orderId, serverId){
   const idx = _orders.findIndex(o=>o.id===orderId);
   if(idx>-1){ _orders.splice(idx,1); persistOrders(); }
   _renderOrders();
+  if(typeof renderLoads === 'function') renderLoads();
   // Отзываем с сервера
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   if(_tk){
