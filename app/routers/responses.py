@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
-from app.services.telegram_notify import notify_new_response, notify_response_accepted
+from app.services.telegram_notify import notify_new_response, notify_response_accepted, notify_deal_created
 # plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
 import httpx
@@ -146,11 +146,15 @@ async def respond_to_load(
 
     # TG-уведомление грузоотправителю
     if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
-        carrier_name = current_user.company_name or current_user.email.split("@")[0]
         price_val = float(data.price) if data.price else 0
+        carrier_rating = round((current_user.rating or 50) / 10, 1)
+        carrier_deals = getattr(current_user, 'completed_deals_count', 0) or 0
         asyncio.create_task(notify_new_response(
-            owner.telegram_id, carrier_name,
+            owner.telegram_id,
             load.from_city, load.to_city, price_val, "₾",
+            carrier_rating=carrier_rating,
+            carrier_deals=carrier_deals,
+            load_id=load_id,
             lang=owner.lang or "ru"
         ))
 
@@ -399,6 +403,18 @@ async def accept_response(
 
     # 3.2: Email грузовладельцу — симметричное уведомление о создании сделки
     deal_num = deal.act_number or f"CH-{deal.id:04d}"
+
+    # TG-уведомление грузоотправителю о создании сделки с контактами перевозчика
+    if current_user.telegram_id and not current_user.telegram_id.startswith("pending:"):
+        asyncio.create_task(notify_deal_created(
+            current_user.telegram_id,
+            deal_num,
+            load.from_city, load.to_city,
+            carrier_name=(carrier.company_name if carrier else None),
+            carrier_phone=(carrier.phone if carrier else None),
+            carrier_email=(carrier.email if carrier else None),
+            lang=current_user.lang or "ru"
+        ))
     if current_user.email:
         carrier_name = carrier.company_name if carrier else "Перевозчик"
         html_shipper = f"""
