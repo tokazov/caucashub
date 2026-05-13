@@ -62,12 +62,12 @@ class Deal(Base):
     notes        = Column(Text, nullable=True)
 
     # Связи
-    load             = relationship("Load",             foreign_keys=[load_id])
-    transport_offer  = relationship("TransportOffer",   foreign_keys=[transport_offer_id])
-    transport_request= relationship("TransportRequest", foreign_keys=[transport_request_id])
-    shipper          = relationship("User",             foreign_keys=[shipper_id])
-    carrier          = relationship("User",             foreign_keys=[carrier_id])
-    response         = relationship("Response",         foreign_keys=[response_id])
+    load             = relationship("Load",             foreign_keys=[load_id],             lazy="selectin")
+    transport_offer  = relationship("TransportOffer",   foreign_keys=[transport_offer_id],   lazy="selectin")
+    transport_request= relationship("TransportRequest", foreign_keys=[transport_request_id], lazy="selectin")
+    shipper          = relationship("User",             foreign_keys=[shipper_id],           lazy="selectin")
+    carrier          = relationship("User",             foreign_keys=[carrier_id],           lazy="selectin")
+    response         = relationship("Response",         foreign_keys=[response_id],          lazy="selectin")
 
     @property
     def deal_source(self) -> str:

@@ -65,20 +65,32 @@ async def _fetch_rate_from_nbg() -> float:
         raise ValueError("USD not found in NBG response")
 
     except Exception as exc:
-        logger.warning(f"[NBG] Failed to fetch rate: {exc}. Using fallback {FALLBACK_RATE}")
+        logger.warning(f"[NBG] Failed to fetch rate: {exc}. Using fallback chain.")
+        # Fallback 1: in-memory cache
+        if _cache.get("rate"):
+            logger.info("[NBG] Using cached rate as fallback")
+            return _cache["rate"]
+        # Fallback 2: константа
+        logger.warning(f"[NBG] No cache available, using FALLBACK_RATE={FALLBACK_RATE}")
         return FALLBACK_RATE
 
 
-def convert_gel_to_usd(amount_gel: float, rate: float) -> float:
-    """Конвертирует лари в USD. rate = GEL за 1 USD."""
-    if rate <= 0:
-        return 0.0
-    return round(amount_gel / rate, 2)
+def convert_gel_to_usd(amount_gel, rate) -> "Decimal":
+    """Конвертирует лари в USD. rate = GEL за 1 USD. Возвращает Decimal."""
+    from decimal import Decimal, ROUND_HALF_UP
+    d_amount = Decimal(str(amount_gel)) if not isinstance(amount_gel, Decimal) else amount_gel
+    d_rate = Decimal(str(rate)) if not isinstance(rate, Decimal) else rate
+    if d_rate <= 0:
+        return Decimal("0.00")
+    return (d_amount / d_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def convert_usd_to_gel(amount_usd: float, rate: float) -> float:
-    """Конвертирует USD в лари. rate = GEL за 1 USD."""
-    return round(amount_usd * rate, 2)
+def convert_usd_to_gel(amount_usd, rate) -> "Decimal":
+    """Конвертирует USD в лари. rate = GEL за 1 USD. Возвращает Decimal."""
+    from decimal import Decimal, ROUND_HALF_UP
+    d_amount = Decimal(str(amount_usd)) if not isinstance(amount_usd, Decimal) else amount_usd
+    d_rate = Decimal(str(rate)) if not isinstance(rate, Decimal) else rate
+    return (d_amount * d_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def invalidate_cache() -> None:
