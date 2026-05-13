@@ -8,8 +8,9 @@ from app.database import get_db
 from app.models.user import User, UserPlan
 from app.routers.loads import require_user         # возвращает int (user_id)
 from app.routers.auth import require_user as require_user_obj  # возвращает User object
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
+import re as _re
 
 router = APIRouter()
 
@@ -22,6 +23,17 @@ class UpdateProfileRequest(BaseModel):
     city:         Optional[str] = None
     lang:         Optional[str] = None
     telegram_id:  Optional[str] = None
+
+    @field_validator("inn")
+    @classmethod
+    def validate_inn(cls, v: Optional[str]) -> Optional[str]:
+        """Task 12: ИНН Грузии — ровно 9 цифр. None и "" — валидны (отсутствие ИНН)."""
+        if v is None or v == "":
+            return None
+        digits = _re.sub(r"\D", "", v)
+        if len(digits) != 9:
+            raise ValueError("ИНН должен содержать ровно 9 цифр")
+        return digits
 
 
 class DeleteAccountRequest(BaseModel):
