@@ -1242,7 +1242,8 @@ async function acceptResponse(loadId, respId){
 }
 
 async function cancelMyResponse(orderId, serverId){
-  if(!confirm('Отменить заявку?')) return;
+  const _confirmText = (typeof TRANSLATIONS !== 'undefined' && typeof lang !== 'undefined' && (TRANSLATIONS[lang]||TRANSLATIONS['ru']).confirm_cancel) || ((typeof TRANSLATIONS !== 'undefined' && typeof lang !== 'undefined' && (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel_req) ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_cancel_req + '?' : 'Отменить заявку?');
+  if(!confirm(_confirmText)) return;
   // Убираем из локального массива
   const order = _orders.find(o=>o.id===orderId);
   const idx = _orders.findIndex(o=>o.id===orderId);
@@ -2925,6 +2926,7 @@ const TRANSLATIONS = {
     btn_disable: 'Отключить',
     btn_enable: 'Включить',
     btn_cancel_req: 'Отменить заявку',
+    confirm_cancel: 'Отменить заявку?',
     sub_status_active: 'Активна',
     sub_status_inactive: 'Отключена',
     sub_notify_label: 'Уведомления',
@@ -3499,6 +3501,7 @@ const TRANSLATIONS = {
     btn_disable: 'გამორთვა',
     btn_enable: 'ჩართვა',
     btn_cancel_req: 'განაცხადის გაუქმება',
+    confirm_cancel: 'განაცხადის გაუქმება?',
     sub_status_active: 'აქტიური',
     sub_status_inactive: 'გამორთული',
     sub_notify_label: 'შეტყობინებები',
