@@ -224,7 +224,7 @@
       return '<div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">' +
         '<div style="font-weight:700;font-size:14px;color:#1a1a2e;">' + (l.from||'?') + ' → ' + (l.to||'?') + '</div>' +
         '<div style="font-size:12px;color:#888;margin-top:3px;">' + (l.kg||0).toLocaleString() + ' кг · ' + price + (l.company && l.company!=='—' ? ' · '+l.company : '') + '</div>' +
-        '<button onclick="closeAI();setTimeout(function(){if(typeof openCargo===\'function\' && window._aiDispatcherLoads[\''+loadKey+'\']){openCargo(window._aiDispatcherLoads[\''+loadKey+'\']);}},200);" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
+        '<button onclick="(function(id,d){closeAI();setTimeout(function(){if(typeof openCargo!==\'function\')return;var c=(window.allLoads&&window.allLoads.find(function(x){return x.id==id;}))||d;if(c)openCargo(c);},250);})('+JSON.stringify(l.id||null)+','+JSON.stringify(l)+')" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
         '</div>';
     }).join('');
     div.innerHTML = inner;
