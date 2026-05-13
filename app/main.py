@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
         """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$ """,
         """CREATE TABLE IF NOT EXISTS status_changes (
             id SERIAL PRIMARY KEY,
-            entity_type VARCHAR(20) NOT NULL,
+            entity_type VARCHAR(50) NOT NULL,
             entity_id INTEGER NOT NULL,
             from_status VARCHAR(30),
             to_status VARCHAR(30) NOT NULL,
@@ -59,6 +59,8 @@ async def lifespan(app: FastAPI):
             changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
             reason TEXT
         )""",
+        # Расширяем entity_type с VARCHAR(20) до VARCHAR(50) для user_deletion_attempt (22 символа)
+        "ALTER TABLE status_changes ALTER COLUMN entity_type TYPE VARCHAR(50)",
         """CREATE TABLE IF NOT EXISTS cities (
             id SERIAL PRIMARY KEY,
             name_ru VARCHAR(100) NOT NULL,
