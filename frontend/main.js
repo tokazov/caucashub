@@ -984,9 +984,11 @@ function openCargo(d){
   document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
-  document.getElementById('mSub').textContent=`#${d.scope.toUpperCase()}-${String(d.id).padStart(5,'0')} · ${d.co} · ${_addedStr}`;
-  document.getElementById('mAva').textContent=d.co.slice(0,2).toUpperCase();
-  document.getElementById('mComp').textContent=d.co;
+  const _scope = (d.scope||'local').toUpperCase();
+  const _co = d.co || d.company || '—';
+  document.getElementById('mSub').textContent=`#${_scope}-${String(d.id).padStart(5,'0')} · ${_co} · ${_addedStr}`;
+  document.getElementById('mAva').textContent=_co.slice(0,2).toUpperCase();
+  document.getElementById('mComp').textContent=_co;
   // Считаем сколько откликов на этот груз
   const respondCount = (typeof _orders!=='undefined' ? _orders.filter(o=>o.loadId===d.id).length : 0);
   const respondTxt = respondCount > 0 ? ` · 👥 ${respondCount} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}` : '';
