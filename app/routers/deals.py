@@ -62,8 +62,9 @@ class CreateDealRequest(BaseModel):
 async def create_deal(
     data: CreateDealRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
+    user_id = current_user.id
     # Проверяем что груз принадлежит текущему пользователю
     result = await db.execute(select(Load).where(Load.id == data.load_id))
     load = result.scalar_one_or_none()
@@ -122,8 +123,9 @@ async def update_status(
     deal_id: int,
     data: UpdateStatusRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
+    user_id = current_user.id
     result = await db.execute(select(Deal).where(Deal.id == deal_id))
     deal = result.scalar_one_or_none()
     if not deal:
@@ -258,8 +260,9 @@ def _send_completed_emails(shipper, carrier, deal_num: str):
 async def confirm_delivery(
     deal_id: int,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
+    user_id = current_user.id
     result = await db.execute(select(Deal).where(Deal.id == deal_id))
     deal = result.scalar_one_or_none()
     if not deal:
@@ -288,8 +291,9 @@ async def get_my_deals(
     limit:  int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
+    user_id = current_user.id
     # Общее кол-во
     count_res = await db.execute(
         select(func.count()).where(
@@ -439,11 +443,12 @@ async def export_deals(
     date_from: Optional[str] = Query(None, alias="from"),   # 12.2.4: фильтр по периоду YYYY-MM-DD
     date_to:   Optional[str] = Query(None, alias="to"),     # 12.2.4: фильтр по периоду YYYY-MM-DD
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Экспорт сделок для бухгалтерии / rs.ge.
     format=json → JSON  |  format=csv → CSV файл
     Поддерживает фильтрацию: from=YYYY-MM-DD, to=YYYY-MM-DD"""
+    user_id = current_user.id
     result = await db.execute(
         select(Deal).where(
             (Deal.shipper_id == user_id) | (Deal.carrier_id == user_id)
@@ -511,8 +516,9 @@ async def export_deals(
         return _dn(u) if u else "—"
 
     rows = []
-    total_gel = 0.0
-    total_usd = 0.0
+    from decimal import Decimal as _D
+    total_gel = _D("0")
+    total_usd = _D("0")
     for d in all_deals:
         # ADR-016.7: route берётся из Load (cargo-путь) или TransportOffer (transport-путь)
         load  = load_map.get(d.load_id) if d.load_id else None
@@ -595,9 +601,10 @@ async def rate_deal(
     deal_id: int,
     data: RatingRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Оценить сделку (только после completed)"""
+    user_id = current_user.id
     if data.score < 1 or data.score > 5:
         raise HTTPException(400, "Оценка должна быть от 1 до 5")
     result = await db.execute(select(Deal).where(Deal.id == deal_id))

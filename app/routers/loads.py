@@ -4,30 +4,13 @@ from sqlalchemy import select
 from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.models.user import User
-from app.config import settings
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from jose import jwt, JWTError
+# ADR-010: require_user из auth — проверяет is_deleted, is_active, password_changed_at
+from app.routers.auth import require_user
 
 router = APIRouter()
-
-def get_user_id(authorization: Optional[str] = Header(None)) -> Optional[int]:
-    """Извлекаем user_id из JWT токена. Возвращает None если нет токена."""
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
-    try:
-        token = authorization.split(" ")[1]
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return int(payload.get("sub"))
-    except (JWTError, ValueError):
-        return None
-
-def require_user(authorization: Optional[str] = Header(None)) -> int:
-    uid = get_user_id(authorization)
-    if not uid:
-        raise HTTPException(status_code=401, detail="Authorization required")
-    return uid
 
 class LoadCreate(BaseModel):
     from_city: str
@@ -159,11 +142,13 @@ async def get_loads(
 async def create_load(data: LoadCreate, request: Request,
                       background_tasks: BackgroundTasks,
                       db: AsyncSession = Depends(get_db),
-                      authorization: Optional[str] = Header(None)):
+                      current_user: User = Depends(require_user)):
     from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
-    from app.services.idempotency import check_idempotency
-    user_id = require_user(authorization)
-    await check_idempotency(request, scope="create_load", user_id=user_id)
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    user_id = current_user.id
+    cached, replayed = await check_idempotency(request, db, scope="create_load", user_id=user_id)
+    if replayed:
+        return make_idempotent_response(cached)
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
 
     # Фикс 1: Серверная валидация веса и цены (P1 Cat4)
@@ -244,12 +229,15 @@ async def create_load(data: LoadCreate, request: Request,
     from app.services.subscription_matcher import notify_subscribers
     background_tasks.add_task(notify_subscribers, load, db)
 
-    return load_to_dict(load, data.company_name)
+    response_dict = load_to_dict(load, data.company_name)
+    await save_idempotency(request, db, scope="create_load", user_id=user_id,
+                           response_status=200, response_body=response_dict)
+    return response_dict
 
 @router.put("/{load_id}")
 async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends(get_db),
-                      authorization: Optional[str] = Header(None)):
-    user_id = require_user(authorization)
+                      current_user: User = Depends(require_user)):
+    user_id = current_user.id
     result = await db.execute(select(Load).where(Load.id == load_id))
     load = result.scalar_one_or_none()
     if not load:
@@ -283,8 +271,8 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
 
 @router.delete("/{load_id}")
 async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
-                      authorization: Optional[str] = Header(None)):
-    user_id = require_user(authorization)
+                      current_user: User = Depends(require_user)):
+    user_id = current_user.id
     result = await db.execute(select(Load).where(Load.id == load_id))
     load = result.scalar_one_or_none()
     if not load:
@@ -314,16 +302,14 @@ async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
 
 @router.get("/my/loads")
 async def get_my_loads(db: AsyncSession = Depends(get_db),
-                       authorization: Optional[str] = Header(None)):
-    user_id = require_user(authorization)
+                       current_user: User = Depends(require_user)):
+    user_id = current_user.id
     result = await db.execute(
         select(Load).where(Load.user_id == user_id, Load.status != LoadStatus.canceled)
         .order_by(Load.created_at.desc())
     )
     loads = result.scalars().all()
-    # Загружаем профиль текущего пользователя
-    ur = await db.execute(select(User).where(User.id == user_id))
-    owner = ur.scalar_one_or_none()
+    owner = current_user
     return {"loads": [load_to_dict(lo, user=owner) for lo in loads]}
 
 @router.get("/{load_id}")

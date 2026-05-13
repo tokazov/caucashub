@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.load import Load, LoadStatus
 from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
-from app.services.telegram_notify import notify_new_response, notify_response_accepted
+from app.services.telegram_notify import notify_new_response, notify_response_accepted, notify_deal_created
 # plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
 import httpx
@@ -72,9 +72,11 @@ async def respond_to_load(
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
-    # 2.5.4: idempotency check — защита от двойного отклика
-    from app.services.idempotency import check_idempotency
-    await check_idempotency(request, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
+    # 2.5.4: idempotency check — защита от двойного отклика (Postgres-backed)
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    cached, replayed = await check_idempotency(request, db, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
+    if replayed:
+        return make_idempotent_response(cached)
 
     # ADR-013 B: проверка тарифного плана удалена — все могут откликаться.
     # Pro-лимиты добавим с billing-модулем.
@@ -144,11 +146,15 @@ async def respond_to_load(
 
     # TG-уведомление грузоотправителю
     if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
-        carrier_name = current_user.company_name or current_user.email.split("@")[0]
         price_val = float(data.price) if data.price else 0
+        carrier_rating = round((current_user.rating or 50) / 10, 1)
+        carrier_deals = getattr(current_user, 'completed_deals_count', 0) or 0
         asyncio.create_task(notify_new_response(
-            owner.telegram_id, carrier_name,
+            owner.telegram_id,
             load.from_city, load.to_city, price_val, "₾",
+            carrier_rating=carrier_rating,
+            carrier_deals=carrier_deals,
+            load_id=load_id,
             lang=owner.lang or "ru"
         ))
 
@@ -181,11 +187,15 @@ async def respond_to_load(
         """
         await send_email(owner.email, f"Новый отклик на груз {route}", html)
 
-    return {
+    resp_result = {
         "ok": True,
         "response_id": resp.id,
-        "status": resp.status
+        "status": resp.status.value if hasattr(resp.status, "value") else str(resp.status),
     }
+    await save_idempotency(request, db, scope=f"respond_to_load:{load_id}",
+                           user_id=current_user.id, response_status=200,
+                           response_body=resp_result)
+    return resp_result
 
 @router.get("/load/{load_id}")
 async def get_load_responses(
@@ -208,12 +218,15 @@ async def get_load_responses(
     for r in responses:
         carrier_res = await db.execute(select(User).where(User.id == r.user_id))
         carrier = carrier_res.scalar_one_or_none()
+        # ADR-013: контакты перевозчика только после принятия отклика
+        resp_accepted = (r.status.value if hasattr(r.status, 'value') else str(r.status)) == "accepted"
         result.append({
             "id": r.id,
             "carrier_id": r.user_id,
-            "carrier_name": carrier.company_name if carrier else "—",
-            "carrier_phone": carrier.phone if carrier else None,
-            "carrier_email": carrier.email if carrier else None,
+            # ADR-013: имя перевозчика скрыто до принятия отклика
+            "carrier_name": carrier.company_name if (carrier and resp_accepted) else None,
+            "carrier_phone": carrier.phone if (carrier and resp_accepted) else None,
+            "carrier_email": carrier.email if (carrier and resp_accepted) else None,
             "message": r.message,
             "price": r.price_usd,
             "status": r.status,
@@ -270,8 +283,10 @@ async def accept_response(
     current_user: User = Depends(require_user)
 ):
     """Грузоотправитель принимает отклик → создаётся сделка"""
-    from app.services.idempotency import check_idempotency
-    await check_idempotency(request, scope=f"accept_response:{response_id}", user_id=current_user.id)
+    from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    cached, replayed = await check_idempotency(request, db, scope=f"accept_response:{response_id}", user_id=current_user.id)
+    if replayed:
+        return make_idempotent_response(cached)
     from app.services.state_machine import validate_transition
     from app.services.audit_log import log_status_change
     from app.models.deal import Deal as DealModel
@@ -389,6 +404,18 @@ async def accept_response(
 
     # 3.2: Email грузовладельцу — симметричное уведомление о создании сделки
     deal_num = deal.act_number or f"CH-{deal.id:04d}"
+
+    # TG-уведомление грузоотправителю о создании сделки с контактами перевозчика
+    if current_user.telegram_id and not current_user.telegram_id.startswith("pending:"):
+        asyncio.create_task(notify_deal_created(
+            current_user.telegram_id,
+            deal_num,
+            load.from_city, load.to_city,
+            carrier_name=(carrier.company_name if carrier else None),
+            carrier_phone=(carrier.phone if carrier else None),
+            carrier_email=(carrier.email if carrier else None),
+            lang=current_user.lang or "ru"
+        ))
     if current_user.email:
         carrier_name = carrier.company_name if carrier else "Перевозчик"
         html_shipper = f"""
@@ -411,12 +438,16 @@ async def accept_response(
         </div>"""
         await send_email(current_user.email, f"✅ Сделка {deal_num} создана — {route}", html_shipper)
 
-    return {
+    accept_result = {
         "ok": True,
         "deal_id": deal.id,
         "deal_number": deal_num,
-        "status": deal.status,
+        "status": deal.status.value if hasattr(deal.status, "value") else str(deal.status),
     }
+    await save_idempotency(request, db, scope=f"accept_response:{response_id}",
+                           user_id=current_user.id, response_status=200,
+                           response_body=accept_result)
+    return accept_result
 
 @router.post("/reject/{response_id}")
 async def reject_response(

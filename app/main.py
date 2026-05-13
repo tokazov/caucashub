@@ -179,6 +179,7 @@ async def lifespan(app: FastAPI):
 
     # Запускаем фоновый цикл smoke-тестов
     _asyncio.create_task(_smoke_loop())
+    _asyncio.create_task(_idempotency_cleanup_loop())
     yield
 
 # ── Background smoke-test cache (ADR-011 + Q-018 fix) ─────────────────────────
@@ -252,6 +253,21 @@ async def _smoke_loop():
             pass
         await _asyncio.sleep(_SMOKE_INTERVAL)
 
+
+async def _idempotency_cleanup_loop():
+    """Фоновая задача: удаляет протухшие idempotency_keys раз в час."""
+    await _asyncio.sleep(60)  # небольшая задержка при старте
+    while True:
+        try:
+            from app.database import AsyncSessionLocal
+            from app.services.idempotency import cleanup_expired_keys
+            async with AsyncSessionLocal() as db:
+                deleted = await cleanup_expired_keys(db)
+                if deleted:
+                    print(f"[IDEMPOTENCY] ✅ Cleaned up {deleted} expired keys", flush=True)
+        except Exception as e:
+            print(f"[IDEMPOTENCY] ⚠️ Cleanup failed: {e}", flush=True)
+        await _asyncio.sleep(3600)  # раз в час
 
 
 app = FastAPI(
