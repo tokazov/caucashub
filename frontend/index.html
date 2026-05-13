@@ -1263,6 +1263,13 @@
     <input id="deleteConfirmInput" type="text" placeholder="УДАЛИТЬ"
       style="width:100%;padding:12px;border:1.5px solid #e74c3c;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:14px"
       oninput="checkDeleteConfirm()" />
+    <label style="font-size:13px;font-weight:700;color:#333;display:block;margin-bottom:6px">
+      Текущий пароль:
+    </label>
+    <input id="deletePasswordInput" type="password" placeholder="Введите текущий пароль"
+      style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:8px;font-size:15px;box-sizing:border-box;margin-bottom:6px"
+      oninput="checkDeleteConfirm()" />
+    <div id="deletePasswordError" style="color:#e74c3c;font-size:12px;margin-bottom:10px;display:none"></div>
     <button id="btnDeleteConfirm" onclick="doDeleteAccount()"
       disabled
       style="width:100%;background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:8px;font-size:15px;font-weight:800;cursor:not-allowed;opacity:0.5;transition:opacity 0.2s">

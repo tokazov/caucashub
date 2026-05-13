@@ -250,3 +250,63 @@ async def notify_welcome(chat_id, name: str, lang: str = "ru"):
 def get_text(lang: str, key: str, **kwargs) -> str:
     """Утилита: получить текст шаблона с подстановкой."""
     return _t(lang, key).format(**kwargs)
+
+
+# ── Уведомления при удалении аккаунта (ADR-010) ────────────────────────────
+
+TEMPLATES_DELETION = {
+    "ru": {
+        "load_canceled_by_owner": (
+            "⚠️ Груз отменён владельцем\n"
+            "📋 Груз #{load_id}\n"
+            "📍 {from_city} → {to_city}\n"
+            "Ваш отклик автоматически снят.\n"
+            "Посмотрите другие грузы → https://caucashub.ge"
+        ),
+        "response_withdrawn_by_carrier": (
+            "↩️ Перевозчик снял отклик\n"
+            "📋 Груз #{load_id}\n"
+            "📍 {from_city} → {to_city}\n"
+            "Перевозчик отменил отклик на ваш груз.\n"
+            "Посмотрите другие отклики → https://caucashub.ge"
+        ),
+    },
+    "ge": {
+        "load_canceled_by_owner": (
+            "⚠️ ტვირთი გაუქმდა მფლობელის მიერ\n"
+            "📋 ტვირთი #{load_id}\n"
+            "📍 {from_city} → {to_city}\n"
+            "თქვენი განაცხადი ავტომატურად გაუქმდა.\n"
+            "იხილეთ სხვა ტვირთები → https://caucashub.ge"
+        ),
+        "response_withdrawn_by_carrier": (
+            "↩️ გადამზიდმა განაცხადი გაიტანა\n"
+            "📋 ტვირთი #{load_id}\n"
+            "📍 {from_city} → {to_city}\n"
+            "გადამზიდმა თქვენს ტვირთზე განაცხადი გაიტანა.\n"
+            "იხილეთ სხვა განაცხადები → https://caucashub.ge"
+        ),
+    },
+}
+
+
+async def notify_load_canceled_by_owner_deletion(
+    chat_id, load_id: int, from_city: str, to_city: str, lang: str = "ru"
+) -> None:
+    """Уведомляет перевозчика об отмене груза при удалении аккаунта владельца."""
+    tmpl = TEMPLATES_DELETION.get(lang, TEMPLATES_DELETION["ru"])
+    text = tmpl["load_canceled_by_owner"].format(
+        load_id=load_id, from_city=from_city, to_city=to_city
+    )
+    await send_tg_message(chat_id, text)
+
+
+async def notify_response_withdrawn_by_carrier_deletion(
+    chat_id, load_id: int, from_city: str, to_city: str, lang: str = "ru"
+) -> None:
+    """Уведомляет грузовладельца об отзыве отклика при удалении аккаунта перевозчика."""
+    tmpl = TEMPLATES_DELETION.get(lang, TEMPLATES_DELETION["ru"])
+    text = tmpl["response_withdrawn_by_carrier"].format(
+        load_id=load_id, from_city=from_city, to_city=to_city
+    )
+    await send_tg_message(chat_id, text)
