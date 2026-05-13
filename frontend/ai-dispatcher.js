@@ -212,14 +212,19 @@
     var msgs = document.getElementById('aiMessages');
     if(!msgs) return;
 
+    // Сохраняем данные грузов чтобы кнопки могли их открыть
+    window._aiDispatcherLoads = window._aiDispatcherLoads || {};
+
     var div = document.createElement('div');
     div.style.cssText = 'margin-bottom:12px;';
     var inner = loads.map(function(l){
       var price = l.price ? (l.cur||'₾') + l.price.toLocaleString() : '—';
+      var loadKey = 'load_' + (l.id || Math.random().toString(36).slice(2));
+      window._aiDispatcherLoads[loadKey] = l;
       return '<div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">' +
         '<div style="font-weight:700;font-size:14px;color:#1a1a2e;">' + (l.from||'?') + ' → ' + (l.to||'?') + '</div>' +
         '<div style="font-size:12px;color:#888;margin-top:3px;">' + (l.kg||0).toLocaleString() + ' кг · ' + price + (l.company && l.company!=='—' ? ' · '+l.company : '') + '</div>' +
-        '<button onclick="closeAI()" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
+        '<button onclick="closeAI();setTimeout(function(){if(typeof openCargo===\'function\' && window._aiDispatcherLoads[\''+loadKey+'\']){openCargo(window._aiDispatcherLoads[\''+loadKey+'\']);}},200);" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
         '</div>';
     }).join('');
     div.innerHTML = inner;
