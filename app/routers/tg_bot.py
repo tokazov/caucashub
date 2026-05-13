@@ -141,9 +141,10 @@ async def mari_reply(user_text: str, lang: str = "ru", is_pro: bool = False) -> 
 @router.post("/generate-link")
 async def generate_tg_link(
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Генерирует одноразовый токен и возвращает deep-link для привязки TG."""
+    user_id = current_user.id
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -162,9 +163,10 @@ async def generate_tg_link(
 @router.get("/status")
 async def tg_status(
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Проверяет привязан ли Telegram к аккаунту."""
+    user_id = current_user.id
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     linked = bool(
@@ -177,9 +179,10 @@ async def tg_status(
 @router.delete("/unlink")
 async def tg_unlink(
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Отвязать Telegram от аккаунта."""
+    user_id = current_user.id
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user:

@@ -78,8 +78,9 @@ async def get_me(
 async def update_me(
     data: UpdateProfileRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
+    user_id = current_user.id
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -248,9 +249,10 @@ async def confirm_phone_change(
 async def set_my_plan(
     data: SetPlanRequest,
     db: AsyncSession = Depends(get_db),
-    user_id: int = Depends(require_user),
+    current_user: User = Depends(require_user),
 ):
     """Admin устанавливает план пользователя вручную после оплаты."""
+    user_id = current_user.id
     admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
     if data.secret != admin_secret:
         raise HTTPException(status_code=403, detail="Forbidden")
