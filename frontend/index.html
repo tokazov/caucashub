@@ -158,14 +158,14 @@
 <!-- FILTERS -->
 <div class="filters">
   <div class="city-input-wrap">
-    <input class="city-input" id="fFrom" placeholder="📍 Откуда" data-i18n-ph="ph_from"
-      autocomplete="new-password" name="search-from-x"
+    <input class="city-input" id="fFrom" type="search" placeholder="📍 Откуда" data-i18n-ph="ph_from"
+      autocomplete="off" name="search-from-x"
       oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
     <div class="city-dropdown" id="dropFrom"></div>
   </div>
   <div class="city-input-wrap">
-    <input class="city-input" id="fTo" placeholder="🏁 Куда" data-i18n-ph="ph_to"
-      autocomplete="new-password" name="search-to-x"
+    <input class="city-input" id="fTo" type="search" placeholder="🏁 Куда" data-i18n-ph="ph_to"
+      autocomplete="off" name="search-to-x"
       oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
     <div class="city-dropdown" id="dropTo"></div>
   </div>
@@ -241,8 +241,8 @@
   <!-- Панель: фильтры + кнопка разместить -->
   <div style="padding:10px 16px;background:#fff;border-bottom:1px solid #eee">
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-      <input id="tFilterFrom" class="form-input" placeholder="Откуда" data-i18n-ph="ph_from" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
-      <input id="tFilterTo"   class="form-input" placeholder="Куда"   data-i18n-ph="ph_to"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <input id="tFilterFrom" class="form-input" type="search" autocomplete="off" placeholder="Откуда" data-i18n-ph="ph_from" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <input id="tFilterTo"   class="form-input" type="search" autocomplete="off" placeholder="Куда"   data-i18n-ph="ph_to"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
       <select id="tFilterType" class="form-input" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
         <option value="" data-i18n="opt_any_body">Любой кузов</option>
         <option value="tent" data-i18n="truck_tent">Тент</option>
