@@ -14,7 +14,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from app.database import Base  # noqa
-from app.models import user, load, truck, response, deal  # noqa — регистрируем модели
+from app.models import user, load, truck, response, deal, idempotency_key  # noqa — регистрируем модели
 
 config = context.config
 

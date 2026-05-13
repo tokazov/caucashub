@@ -7,8 +7,8 @@ const API_BASE = 'https://api-production-f3ea.up.railway.app';
 function getToken(){ return localStorage.getItem('ch_token') || null; }
 function setToken(t){ if(t) localStorage.setItem('ch_token',t); else localStorage.removeItem('ch_token'); }
 
-async function apiRequest(method, path, body=null){
-  const headers = { 'Content-Type': 'application/json' };
+async function apiRequest(method, path, body=null, extraHeaders={}){
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   const token = getToken();
   if(token) headers['Authorization'] = 'Bearer ' + token;
 
@@ -75,7 +75,7 @@ const CaucasAPI = {
     return r.ok ? r.data?.loads || [] : [];
   },
 
-  async createLoad(load){
+  async createLoad(load, idempotencyKey){
     const body = {
       from_city: load.from,
       from_address: load.from2 || load.from,
@@ -92,11 +92,14 @@ const CaucasAPI = {
       company_name: load.co,
       load_date: new Date().toISOString(),
     };
-    const r = await apiRequest('POST', '/api/loads/', body);
+    // Idempotency-Key: один ключ на одно открытие формы (IETF draft, без X- префикса).
+    // Повторные попытки с тем же ключом вернут тот же id без дубля в БД.
+    const extraH = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
+    const r = await apiRequest('POST', '/api/loads/', body, extraH);
     if(r.ok && r.data?.id){
       return { ok: true, load: { ...load, id: r.data.id, serverId: r.data.id } };
     }
-    return { ok: false, error: 'Ошибка сохранения' };
+    return { ok: false, error: r.data?.detail || 'Ошибка сохранения' };
   },
 
   async updateLoad(serverId, updates){

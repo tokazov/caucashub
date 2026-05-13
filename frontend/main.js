@@ -1696,8 +1696,22 @@ function openProfile(){
 }
 
 // ── POST LOAD ─────────────────────────────────────────
+// Idempotency key для текущей открытой формы.
+// Генерируется один раз при openPostLoad, сбрасывается после успешного создания.
+// Повторные submit (retry) используют тот же ключ — сервер вернёт тот же id.
+let _postLoadIdempotencyKey = null;
+function _genUUID(){
+  // RFC4122 v4 UUID (crypto.randomUUID если есть, иначе Math.random fallback)
+  if(typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
 function openPostLoad(){
   if(!user){openAuth('register');return;}
+  // Новый ключ идемпотентности для каждого открытия формы
+  _postLoadIdempotencyKey = _genUUID();
   document.getElementById('postSuccess').style.display='none';
   const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0');
   document.getElementById('pDate').value=`${d.getFullYear()}-${mm}-${dd}`;
@@ -1711,6 +1725,13 @@ function openPostLoad(){
   _setupCityAutocomplete('fTo', {lang: 'ru'});
 }
 function doPostLoad(){
+  // Anti-double-submit: блокируем кнопку сразу
+  const _submitBtn = document.querySelector('#postOverlay .btn-primary');
+  if(_submitBtn){
+    if(_submitBtn.disabled) return; // уже отправляем — игнорируем второй клик
+    _submitBtn.disabled = true;
+    _submitBtn.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_sending||'⏳ Отправляем...';
+  }
   const fromAddr=document.getElementById('pFromAddr').value||'Адрес не указан';
   const toAddr=document.getElementById('pToAddr').value||'Адрес не указан';
   // Город — первое слово из адреса
@@ -1742,9 +1763,10 @@ function doPostLoad(){
 
   // Сохраняем на сервере — ОБЯЗАТЕЛЬНО, груз без serverId не переживёт рефреш
   if(typeof CaucasAPI!=='undefined' && getToken()){
-    CaucasAPI.createLoad(newLoad).then(r=>{
+    CaucasAPI.createLoad(newLoad, _postLoadIdempotencyKey).then(r=>{
       if(r.ok && r.load?.serverId){
-        // Успешно сохранено — обновляем serverId
+        // Успешно сохранено — сбрасываем ключ (следующий submit = новый груз)
+        _postLoadIdempotencyKey = null;
         newLoad.serverId = r.load.serverId;
         newLoad.userId   = currentUserId;
         newLoad.fromServer = true;
@@ -1762,6 +1784,7 @@ function doPostLoad(){
         console.log('[createLoad] Saved to server, id='+r.load.serverId);
       } else {
         console.warn('[createLoad] Server rejected:', r.error);
+        if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
         const li=LOCAL.findIndex(l=>l.id===newLoad.id);
         if(li>-1) LOCAL.splice(li,1);
         renderLoads(scope==='local'?LOCAL:INTL);
@@ -1778,6 +1801,7 @@ function doPostLoad(){
       }
     }).catch((err)=>{
       console.warn('[createLoad] Network error:', err);
+      if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
       alert('⚠️ Нет соединения. Груз не сохранён. Проверьте интернет и попробуйте снова.');
       const li=LOCAL.findIndex(l=>l.id===newLoad.id);
       if(li>-1) LOCAL.splice(li,1);
