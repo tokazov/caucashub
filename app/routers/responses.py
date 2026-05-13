@@ -223,7 +223,8 @@ async def get_load_responses(
         result.append({
             "id": r.id,
             "carrier_id": r.user_id,
-            "carrier_name": carrier.company_name if carrier else "—",
+            # ADR-013: имя перевозчика скрыто до принятия отклика
+            "carrier_name": carrier.company_name if (carrier and resp_accepted) else None,
             "carrier_phone": carrier.phone if (carrier and resp_accepted) else None,
             "carrier_email": carrier.email if (carrier and resp_accepted) else None,
             "message": r.message,
