@@ -332,7 +332,7 @@ async def get_load(
     # GET /api/loads/{id} никогда не раскрывает контакты напрямую.
     # Контакты видны участнику сделки через GET /api/deals/my или /api/deals/{id}.
     show_contacts = False
-    _ = get_user_id(authorization)  # сохраняем вызов для side-effects (логи)
+    # get_user_id вызов убран — контакты не раскрываются независимо от авторизации (ADR-013 B)
 
     return load_to_dict(load, user=owner, show_contacts=show_contacts)
 

@@ -204,14 +204,19 @@ async def test_contacts_visible_only_to_authorized():
 @pytest.mark.asyncio
 async def test_soft_deleted_user_cannot_login():
     """После удаления аккаунта — логин возвращает 401."""
+    from app.services.rate_limit import reset_rate_limit
     token = await _register_direct("del_test@test.ge", "+995500004001", "carrier")
 
     import json as _json
+    # Сбрасываем rate limit перед удалением (тесты в одном прогоне могут исчерпать лимит)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        me_r = await c.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
+        reset_rate_limit(f"delete_account:{me_r.json()['id']}")
     # Удаляем аккаунт
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         r = await c.request(
             "DELETE", "/api/users/me",
-            content=_json.dumps({"confirmation": "УДАЛИТЬ"}),
+            content=_json.dumps({"confirmation": "УДАЛИТЬ", "current_password": "StrongPass99!"}),
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         )
     assert r.status_code == 200
@@ -228,13 +233,17 @@ async def test_soft_deleted_user_cannot_login():
 @pytest.mark.asyncio
 async def test_soft_deleted_token_returns_401():
     """Старый токен удалённого пользователя → 401 на защищённых эндпоинтах."""
+    from app.services.rate_limit import reset_rate_limit
     token = await _register_direct("del_tok@test.ge", "+995500004002", "carrier")
 
     import json as _json
     async with AsyncClient(transport=transport, base_url="http://test") as c:
+        me_r = await c.get("/api/users/me", headers={"Authorization": f"Bearer {token}"})
+        reset_rate_limit(f"delete_account:{me_r.json()['id']}")
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
         r = await c.request(
             "DELETE", "/api/users/me",
-            content=_json.dumps({"confirmation": "УДАЛИТЬ"}),
+            content=_json.dumps({"confirmation": "УДАЛИТЬ", "current_password": "StrongPass99!"}),
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         )
     assert r.status_code == 200
