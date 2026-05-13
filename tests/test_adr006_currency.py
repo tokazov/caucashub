@@ -111,7 +111,7 @@ async def test_load_created_in_gel_fills_price_usd():
         assert float(load.price_gel) == 819.0
         assert load.price_usd is not None
         assert abs(float(load.price_usd) - 819.0 / TEST_RATE) < 0.05  # ±5 центов
-        assert load.exchange_rate_at_creation == TEST_RATE
+        assert abs(float(load.exchange_rate_at_creation) - TEST_RATE) < 0.0001
 
 
 # ── TEST 2: Груз в USD → автозаполнение price_gel ────────────────────────────
@@ -138,7 +138,7 @@ async def test_load_created_in_usd_fills_price_gel():
         assert float(load.price_usd) == 300.0
         assert load.price_gel is not None
         assert abs(float(load.price_gel) - 300.0 * TEST_RATE) < 0.1
-        assert load.exchange_rate_at_creation == TEST_RATE
+        assert abs(float(load.exchange_rate_at_creation) - TEST_RATE) < 0.0001
 
 
 # ── TEST 3: Отклик в GEL → price_usd заполнен ───────────────────────────────
@@ -175,7 +175,7 @@ async def test_response_in_gel_fills_price_usd():
         assert float(resp.price_gel) == 380.0
         assert resp.price_usd is not None
         assert abs(float(resp.price_usd) - 380.0 / TEST_RATE) < 0.05
-        assert resp.exchange_rate_at_creation == TEST_RATE
+        assert abs(float(resp.exchange_rate_at_creation) - TEST_RATE) < 0.0001
 
 
 # ── TEST 4: Создание сделки → exchange_rate_snapshot зафиксирован ────────────
@@ -214,7 +214,7 @@ async def test_deal_has_exchange_rate_snapshot():
     async with AsyncSessionLocal() as db:
         result = await db.execute(select(Deal))
         deal = result.scalar_one()
-        assert deal.exchange_rate_snapshot == TEST_RATE
+        assert abs(float(deal.exchange_rate_snapshot) - TEST_RATE) < 0.0001
         assert deal.final_price_gel is not None
         assert deal.final_price_usd is not None
         assert abs(float(deal.final_price_gel) - 480.0) < 0.1

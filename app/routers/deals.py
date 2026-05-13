@@ -511,8 +511,9 @@ async def export_deals(
         return _dn(u) if u else "—"
 
     rows = []
-    total_gel = 0.0
-    total_usd = 0.0
+    from decimal import Decimal as _D
+    total_gel = _D("0")
+    total_usd = _D("0")
     for d in all_deals:
         # ADR-016.7: route берётся из Load (cargo-путь) или TransportOffer (transport-путь)
         load  = load_map.get(d.load_id) if d.load_id else None
