@@ -119,7 +119,7 @@ const CaucasAPI = {
 
   async deleteLoad(serverId){
     const r = await apiRequest('DELETE', `/api/loads/${serverId}`);
-    return { ok: r.ok };
+    return { ok: r.ok, status: r.status }; // SILENT-1: expose status for error handling
   },
 
   async getProfile(){

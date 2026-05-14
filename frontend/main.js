@@ -2080,13 +2080,31 @@ function addMyLoad(load){
   _renderOrders();
 }
 
-function deleteMyLoad(id){
+async function deleteMyLoad(id){
   if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_load||'Удалить груз из биржи?')) return;
   const load=_myLoads.find(l=>l.id===id);
-  // Удаляем с сервера если есть serverId
-  if(load?.serverId && typeof CaucasAPI!=='undefined' && user?.token){
-    CaucasAPI.deleteLoad(load.serverId).catch(()=>{});
+
+  // SILENT-1: check server result BEFORE removing from UI
+  if(load?.serverId && typeof CaucasAPI!=='undefined'){
+    try {
+      const r = await CaucasAPI.deleteLoad(load.serverId);
+      if(!r || !r.ok){
+        if(r && r.status === 403){
+          showToastWarn('⚠️ Нет прав на удаление этого груза');
+        } else if(r && r.status === 404){
+          showToastWarn('⚠️ Груз не найден на сервере');
+        } else {
+          showToastWarn('⚠️ Не удалось удалить груз, попробуйте позже');
+        }
+        return; // do NOT remove from UI on error
+      }
+    } catch(e) {
+      showToastWarn('⚠️ Ошибка соединения — груз не удалён');
+      return;
+    }
   }
+
+  // Only remove from UI after successful server response
   const idx=LOCAL.findIndex(l=>l.id===id);
   if(idx>-1) LOCAL.splice(idx,1);
   window.allLoads=[...LOCAL,...INTL];
