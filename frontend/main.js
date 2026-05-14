@@ -5365,16 +5365,29 @@ window.submitTransportOffer = async function() {
       headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    var d = await r.json();
+    var d = await r.json().catch(function(){ return {}; });
+    // SILENT-2: handle specific error codes
+    if(r.status === 401){
+      showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
+      closeModal('postTransportOverlay');
+      if(typeof openAuth === 'function') openAuth('login');
+      return;
+    }
+    if(r.status === 422){
+      var msg422 = (d.detail && d.detail[0] && d.detail[0].msg) ? d.detail[0].msg : 'Проверьте поля формы';
+      if(errEl){ errEl.textContent = msg422; errEl.style.display = 'block'; }
+      return;
+    }
     if(r.status === 201) {
       var succ = document.getElementById('postTransportSuccess');
       if(succ) { succ.style.display = 'block'; setTimeout(function(){ succ.style.display='none'; }, 2000); }
       setTimeout(function(){ closeModal('postTransportOverlay'); loadTransportOffers(); }, 1500);
     } else {
-      if(errEl){ errEl.textContent = d.detail || 'Ошибка'; errEl.style.display = 'block'; }
+      var errMsg = (typeof d.detail === 'string') ? d.detail : 'Не удалось отправить, попробуйте позже';
+      if(errEl){ errEl.textContent = errMsg; errEl.style.display = 'block'; }
     }
   } catch(e) {
-    if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
+    if(errEl){ errEl.textContent = 'Ошибка соединения'; errEl.style.display = 'block'; }
   }
 };
 
