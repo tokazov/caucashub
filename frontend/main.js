@@ -4848,6 +4848,14 @@ async function doDeleteAccount(){
       if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
       return;
     }
+    // CONTRACT-1: handle 422 Pydantic validation (e.g. password too short)
+    if(r.status === 422){
+      const field = data?.detail?.[0]?.loc?.join('.') || '';
+      const detailMsg = data?.detail?.[0]?.msg || 'проверьте введённые данные';
+      showToastWarn('⚠️ Ошибка валидации: ' + detailMsg);
+      if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
+      return;
+    }
     if(r.status === 400 && data?.detail?.active_deal_ids){
       const ids = data.detail.active_deal_ids.join(', ');
       alert(`❌ ${data.detail.message}\n\nАктивные сделки: #${ids}`);
