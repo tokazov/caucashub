@@ -87,12 +87,17 @@ function addrSearch(field, val){
           return;
         }
         let html='';
+        window._addrCache = window._addrCache || {};
+        let _addrIdx = 0;
         objs.each(obj=>{
           const fullAddr=obj.getAddressLine();
           const name=obj.properties.get('name')||fullAddr.split(',')[0];
           const sub=fullAddr.split(',').slice(1,3).join(',').trim();
           const coords=obj.geometry.getCoordinates();
-          html+=`<div class="addr-item" onmousedown="selectAddr('${field}','${name.replace(/'/g,'`')}',${coords[0]},${coords[1]})"><div class="addr-main">${name}</div><div class="addr-sub">${sub}</div></div>`;
+          // XSS-2 fix: store data in cache, pass only key to onmousedown
+          const key = field + '_' + Date.now() + '_' + (_addrIdx++);
+          window._addrCache[key] = { name, lat: coords[0], lng: coords[1] };
+          html+=`<div class="addr-item" data-key="${esc(key)}" onmousedown="selectAddrByKey('${esc(field)}',this.dataset.key)"><div class="addr-main">${esc(name)}</div><div class="addr-sub">${esc(sub)}</div></div>`;
         });
         dropEl.innerHTML=html;
       }).catch(()=>{
@@ -101,6 +106,14 @@ function addrSearch(field, val){
     });
   },400);
 }
+
+// XSS-2: safe wrapper — retrieves cached addr data by key, no user data in onclick
+function selectAddrByKey(field, key) {
+  const a = window._addrCache && window._addrCache[key];
+  if (!a) return;
+  selectAddr(field, a.name, a.lat, a.lng);
+}
+window.selectAddrByKey = selectAddrByKey;
 
 function selectAddr(field, addr, lat, lng){
   const inputId=field+'Addr';
@@ -848,7 +861,7 @@ function renderTrucks(){
       <div style="display:flex;gap:4px">
         ${isOwn
           ? `<button class="btn-resp" style="background:#fce4ec;color:#c62828;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" onclick="deleteMyTruck('${t.id}')">🗑️</button>`
-          : `<button class="btn-resp" onclick="callTruck('${t.co}','${t.plate}','${phone}')">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
+          : `<button class="btn-resp" onclick="callTruck(${JSON.stringify(t.co)},${JSON.stringify(t.plate)},${JSON.stringify(phone)})">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
         }
       </div>
     `;
@@ -3992,6 +4005,9 @@ try {
 } catch(e){}
 const _STATUS={pending:{l:'⏳ Ожидание',c:'s-pending'},accepted:{l:'✅ Принят',c:'s-accepted'},transit:{l:'🚛 В пути',c:'s-transit'},done:{l:'✔️ Завершён',c:'s-done'},rated:{l:'⭐ Оценён',c:'s-rated'}};
 
+// XSS-4: global action registry — no fn-code in DOM attributes
+window._notifActions = window._notifActions || {};
+
 function pushNotif(title,body,actions){
   const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date()};
   _notifs.unshift(n);
@@ -4004,15 +4020,30 @@ function _renderNotifs(){
   if(!_notifs.length){el.innerHTML='<div class="notif-empty">Нет уведомлений</div>';return;}
   el.innerHTML=_notifs.map(n=>{
     const t=n.time.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-    const a=n.actions.map(x=>`<button class="${x.c}" onclick="${x.fn}">${x.l}</button>`).join('');
+    // XSS-4: render buttons with data-action only, no inline JS code
+    const a=n.actions.map(x=>{
+      const aId = esc(x.actionId || '');
+      const nId = esc(String(n.id));
+      return `<button class="${esc(x.c||'')}" data-action="${aId}" data-notif="${nId}">${esc(x.l||'')}</button>`;
+    }).join('');
     return `<div class="notif-item${n.unread?' unread':''}" onclick="_markRead(${n.id})">
-      <div class="ni-title">${n.title}</div>
-      <div class="ni-body">${n.body}</div>
+      <div class="ni-title">${esc(n.title)}</div>
+      <div class="ni-body">${esc(n.body)}</div>
       ${a?`<div class="ni-actions">${a}</div>`:''}
       <div class="ni-time">${t}</div>
     </div>`;
   }).join('');
 }
+// XSS-4: single event delegate for notif action buttons
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.ni-actions button[data-action]');
+  if(!btn) return;
+  e.stopPropagation();
+  const actionId = btn.dataset.action;
+  const notifId = btn.dataset.notif;
+  const fn = window._notifActions[actionId];
+  if(typeof fn === 'function') fn(notifId);
+});
 function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n)n.unread=false;_renderNotifs();_updateBadge();}
 function clearNotifs(){_notifs.forEach(n=>n.unread=false);_renderNotifs();_updateBadge();}
 function _updateBadge(){
@@ -4165,8 +4196,12 @@ function _renderOrders(){
 
   list.innerHTML = dealsSection + myLoadsHeader + myLoadsHtml + ordersHeader + ordersHtml;
 }
-function _acceptOrder(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='accepted';_renderOrders();pushNotif('✅ Принято!',`Груз "${o.title}" принят.`,[{l:'🚛 Доставлен',c:'ni-done',fn:`_delivered(${id})`}]);}
-function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить',c:'ni-done',fn:`_rate(${id})`}]);}
+// XSS-4: register notif actions — no fn strings, only actionId
+window._notifActions['delivered'] = function(notifId){ const id = parseInt(notifId); _delivered(id); };
+window._notifActions['rate']      = function(notifId){ const id = parseInt(notifId); _rate(id); };
+
+function _acceptOrder(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='accepted';_renderOrders();pushNotif('✅ Принято!',`Груз "${o.title}" принят.`,[{l:'🚛 Доставлен',c:'ni-done',actionId:'delivered'}]);}
+function _delivered(id){const o=_orders.find(x=>x.id===id);if(!o)return;o.status='done';_renderOrders();pushNotif('🎉 Доставлен!',`"${o.title}" доставлен. Оставьте отзыв.`,[{l:(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_rate||'⭐ Оценить',c:'ni-done',actionId:'rate'}]);}
 function _rate(id){const o=_orders.find(x=>x.id===id);if(!o)return;const r=prompt(`Оцените "${o.title}" (1-5):`,'5');if(r&&+r>=1&&+r<=5){o.status='rated';_renderOrders();pushNotif('⭐ Спасибо!',`Оценка ${r}/5 сохранена.`,[]);}}
 
 // Переопределяем showUserState чтобы показывать колокольчик
@@ -4395,10 +4430,11 @@ function renderNotifs(){
   if(!_notifs.length){ list.innerHTML='<div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Уведомлений нет</div>'; return; }
   list.innerHTML = _notifs.slice(0,10).map(n=>
     '<div style="padding:12px 16px;border-bottom:1px solid #f9f9f9;cursor:pointer" onclick="markRead('+n.id+')">'
-    +'<div style="font-weight:600;font-size:13px">'+n.title+'</div>'
-    +'<div style="font-size:12px;color:#888;margin-top:2px">'+n.body+'</div>'
+    +'<div style="font-weight:600;font-size:13px">'+esc(n.title)+'</div>'
+    +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(n.body)+'</div>'
     +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+n.time+'</div>'
-    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button onclick="('+(typeof a.action==="function"?a.action.toString()+"()":a.fn||"")+'; event.stopPropagation()" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+a.label+'</button>').join('')+'</div>':'')
+    // XSS-4: use data-action instead of inline fn code
+    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button data-action="'+esc(a.actionId||'')+'\" data-notif="'+esc(String(n.id))+'" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+esc(a.label||'')+'</button>').join('')+'</div>':'')
     +'</div>'
   ).join('');
 }
