@@ -1248,10 +1248,16 @@ async function acceptResponse(loadId, respId){
     // carrier_name/carrier_phone are NOT in this response (ADR-013)
     // They are visible to shipper via GET /api/deals/my after deal created
     let _ad = null; try { _ad = await _accR.json(); } catch(e){}
-    // Fallback chain: real fields → legacy fields → defaults
-    const _dNum = _ad?.deal_number || _ad?.deal_id ? ('CH-' + String(_ad.deal_id).padStart(4,'0')) : '';
-    const _cName = _ad?.carrier_name || '';
-    const _cPhone = _ad?.carrier_phone || '';
+
+    // CONTRACT-3 б): navigate ONLY on success (2xx). On 4xx/5xx — stay, show error.
+    if (!_accR.ok) {
+      const errDetail = typeof _ad?.detail === 'string' ? _ad.detail : 'Ошибка при принятии отклика';
+      showToastWarn('⚠️ ' + errDetail);
+      return;
+    }
+
+    // Fallback chain: real fields → generated from deal_id → empty
+    const _dNum = _ad?.deal_number || (_ad?.deal_id ? ('CH-' + String(_ad.deal_id).padStart(4,'0')) : '');
     // CONTRACT-3 UX fix: navigate to Deals tab so user sees carrier contacts immediately
     // (contacts are in GET /api/deals/my, ADR-013 — not in accept_response itself)
     const T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
@@ -1262,9 +1268,12 @@ async function acceptResponse(loadId, respId){
     // Auto-navigate to cabinet → Deals tab so carrier contacts are immediately visible
     if(typeof showSection === 'function') showSection('orders', null);
     if(typeof loadCabinetData === 'function') loadCabinetData();
-    // Switch to deals sub-tab after data loads
+    // Switch to deals sub-tab after data loads; find button to activate it visually
     setTimeout(function(){
-      if(typeof switchCabTab === 'function') switchCabTab('deals', null);
+      if(typeof switchCabTab === 'function'){
+        var dealsBtn = document.querySelector('.cab-tab[onclick*=\'deals\']');
+        switchCabTab('deals', dealsBtn || null);
+      }
     }, 400);
   } catch(e) {
     showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_network||'⚠️ Ошибка сети. Проверьте интернет-соединение.');

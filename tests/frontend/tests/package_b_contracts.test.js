@@ -335,3 +335,59 @@ describe('NOTIF-DEDUP: notification function consolidation', () => {
     assert.ok(matches.length <= 1, 'only one pushNotif definition allowed (NOTIF-DEDUP)');
   });
 });
+
+// ── SILENT-1 DOM-level: _myLoads array state ─────────────────────────────
+describe('SILENT-1 DOM: _myLoads array reflects delete result', () => {
+  // Mirrors real deleteMyLoad: modifies array AFTER server response
+  async function deleteMyLoad_with_array(id, _myLoads, fakeFetch, toastFn) {
+    const load = _myLoads.find(l => l.id === id);
+    if (!load?.serverId) return; // no server id — skip API
+
+    try {
+      const r = await fakeFetch(load.serverId);
+      if (!r || !r.ok) {
+        if (r?.status === 403) toastFn('⚠️ Нет прав на удаление этого груза');
+        else if (r?.status === 404) toastFn('⚠️ Груз не найден на сервере');
+        else toastFn('⚠️ Не удалось удалить груз, попробуйте позже');
+        return; // KEY: array NOT modified on error
+      }
+      // Only here do we modify the "UI" (array)
+      const idx = _myLoads.findIndex(l => l.id === id);
+      if (idx > -1) _myLoads.splice(idx, 1);
+    } catch (e) {
+      toastFn('⚠️ Ошибка соединения — груз не удалён');
+    }
+  }
+
+  test('403: load stays in _myLoads array (UI not changed)', async () => {
+    const loads = [{ id: 1, serverId: 101 }, { id: 2, serverId: 102 }];
+    const spy = showToastWarnSpy();
+
+    await deleteMyLoad_with_array(1, loads, async () => ({ ok: false, status: 403 }), spy.fn);
+
+    assert.equal(loads.length, 2, 'array must still have 2 loads after 403');
+    assert.ok(loads.find(l => l.id === 1), 'load id=1 must still be in array');
+  });
+
+  test('200: load removed from _myLoads array (UI updated)', async () => {
+    const loads = [{ id: 1, serverId: 101 }, { id: 2, serverId: 102 }];
+    const spy = showToastWarnSpy();
+
+    await deleteMyLoad_with_array(1, loads, async () => ({ ok: true, status: 200 }), spy.fn);
+
+    assert.equal(loads.length, 1, 'array must have 1 load after successful delete');
+    assert.ok(!loads.find(l => l.id === 1), 'load id=1 must be removed from array');
+    assert.ok(loads.find(l => l.id === 2), 'load id=2 must remain');
+    assert.ok(!spy.called(), 'no toast on success');
+  });
+
+  test('network error: load stays in array', async () => {
+    const loads = [{ id: 1, serverId: 101 }];
+    const spy = showToastWarnSpy();
+
+    await deleteMyLoad_with_array(1, loads, async () => { throw new Error('net'); }, spy.fn);
+
+    assert.equal(loads.length, 1, 'array must not change on network error');
+    assert.ok(spy.called());
+  });
+});
