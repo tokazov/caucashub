@@ -4057,32 +4057,16 @@ const _STATUS={pending:{l:'⏳ Ожидание',c:'s-pending'},accepted:{l:'✅
 // XSS-4: global action registry — no fn-code in DOM attributes
 window._notifActions = window._notifActions || {};
 
+// NOTIF-DEDUP: single pushNotif — delegates to renderNotifs (the surviving render function below)
 function pushNotif(title,body,actions){
-  const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date()};
+  const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date(),read:false};
   _notifs.unshift(n);
-  _renderNotifs();
+  if(_notifs.length > 20) _notifs = _notifs.slice(0,20);
+  try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){}
+  renderNotifs(); // NOTIF-DEDUP: was _renderNotifs(), now unified
   _updateBadge();
 }
-function _renderNotifs(){
-  const el=document.getElementById('notifList');
-  if(!el)return;
-  if(!_notifs.length){el.innerHTML='<div class="notif-empty">Нет уведомлений</div>';return;}
-  el.innerHTML=_notifs.map(n=>{
-    const t=n.time.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-    // XSS-4: render buttons with data-action only, no inline JS code
-    const a=n.actions.map(x=>{
-      const aId = esc(x.actionId || '');
-      const nId = esc(String(n.id));
-      return `<button class="${esc(x.c||'')}" data-action="${aId}" data-notif="${nId}">${esc(x.l||'')}</button>`;
-    }).join('');
-    return `<div class="notif-item${n.unread?' unread':''}" onclick="_markRead(${n.id})">
-      <div class="ni-title">${esc(n.title)}</div>
-      <div class="ni-body">${esc(n.body)}</div>
-      ${a?`<div class="ni-actions">${a}</div>`:''}
-      <div class="ni-time">${t}</div>
-    </div>`;
-  }).join('');
-}
+// _renderNotifs REMOVED — consolidated into renderNotifs() below (NOTIF-DEDUP 2)
 // XSS-4: single event delegate for notif action buttons
 document.addEventListener('click', function(e){
   const btn = e.target.closest('.ni-actions button[data-action]');
@@ -4093,8 +4077,8 @@ document.addEventListener('click', function(e){
   const fn = window._notifActions[actionId];
   if(typeof fn === 'function') fn(notifId);
 });
-function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n)n.unread=false;_renderNotifs();_updateBadge();}
-function clearNotifs(){_notifs.forEach(n=>n.unread=false);_renderNotifs();_updateBadge();}
+function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n){n.unread=false;n.read=true;}renderNotifs();_updateBadge();} // NOTIF-DEDUP
+function clearNotifs(){_notifs.forEach(n=>n.unread=false);renderNotifs();_updateBadge();} // NOTIF-DEDUP
 function _updateBadge(){
   const c=_notifs.filter(n=>n.unread).length;
   const b=document.getElementById('notifBadge');
@@ -4459,16 +4443,7 @@ async function exportDealsData(fmt){
 // _notifs already declared above
 try { _notifs = JSON.parse(localStorage.getItem('ch_notifs')||'[]'); } catch(e){}
 
-function pushNotif(title, body, actions){
-  const n = {id:Date.now(), title, body, actions:actions||[], time:new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}), read:false};
-  _notifs.unshift(n);
-  if(_notifs.length > 20) _notifs = _notifs.slice(0,20);
-  try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){}
-  renderNotifs();
-  // Flash bell
-  const bell = document.getElementById('bellBtn');
-  if(bell){ bell.style.animation='none'; setTimeout(()=>{bell.style.animation='bell-ring 0.5s';},10); }
-}
+// NOTIF-DEDUP: duplicate pushNotif removed — see single pushNotif above (~line 4061)
 
 function renderNotifs(){
   const list = document.getElementById('notifList');
