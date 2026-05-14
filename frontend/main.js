@@ -1637,6 +1637,19 @@ async function doRegister(){
         if(errEl){ errEl.textContent='⚠️ Нет связи с сервером. Проверьте интернет и попробуйте снова.'; errEl.style.display='block'; }
         else { alert('Нет связи с сервером. Проверьте интернет.'); }
         return;
+      } else if(r.status===422){
+        // CONTRACT-2: 422 Pydantic validation — highlight field, show specific msg
+        const det = Array.isArray(r.error) ? r.error : (r.data?.detail || []);
+        const first = Array.isArray(det) ? det[0] : null;
+        const fieldName = first?.loc ? first.loc[first.loc.length - 1] : null;
+        const msg422 = first?.msg || 'Проверьте введённые данные';
+        // Map backend field name → form element id
+        const fieldMap = { inn: 'regInn', email: 'regEmail', password: 'regPass', name: 'regName', phone: 'regPhone' };
+        const inputId = fieldMap[fieldName] || ('reg' + (fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : ''));
+        const inputEl = document.getElementById(inputId);
+        if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input', function(){ inputEl.classList.remove('input-error'); }, {once: true}); }
+        showToastWarn('⚠️ ' + msg422);
+        return;
       } else {
         const errMsg=Array.isArray(r.error)?r.error.map(e=>e.msg).join(', '):(r.error||'Ошибка регистрации');
         const errEl=document.getElementById('regErrorMsg');

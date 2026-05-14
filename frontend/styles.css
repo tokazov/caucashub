@@ -491,3 +491,16 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .city-autocomplete-dropdown .city-autocomplete-item:first-child { border-radius: 8px 8px 0 0; }
 .city-autocomplete-dropdown .city-autocomplete-item:last-child { border-bottom: none; border-radius: 0 0 8px 8px; }
 @media(max-width:540px) { .city-autocomplete-dropdown { max-width: 90vw; } }
+
+/* CONTRACT-2: field validation error highlight */
+.input-error {
+  border-color: #e74c3c !important;
+  background: #fff5f5 !important;
+  outline: none;
+  animation: shake-error 0.3s ease;
+}
+@keyframes shake-error {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
