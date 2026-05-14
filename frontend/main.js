@@ -1237,20 +1237,46 @@ function addToOrders(serverResponseId){
 
 async function acceptResponse(loadId, respId){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk){ alert('Войдите в аккаунт'); return; }
+  if(!tk){ showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'⚠️ Войдите в аккаунт'); return; }
   try {
     const _accR = await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + tk }
     });
-    // Считаем успехом и 200 и 422 (уже принят) — данные сохранены
+    // CONTRACT-3: sync with real backend fields
+    // accept_response returns: {ok, deal_id, deal_number, status}
+    // carrier_name/carrier_phone are NOT in this response (ADR-013)
+    // They are visible to shipper via GET /api/deals/my after deal created
     let _ad = null; try { _ad = await _accR.json(); } catch(e){}
-    const _cPhone = _ad?.carrier_phone || ''; const _cName = _ad?.carrier_name || ''; const _dNum = _ad?.deal_number || '';
-    if(_cPhone){ alert('✅ Отклик принят! Сделка ' + _dNum + ' создана.\n\n📞 Перевозчик: ' + _cName + '\nТелефон: ' + _cPhone); }
-    pushNotif('✅ Сделка ' + _dNum + ' создана', _cPhone ? '📞 ' + _cName + ': ' + _cPhone : 'Перевозчик уведомлён.', []);
+
+    // CONTRACT-3 б): navigate ONLY on success (2xx). On 4xx/5xx — stay, show error.
+    if (!_accR.ok) {
+      const errDetail = typeof _ad?.detail === 'string' ? _ad.detail : 'Ошибка при принятии отклика';
+      showToastWarn('⚠️ ' + errDetail);
+      return;
+    }
+
+    // Fallback chain: real fields → generated from deal_id → empty
+    const _dNum = _ad?.deal_number || (_ad?.deal_id ? ('CH-' + String(_ad.deal_id).padStart(4,'0')) : '');
+    // CONTRACT-3 UX fix: navigate to Deals tab so user sees carrier contacts immediately
+    // (contacts are in GET /api/deals/my, ADR-013 — not in accept_response itself)
+    const T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+    const dealLabel = _dNum ? (' ' + _dNum) : '';
+    const msg = (T.deal_created_msg || '✅ Сделка создана') + dealLabel + '. ' + (T.deal_contacts_hint || 'Контакты перевозчика — в разделе «Сделки».');
+    showToastWarn(msg.replace('⚠️ ', '✅ '));
+    pushNotif((T.deal_created_notif || '✅ Сделка') + dealLabel, (T.deal_contacts_hint || 'Контакты в разделе Сделки'), []);
+    // Auto-navigate to cabinet → Deals tab so carrier contacts are immediately visible
+    if(typeof showSection === 'function') showSection('orders', null);
     if(typeof loadCabinetData === 'function') loadCabinetData();
+    // Switch to deals sub-tab after data loads; find button to activate it visually
+    setTimeout(function(){
+      if(typeof switchCabTab === 'function'){
+        var dealsBtn = document.querySelector('.cab-tab[onclick*=\'deals\']');
+        switchCabTab('deals', dealsBtn || null);
+      }
+    }, 400);
   } catch(e) {
-    alert('Нет соединения с сервером');
+    showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_network||'⚠️ Ошибка сети. Проверьте интернет-соединение.');
   }
 }
 
@@ -1636,6 +1662,19 @@ async function doRegister(){
         const errEl=document.getElementById('regErrorMsg');
         if(errEl){ errEl.textContent='⚠️ Нет связи с сервером. Проверьте интернет и попробуйте снова.'; errEl.style.display='block'; }
         else { alert('Нет связи с сервером. Проверьте интернет.'); }
+        return;
+      } else if(r.status===422){
+        // CONTRACT-2: 422 Pydantic validation — highlight field, show specific msg
+        const det = Array.isArray(r.error) ? r.error : (r.data?.detail || []);
+        const first = Array.isArray(det) ? det[0] : null;
+        const fieldName = first?.loc ? first.loc[first.loc.length - 1] : null;
+        const msg422 = first?.msg || 'Проверьте введённые данные';
+        // Map backend field name → form element id
+        const fieldMap = { inn: 'regInn', email: 'regEmail', password: 'regPass', name: 'regName', phone: 'regPhone' };
+        const inputId = fieldMap[fieldName] || ('reg' + (fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : ''));
+        const inputEl = document.getElementById(inputId);
+        if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input', function(){ inputEl.classList.remove('input-error'); }, {once: true}); }
+        showToastWarn('⚠️ ' + msg422);
         return;
       } else {
         const errMsg=Array.isArray(r.error)?r.error.map(e=>e.msg).join(', '):(r.error||'Ошибка регистрации');
@@ -2057,13 +2096,31 @@ function addMyLoad(load){
   _renderOrders();
 }
 
-function deleteMyLoad(id){
+async function deleteMyLoad(id){
   if(!confirm(((TRANSLATIONS[lang]||TRANSLATIONS['ru'])).confirm_delete_load||'Удалить груз из биржи?')) return;
   const load=_myLoads.find(l=>l.id===id);
-  // Удаляем с сервера если есть serverId
-  if(load?.serverId && typeof CaucasAPI!=='undefined' && user?.token){
-    CaucasAPI.deleteLoad(load.serverId).catch(()=>{});
+
+  // SILENT-1: check server result BEFORE removing from UI
+  if(load?.serverId && typeof CaucasAPI!=='undefined'){
+    try {
+      const r = await CaucasAPI.deleteLoad(load.serverId);
+      if(!r || !r.ok){
+        if(r && r.status === 403){
+          showToastWarn('⚠️ Нет прав на удаление этого груза');
+        } else if(r && r.status === 404){
+          showToastWarn('⚠️ Груз не найден на сервере');
+        } else {
+          showToastWarn('⚠️ Не удалось удалить груз, попробуйте позже');
+        }
+        return; // do NOT remove from UI on error
+      }
+    } catch(e) {
+      showToastWarn('⚠️ Ошибка соединения — груз не удалён');
+      return;
+    }
   }
+
+  // Only remove from UI after successful server response
   const idx=LOCAL.findIndex(l=>l.id===id);
   if(idx>-1) LOCAL.splice(idx,1);
   window.allLoads=[...LOCAL,...INTL];
@@ -2595,6 +2652,10 @@ const TRANSLATIONS = {
     warn_already_responded: '⚠️ Вы уже откликались на этот груз',
     warn_own_load: '⚠️ Нельзя откликнуться на собственный груз',
     warn_network: '⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.',
+    warn_login: '⚠️ Войдите в аккаунт',
+    deal_created_msg: '✅ Сделка создана',
+    deal_contacts_hint: 'Контакты перевозчика — в разделе «Сделки».',
+    deal_created_notif: '✅ Сделка',
     bnav_loads: 'Грузы',
     bnav_trucks: 'Машины',
     bnav_rates: 'Ставки',
@@ -3085,6 +3146,10 @@ const TRANSLATIONS = {
     warn_already_responded: '⚠️ ამ ტვირთზე უკვე გამოეხმაურეთ',
     warn_own_load: '⚠️ საკუთარ ტვირთზე გამოხმაურება შეუძლებელია',
     warn_network: '⚠️ ქსელის შეცდომა. შეამოწმეთ ინტერნეტი და სცადეთ ხელახლა.',
+    warn_login: '⚠️ გაიარეთ ავტორიზაცია',
+    deal_created_msg: '✅ გარიგება შეიქმნა',
+    deal_contacts_hint: 'გადამზიდველის კონტაქტი — «გარიგებები» განყოფილებაში.',
+    deal_created_notif: '✅ გარიგება',
     bnav_loads: 'ტვირთები',
     bnav_trucks: 'მანქანები',
     bnav_rates: 'ტარიფები',
@@ -4008,32 +4073,16 @@ const _STATUS={pending:{l:'⏳ Ожидание',c:'s-pending'},accepted:{l:'✅
 // XSS-4: global action registry — no fn-code in DOM attributes
 window._notifActions = window._notifActions || {};
 
+// NOTIF-DEDUP: single pushNotif — delegates to renderNotifs (the surviving render function below)
 function pushNotif(title,body,actions){
-  const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date()};
+  const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date(),read:false};
   _notifs.unshift(n);
-  _renderNotifs();
+  if(_notifs.length > 20) _notifs = _notifs.slice(0,20);
+  try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){}
+  renderNotifs(); // NOTIF-DEDUP: was _renderNotifs(), now unified
   _updateBadge();
 }
-function _renderNotifs(){
-  const el=document.getElementById('notifList');
-  if(!el)return;
-  if(!_notifs.length){el.innerHTML='<div class="notif-empty">Нет уведомлений</div>';return;}
-  el.innerHTML=_notifs.map(n=>{
-    const t=n.time.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
-    // XSS-4: render buttons with data-action only, no inline JS code
-    const a=n.actions.map(x=>{
-      const aId = esc(x.actionId || '');
-      const nId = esc(String(n.id));
-      return `<button class="${esc(x.c||'')}" data-action="${aId}" data-notif="${nId}">${esc(x.l||'')}</button>`;
-    }).join('');
-    return `<div class="notif-item${n.unread?' unread':''}" onclick="_markRead(${n.id})">
-      <div class="ni-title">${esc(n.title)}</div>
-      <div class="ni-body">${esc(n.body)}</div>
-      ${a?`<div class="ni-actions">${a}</div>`:''}
-      <div class="ni-time">${t}</div>
-    </div>`;
-  }).join('');
-}
+// _renderNotifs REMOVED — consolidated into renderNotifs() below (NOTIF-DEDUP 2)
 // XSS-4: single event delegate for notif action buttons
 document.addEventListener('click', function(e){
   const btn = e.target.closest('.ni-actions button[data-action]');
@@ -4044,8 +4093,8 @@ document.addEventListener('click', function(e){
   const fn = window._notifActions[actionId];
   if(typeof fn === 'function') fn(notifId);
 });
-function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n)n.unread=false;_renderNotifs();_updateBadge();}
-function clearNotifs(){_notifs.forEach(n=>n.unread=false);_renderNotifs();_updateBadge();}
+function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n){n.unread=false;n.read=true;}renderNotifs();_updateBadge();} // NOTIF-DEDUP
+function clearNotifs(){_notifs.forEach(n=>n.unread=false);renderNotifs();_updateBadge();} // NOTIF-DEDUP
 function _updateBadge(){
   const c=_notifs.filter(n=>n.unread).length;
   const b=document.getElementById('notifBadge');
@@ -4410,16 +4459,7 @@ async function exportDealsData(fmt){
 // _notifs already declared above
 try { _notifs = JSON.parse(localStorage.getItem('ch_notifs')||'[]'); } catch(e){}
 
-function pushNotif(title, body, actions){
-  const n = {id:Date.now(), title, body, actions:actions||[], time:new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}), read:false};
-  _notifs.unshift(n);
-  if(_notifs.length > 20) _notifs = _notifs.slice(0,20);
-  try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){}
-  renderNotifs();
-  // Flash bell
-  const bell = document.getElementById('bellBtn');
-  if(bell){ bell.style.animation='none'; setTimeout(()=>{bell.style.animation='bell-ring 0.5s';},10); }
-}
+// NOTIF-DEDUP: duplicate pushNotif removed — see single pushNotif above (~line 4061)
 
 function renderNotifs(){
   const list = document.getElementById('notifList');
@@ -4848,6 +4888,14 @@ async function doDeleteAccount(){
       if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
       return;
     }
+    // CONTRACT-1: handle 422 Pydantic validation (e.g. password too short)
+    if(r.status === 422){
+      const field = data?.detail?.[0]?.loc?.join('.') || '';
+      const detailMsg = data?.detail?.[0]?.msg || 'проверьте введённые данные';
+      showToastWarn('⚠️ Ошибка валидации: ' + detailMsg);
+      if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
+      return;
+    }
     if(r.status === 400 && data?.detail?.active_deal_ids){
       const ids = data.detail.active_deal_ids.join(', ');
       alert(`❌ ${data.detail.message}\n\nАктивные сделки: #${ids}`);
@@ -5164,10 +5212,20 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 
   try {
     var r = await fetch(API_BASE + '/api/transport/?' + params.toString());
+    // SILENT-3: handle specific HTTP error codes
+    if(r.status === 401){
+      showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
+      return;
+    }
+    if(!r.ok){
+      if(list) list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">⚠️</div><div class="cab-empty-title">Не удалось загрузить транспорт</div><div class="cab-empty-sub">Обновите страницу или попробуйте позже</div></div>';
+      return;
+    }
     var d = await r.json();
     _transportOffers = d.offers || [];
     _transportTotal  = d.total  || 0;
     if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
+    // SILENT-3: 200 with empty [] is normal "not found", not an error
     renderTransportOffers();
   } catch(e) {
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
@@ -5308,16 +5366,29 @@ window.submitTransportOffer = async function() {
       headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    var d = await r.json();
+    var d = await r.json().catch(function(){ return {}; });
+    // SILENT-2: handle specific error codes
+    if(r.status === 401){
+      showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
+      closeModal('postTransportOverlay');
+      if(typeof openAuth === 'function') openAuth('login');
+      return;
+    }
+    if(r.status === 422){
+      var msg422 = (d.detail && d.detail[0] && d.detail[0].msg) ? d.detail[0].msg : 'Проверьте поля формы';
+      if(errEl){ errEl.textContent = msg422; errEl.style.display = 'block'; }
+      return;
+    }
     if(r.status === 201) {
       var succ = document.getElementById('postTransportSuccess');
       if(succ) { succ.style.display = 'block'; setTimeout(function(){ succ.style.display='none'; }, 2000); }
       setTimeout(function(){ closeModal('postTransportOverlay'); loadTransportOffers(); }, 1500);
     } else {
-      if(errEl){ errEl.textContent = d.detail || 'Ошибка'; errEl.style.display = 'block'; }
+      var errMsg = (typeof d.detail === 'string') ? d.detail : 'Не удалось отправить, попробуйте позже';
+      if(errEl){ errEl.textContent = errMsg; errEl.style.display = 'block'; }
     }
   } catch(e) {
-    if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
+    if(errEl){ errEl.textContent = 'Ошибка соединения'; errEl.style.display = 'block'; }
   }
 };
 
