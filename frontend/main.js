@@ -1252,13 +1252,20 @@ async function acceptResponse(loadId, respId){
     const _dNum = _ad?.deal_number || _ad?.deal_id ? ('CH-' + String(_ad.deal_id).padStart(4,'0')) : '';
     const _cName = _ad?.carrier_name || '';
     const _cPhone = _ad?.carrier_phone || '';
-    // Replace alert() with localized toast — carrier contacts go via Deals tab
+    // CONTRACT-3 UX fix: navigate to Deals tab so user sees carrier contacts immediately
+    // (contacts are in GET /api/deals/my, ADR-013 — not in accept_response itself)
     const T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
     const dealLabel = _dNum ? (' ' + _dNum) : '';
     const msg = (T.deal_created_msg || '✅ Сделка создана') + dealLabel + '. ' + (T.deal_contacts_hint || 'Контакты перевозчика — в разделе «Сделки».');
     showToastWarn(msg.replace('⚠️ ', '✅ '));
     pushNotif((T.deal_created_notif || '✅ Сделка') + dealLabel, (T.deal_contacts_hint || 'Контакты в разделе Сделки'), []);
+    // Auto-navigate to cabinet → Deals tab so carrier contacts are immediately visible
+    if(typeof showSection === 'function') showSection('orders', null);
     if(typeof loadCabinetData === 'function') loadCabinetData();
+    // Switch to deals sub-tab after data loads
+    setTimeout(function(){
+      if(typeof switchCabTab === 'function') switchCabTab('deals', null);
+    }, 400);
   } catch(e) {
     showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_network||'⚠️ Ошибка сети. Проверьте интернет-соединение.');
   }
