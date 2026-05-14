@@ -1237,20 +1237,30 @@ function addToOrders(serverResponseId){
 
 async function acceptResponse(loadId, respId){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk){ alert('Войдите в аккаунт'); return; }
+  if(!tk){ showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'⚠️ Войдите в аккаунт'); return; }
   try {
     const _accR = await fetch('https://api-production-f3ea.up.railway.app/api/responses/accept/' + respId, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + tk }
     });
-    // Считаем успехом и 200 и 422 (уже принят) — данные сохранены
+    // CONTRACT-3: sync with real backend fields
+    // accept_response returns: {ok, deal_id, deal_number, status}
+    // carrier_name/carrier_phone are NOT in this response (ADR-013)
+    // They are visible to shipper via GET /api/deals/my after deal created
     let _ad = null; try { _ad = await _accR.json(); } catch(e){}
-    const _cPhone = _ad?.carrier_phone || ''; const _cName = _ad?.carrier_name || ''; const _dNum = _ad?.deal_number || '';
-    if(_cPhone){ alert('✅ Отклик принят! Сделка ' + _dNum + ' создана.\n\n📞 Перевозчик: ' + _cName + '\nТелефон: ' + _cPhone); }
-    pushNotif('✅ Сделка ' + _dNum + ' создана', _cPhone ? '📞 ' + _cName + ': ' + _cPhone : 'Перевозчик уведомлён.', []);
+    // Fallback chain: real fields → legacy fields → defaults
+    const _dNum = _ad?.deal_number || _ad?.deal_id ? ('CH-' + String(_ad.deal_id).padStart(4,'0')) : '';
+    const _cName = _ad?.carrier_name || '';
+    const _cPhone = _ad?.carrier_phone || '';
+    // Replace alert() with localized toast — carrier contacts go via Deals tab
+    const T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+    const dealLabel = _dNum ? (' ' + _dNum) : '';
+    const msg = (T.deal_created_msg || '✅ Сделка создана') + dealLabel + '. ' + (T.deal_contacts_hint || 'Контакты перевозчика — в разделе «Сделки».');
+    showToastWarn(msg.replace('⚠️ ', '✅ '));
+    pushNotif((T.deal_created_notif || '✅ Сделка') + dealLabel, (T.deal_contacts_hint || 'Контакты в разделе Сделки'), []);
     if(typeof loadCabinetData === 'function') loadCabinetData();
   } catch(e) {
-    alert('Нет соединения с сервером');
+    showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_network||'⚠️ Ошибка сети. Проверьте интернет-соединение.');
   }
 }
 
@@ -2608,6 +2618,10 @@ const TRANSLATIONS = {
     warn_already_responded: '⚠️ Вы уже откликались на этот груз',
     warn_own_load: '⚠️ Нельзя откликнуться на собственный груз',
     warn_network: '⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.',
+    warn_login: '⚠️ Войдите в аккаунт',
+    deal_created_msg: '✅ Сделка создана',
+    deal_contacts_hint: 'Контакты перевозчика — в разделе «Сделки».',
+    deal_created_notif: '✅ Сделка',
     bnav_loads: 'Грузы',
     bnav_trucks: 'Машины',
     bnav_rates: 'Ставки',
@@ -3098,6 +3112,10 @@ const TRANSLATIONS = {
     warn_already_responded: '⚠️ ამ ტვირთზე უკვე გამოეხმაურეთ',
     warn_own_load: '⚠️ საკუთარ ტვირთზე გამოხმაურება შეუძლებელია',
     warn_network: '⚠️ ქსელის შეცდომა. შეამოწმეთ ინტერნეტი და სცადეთ ხელახლა.',
+    warn_login: '⚠️ გაიარეთ ავტორიზაცია',
+    deal_created_msg: '✅ გარიგება შეიქმნა',
+    deal_contacts_hint: 'გადამზიდველის კონტაქტი — «გარიგებები» განყოფილებაში.',
+    deal_created_notif: '✅ გარიგება',
     bnav_loads: 'ტვირთები',
     bnav_trucks: 'მანქანები',
     bnav_rates: 'ტარიფები',
