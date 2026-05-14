@@ -127,15 +127,23 @@ const CaucasAPI = {
     return r.ok ? r.data : null;
   },
 
-  async updateProfile({ company_name, phone, inn, org_type, city, lang }){
-    const r = await apiRequest('PUT', '/api/users/me', {
+  async updateProfile({ company_name, phone, inn, org_type, city, lang, truck_type, tonnage }){
+    // CONTRACT-4: truck_type and tonnage sent to API for future backend support.
+    // NOTE: UpdateProfileRequest in users.py does NOT include these fields yet —
+    // they belong to Truck model, not User. Backend task required to support them.
+    // Fields are included here so saveSettings() can call updateProfile consistently.
+    const body = {
       company_name: company_name || null,
       phone:        phone        || null,
       inn:          inn          || null,
       org_type:     org_type     || null,
       city:         city         || null,
       lang:         lang         || null,
-    });
+    };
+    // Include only if provided — backend ignores unknown fields via Pydantic extra='ignore'
+    if(truck_type !== undefined && truck_type !== null) body.truck_type = truck_type;
+    if(tonnage !== undefined && tonnage !== null) body.tonnage = tonnage;
+    const r = await apiRequest('PUT', '/api/users/me', body);
     return r.ok ? r.data : { ok: false, error: r.data?.detail };
   },
 
