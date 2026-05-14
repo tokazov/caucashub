@@ -92,9 +92,9 @@ const CaucasAPI = {
       company_name: load.co,
       load_date: new Date().toISOString(),
     };
-    // Idempotency-Key: один ключ на одно открытие формы (IETF draft, без X- префикса).
-    // Повторные попытки с тем же ключом вернут тот же id без дубля в БД.
-    const extraH = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
+    // Idempotency-Key временно отключён — бэкенд возвращает 500 при наличии заголовка
+    // (таблица idempotency_keys, Issue #27). Вернуть после backend-фикса.
+    const extraH = {}; // idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
     const r = await apiRequest('POST', '/api/loads/', body, extraH);
     if(r.ok && r.data?.id){
       return { ok: true, load: { ...load, id: r.data.id, serverId: r.data.id } };
