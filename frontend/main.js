@@ -3985,7 +3985,22 @@ function saveSettings(){
         truck_type: truckType||null,
         tonnage: tonnage||null,
       })
-    }).then(r=>r.ok?r.json():null).then(d=>{
+    }).then(async r=>{
+      if(r.status === 422){
+        // CONTRACT-2 saveSettings: INN validation error from PUT /api/users/me
+        const data = await r.json().catch(()=>({}));
+        const first = data?.detail?.[0];
+        const fieldName = first?.loc ? first.loc[first.loc.length-1] : null;
+        const msg422 = first?.msg || 'Проверьте введённые данные';
+        const fieldMap = {inn:'sInnAll', org_type:'sOrgTypeAll', city:'sCityAll'};
+        const inputId = fieldMap[fieldName] || (fieldName ? 's'+fieldName.charAt(0).toUpperCase()+fieldName.slice(1) : null);
+        const inputEl = inputId ? document.getElementById(inputId) : null;
+        if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input',function(){ inputEl.classList.remove('input-error'); },{once:true}); }
+        showToastWarn('⚠️ ' + msg422);
+        return null;
+      }
+      return r.ok ? r.json() : null;
+    }).then(d=>{
       if(d) pushNotif('✅ Данные обновлены', 'Профиль сохранён на сервере', []);
     }).catch(()=>{});
   }
