@@ -1150,9 +1150,9 @@ function doRespond(){
             }
           } else { alert('⚠️ ' + msg); }
         } else if(detail === 'Cannot respond to your own load'){
-          alert('⚠️ Нельзя откликнуться на собственный груз');
+          showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_own_load||'⚠️ Нельзя откликнуться на собственный груз');
         } else if(detail === 'Already responded'){
-          alert('⚠️ Вы уже откликались на этот груз');
+          showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_already_responded||'⚠️ Вы уже откликались на этот груз');
         } else if(detail === 'Authorization required' || detail === 'Invalid or expired token' || detail.toLowerCase().includes('token')){
           setToken(null); localStorage.removeItem('ch_user');
           closeModal('cargoOverlay');
@@ -1171,7 +1171,7 @@ function doRespond(){
     }).catch(()=>{
       // Сетевая ошибка — не показываем "успех", честно сообщаем об ошибке
       btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_back||'Откликнуться'; btn.disabled=false;
-      alert('⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.');
+      showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_network||'⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.');
     });
   } else {
     // Нет токена — закрываем модалку, открываем логин
@@ -2579,6 +2579,9 @@ const TRANSLATIONS = {
     sig_carrier: 'Перевозчик',
     card_respond: 'Отклик',
     card_sent: '✅ Отправлено',
+    warn_already_responded: '⚠️ Вы уже откликались на этот груз',
+    warn_own_load: '⚠️ Нельзя откликнуться на собственный груз',
+    warn_network: '⚠️ Ошибка сети. Проверьте интернет-соединение и попробуйте ещё раз.',
     bnav_loads: 'Грузы',
     bnav_trucks: 'Машины',
     bnav_rates: 'Ставки',
@@ -3066,6 +3069,9 @@ const TRANSLATIONS = {
     sig_carrier: 'გადამზიდველი',
     card_respond: 'გამოხმაურება',
     card_sent: '✅ გაგზავნილია',
+    warn_already_responded: '⚠️ ამ ტვირთზე უკვე გამოეხმაურეთ',
+    warn_own_load: '⚠️ საკუთარ ტვირთზე გამოხმაურება შეუძლებელია',
+    warn_network: '⚠️ ქსელის შეცდომა. შეამოწმეთ ინტერნეტი და სცადეთ ხელახლა.',
     bnav_loads: 'ტვირთები',
     bnav_trucks: 'მანქანები',
     bnav_rates: 'ტარიფები',
@@ -5598,3 +5604,30 @@ function _fetchCitySuggestions(q, lang, callback) {
       callback(fallback);
     });
 }
+
+// ── TOAST WARN ─────────────────────────────────────────────────────────────
+// Кастомный warning toast — заменяет нативный alert() для локализованных сообщений
+function showToastWarn(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = [
+    'position:fixed',
+    'bottom:90px',
+    'left:50%',
+    'transform:translateX(-50%)',
+    'background:#e74c3c',
+    'color:#fff',
+    'padding:13px 22px',
+    'border-radius:12px',
+    'font-weight:700',
+    'font-size:14px',
+    'z-index:99999',
+    'box-shadow:0 4px 20px rgba(0,0,0,.25)',
+    'max-width:90vw',
+    'text-align:center',
+    'pointer-events:none'
+  ].join(';');
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 3500);
+}
+window.showToastWarn = showToastWarn;
