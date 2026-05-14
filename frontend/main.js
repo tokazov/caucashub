@@ -5221,10 +5221,20 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 
   try {
     var r = await fetch(API_BASE + '/api/transport/?' + params.toString());
+    // SILENT-3: handle specific HTTP error codes
+    if(r.status === 401){
+      showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
+      return;
+    }
+    if(!r.ok){
+      if(list) list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">⚠️</div><div class="cab-empty-title">Не удалось загрузить транспорт</div><div class="cab-empty-sub">Обновите страницу или попробуйте позже</div></div>';
+      return;
+    }
     var d = await r.json();
     _transportOffers = d.offers || [];
     _transportTotal  = d.total  || 0;
     if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
+    // SILENT-3: 200 with empty [] is normal "not found", not an error
     renderTransportOffers();
   } catch(e) {
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
