@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, desc
 from app.database import get_db
 from app.models.load import Load, LoadStatus, LoadScope
 from app.config import settings
@@ -59,7 +59,7 @@ async def ai_chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
         select(Load).where(
             Load.status == LoadStatus.active,
             Load.is_demo.is_(False)
-        ).limit(10)
+        ).order_by(desc(Load.id)).limit(20)
     )
     loads = result.scalars().all()
     loads_ctx = "\n".join([
@@ -127,7 +127,7 @@ async def dispatcher(req: DispatcherMessage, db: AsyncSession = Depends(get_db))
             select(Load).where(
                 Load.status == LoadStatus.active,
                 Load.is_demo.is_(False)
-            ).limit(20)
+            ).order_by(desc(Load.id)).limit(50)
         )
         loads = result.scalars().all()
         loads_ctx = "\n".join([
