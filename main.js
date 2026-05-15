@@ -1859,8 +1859,31 @@ function setScope(s, el){
 // ── LANG ──────────────────────────────────────────────
 function setLang(l,btn){
   lang=l;
+  window.__currentLang=l;
+  localStorage.setItem('ch_lang',l);
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(typeof applyLang==='function') applyLang(l);
+  // Перерисовать динамические блоки
+  try{ if(typeof renderLoads==='function') renderLoads(); }catch(e){}
+  try{ if(typeof renderTrucks==='function') renderTrucks(); }catch(e){}
+  // Кабинет — вкладки с данными
+  try{ if(typeof renderCabLoads==='function' && document.getElementById('myLoadsList')) renderCabLoads(); }catch(e){}
+  try{ if(typeof renderCabResponses==='function' && document.getElementById('myResponsesList')) renderCabResponses(); }catch(e){}
+  try{ if(typeof renderCabDeals==='function' && document.getElementById('myDealsList')) renderCabDeals(); }catch(e){}
+  // Транспортные вкладки — перезагрузить при активной вкладке
+  if(typeof _currentCabTab!=='undefined'){
+    if(_currentCabTab==='my-transport' && typeof loadMyTransportOffers==='function') loadMyTransportOffers();
+    if(_currentCabTab==='transport-requests-in' && typeof loadIncomingTransportRequests==='function') loadIncomingTransportRequests();
+    if(_currentCabTab==='transport-requests-out' && typeof loadMyTransportRequestsOut==='function') loadMyTransportRequestsOut();
+    if(_currentCabTab==='subscriptions' && typeof loadSubscriptions==='function'){ loadSubscriptions(); if(typeof applyLang==='function') applyLang(l); }
+    if(_currentCabTab==='transport-subs' && typeof loadMyTransportSubs==='function'){ loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(l); }
+  }
+  // Перевести кнопки вкладок кабинета (data-i18n на самой кнопке) — после возможного show/hide
+  if(typeof applyLang==='function') applyLang(l);
+  // AI чат placeholder
+  var aiInp=document.getElementById('aiInput');
+  if(aiInp){ var phs={ru:'Напишите о грузе...',ge:'დაწერეთ ტვირთის შესახებ...',en:'Describe your cargo...'}; aiInp.placeholder=phs[l]||phs['ru']; }
 }
 
 // ── MODALS ────────────────────────────────────────────
