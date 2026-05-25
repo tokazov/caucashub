@@ -391,10 +391,9 @@ const RU_TO_GE_MAP = {
 
 function transliterateRuToGe(text) {
   if (!text) return text;
-  // Если уже грузинский — не трогаем
-  if (/[ა-ჿ]/.test(text)) return text;
   // Если нет кириллицы — не трогаем
   if (!/[а-яёА-ЯЁ]/.test(text)) return text;
+  // Обрабатываем посимвольно — кириллицу транслитерируем, грузинский и латиницу оставляем
   let result = '';
   for (let i = 0; i < text.length; i++) {
     result += RU_TO_GE_MAP[text[i]] !== undefined ? RU_TO_GE_MAP[text[i]] : text[i];
@@ -407,6 +406,16 @@ let selectedFrom=null, selectedTo=null, map=null, routeLine=null, markers=[];
 
 // Перевод регионов Грузии
 const REGION_NAMES_GE = {
+  // Административные префиксы
+  'посёлок городского типа ': '',
+  'поселок городского типа ': '',
+  'посёлок ': '',
+  'поселок ': '',
+  'деревня ': '',
+  'село ': '',
+  'город ': '',
+  'пгт ': '',
+  'пгт. ': '',
   // Регионы Грузии
   'край Имеретия': 'იმერეთის მხარე',
   'край Кахетия': 'კახეთის მხარე',
