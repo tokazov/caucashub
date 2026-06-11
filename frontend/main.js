@@ -527,15 +527,20 @@ function _cityShort(addr2, addr){
   return parts[parts.length-1] || addr || '';
 }
 
+// ── Q-014: filterCity debounce timers ─────────────────
+const _filterCityTimers = {};
+// Allowed OSM types for city autocomplete (Q-014 §2)
+const _CITY_TYPES = new Set(['city','town','village','suburb','administrative','hamlet','locality']);
+
 function filterCity(dir, val){
-  const q=val.trim().toLowerCase();
+  const q=val.trim();
   const id=dir==='from'?'dropFrom':'dropTo';
   const drop=document.getElementById(id);
   if(q.length<1){drop.classList.remove('open');return;}
 
   if(scope==='intl'){
-    // Международные — показываем только страны
-    const found=(typeof COUNTRIES!=='undefined'?COUNTRIES:[]).filter(c=>c.name.toLowerCase().includes(q)).slice(0,12);
+    // Международные — показываем только страны (без изменений)
+    const found=(typeof COUNTRIES!=='undefined'?COUNTRIES:[]).filter(c=>c.name.toLowerCase().includes(q.toLowerCase())).slice(0,12);
     let html=found.map(c=>`<div class="city-option" style="font-size:14px;padding:10px 12px" onmousedown="selectCity('${dir}','${c.name}',null,null,true)">${c.name}</div>`).join('');
     if(!html) html=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null,true)">📍 Использовать: "${val.trim()}"</div>`;
     drop.innerHTML=html;
@@ -543,31 +548,99 @@ function filterCity(dir, val){
     return;
   }
 
-  // Локальные — города Грузии
-  const filtered=CITIES.filter(c=>c.name.toLowerCase().includes(q)||(c.nameGe&&c.nameGe.toLowerCase().includes(q))).slice(0,8);
-  let dropHtml=filtered.map(c=>{
-    const displayName = lang==='ge'&&c.nameGe ? c.nameGe : c.name;
-    const displayRegion = lang==='ge' ? translateCity(c.region) : c.region;
-    return `<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${displayName} <span class="region">${displayRegion}</span></div>`;
-  }).join('');
-  const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${val.trim()}',null,null)">📍 Использовать: "${val.trim()}"</div>`;
-  drop.innerHTML=dropHtml+(dropHtml?'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>':'')+freeOpt;
-  drop.classList.add('open');
+  // Локальные — города Грузии: меньше 2 символов — не запрашиваем API
+  if(q.length<2){drop.classList.remove('open');return;}
+
+  // Debounce 300 мс (Q-014 §1)
+  clearTimeout(_filterCityTimers[dir]);
+  _filterCityTimers[dir]=setTimeout(function(){
+    _fetchCitySuggestionsFiltered(q, lang||'ru', function(results){
+      if(!results.length){
+        // Нет результатов — fallback на CITIES
+        const qLo=q.toLowerCase();
+        const fb=CITIES.filter(c=>c.name.toLowerCase().includes(qLo)||(c.nameGe&&c.nameGe.toLowerCase().includes(qLo))).slice(0,8);
+        if(!fb.length){drop.classList.remove('open');return;}
+        const fbHtml=fb.map(c=>{
+          const dn=lang==='ge'&&c.nameGe?c.nameGe:c.name;
+          const dr=lang==='ge'?translateCity(c.region):c.region;
+          return `<div class="city-option" onmousedown="selectCity('${dir}','${c.name}',${c.lat||null},${c.lng||null})">${dn} <span class="region">${dr}</span></div>`;
+        }).join('');
+        const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${q}',null,null)">📍 Использовать: "${q}"</div>`;
+        drop.innerHTML=fbHtml+'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>'+freeOpt;
+        drop.classList.add('open');
+        return;
+      }
+      // Рендерим результаты API
+      let dropHtml=results.map(r=>{
+        const nameRu=r.name_ru||r.display_name.split(',')[0];
+        const nameLocal=r.name_local||'';
+        const safeNameRu=nameRu.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,"\\'").replace(/</g,'&lt;');
+        const safeLat=r.lat!=null?r.lat:'null';
+        const safeLon=r.lon!=null?r.lon:'null';
+        return `<div class="city-option" onmousedown="selectCity('${dir}','${safeNameRu}',${safeLat},${safeLon},'','${safeNameRu}')">` +
+          `${nameRu}` +
+          (nameLocal&&nameLocal!==nameRu?` <span class="region">${nameLocal}</span>`:'') +
+          `</div>`;
+      }).join('');
+      const freeOpt=`<div class="city-option" style="color:#3498db;font-style:italic" onmousedown="selectCity('${dir}','${q}',null,null)">📍 Использовать: "${q}"</div>`;
+      drop.innerHTML=dropHtml+'<div style="height:1px;background:#f0f0f0;margin:2px 0"></div>'+freeOpt;
+      drop.classList.add('open');
+    });
+  },300);
+}
+
+// Обёртка с фильтрацией по type (Q-014 §2) и timeout 3 сек (Q-014 §4)
+function _fetchCitySuggestionsFiltered(q, langCode, callback){
+  var done=false;
+  var timer=setTimeout(function(){
+    if(done) return;
+    done=true;
+    // Timeout — fallback на CITIES
+    callback([]);
+  },3000);
+  fetch(API_BASE+'/api/cities/search?q='+encodeURIComponent(q)+'&lang='+langCode+'&limit=10')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(done) return;
+      done=true;
+      clearTimeout(timer);
+      var all=d.results||[];
+      var filtered=all.filter(function(r){ return _CITY_TYPES.has((r.type||'').toLowerCase()); }).slice(0,8);
+      // Если после фильтрации пусто — вернуть всё (кроме явных poi/pub/restaurant/shop)
+      if(!filtered.length){
+        var skip=new Set(['pub','restaurant','shop','fast_food','cafe','bar','food_court','attraction','museum']);
+        filtered=all.filter(function(r){ return !skip.has((r.type||'').toLowerCase()); }).slice(0,8);
+      }
+      callback(filtered);
+    })
+    .catch(function(){
+      if(done) return;
+      done=true;
+      clearTimeout(timer);
+      callback([]);
+    });
 }
 function openDrop(dir){
   const val=document.getElementById(dir==='from'?'fFrom':'fTo').value;
   if(val) filterCity(dir,val);
 }
 function closeDrop(dir){ document.getElementById(dir==='from'?'dropFrom':'dropTo').classList.remove('open'); }
-function selectCity(dir, name, lat, lng, isCountry){
-  const city=CITIES.find(c=>c.name===name)||{name,lat:lat?parseFloat(lat):null,lng:lng?parseFloat(lng):null,region:''};
+// Q-014 §3: nameRu — нормализованное имя из API (для матчинга подписок)
+function selectCity(dir, name, lat, lng, isCountry, nameRu){
+  // Приоритет: nameRu (из API) > name из CITIES > сырое имя
+  const normalizedName = nameRu || name;
+  const cityFromArr=CITIES.find(c=>c.name===name);
+  const city=cityFromArr
+    ? {...cityFromArr, name: normalizedName}
+    : {name:normalizedName, lat:lat?parseFloat(lat):null, lng:lng?parseFloat(lng):null, region:''};
   if(dir==='from'){
     selectedFrom=city;
-    document.getElementById('fFrom').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
+    // Для грузинского языка — пробуем nameGe из массива, иначе нормализованное имя
+    document.getElementById('fFrom').value=lang==='ge'&&cityFromArr?.nameGe||normalizedName;
     document.getElementById('dropFrom').classList.remove('open');
   } else {
     selectedTo=city;
-    document.getElementById('fTo').value=lang==='ge'&&CITIES.find(c=>c.name===name)?.nameGe||name;
+    document.getElementById('fTo').value=lang==='ge'&&cityFromArr?.nameGe||normalizedName;
     document.getElementById('dropTo').classList.remove('open');
   }
   if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
@@ -1786,8 +1859,7 @@ function openPostLoad(){
   if(cl){const _T=TRANSLATIONS[lang]||TRANSLATIONS['ru']; cl.textContent=scope==='intl'?(_T.lbl_rate_intl||'Ставка ($)'):(_T.lbl_rate_form||'Ставка (₾)');}
   if(typeof updateFormForIntl==='function') updateFormForIntl();
   var _postOvr = document.getElementById('postOverlay'); _postOvr.classList.add('on'); var _postMdl = _postOvr.querySelector('.modal'); if(_postMdl) trapFocus(_postMdl);
-  _setupCityAutocomplete('fFrom', {lang: 'ru'});
-  _setupCityAutocomplete('fTo', {lang: 'ru'});
+  // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete здесь не нужен
 }
 function doPostLoad(){
   // Anti-double-submit: блокируем кнопку сразу
@@ -4367,14 +4439,12 @@ if(document.readyState==='loading'){
     // Язык уже установлен выше — renderLoads и sync подхватят его
     if(LOCAL.length) renderLoads(LOCAL);
     syncLoadsFromServer();
-    _setupCityAutocomplete('fFrom', {lang: lang});
-    _setupCityAutocomplete('fTo', {lang: lang});
+    // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete не нужен
   });
 } else {
   if(LOCAL.length) renderLoads(LOCAL);
   syncLoadsFromServer();
-  _setupCityAutocomplete('fFrom', {lang: lang});
-  _setupCityAutocomplete('fTo', {lang: lang});
+  // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete не нужен
 }
 
 function openPlansModal(e){ 
@@ -5723,10 +5793,24 @@ function _setupCityAutocomplete(inputId, options) {
 }
 
 function _fetchCitySuggestions(q, lang, callback) {
+  // Q-014 §4: timeout 3 сек — fallback на CITIES без сообщения об ошибке
+  var done=false;
+  var timer=setTimeout(function(){
+    if(done) return; done=true;
+    var fallback=(typeof CITIES!=='undefined'?CITIES:[])
+      .filter(function(c){return c.name.toLowerCase().includes(q.toLowerCase());})
+      .slice(0,6)
+      .map(function(c){return {name_ru:c.name,name_local:c.nameGe||c.name,display_name:c.name};});
+    callback(fallback);
+  },3000);
   fetch(API_BASE + '/api/cities/search?q=' + encodeURIComponent(q) + '&lang=' + lang + '&limit=6')
     .then(function(r){ return r.json(); })
-    .then(function(d){ callback(d.results || []); })
+    .then(function(d){
+      if(done) return; done=true; clearTimeout(timer);
+      callback(d.results || []);
+    })
     .catch(function() {
+      if(done) return; done=true; clearTimeout(timer);
       // Fallback на CITIES при недоступности API
       var fallback = (typeof CITIES !== 'undefined' ? CITIES : [])
         .filter(function(c){ return c.name.toLowerCase().includes(q.toLowerCase()); })
