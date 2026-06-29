@@ -2843,6 +2843,12 @@ const TRANSLATIONS = {
     reg_company_label: 'Название компании / ФИО ИП',
     reg_name_label: 'Имя / Название компании',
     reg_city_label: 'Город / регион работы',
+    ph_reg_name: 'ООО ГрузТранс или Иванов И.И.',
+    ph_reg_phone: '+995 555 ___',
+    ph_reg_email: 'your@email.com',
+    ph_reg_inn: '123456789',
+    ph_reg_city: 'Тбилиси',
+    ph_reg_pass: 'Минимум 8 символов',
     reg_truck_type: 'Тип транспорта',
     reg_capacity_t: 'Грузоподъёмность (т)',
     reg_capacity_kg: 'Грузоподъёмность (кг)',
@@ -3370,6 +3376,12 @@ const TRANSLATIONS = {
     reg_company_label: 'კომპანიის სახელი / სახელი',
     reg_name_label: 'სახელი / კომპანიის სახელი',
     reg_city_label: 'ქალაქი / სამუშაო რეგიონი',
+    ph_reg_name: 'შპს ტრანსი ან ივანოვი ი.ი.',
+    ph_reg_phone: '+995 555 ___',
+    ph_reg_email: 'your@email.com',
+    ph_reg_inn: '123456789',
+    ph_reg_city: 'თბილისი',
+    ph_reg_pass: 'მინიმუმ 8 სიმბოლო',
     reg_truck_type: 'სატრანსპორტო სახეობა',
     reg_capacity_t: 'ტვირთამწეობა (ტ)',
     reg_capacity_kg: 'ტვირთამწეობა (კგ)',
@@ -3773,25 +3785,27 @@ function applyLang(l) {
   // Локализация alert для paywall кнопок
   window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
   // БАГ-8: переключение опций формы организации по языку (полная замена innerHTML)
-  var _orgSel = document.getElementById('sOrgTypeAll');
-  if(_orgSel) {
-    var _curVal = _orgSel.value;
-    if(l === 'ge') {
-      _orgSel.innerHTML = '<option value="">— აირჩიეთ —</option>'
+  // Функция замены опций org type по языку
+  var _setOrgOptions = function(sel, lang) {
+    if(!sel) return;
+    var cur = sel.value;
+    if(lang === 'ge') {
+      sel.innerHTML = '<option value="">— აირჩიეთ —</option>'
         + '<option value="შпს">შпს</option>'
         + '<option value="ს/ს">ს/ს</option>'
         + '<option value="ინდ. მეწარმე">ინდ. მეწარმე</option>'
         + '<option value="კერძო პირი">კერძო პირი</option>';
     } else {
-      _orgSel.innerHTML = '<option value="">— выберите —</option>'
+      sel.innerHTML = '<option value="">— выберите —</option>'
         + '<option value="ООО">ООО</option>'
         + '<option value="ИП">ИП</option>'
         + '<option value="АО">АО</option>'
         + '<option value="Частное лицо">Частное лицо</option>';
     }
-    // Восстанавливаем значение если оно есть в новом списке
-    if(_curVal) _orgSel.value = _curVal;
-  }
+    if(cur) sel.value = cur;
+  };
+  _setOrgOptions(document.getElementById('sOrgTypeAll'), l);
+  _setOrgOptions(document.getElementById('regOrgType'), l);
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
   // Перерисовываем транспорт

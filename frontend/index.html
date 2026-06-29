@@ -771,17 +771,17 @@
 
         <!-- Общие поля -->
         <div class="form-group">
-          <label id="regNameLabel"><span data-i18n="None"><span data-i18n="lbl_name">Имя</span></span></label>
-          <input class="form-input" type="text" id="regName" placeholder="">
+          <label id="regNameLabel" data-i18n="reg_name_label">Имя / Название компании</label>
+          <input class="form-input" type="text" id="regName" placeholder="ООО ГрузТранс или Иванов И.И." data-i18n-ph="ph_reg_name">
         </div>
         <div class="form-row">
           <div class="form-group">
             <label data-i18n="lbl_phone">Телефон</label>
-            <input class="form-input" type="tel" id="regPhone" placeholder="+995 555 ___">
+            <input class="form-input" type="tel" id="regPhone" placeholder="+995 555 ___" data-i18n-ph="ph_reg_phone">
           </div>
           <div class="form-group">
             <label data-i18n="lbl_email">Email</label>
-            <input class="form-input" type="email" id="regEmail" placeholder="your@email.com">
+            <input class="form-input" type="email" id="regEmail" placeholder="your@email.com" data-i18n-ph="ph_reg_email">
           </div>
         </div>
 
@@ -789,19 +789,19 @@
         <div id="regCompanyFields" style="display:none">
           <div class="form-row">
             <div class="form-group">
-              <label><span data-i18n="None"><span data-i18n="reg_inn"><span data-i18n="lbl_inn">ИНН / ID код</span></span></span></label>
-              <input class="form-input" type="text" id="regInn" placeholder="123456789">
+              <label data-i18n="lbl_inn_ge">ИНН / ID код</label>
+              <input class="form-input" type="text" id="regInn" placeholder="123456789" data-i18n-ph="ph_reg_inn">
             </div>
             <div class="form-group">
-              <label><span data-i18n="None">Форма</span></label>
+              <label data-i18n="reg_org_form2">Форма организации</label>
               <select class="form-select" id="regOrgType">
-                <option>ООО</option><option>ИП</option><option>АО</option><option><span data-i18n="None"><span data-i18n="reg_sub_carrier2">Частный перевозчик</span></span></option>
+                <option value="ООО">ООО</option><option value="ИП">ИП</option><option value="АО">АО</option><option value="Частное лицо" data-i18n="reg_private">Частное лицо</option>
               </select>
             </div>
           </div>
           <div class="form-group">
-            <label><span data-i18n="None"><span data-i18n="reg_city_label"><span data-i18n="lbl_city">Город / регион работы</span></span></span></label>
-            <input class="form-input" type="text" id="regCity" placeholder="Тбилиси">
+            <label data-i18n="lbl_city">Город / регион работы</label>
+            <input class="form-input" type="text" id="regCity" placeholder="Тбилиси" data-i18n-ph="ph_reg_city">
           </div>
         </div>
 
@@ -809,13 +809,13 @@
         <div id="regCarrierFields" style="display:none">
           <div class="form-row">
             <div class="form-group">
-              <label><span data-i18n="None"><span data-i18n="reg_truck_type">Тип транспорта</span></span></label>
+              <label data-i18n="reg_truck_type">Тип транспорта</label>
               <select class="form-select" id="regTruckType">
                 <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="auto" data-i18n="truck_evac">Эвакуатор</option><option value="other" data-i18n="truck_cistern">Цистерна</option><option value="other" data-i18n="truck_grain">Зерновоз</option><option value="other" data-i18n="truck_dump">Самосвал</option>
               </select>
             </div>
             <div class="form-group">
-              <label><span data-i18n="None"><span data-i18n="reg_capacity_t"><span data-i18n="lbl_capacity">Грузоподъёмность (т)</span></span></span></label>
+              <label data-i18n="reg_capacity_t">Грузоподъёмность (т)</label>
               <input class="form-input" type="number" id="regTonnage" placeholder="20">
             </div>
           </div>
@@ -823,7 +823,7 @@
 
         <div class="form-group">
           <label data-i18n="lbl_password_lc">Пароль</label>
-          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов" minlength="8" oninput="updatePassStrength(this.value,'regPassStrength')">
+          <input class="form-input" type="password" id="regPass" placeholder="Минимум 8 символов" data-i18n-ph="ph_reg_pass" minlength="8" oninput="updatePassStrength(this.value,'regPassStrength')">
           <div id="regPassStrength" style="height:4px;border-radius:2px;margin-top:4px;background:#eee;overflow:hidden"><div style="height:100%;width:0;transition:width .3s,background .3s"></div></div>
         </div>
 
