@@ -1484,14 +1484,14 @@
 <script src="ai-dispatcher.js?v=1782726060"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
-<div id="pwaInstallBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9990;background:#1a1a2e;color:#fff;padding:14px 16px;box-shadow:0 -4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:12px;animation:slideUp .3s ease">
+<div id="pwaInstallBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9990;background:#1a1a2e;color:#fff;padding:14px 16px;box-shadow:0 -4px 20px rgba(0,0,0,.3);align-items:center;gap:12px;animation:slideUp .3s ease">
   <div style="width:44px;height:44px;background:#f7b731;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🚛</div>
   <div style="flex:1;min-width:0">
-    <div style="font-weight:700;font-size:14px">Установить CaucasHub</div>
-    <div style="font-size:12px;color:#aaa;margin-top:2px">Работает без браузера, как приложение</div>
+    <div style="font-weight:700;font-size:14px" id="pwaBannerTitle">Установить CaucasHub</div>
+    <div style="font-size:12px;color:#aaa;margin-top:2px" id="pwaBannerSub">Работает без браузера, как приложение</div>
   </div>
-  <button id="pwaInstallBtn" style="background:#f7b731;color:#1a1a2e;border:none;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;flex-shrink:0">Установить</button>
-  <button id="pwaInstallClose" style="background:transparent;color:#aaa;border:none;font-size:20px;cursor:pointer;padding:4px;flex-shrink:0">✕</button>
+  <button id="pwaInstallBtn" style="background:#f7b731;color:#1a1a2e;border:none;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;flex-shrink:0" data-i18n="pwa_install_btn">Установить</button>
+  <button id="pwaInstallClose" style="background:transparent;color:#aaa;border:none;font-size:24px;line-height:1;cursor:pointer;padding:6px 8px;flex-shrink:0;opacity:.8" aria-label="Закрыть">✕</button>
 </div>
 
 <style>
@@ -1523,7 +1523,23 @@
     e.preventDefault();
     _deferredPrompt = e;
     setTimeout(function() {
-      if (_banner) _banner.style.display = 'flex';
+      if (_banner) {
+        // Переводим текст под текущий язык
+        var _l = (typeof lang !== 'undefined' ? lang : localStorage.getItem('ch_lang')) || 'ru';
+        var _title = document.getElementById('pwaBannerTitle');
+        var _sub = document.getElementById('pwaBannerSub');
+        var _btn = document.getElementById('pwaInstallBtn');
+        if (_l === 'ge') {
+          if (_title) _title.textContent = 'CaucasHub-ის დაყენება';
+          if (_sub) _sub.textContent = 'მუშაობს ბრაუზერის გარეშე, როგორც აპი';
+          if (_btn) _btn.textContent = 'დაყენება';
+        } else {
+          if (_title) _title.textContent = 'Установить CaucasHub';
+          if (_sub) _sub.textContent = 'Работает без браузера, как приложение';
+          if (_btn) _btn.textContent = 'Установить';
+        }
+        _banner.style.display = 'flex';
+      }
     }, 3000); // показываем через 3 сек
   });
 
