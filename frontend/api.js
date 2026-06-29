@@ -371,15 +371,16 @@ window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRout
 
 // ── Загрузка реальных счётчиков из API ───────────────────────────────────────
 (function loadStatsCounters(){
-  // Сразу показываем 0 вместо "—"
+  // Сразу показываем 0 вместо "—" не дожидаясь API
   var _initZero = function() {
     var trEl = document.getElementById('statTrucks');
     var coEl = document.getElementById('statCompanies');
     var ldEl = document.getElementById('statLoads');
-    if(trEl && trEl.textContent === '—') trEl.textContent = '0';
-    if(coEl && coEl.textContent === '—') coEl.textContent = '0';
-    if(ldEl && ldEl.textContent === '—') ldEl.textContent = '0';
+    if(trEl) trEl.textContent = '0';
+    if(coEl) coEl.textContent = '0';
+    if(ldEl) ldEl.textContent = '0';
   };
+  _initZero(); // сразу при загрузке
   fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
     .then(function(r){ return r.json(); })
     .then(function(d){

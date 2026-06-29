@@ -850,7 +850,9 @@ function renderLoads(data){
            <button class="card-btn-edit" onclick="event.stopPropagation();editMyLoad(${d.id})">✏️</button>
            <button class="card-btn-del" onclick="event.stopPropagation();deleteMyLoad(${d.id})">🗑</button>
          </div>`
-      : _alreadyResponded
+      : d.is_demo
+        ? `<button class="card-btn-resp" style="background:#f0f2f5;color:#999;font-size:11px;cursor:pointer" onclick="event.stopPropagation();openAuth('register')">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_register_to_respond||'🔒 Зарегистрируйтесь'}</button>`
+        : _alreadyResponded
         ? `<button class="card-btn-resp" style="background:#2ecc71;color:#fff;font-size:12px;cursor:default" disabled onclick="event.stopPropagation()">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_sent||'✅ Отправлено'}</button>`
         : `<button class="card-btn-resp" onclick="event.stopPropagation();openCargo(window.allLoads.find(x=>x.id==${d.id})||d)">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).card_respond||'Отклик'}</button>`;
 
@@ -2729,6 +2731,7 @@ const TRANSLATIONS = {
     sig_shipper: 'Отправитель',
     sig_carrier: 'Перевозчик',
     card_respond: 'Отклик',
+    card_register_to_respond: '🔒 Зарегистрируйтесь',
     card_sent: '✅ Отправлено',
     warn_already_responded: '⚠️ Вы уже откликались на этот груз',
     warn_own_load: '⚠️ Нельзя откликнуться на собственный груз',
@@ -3223,6 +3226,7 @@ const TRANSLATIONS = {
     sig_shipper: 'გამგზავნი',
     sig_carrier: 'გადამზიდველი',
     card_respond: 'გამოხმაურება',
+    card_register_to_respond: '🔒 დარეგისტრირდით',
     card_sent: '✅ გაგზავნილია',
     warn_already_responded: '⚠️ ამ ტვირთზე უკვე გამოეხმაურეთ',
     warn_own_load: '⚠️ საკუთარ ტვირთზე გამოხმაურება შეუძლებელია',
@@ -3443,7 +3447,7 @@ const TRANSLATIONS = {
     rules_p7: 'მომხმარებლის მონაცემები არ გადაეცემა მესამე პირებს. მონაწილეთა კონტაქტები ხილულია მხოლოდ აქტიური გარიგების ფარგლებში. პლატფორმა იყენებს მონაცემებს მხოლოდ სერვისის ფუნქციონირების უზრუნველსაყოფად.',
     rules_p8: 'CaucasHub იტოვებს წესების შეცვლის უფლებას. პლატფორმის გამოყენების გაგრძელება ცვლილებების შემდეგ ნიშნავს ახალ რედაქციაზე თანხმობას.',
     rules_contact: 'კითხვებისთვის: caucashub.ge · @caucashub_bot',
-    footer_slogan: 'კავკასიის პირველი სატვირთო ბირжა',
+    footer_slogan: 'კავკასიის პირველი სატვირთო ბირჟა',
     footer_rules: '📋 წესები და პასუხისმგებლობა',
     reg_agree: 'რეგისტრაციით ვეთანხმები',
     reg_agree_link: 'გამოყენების წესებს',
@@ -3768,9 +3772,26 @@ function applyLang(l) {
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
   // Локализация alert для paywall кнопок
   window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
-  // БАГ-8: переключение опций формы организации по языку
-  document.querySelectorAll('#sOrgTypeAll .org-ru').forEach(function(el){ el.style.display = l === 'ge' ? 'none' : ''; });
-  document.querySelectorAll('#sOrgTypeAll .org-ge').forEach(function(el){ el.style.display = l === 'ge' ? '' : 'none'; });
+  // БАГ-8: переключение опций формы организации по языку (полная замена innerHTML)
+  var _orgSel = document.getElementById('sOrgTypeAll');
+  if(_orgSel) {
+    var _curVal = _orgSel.value;
+    if(l === 'ge') {
+      _orgSel.innerHTML = '<option value="">— აირჩიეთ —</option>'
+        + '<option value="შпს">შпს</option>'
+        + '<option value="ს/ს">ს/ს</option>'
+        + '<option value="ინდ. მეწარმე">ინდ. მეწარმე</option>'
+        + '<option value="კერძო პირი">კერძო პირი</option>';
+    } else {
+      _orgSel.innerHTML = '<option value="">— выберите —</option>'
+        + '<option value="ООО">ООО</option>'
+        + '<option value="ИП">ИП</option>'
+        + '<option value="АО">АО</option>'
+        + '<option value="Частное лицо">Частное лицо</option>';
+    }
+    // Восстанавливаем значение если оно есть в новом списке
+    if(_curVal) _orgSel.value = _curVal;
+  }
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
   // Перерисовываем транспорт
@@ -4117,6 +4138,19 @@ function _refreshAnalytics(){
 
 function openAnalytics(){
   closeModal('profileOverlay');
+  // БАГ-5б: если не залогинен — показываем нули и заглушку
+  if(!user){
+    const _T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+    document.getElementById('analyticsUser').textContent = _T.analytics_sub||'Статистика аккаунта';
+    document.getElementById('aStat1').textContent = '0';
+    document.getElementById('aStat2').textContent = '0';
+    const _s3=document.getElementById('aStat3'); if(_s3) _s3.textContent='₾0';
+    const _s4=document.getElementById('aStat4'); if(_s4) _s4.textContent='— ⭐';
+    const _rEl=document.getElementById('aRoutes');
+    if(_rEl) _rEl.innerHTML='<div style="text-align:center;color:#aaa;font-size:13px;padding:16px">Аналитика появится после первых сделок</div>';
+    document.getElementById('analyticsOverlay').classList.add('on');
+    return;
+  }
   // Загружаем сделки если ещё не загружены
   if(typeof loadDeals==='function' && getToken() && !_deals.length) loadDeals().then(()=>_refreshAnalytics());
   if(user){
@@ -4542,12 +4576,25 @@ async function rateDealDialog(id,num){
   }
 }
 async function exportDealsData(fmt){
+  // БАГ-NEW-5: валидация дат
+  var _fromEl = document.getElementById('exportFrom');
+  var _toEl = document.getElementById('exportTo');
+  var _fromVal = (_fromEl&&_fromEl.value) || exportDateFrom || '';
+  var _toVal = (_toEl&&_toEl.value) || exportDateTo || '';
+  if(!_fromVal || !_toVal){
+    showToastWarn('⚠️ Укажите период (дата с и дата по)');
+    return;
+  }
+  if(new Date(_fromVal) > new Date(_toVal)){
+    showToastWarn('⚠️ Дата "по" не может быть раньше даты "с"');
+    return;
+  }
   const tk=getToken?getToken():localStorage.getItem('ch_token');
   let url=API_BASE+'/api/deals/export?format='+fmt;
-  if(exportDateFrom)url+='&from='+exportDateFrom;
-  if(exportDateTo)url+='&to='+exportDateTo;
+  url+='&from='+_fromVal+'&to='+_toVal;
   const r=await fetch(url,{headers:{'Authorization':'Bearer '+tk}});
-  if(r.ok){const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='deals.'+fmt;a.click();}
+  if(r.ok){const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='caucashub-deals-'+_fromVal+'.'+fmt;a.click();}
+  else showToastWarn('⚠️ Ошибка экспорта. Попробуйте позже.');
 }
 
 // Восстановление вкладки теперь в api.js → syncLoadsFromServer finally блок
