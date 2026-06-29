@@ -291,13 +291,19 @@
       <div class="form-group" style="flex:1">
         <label data-i18n="post_transport_lbl_type">Тип кузова</label>
         <select class="form-input" id="ptTruckType">
-          <option value="tent">Тент</option>
-          <option value="gazel">Газель</option>
-          <option value="ref">Рефрижератор</option>
-          <option value="open">Открытый</option>
-          <option value="container">Контейнер</option>
-          <option value="autovoz">Автовоз</option>
-          <option value="lowboy">Низкорамник</option>
+          <option value="tent" data-i18n="truck_tent">Тент</option>
+          <option value="ref" data-i18n="truck_ref_full">Рефрижератор</option>
+          <option value="reftent" data-i18n="truck_reftent">Рефтент</option>
+          <option value="megatent" data-i18n="truck_megatent">Мегатент</option>
+          <option value="bort" data-i18n="truck_bort_full">Бортовой</option>
+          <option value="termos" data-i18n="truck_termos_full">Термос</option>
+          <option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option>
+          <option value="container" data-i18n="truck_container_full">Контейнер</option>
+          <option value="auto" data-i18n="truck_auto_full">Автовоз</option>
+          <option value="auto" data-i18n="truck_evac">Эвакуатор</option>
+          <option value="other" data-i18n="truck_cistern">Цистерна</option>
+          <option value="other" data-i18n="truck_grain">Зерновоз</option>
+          <option value="other" data-i18n="truck_dump">Самосвал</option>
         </select>
       </div>
       <div class="form-group" style="flex:1">
@@ -472,10 +478,10 @@
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('deals',this)"><span data-i18n="None"><span data-i18n="cab_deals">🤝 Сделки</span></span></button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('subscriptions',this)"><span data-i18n="cab_subscriptions">🔔 Подписки</span></button>
  <!-- Транспортные вкладки — скрыты по умолчанию, показываются по роли -->
- <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('my-transport',this)" data-i18n="cab_my_transport">🚛 ჩემი ტრანსპორტი</button>
- <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('transport-requests-in',this)" data-i18n="cab_transport_req_in">📥 მოთხოვნები</button>
- <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-requests-out',this)" data-i18n="cab_transport_req_out">📤 ტრანსპორტზე</button>
- <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)" data-i18n="cab_transport_subs">🔔 გამოწ. ტრ.</button>
+ <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('my-transport',this)" data-i18n="cab_my_transport">🚛 Мой транспорт</button>
+ <button class="cab-tab-btn cab-tab cab-tab-carrier" style="display:none" onclick="switchCabTab('transport-requests-in',this)" data-i18n="cab_transport_req_in">📥 Запросы</button>
+ <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-requests-out',this)" data-i18n="cab_transport_req_out">📤 На транспорт</button>
+ <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)" data-i18n="cab_transport_subs">🔔 Подп. транспорт</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)"><span data-i18n="None"><span data-i18n="cab_report">📊 Отчёт</span></span></button>
  </div>
 
@@ -589,7 +595,7 @@
     <div style="flex:1"><div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_to">Куда</div>
      <input id="tsSubTo" class="form-input" placeholder="Батуми" data-i18n-ph="transport_sub_to_ph" style="width:100%;box-sizing:border-box"></div>
    </div>
-   <button onclick="createTransportSub()" class="btn-primary" id="tsSubBtn" data-i18n="transport_sub_btn" style="width:100%">🔔 Подписაться</button>
+   <button onclick="createTransportSub()" class="btn-primary" id="tsSubBtn" data-i18n="transport_sub_btn" style="width:100%">🔔 Подписаться</button>
    <div id="tsSubError" style="display:none;color:#e74c3c;font-size:12px;margin-top:8px"></div>
   </div>
   <div id="myTransportSubsList"><div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title" data-i18n="transport_sub_empty">Нет подписок на транспорт</div><div class="cab-empty-sub" data-i18n="transport_sub_empty_sub">Подпишитесь на маршрут — получите уведомление о новом транспорте</div></div></div>
@@ -879,6 +885,8 @@
         <option value="BY">🇧🇾 Беларусь</option>
         <option value="IL">🇮🇱 Израиль</option>
         <option value="IR">🇮🇷 Иран</option>
+        <option value="IQ">🇮🇶 Ирак</option>
+        <option value="SA">🇸🇦 Саудовская Аравия</option>
         <option value="AE">🇦🇪 ОАЭ</option>
         <option value="GR">🇬🇷 Греция</option>
         <option value="RO">🇷🇴 Румыния</option>
@@ -1074,9 +1082,9 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profileName">
     <button class="close-btn" onclick="closeModal('profileOverlay')">✕</button>
     <div style="text-align:center;margin-bottom:20px">
-      <div style="width:64px;height:64px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a2e;font-weight:900;font-size:24px;margin:0 auto 10px" id="profileAva">ТК</div>
-      <div style="font-weight:700;font-size:18px" id="profileName">Тимур Токазов</div>
-      <div style="font-size:13px;color:#888" id="profileRole">Перевозчик · ⭐ 4.9 · 47 рейсов</div>
+      <div style="width:64px;height:64px;background:#f7b731;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#1a1a2e;font-weight:900;font-size:24px;margin:0 auto 10px" id="profileAva"></div>
+      <div style="font-weight:700;font-size:18px" id="profileName"></div>
+      <div style="font-size:13px;color:#888" id="profileRole"></div>
       <div style="margin-top:8px" id="profilePlanBadge"></div>
     </div>
     <div class="divider"></div>
@@ -1212,7 +1220,16 @@
         <label><span data-i18n="None"><span data-i18n="reg_org_form2">Форма организации</span></span></label>
         <select class="form-select" id="sOrgTypeAll">
           <option value="" data-i18n="opt_choose">— выберите —</option>
-          <option>ООО</option><option>ИП</option><option>АО</option><option>შპს</option><option>ს/ს</option><option><span data-i18n="None"><span data-i18n="reg_private">Частное лицо</span></span></option>
+          <!-- RU варианты (показываются при lang=ru) -->
+          <option class="org-ru" value="ООО">ООО</option>
+          <option class="org-ru" value="ИП">ИП</option>
+          <option class="org-ru" value="АО">АО</option>
+          <option class="org-ru" value="Частное лицо" data-i18n="reg_private">Частное лицо</option>
+          <!-- GE варианты (показываются при lang=ge) -->
+          <option class="org-ge" value="შпს" style="display:none">შпს</option>
+          <option class="org-ge" value="ს/ს" style="display:none">ს/ს</option>
+          <option class="org-ge" value="ინდ. მეწარმე" style="display:none">ინდ. მეწარმე</option>
+          <option class="org-ge" value="კერძო პირი" style="display:none">კერძო პირი</option>
         </select>
       </div>
     </div>

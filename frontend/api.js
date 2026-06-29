@@ -12,7 +12,7 @@ async function apiRequest(method, path, body=null, extraHeaders={}){
   const token = getToken();
   if(token) headers['Authorization'] = 'Bearer ' + token;
 
-  const opts = { method, headers };
+  const opts = { method, headers, signal: AbortSignal.timeout(10000) };
   if(body) opts.body = JSON.stringify(body);
 
   try {
@@ -233,6 +233,9 @@ async function syncLoadsFromServer(){
     }
   } catch(e) {
     console.warn('[syncLoads]', e);
+    // БАГ-7: показываем сообщение вместо вечного спиннера
+    var _errList = document.getElementById('cargoList');
+    if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
     window._loadsLoading = false;
     // После загрузки грузов — восстанавливаем сохранённую вкладку
@@ -368,15 +371,24 @@ window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRout
 
 // ── Загрузка реальных счётчиков из API ───────────────────────────────────────
 (function loadStatsCounters(){
-  fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(5000)})
+  // Сразу показываем 0 вместо "—"
+  var _initZero = function() {
+    var trEl = document.getElementById('statTrucks');
+    var coEl = document.getElementById('statCompanies');
+    var ldEl = document.getElementById('statLoads');
+    if(trEl && trEl.textContent === '—') trEl.textContent = '0';
+    if(coEl && coEl.textContent === '—') coEl.textContent = '0';
+    if(ldEl && ldEl.textContent === '—') ldEl.textContent = '0';
+  };
+  fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
     .then(function(r){ return r.json(); })
     .then(function(d){
       var trEl = document.getElementById('statTrucks');
       var coEl = document.getElementById('statCompanies');
-      if(trEl && d.online_trucks != null) trEl.textContent = d.online_trucks.toLocaleString();
-      if(coEl && d.companies != null) coEl.textContent = d.companies.toLocaleString();
       var ldEl = document.getElementById('statLoads');
-      if(ldEl && d.active_loads != null) ldEl.textContent = d.active_loads.toLocaleString();
+      if(trEl) trEl.textContent = (d.online_trucks != null ? d.online_trucks : 0).toLocaleString();
+      if(coEl) coEl.textContent = (d.companies != null ? d.companies : 0).toLocaleString();
+      if(ldEl) ldEl.textContent = (d.active_loads != null ? d.active_loads : 0).toLocaleString();
     })
-    .catch(function(){});
+    .catch(function(){ _initZero(); });
 })();

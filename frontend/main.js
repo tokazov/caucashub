@@ -3768,6 +3768,9 @@ function applyLang(l) {
   document.documentElement.lang = l === 'ge' ? 'ka' : l;
   // Локализация alert для paywall кнопок
   window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
+  // БАГ-8: переключение опций формы организации по языку
+  document.querySelectorAll('#sOrgTypeAll .org-ru').forEach(function(el){ el.style.display = l === 'ge' ? 'none' : ''; });
+  document.querySelectorAll('#sOrgTypeAll .org-ge').forEach(function(el){ el.style.display = l === 'ge' ? '' : 'none'; });
   // Перерисовываем карточки грузов если они уже загружены
   if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
   // Перерисовываем транспорт
