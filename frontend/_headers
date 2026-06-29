@@ -1,0 +1,21 @@
+# HTML — никогда не кэшировать
+/
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/*.html
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+# SW — не кэшировать чтобы браузер видел обновления
+/sw.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+# Manifest — не кэшировать
+/manifest.json
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+# JS/CSS — браузер перезапрашивает каждый раз
+/*.js
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+/*.css
+  Cache-Control: no-cache, must-revalidate, max-age=0
