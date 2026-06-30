@@ -532,9 +532,13 @@ const _filterCityTimers = {};
 // Allowed OSM types for city autocomplete (Q-014 §2)
 const _CITY_TYPES = new Set(['city','town','village','suburb','administrative','hamlet','locality']);
 
+// dir → dropId/inputId mapping (расширяемо для subFrom/subTo и др.)
+function _dirToDropId(dir){ return dir==='from'?'dropFrom': dir==='to'?'dropTo': dir==='subFrom'?'dropSubFrom': dir==='subTo'?'dropSubTo': 'drop'+dir.charAt(0).toUpperCase()+dir.slice(1); }
+function _dirToInputId(dir){ return dir==='from'?'fFrom': dir==='to'?'fTo': dir==='subFrom'?'subFromCity': dir==='subTo'?'subToCity': dir; }
+
 function filterCity(dir, val){
   const q=val.trim();
-  const id=dir==='from'?'dropFrom':'dropTo';
+  const id=_dirToDropId(dir);
   const drop=document.getElementById(id);
   if(q.length<1){drop.classList.remove('open');return;}
 
@@ -621,10 +625,11 @@ function _fetchCitySuggestionsFiltered(q, langCode, callback){
     });
 }
 function openDrop(dir){
-  const val=document.getElementById(dir==='from'?'fFrom':'fTo').value;
+  const inputEl=document.getElementById(_dirToInputId(dir));
+  const val=inputEl?inputEl.value:'';
   if(val) filterCity(dir,val);
 }
-function closeDrop(dir){ document.getElementById(dir==='from'?'dropFrom':'dropTo').classList.remove('open'); }
+function closeDrop(dir){ const el=document.getElementById(_dirToDropId(dir)); if(el) el.classList.remove('open'); }
 // Q-014 §3: nameRu — нормализованное имя из API (для матчинга подписок)
 function selectCity(dir, name, lat, lng, isCountry, nameRu){
   // Приоритет: nameRu (из API) > name из CITIES > сырое имя
@@ -633,17 +638,15 @@ function selectCity(dir, name, lat, lng, isCountry, nameRu){
   const city=cityFromArr
     ? {...cityFromArr, name: normalizedName}
     : {name:normalizedName, lat:lat?parseFloat(lat):null, lng:lng?parseFloat(lng):null, region:''};
-  if(dir==='from'){
-    selectedFrom=city;
-    // Для грузинского языка — пробуем nameGe из массива, иначе нормализованное имя
-    document.getElementById('fFrom').value=lang==='ge'&&cityFromArr?.nameGe||normalizedName;
-    document.getElementById('dropFrom').classList.remove('open');
-  } else {
-    selectedTo=city;
-    document.getElementById('fTo').value=lang==='ge'&&cityFromArr?.nameGe||normalizedName;
-    document.getElementById('dropTo').classList.remove('open');
-  }
-  if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
+  const inputEl = document.getElementById(_dirToInputId(dir));
+  const dropEl  = document.getElementById(_dirToDropId(dir));
+  const displayName = (lang==='ge'&&cityFromArr?.nameGe) ? cityFromArr.nameGe : normalizedName;
+  if(inputEl) inputEl.value = displayName;
+  if(dropEl)  dropEl.classList.remove('open');
+  if(dir==='from'){ selectedFrom=city; }
+  else if(dir==='to'){ selectedTo=city; }
+  // subFrom/subTo — только ставим значение (не трогаем карту)
+  if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat&&dir!=='subFrom'&&dir!=='subTo') showRouteMap();
 }
 
 // ── YANDEX MAP ────────────────────────────────────────
@@ -2412,7 +2415,7 @@ function switchCabTab(tab, el){
  if(tab === 'deals') renderCabDeals();
  if(tab === 'loads') renderCabLoads();
  if(tab === 'responses') renderCabResponses();
- if(tab === 'subscriptions') { loadSubscriptions(); _setupCityAutocomplete('subFromCity', {lang: lang}); _setupCityAutocomplete('subToCity', {lang: lang}); if(typeof applyLang==='function') applyLang(lang); }
+ if(tab === 'subscriptions') { loadSubscriptions(); if(typeof applyLang==='function') applyLang(lang); }
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();

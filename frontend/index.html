@@ -531,14 +531,22 @@
   <div style="background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:16px">
    <div style="font-size:14px;font-weight:700;color:#1a1a2e;margin-bottom:12px" data-i18n="sub_new_title">➕ Новая подписка</div>
    <div style="display:flex;gap:8px;margin-bottom:10px">
-    <div style="flex:1">
+    <div style="flex:1;position:relative">
      <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_from">Откуда</div>
-     <input id="subFromCity" class="form-input" placeholder="Тбилиси" style="width:100%;box-sizing:border-box">
+     <input id="subFromCity" class="form-input city-input" type="search" placeholder="Тбилиси"
+       autocomplete="new-password" name="sub-from-xx" readonly onfocus="this.removeAttribute('readonly')"
+       oninput="filterCity('subFrom',this.value)" onfocus="this.removeAttribute('readonly');openDrop('subFrom')" onblur="setTimeout(()=>closeDrop('subFrom'),200)"
+       style="width:100%;box-sizing:border-box">
+     <div class="city-dropdown" id="dropSubFrom"></div>
     </div>
     <div style="display:flex;align-items:flex-end;padding-bottom:8px;color:#888;font-size:18px">→</div>
-    <div style="flex:1">
+    <div style="flex:1;position:relative">
      <div style="font-size:11px;color:#888;margin-bottom:4px" data-i18n="lbl_to">Куда</div>
-     <input id="subToCity" class="form-input" placeholder="Батуми" style="width:100%;box-sizing:border-box">
+     <input id="subToCity" class="form-input city-input" type="search" placeholder="Батуми"
+       autocomplete="new-password" name="sub-to-xx" readonly onfocus="this.removeAttribute('readonly')"
+       oninput="filterCity('subTo',this.value)" onfocus="this.removeAttribute('readonly');openDrop('subTo')" onblur="setTimeout(()=>closeDrop('subTo'),200)"
+       style="width:100%;box-sizing:border-box">
+     <div class="city-dropdown" id="dropSubTo"></div>
     </div>
    </div>
    <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1487,8 +1495,8 @@
   </div>
 </div>
 
-<script src="api.js?v=1782851365"></script>
-<script src="main.js?v=1782851365"></script>
+<script src="api.js?v=1782851858"></script>
+<script src="main.js?v=1782851858"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
