@@ -1856,6 +1856,8 @@ function openPostLoad(){
   const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0');
   document.getElementById('pDate').value=`${d.getFullYear()}-${mm}-${dd}`;
   document.getElementById('pDate2').value='';
+  // БАГ-FORM-2 fix: дефолтная цена 350 (совпадает с placeholder)
+  const _priceEl=document.getElementById('pPrice'); if(_priceEl&&!_priceEl.value) _priceEl.value='350';
   // Правильная валюта при открытии
   const cl=document.getElementById('priceCurLabel');
   if(cl){const _T=TRANSLATIONS[lang]||TRANSLATIONS['ru']; cl.textContent=scope==='intl'?(_T.lbl_rate_intl||'Ставка ($)'):(_T.lbl_rate_form||'Ставка (₾)');}
@@ -1885,22 +1887,33 @@ function doPostLoad(){
     return;
   }
   const price=priceRaw;
-  const truck=document.getElementById('pTruck').value;
+  // БАГ-FORM-1 fix: select уже хранит API enum (tent/ref/bort/…) — маппинг не нужен
+  const truckTypeApi = document.getElementById('pTruck').value || 'tent';
+  // typeLabel — берём текст выбранного option
+  const _pTruckEl = document.getElementById('pTruck');
+  const truck = _pTruckEl.options[_pTruckEl.selectedIndex]?.text || 'Тент';
   const desc=document.getElementById('pDesc').value||((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
   const pay=document.getElementById('pPay').value;
   const urgent=document.getElementById('pUrgent').checked;
-  const typeMap={'Тент':{typeClr:'#f3e5f5',typeClrT:'#6a1b9a'},'Рефрижератор':{typeClr:'#e3f2fd',typeClrT:'#1565c0'},'Бортовой':{typeClr:'#e8f5e9',typeClrT:'#2e7d32'},'Термос':{typeClr:'#fff3e0',typeClrT:'#bf360c'},'Газель':{typeClr:'#fce4ec',typeClrT:'#880e4f'},'Контейнер':{typeClr:'#f0f2f5',typeClrT:'#555'}};
-  // Маппинг русских названий → API enum (tent/ref/bort/termos/gazel/container/auto/other)
-  const truckTypeMap={'тент':'tent','рефрижератор':'ref','рефтент':'ref','мегатент':'tent','бортовой':'bort','термос':'termos','фургон (до 3.5т)':'gazel','газель':'gazel','контейнер':'container','автовоз':'auto','эвакуатор':'auto','цистерна':'other','зерновоз':'other','самосвал':'other','ტენტი':'tent','რეფრიჟერატორი':'ref','რეფ-ტენტი':'ref','მეგა-ტენტი':'tent','ბორტიანი':'bort','თერმოსი':'termos','ფურგონი (3.5ტ-მდე)':'gazel','კონტეინერი':'container','ავტოტრანსპორტი':'auto','ევაკუატორი':'auto'};
-  const truckTypeApi = truckTypeMap[truck.toLowerCase()] || 'other';
-  const tc=typeMap[truck]||typeMap['Тент'];
+  // Цвета для типа кузова по API enum
+  const typeColorMap={tent:{typeClr:'#f3e5f5',typeClrT:'#6a1b9a'},ref:{typeClr:'#e3f2fd',typeClrT:'#1565c0'},reftent:{typeClr:'#e3f2fd',typeClrT:'#1565c0'},megatent:{typeClr:'#f3e5f5',typeClrT:'#6a1b9a'},bort:{typeClr:'#e8f5e9',typeClrT:'#2e7d32'},termos:{typeClr:'#fff3e0',typeClrT:'#bf360c'},gazel:{typeClr:'#fce4ec',typeClrT:'#880e4f'},container:{typeClr:'#f0f2f5',typeClrT:'#555'},auto:{typeClr:'#e8eaf6',typeClrT:'#283593'},other:{typeClr:'#f0f2f5',typeClrT:'#555'}};
+  const tc=typeColorMap[truckTypeApi]||typeColorMap['tent'];
   const rawDate=document.getElementById('pDate').value;
   const rawDate2=document.getElementById('pDate2').value;
   function toDisplay(s){if(!s)return null;const[y,m,d]=s.split('-');return `${d}.${m}.${y.slice(2)}`;}
   const loadDate=toDisplay(rawDate)||'28.03.26';
   const loadDate2=rawDate2?toDisplay(rawDate2):null;
   const cur = scope==='intl' ? '$' : '₾';
-  const newLoad={id:Date.now(),from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,urgent,scope:scope==='intl'?'intl':'local',desc,co:user.name,rat:'5.0',trips:0,pay,from2:fromAddr,to2:toAddr,km:'~уточните',badge:urgent?'urgent':'new',ownerId:user.email,userId:currentUserId};
+  // БАГ-FORM-3 fix: считаем расстояние по прямой если есть координаты обоих городов
+  let kmVal = '~уточните';
+  const _aFrom = addrSelected.pFrom, _aTo = addrSelected.pTo;
+  if(_aFrom?.lat && _aTo?.lat){
+    const _dLat=(_aTo.lat-_aFrom.lat)*Math.PI/180, _dLng=(_aTo.lng-_aFrom.lng)*Math.PI/180;
+    const _a=Math.sin(_dLat/2)*Math.sin(_dLat/2)+Math.cos(_aFrom.lat*Math.PI/180)*Math.cos(_aTo.lat*Math.PI/180)*Math.sin(_dLng/2)*Math.sin(_dLng/2);
+    const _dist=Math.round(6371*2*Math.atan2(Math.sqrt(_a),Math.sqrt(1-_a)));
+    kmVal = '~' + _dist + ' км';
+  }
+  const newLoad={id:Date.now(),from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,urgent,scope:scope==='intl'?'intl':'local',desc,co:user.name,rat:'5.0',trips:0,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:currentUserId};
 
   LOCAL.unshift(newLoad);
   window.allLoads=[...LOCAL,...INTL];
