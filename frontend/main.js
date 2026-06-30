@@ -2271,7 +2271,7 @@ function saveEditedLoad(){
   const from=addrSelected.pFrom?.city||fromAddr.split(',')[0]||'Тбилиси';
   const to=addrSelected.pTo?.city||toAddr.split(',')[0]||'Батуми';
   const kg=parseInt(document.getElementById('pWeight').value)||5000;
-  const price=parseInt(document.getElementById('pPrice').value)||300;
+  const price=parseInt(document.getElementById('pPrice').value)||350;
   // БАГ-FORM-1 fix в saveEditedLoad: берём value напрямую (уже API enum)
   const truckTypeEdit = document.getElementById('pTruck').value || 'tent';
   const _pTruckEdEl = document.getElementById('pTruck');
