@@ -5850,16 +5850,21 @@ function _setupCityAutocomplete(inputId, options) {
     if(q.length < 2) { dropdown.style.display='none'; return; }
     debounceTimer = setTimeout(function() {
       _fetchCitySuggestions(q, options.lang || 'ru', function(results) {
+        // БАГ-3 fix: дедупликация по name_ru
+        var seen = {}; results = results.filter(function(r){ var k = r.name_ru||r.display_name; if(seen[k]) return false; seen[k]=1; return true; });
         if(!results.length) { dropdown.style.display='none'; return; }
         dropdown.innerHTML = results.map(function(r) {
-          return '<div class="city-autocomplete-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5" data-name="' + r.display_name + '" data-local="' + (r.name_local||r.name_ru||r.display_name.split(',')[0]) + '">'
-            + '<span style="font-weight:600">' + (r.name_ru||r.display_name.split(',')[0]) + '</span>'
-            + '<span style="font-size:11px;color:#aaa;margin-left:6px">' + (r.name_local||'') + '</span>'
+          // БАГ-3 fix: data-ru всегда русское название, data-local только для отображения подсказки
+          var nameRu = r.name_ru || r.display_name.split(',')[0];
+          var nameLocal = r.name_local || '';
+          return '<div class="city-autocomplete-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5" data-name="' + r.display_name + '" data-ru="' + nameRu + '">'
+            + '<span style="font-weight:600">' + nameRu + '</span>'
+            + (nameLocal && nameLocal !== nameRu ? '<span style="font-size:11px;color:#aaa;margin-left:6px">' + nameLocal + '</span>' : '')
             + '</div>';
         }).join('');
         dropdown.querySelectorAll('.city-autocomplete-item').forEach(function(item) {
           item.addEventListener('click', function() {
-            var name = this.getAttribute('data-local') || this.getAttribute('data-name').split(',')[0];
+            var name = this.getAttribute('data-ru') || this.getAttribute('data-name').split(',')[0];
             input.value = name;
             dropdown.style.display = 'none';
             if(options.onSelect) options.onSelect({name: name, display: this.getAttribute('data-name')});
