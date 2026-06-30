@@ -197,12 +197,26 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
     # XSS-санитизация company_name
     if normalized.get("company_name"):
         normalized["company_name"] = sanitize_text(normalized["company_name"], max_length=200)
+    # Маппинг расширенных ролей с фронта → валидные значения enum
+    _role_map = {
+        "shipper_person": "shipper",
+        "shipper_company": "shipper",
+        "shipper": "shipper",
+        "carrier": "carrier",
+        "both": "both",
+    }
+    mapped_role = _role_map.get(data.role, "carrier")
+    try:
+        user_role = UserRole(mapped_role)
+    except ValueError:
+        user_role = UserRole.carrier
+
     user = User(
         email=normalized.get("email", data.email),
         hashed_password=hash_password(data.password),
         company_name=normalized.get("company_name", data.company_name),
         phone=normalized.get("phone", data.phone),
-        role=UserRole(data.role),
+        role=user_role,
         lang=data.lang,
         inn=normalized.get("inn", data.inn),
         org_type=normalize_org_type(data.org_type or ""),
