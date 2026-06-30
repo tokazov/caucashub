@@ -7,11 +7,17 @@ from app.database import Base
 class TruckType(str, enum.Enum):
     tent      = "tent"
     ref       = "ref"
+    reftent   = "reftent"    # рефтент
+    megatent  = "megatent"   # мегатент
     bort      = "bort"
     termos    = "termos"
     gazel     = "gazel"
     container = "container"
     auto      = "auto"       # автовоз
+    evacuator = "evacuator"  # эвакуатор
+    cistern   = "cistern"    # цистерна
+    grain     = "grain"      # зерновоз
+    dump      = "dump"       # самосвал
     other     = "other"
 
 class LoadScope(str, enum.Enum):

@@ -199,7 +199,7 @@
   </div>
   <select class="fsel filter-sel" id="fType" onchange="filterLoads()">
     <option value="" data-i18n="opt_trucktype">🚛 Кузов</option>
-    <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="auto" data-i18n="truck_evac">Эвакуатор</option><option value="other" data-i18n="truck_cistern">Цистерна</option><option value="other" data-i18n="truck_grain">Зерновоз</option><option value="other" data-i18n="truck_dump">Самосвал</option>
+    <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="evacuator" data-i18n="truck_evac">Эвакуатор</option><option value="cistern" data-i18n="truck_cistern">Цистерна</option><option value="grain" data-i18n="truck_grain">Зерновоз</option><option value="dump" data-i18n="truck_dump">Самосвал</option>
   </select>
   <select class="fsel filter-sel" id="fWeight" onchange="filterLoads()">
     <option value="" data-i18n="opt_tonnage">⚖️ Тоннаж</option>
@@ -262,10 +262,10 @@
         <option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option>
         <option value="container" data-i18n="truck_container_full">Контейнер</option>
         <option value="auto" data-i18n="truck_auto_full">Автовоз</option>
-        <option value="auto" data-i18n="truck_evac">Эвакуатор</option>
-        <option value="other" data-i18n="truck_cistern">Цистерна</option>
-        <option value="other" data-i18n="truck_grain">Зерновоз</option>
-        <option value="other" data-i18n="truck_dump">Самосвал</option>
+        <option value="evacuator" data-i18n="truck_evac">Эвакуатор</option>
+        <option value="cistern" data-i18n="truck_cistern">Цистерна</option>
+        <option value="grain" data-i18n="truck_grain">Зерновоз</option>
+        <option value="dump" data-i18n="truck_dump">Самосвал</option>
       </select>
       <button onclick="filterAndLoadTransport()" class="btn-primary" id="btnFindTransport" data-i18n="btn_find_transport" style="padding:8px 14px;font-size:13px;white-space:nowrap">🔍 Найти</button>
       <button onclick="openPostTransportOffer()" id="btnOfferTransport" data-i18n="btn_offer_transport" style="background:#2ecc71;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">+ Предложить транспорт</button>
@@ -314,10 +314,10 @@
           <option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option>
           <option value="container" data-i18n="truck_container_full">Контейнер</option>
           <option value="auto" data-i18n="truck_auto_full">Автовоз</option>
-          <option value="auto" data-i18n="truck_evac">Эвакуатор</option>
-          <option value="other" data-i18n="truck_cistern">Цистерна</option>
-          <option value="other" data-i18n="truck_grain">Зерновоз</option>
-          <option value="other" data-i18n="truck_dump">Самосвал</option>
+          <option value="evacuator" data-i18n="truck_evac">Эвакуатор</option>
+          <option value="cistern" data-i18n="truck_cistern">Цистерна</option>
+          <option value="grain" data-i18n="truck_grain">Зерновоз</option>
+          <option value="dump" data-i18n="truck_dump">Самосвал</option>
         </select>
       </div>
       <div class="form-group" style="flex:1">
@@ -555,10 +555,10 @@
       <option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option>
       <option value="container" data-i18n="truck_container_full">Контейнер</option>
       <option value="auto" data-i18n="truck_auto_full">Автовоз</option>
-      <option value="auto" data-i18n="truck_evac">Эвакуатор</option>
-      <option value="other" data-i18n="truck_cistern">Цистерна</option>
-      <option value="other" data-i18n="truck_grain">Зерновоз</option>
-      <option value="other" data-i18n="truck_dump">Самосвал</option>
+      <option value="evacuator" data-i18n="truck_evac">Эвакуатор</option>
+      <option value="cistern" data-i18n="truck_cistern">Цистерна</option>
+      <option value="grain" data-i18n="truck_grain">Зерновоз</option>
+      <option value="dump" data-i18n="truck_dump">Самосвал</option>
      </select>
     </div>
     <div style="flex:1">
@@ -811,7 +811,7 @@
             <div class="form-group">
               <label data-i18n="reg_truck_type">Тип транспорта</label>
               <select class="form-select" id="regTruckType">
-                <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="auto" data-i18n="truck_evac">Эвакуатор</option><option value="other" data-i18n="truck_cistern">Цистерна</option><option value="other" data-i18n="truck_grain">Зерновоз</option><option value="other" data-i18n="truck_dump">Самосвал</option>
+                <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="evacuator" data-i18n="truck_evac">Эвакуатор</option><option value="cistern" data-i18n="truck_cistern">Цистерна</option><option value="grain" data-i18n="truck_grain">Зерновоз</option><option value="dump" data-i18n="truck_dump">Самосвал</option>
               </select>
             </div>
             <div class="form-group">
@@ -944,7 +944,7 @@
       <div class="form-group">
         <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
         <select class="form-select" id="pTruck">
-          <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="auto" data-i18n="truck_evac">Эвакуатор</option><option value="other" data-i18n="truck_cistern">Цистерна</option><option value="other" data-i18n="truck_grain">Зерновоз</option><option value="other" data-i18n="truck_dump">Самосвал</option>
+          <option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="evacuator" data-i18n="truck_evac">Эвакуатор</option><option value="cistern" data-i18n="truck_cistern">Цистерна</option><option value="grain" data-i18n="truck_grain">Зерновоз</option><option value="dump" data-i18n="truck_dump">Самосвал</option>
         </select>
       </div>
     </div>
@@ -1220,7 +1220,7 @@
         <div class="form-group">
           <label><span data-i18n="None"><span data-i18n="lbl_trucktype_form">Тип кузова</span></span></label>
           <select class="form-select" id="sTruckType">
-            <option value="" data-i18n="opt_choose">— выберите —</option><option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="auto" data-i18n="truck_evac">Эвакуатор</option><option value="other" data-i18n="truck_cistern">Цистерна</option><option value="other" data-i18n="truck_grain">Зерновоз</option><option value="other" data-i18n="truck_dump">Самосвал</option>
+            <option value="" data-i18n="opt_choose">— выберите —</option><option value="tent" data-i18n="truck_tent">Тент</option><option value="ref" data-i18n="truck_ref_full">Рефрижератор</option><option value="reftent" data-i18n="truck_reftent">Рефтент</option><option value="megatent" data-i18n="truck_megatent">Мегатент</option><option value="bort" data-i18n="truck_bort_full">Бортовой</option><option value="termos" data-i18n="truck_termos_full">Термос</option><option value="gazel" data-i18n="truck_gazel_full">Фургон (до 3.5т)</option><option value="container" data-i18n="truck_container_full">Контейнер</option><option value="auto" data-i18n="truck_auto_full">Автовоз</option><option value="evacuator" data-i18n="truck_evac">Эвакуатор</option><option value="cistern" data-i18n="truck_cistern">Цистерна</option><option value="grain" data-i18n="truck_grain">Зерновоз</option><option value="dump" data-i18n="truck_dump">Самосвал</option>
           </select>
         </div>
         <div class="form-group">

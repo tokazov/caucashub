@@ -2272,7 +2272,10 @@ function saveEditedLoad(){
   const to=addrSelected.pTo?.city||toAddr.split(',')[0]||'Батуми';
   const kg=parseInt(document.getElementById('pWeight').value)||5000;
   const price=parseInt(document.getElementById('pPrice').value)||300;
-  const truck=document.getElementById('pTruck').value;
+  // БАГ-FORM-1 fix в saveEditedLoad: берём value напрямую (уже API enum)
+  const truckTypeEdit = document.getElementById('pTruck').value || 'tent';
+  const _pTruckEdEl = document.getElementById('pTruck');
+  const truckLabelEdit = _pTruckEdEl.options[_pTruckEdEl.selectedIndex]?.text || 'Тент';
   const desc=document.getElementById('pDesc').value||'';
   const pay=document.getElementById('pPay').value;
   const urgent=document.getElementById('pUrgent').checked;
@@ -2283,7 +2286,7 @@ function saveEditedLoad(){
   // Обновляем в LOCAL
   const lidx=LOCAL.findIndex(l=>l.id===_editingLoadId);
   if(lidx>-1){
-    LOCAL[lidx]={...LOCAL[lidx],from,to,kg,price,desc,pay,urgent,
+    LOCAL[lidx]={...LOCAL[lidx],from,to,kg,price,type:truckTypeEdit,typeLabel:truckLabelEdit,desc,pay,urgent,
       date:toDisplay(rawDate)||LOCAL[lidx].date,
       date2:rawDate2?toDisplay(rawDate2):null,
       from2:fromAddr,to2:toAddr};
@@ -2291,7 +2294,7 @@ function saveEditedLoad(){
   // Обновляем в _myLoads
   const midx=_myLoads.findIndex(l=>l.id===_editingLoadId);
   if(midx>-1){
-    _myLoads[midx]={..._myLoads[midx],from,to,kg,price,desc,pay,
+    _myLoads[midx]={..._myLoads[midx],from,to,kg,price,type:truckTypeEdit,typeLabel:truckLabelEdit,desc,pay,
       date:toDisplay(rawDate)||_myLoads[midx].date,
       date2:rawDate2?toDisplay(rawDate2):null};
   }

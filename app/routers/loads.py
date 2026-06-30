@@ -75,7 +75,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "scope": load.scope.value if hasattr(load.scope, 'value') else str(load.scope),
         "kg": load.weight_kg,
         "type": load.truck_type.value if hasattr(load.truck_type, 'value') else str(load.truck_type),
-        "typeLabel": {"tent":"Тент","ref":"Рефриж.","bort":"Борт","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","other":"Другой"}.get(
+        "typeLabel": {"tent":"Тент","ref":"Рефрижератор","reftent":"Рефтент","megatent":"Мегатент","bort":"Бортовой","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","evacuator":"Эвакуатор","cistern":"Цистерна","grain":"Зерновоз","dump":"Самосвал","other":"Другой"}.get(
             load.truck_type.value if hasattr(load.truck_type,'value') else str(load.truck_type), "Тент"),
         "price": load.price_gel or load.price_usd or 0,
         "cur": "₾" if load.price_gel else ("$" if load.price_usd else "₾"),
