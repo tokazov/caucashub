@@ -1066,6 +1066,12 @@ let currentCargoId=null;
 function openCargo(d){
   currentCargoId=d.id;
   window.currentCargoData=d; // сохраняем данные для addToOrders
+  // Сбрасываем карту — каждый груз открывается без старой карты
+  const _prevMapBlock = document.getElementById('routeMapBlock');
+  if(_prevMapBlock){ _prevMapBlock.style.display='none'; }
+  if(typeof _routeMap !== 'undefined' && _routeMap){ try{ _routeMap.destroy(); }catch(e){} _routeMap=null; }
+  const _mapBtn = document.querySelector('[onclick="openRouteMap()"]');
+  if(_mapBtn){ var _T0=TRANSLATIONS[lang]||TRANSLATIONS['ru']; _mapBtn.textContent=_T0.btn_show_route||'🗺️ Показать маршрут на карте'; }
 
   // ADR-012: показываем/скрываем демо-плашку
   const _demoBanner = document.getElementById('demoBanner');
