@@ -78,7 +78,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "typeLabel": {"tent":"Тент","ref":"Рефриж.","bort":"Борт","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","other":"Другой"}.get(
             load.truck_type.value if hasattr(load.truck_type,'value') else str(load.truck_type), "Тент"),
         "price": load.price_gel or load.price_usd or 0,
-        "cur": "₾" if load.price_gel else "$",
+        "cur": "₾" if load.price_gel else ("$" if load.price_usd else "₾"),
         "desc": load.cargo_desc or "",
         "pay": load.payment_type or "Нал",
         "urgent": load.is_urgent,

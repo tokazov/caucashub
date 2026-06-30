@@ -167,14 +167,14 @@
 <div class="filters">
   <div class="city-input-wrap">
     <input class="city-input" id="fFrom" type="search" placeholder="📍 Откуда" data-i18n-ph="ph_from"
-      autocomplete="off" name="search-from-x"
-      oninput="filterCity('from',this.value)" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+      autocomplete="new-password" name="search-from-xx" readonly onfocus="this.removeAttribute('readonly')"
+      oninput="filterCity('from',this.value)" onfocus="this.removeAttribute('readonly');openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
     <div class="city-dropdown" id="dropFrom"></div>
   </div>
   <div class="city-input-wrap">
     <input class="city-input" id="fTo" type="search" placeholder="🏁 Куда" data-i18n-ph="ph_to"
-      autocomplete="off" name="search-to-x"
-      oninput="filterCity('to',this.value)" onfocus="openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+      autocomplete="new-password" name="search-to-xx" readonly onfocus="this.removeAttribute('readonly')"
+      oninput="filterCity('to',this.value)" onfocus="this.removeAttribute('readonly');openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
     <div class="city-dropdown" id="dropTo"></div>
   </div>
   <div class="filter-date-wrap" style="position:relative">
@@ -959,7 +959,7 @@
     </div>
     <div class="form-group">
       <label id="priceCurLabel"><span data-i18n="lbl_rate_form">Ставка (₾)</span></label>
-      <input class="form-input" type="number" id="pPrice" placeholder="350" min="1">
+      <input class="form-input" type="number" id="pPrice" placeholder="350" min="1" required>
     </div>
     <div class="form-group">
       <label><span data-i18n="None"><span data-i18n="lbl_cargo_desc">Описание груза</span></span></label>

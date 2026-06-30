@@ -1877,7 +1877,14 @@ function doPostLoad(){
   const from=addrSelected.pFrom?.city||fromAddr.split(',')[0]||'Тбилиси';
   const to=addrSelected.pTo?.city||toAddr.split(',')[0]||'Батуми';
   const kg=parseInt(document.getElementById('pWeight').value)||5000;
-  const price=parseInt(document.getElementById('pPrice').value)||300;
+  const priceRaw=parseInt(document.getElementById('pPrice').value);
+  if(!priceRaw || priceRaw < 1){
+    const _errLang=(TRANSLATIONS[lang]||TRANSLATIONS['ru']);
+    alert(_errLang.err_price_required||'⚠️ Укажите ставку (цену) груза');
+    if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=_errLang.btn_post_submit||'📦 Разместить груз';}
+    return;
+  }
+  const price=priceRaw;
   const truck=document.getElementById('pTruck').value;
   const desc=document.getElementById('pDesc').value||((TRANSLATIONS[lang]||TRANSLATIONS['ru']).default_desc||'Груз без описания');
   const pay=document.getElementById('pPay').value;
