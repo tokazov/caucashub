@@ -821,8 +821,8 @@ var _adCache = {};     // placement → {ad, _ts}
 var _adFetching = {};  // placement → Promise (дедупликация параллельных запросов)
 
 async function _fetchAd(placement) {
-  if(_adCache[placement] && _adCache[placement]._ts > Date.now() - 30000) {
-    return _adCache[placement].ad; // 30 сек кэш
+  if(_adCache[placement] && _adCache[placement]._ts > Date.now() - 300000) {
+    return _adCache[placement].ad; // 5 мин кэш
   }
   // Если уже идёт запрос — возвращаем тот же Promise
   if(_adFetching[placement]) return _adFetching[placement];
@@ -4291,7 +4291,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── ADMIN PANEL v3 (mobile-first) ────────────────────────────────────────────
+// ── ADMIN PANEL ──────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 
 var ADMIN_SECRET_KEY = 'ch_admin_token';
@@ -4299,8 +4299,6 @@ var ADMIN_API = API_BASE;
 var _admCurrentTab = 'ads';
 var _admEditingAdId = null;
 var _admAdsCache = [];
-var PLACEMENT_LABELS = {feed:'Лента', rates:'Ставки', modal:'Модал'};
-var PLACEMENT_PRICES = {feed:300, rates:150, modal:200};
 
 function _admToken() { return localStorage.getItem(ADMIN_SECRET_KEY) || ''; }
 
@@ -4308,12 +4306,11 @@ window.openAdminPanel = function() {
   var el = document.getElementById('adminOverlay');
   if(!el) return;
   el.style.display = 'flex';
-  el.style.flexDirection = 'column';
   document.body.style.overflow = 'hidden';
   if(_admToken()) {
     _showAdminCabinet();
   } else {
-    document.getElementById('adminLogin').style.display = 'flex';
+    document.getElementById('adminLogin').style.display = 'block';
     document.getElementById('adminCabinet').style.display = 'none';
     setTimeout(function(){ var p=document.getElementById('adminPassInput'); if(p) p.focus(); }, 100);
   }
@@ -4346,14 +4343,38 @@ function _showAdminCabinet() {
   document.getElementById('adminLogin').style.display = 'none';
   var cab = document.getElementById('adminCabinet');
   cab.style.display = 'flex';
-  cab.style.flexDirection = 'column';
-  switchAdminTab('ads', document.getElementById('bnavAds'));
+  switchAdminTab('ads', document.getElementById('navAds'));
 }
 
 window.admLogoutBtn = function() {
   localStorage.removeItem(ADMIN_SECRET_KEY);
   document.getElementById('adminCabinet').style.display = 'none';
-  document.getElementById('adminLogin').style.display = 'flex';
+  document.getElementById('adminLogin').style.display = 'block';
+};
+
+window.admRefreshTab = function() { switchAdminTab(_admCurrentTab, document.getElementById('nav' + _admCurrentTab.charAt(0).toUpperCase() + _admCurrentTab.slice(1))); };
+
+window.switchAdminTab = function(tab, el) {
+  _admCurrentTab = tab;
+  document.querySelectorAll('.adm-nav-item').forEach(function(b){ b.classList.remove('active'); });
+  if(el) el.classList.add('active');
+
+  var tabs = {ads:'admTabAds', stats:'admTabStats', payments:'admTabPayments', users:'admTabUsers'};
+  Object.values(tabs).forEach(function(id){ var d=document.getElementById(id); if(d) d.style.display='none'; });
+  var activeTab = document.getElementById(tabs[tab]);
+  if(activeTab) activeTab.style.display = '';
+
+  var titles = {ads:'Рекламные баннеры', stats:'Статистика', payments:'Платежи', users:'Пользователи'};
+  var titleEl = document.getElementById('admPageTitle');
+  if(titleEl) titleEl.textContent = titles[tab] || tab;
+
+  var mainBtn = document.getElementById('admMainBtn');
+  if(mainBtn) mainBtn.style.display = tab === 'ads' ? '' : 'none';
+
+  if(tab === 'ads') admLoadAds();
+  if(tab === 'stats') admLoadStats();
+  if(tab === 'payments') admLoadPayments('pending');
+  if(tab === 'users') admLoadUsers('');
 };
 
 window.admFilterActive = function(el) {
@@ -4361,93 +4382,77 @@ window.admFilterActive = function(el) {
   if(el) el.classList.add('active');
 };
 
-window.switchAdminTab = function(tab, el) {
-  _admCurrentTab = tab;
-  document.querySelectorAll('.adm-bnav').forEach(function(b){ b.classList.remove('active'); });
-  if(el) el.classList.add('active');
+// ── ADS ──────────────────────────────────────────────────────────────────────
+var PLACEMENT_LABELS = {feed:'Лента', rates:'Ставки', modal:'Модал'};
+var PLACEMENT_PRICES = {feed:300, rates:150, modal:200};
+var PLACEMENT_PILL   = {feed:'adm-pill-feed', rates:'adm-pill-rates', modal:'adm-pill-modal'};
 
-  var tabs = {ads:'admTabAds', payments:'admTabPayments', users:'admTabUsers', stats:'admTabStats'};
-  Object.values(tabs).forEach(function(id){ var d=document.getElementById(id); if(d) d.style.display='none'; });
-  var activeTab = document.getElementById(tabs[tab]);
-  if(activeTab) activeTab.style.display = '';
-
-  var titles = {ads:'Реклама', payments:'Платежи', users:'Пользователи', stats:'Статистика'};
-  var titleEl = document.getElementById('admPageTitle');
-  if(titleEl) titleEl.textContent = titles[tab] || tab;
-
-  var mainBtn = document.getElementById('admMainBtn');
-  if(mainBtn) mainBtn.style.display = tab === 'ads' ? '' : 'none';
-
-  var content = document.getElementById('admContent');
-  if(content) content.scrollTop = 0;
-
-  if(tab === 'ads') admLoadAds();
-  if(tab === 'payments') admLoadPayments('pending');
-  if(tab === 'users') admLoadUsers('');
-  if(tab === 'stats') admLoadStats();
-};
-
-// ── KPI ───────────────────────────────────────────────────────────────────────
-function _admUpdateKpi(ads) {
-  var scroll = document.getElementById('admKpiScroll');
-  if(!scroll) return;
-  var totalImp = ads.reduce(function(s,a){return s+(a.impressions||0);},0);
-  var totalClk = ads.reduce(function(s,a){return s+(a.clicks||0);},0);
-  var avgCtr = totalImp > 0 ? (totalClk/totalImp*100).toFixed(1)+'%' : '0%';
-  var revenue = ads.filter(function(a){return a.active;}).reduce(function(s,a){return s+(PLACEMENT_PRICES[a.placement]||0);},0);
-  var vals = [totalImp, totalClk, avgCtr, '₾'+revenue];
-  var items = scroll.querySelectorAll('.adm-kpi-m-val');
-  items.forEach(function(el,i){ if(vals[i]!==undefined) el.textContent = vals[i]; });
+function _admKpiHtml(label, val, sub, isRev) {
+  return '<div class="adm-kpi' + (isRev ? ' adm-kpi-rev' : '') + '">'
+    + '<div class="adm-kpi-lbl">' + label + '</div>'
+    + '<div class="adm-kpi-val">' + val + '</div>'
+    + (sub ? '<div class="adm-kpi-sub">' + sub + '</div>' : '')
+    + '</div>';
 }
 
-// ── ADS ───────────────────────────────────────────────────────────────────────
 async function admLoadAds() {
   var list = document.getElementById('admAdsList');
+  var kpi = document.getElementById('admAdsKpi');
   if(!list) return;
-  list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div>';
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>';
   try {
     var r = await fetch(ADMIN_API + '/api/ads/admin/list', {headers:{'X-Admin-Secret': _admToken()}});
-    if(r.status === 403) { admLogoutBtn(); return; }
+    if(r.status === 403) { _admLogout_(); return; }
     var d = await r.json();
     _admAdsCache = d.ads || [];
-    _admUpdateKpi(_admAdsCache);
+    var totalImp = _admAdsCache.reduce(function(s,a){ return s+(a.impressions||0); }, 0);
+    var totalClk = _admAdsCache.reduce(function(s,a){ return s+(a.clicks||0); }, 0);
+    var avgCtr = totalImp > 0 ? (totalClk/totalImp*100).toFixed(1) : 0;
+    var revenue = _admAdsCache.filter(function(a){return a.active;}).reduce(function(s,a){return s+(PLACEMENT_PRICES[a.placement]||0);},0);
+    var activeCount = _admAdsCache.filter(function(a){return a.active;}).length;
+
+    if(kpi) kpi.innerHTML =
+      _admKpiHtml('👁 Показов', totalImp, '') +
+      _admKpiHtml('👆 Кликов', totalClk, '') +
+      _admKpiHtml('📊 Средний CTR', avgCtr + '%', activeCount + ' активных мест') +
+      _admKpiHtml('💰 Доход/мес', '₾' + revenue, _admAdsCache.length + ' рекламодателей', true);
 
     if(!_admAdsCache.length) {
-      list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Нет баннеров.<br>Нажмите + Новый.</div>';
+      list.innerHTML = '<div style="padding:32px;text-align:center;color:#aaa;font-size:13px">Нет баннеров. Нажмите "+ Новый баннер".</div>';
       return;
     }
 
-    var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'};
-    var pillLabel = PLACEMENT_LABELS;
-
-    list.innerHTML = _admAdsCache.map(function(a) {
-      var imp = a.impressions||0, clk = a.clicks||0;
-      var ctr = imp > 0 ? (clk/imp*100).toFixed(1)+'%' : '0%';
-      var initials = a.advertiser.split(/\s+/).map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
-      var pill = pillClass[a.placement] || 'place-feed';
-      return '<div class="adm-ad-card">'
-        + '<div class="adm-ad-head">'
-        + '<div class="adm-ad-avatar">'+initials+'</div>'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
-        + (a.title ? '<div style="font-size:11px;color:#8a9bb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+a.title+'</div>' : '')
-        + '</div>'
-        + '<span class="place-pill '+pill+'">'+(pillLabel[a.placement]||a.placement)+'</span>'
-        + '</div>'
-        + '<div class="adm-ad-stats">'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+imp+'</div><div class="adm-ad-stat-lab">Показы</div></div>'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+clk+'</div><div class="adm-ad-stat-lab">Клики</div></div>'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+ctr+'</div><div class="adm-ad-stat-lab">CTR</div></div>'
-        + '</div>'
-        + '<div class="adm-ad-actions">'
-        + '<button class="adm-ad-act primary" onclick="admEditAd('+a.id+')">✏️ Изменить</button>'
-        + '<button class="adm-ad-act" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸ Пауза':'▶️ Вкл')+'</button>'
-        + '<button class="adm-ad-act danger" onclick="admDeleteAd('+a.id+')">🗑 Удалить</button>'
-        + '</div>'
-        + '</div>';
-    }).join('');
+    var gridCols = '32px 1fr 80px 60px 60px 100px 70px 80px';
+    list.innerHTML =
+      '<div class="adm-th" style="grid-template-columns:' + gridCols + '">'
+      + '<div>#</div><div>Рекламодатель</div><div>Место</div>'
+      + '<div style="text-align:right">Показы</div><div style="text-align:right">Клики</div>'
+      + '<div>CTR</div><div>Статус</div><div style="text-align:right">Действия</div>'
+      + '</div>'
+      + _admAdsCache.map(function(a) {
+          var imp = a.impressions||0, clk = a.clicks||0;
+          var ctr = imp > 0 ? (clk/imp*100).toFixed(1) : 0;
+          var pct = Math.min(ctr, 100);
+          var pillClass = PLACEMENT_PILL[a.placement] || 'adm-pill-feed';
+          return '<div class="adm-tr" style="grid-template-columns:' + gridCols + '">'
+            + '<div style="font-size:11px;color:#aaa">#'+a.id+'</div>'
+            + '<div><div style="font-weight:600;font-size:12px">'+a.advertiser+'</div>'
+            + (a.title ? '<div style="font-size:11px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">'+a.title+'</div>' : '')
+            + '</div>'
+            + '<div><span class="adm-pill '+pillClass+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+'</span></div>'
+            + '<div style="text-align:right;font-size:12px">'+imp+'</div>'
+            + '<div style="text-align:right;font-size:12px">'+clk+'</div>'
+            + '<div><div class="adm-ctr-bar"><div class="adm-bar-bg"><div class="adm-bar-fill" style="width:'+pct+'%"></div></div><span>'+ctr+'%</span></div></div>'
+            + '<div><span class="adm-status-dot '+(a.active?'adm-dot-green':'adm-dot-gray')+'"></span><span style="font-size:12px">'+(a.active?'Активен':'Пауза')+'</span></div>'
+            + '<div style="display:flex;gap:4px;justify-content:flex-end">'
+            + '<button class="adm-icon-btn" title="Редактировать" onclick="admEditAd('+a.id+')">✏️</button>'
+            + '<button class="adm-icon-btn" title="'+(a.active?'Пауза':'Активировать')+'" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸':'▶️')+'</button>'
+            + '<button class="adm-icon-btn danger" title="Удалить" onclick="admDeleteAd('+a.id+')">🗑</button>'
+            + '</div>'
+            + '</div>';
+        }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="padding:32px;text-align:center;color:#e74c3c;font-size:13px">Ошибка загрузки</div>';
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:#e74c3c;font-size:13px">Ошибка загрузки</div>';
   }
 }
 
@@ -4456,7 +4461,9 @@ window.admEditAd = function(id) {
   admOpenAdForm(ad || null);
 };
 
-window.admOpenAdForm = function(ad) {
+window.admOpenAdForm = function(adRaw) {
+  var ad = null;
+  if(adRaw) { try { ad = typeof adRaw === 'string' ? JSON.parse(adRaw) : adRaw; } catch(e) { ad = adRaw; } }
   _admEditingAdId = ad ? (ad.id || null) : null;
   var modal = document.getElementById('admAdFormModal');
   if(!modal) return;
@@ -4482,7 +4489,7 @@ window.admSaveAd = async function() {
   var body = {};
   ['advertiser','placement','title','title_ge','description','description_ge','cta_text','cta_text_ge','link_url','image_url'].forEach(function(f){
     var el = document.getElementById('admF_' + f);
-    if(el) body[f] = el.value.trim() || null;
+    if(el && el.value.trim()) body[f] = el.value.trim();
   });
   var actEl = document.getElementById('admF_active');
   body.active = actEl ? actEl.checked : true;
@@ -4507,100 +4514,49 @@ window.admDeleteAd = async function(id) {
   admLoadAds();
 };
 
-// ── PAYMENTS ──────────────────────────────────────────────────────────────────
-var TYPE_NAMES_ADM = {plan_pro:'Pro план', plan_business:'Business план', promote_24h:'Топ 24ч', promote_72h:'Топ 3дн', promote_168h:'Топ 7дн'};
-
-window.admLoadPayments = async function(statusFilter) {
-  var list = document.getElementById('admPaymentsList');
-  if(!list) return;
-  list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div>';
-  try {
-    var url = ADMIN_API+'/api/payments/admin/list'+(statusFilter?'?status='+statusFilter:'');
-    var r = await fetch(url, {headers:{'X-Admin-Secret':_admToken()}});
-    var d = await r.json();
-    var payments = d.payments || [];
-    var badge = document.getElementById('pendingBadge');
-    if(badge && statusFilter==='pending') badge.style.display = payments.length ? '' : 'none';
-
-    if(!payments.length) { list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Нет платежей</div>'; return; }
-
-    list.innerHTML = '<div class="adm-pay-card">'
-      + payments.map(function(p){
-          var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-          var isPending = p.status === 'pending';
-          return '<div class="adm-pay-row">'
-            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
-            + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</div>'
-            + '<div style="font-size:15px;font-weight:600;color:#0f1923">₾'+p.amount_gel+'</div>'
-            + '</div>'
-            + '<div style="font-size:11px;color:#8a9bb0;margin-bottom:8px">id:'+p.user_id+' · '+dt+'</div>'
-            + '<div style="display:flex;align-items:center;justify-content:space-between">'
-            + '<span class="adm-s-pill-m '+(isPending?'adm-s-pending-m':'adm-s-paid-m')+'">'+(isPending?'Ожидает':'Оплачен')+'</span>'
-            + (isPending ? '<button class="adm-activate-m" id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')">✅ Активировать</button>' : '<span style="font-size:11px;color:#8a9bb0">'+dt+'</span>')
-            + '</div>'
-            + '</div>';
-        }).join('')
-      + '</div>';
-  } catch(e) {
-    list.innerHTML = '<div style="padding:32px;text-align:center;color:#e74c3c;font-size:13px">Ошибка загрузки</div>';
-  }
-};
-
-window.admActivatePayment = async function(id) {
-  if(!confirm('Активировать платёж #'+id+'?')) return;
-  try {
-    var r = await fetch(ADMIN_API+'/api/payments/admin/payments/'+id+'/activate', {method:'POST',headers:{'X-Admin-Secret':_admToken()}});
-    if(r.ok) {
-      var btn = document.getElementById('admPay'+id);
-      if(btn) { btn.textContent='✓ Готово'; btn.disabled=true; btn.style.background='#3B6D11'; }
-    } else { alert('Ошибка: '+r.status); }
-  } catch(e) { alert('Ошибка сети'); }
-};
-
 // ── STATS ─────────────────────────────────────────────────────────────────────
 async function admLoadStats() {
   try {
-    if(!_admAdsCache.length) {
-      var r = await fetch(ADMIN_API+'/api/ads/admin/list', {headers:{'X-Admin-Secret':_admToken()}});
-      var d = await r.json();
-      _admAdsCache = d.ads || [];
-    }
-    var now = new Date();
-    var months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-    var monthEl = document.getElementById('admStatsMonth');
-    if(monthEl) monthEl.textContent = 'Отчёт · ' + months[now.getMonth()] + ' ' + now.getFullYear();
-
+    var r = await fetch(ADMIN_API+'/api/ads/admin/list', {headers:{'X-Admin-Secret':_admToken()}});
+    var d = await r.json();
+    _admAdsCache = d.ads || [];
+    var totalImp = _admAdsCache.reduce(function(s,a){return s+(a.impressions||0);},0);
+    var totalClk = _admAdsCache.reduce(function(s,a){return s+(a.clicks||0);},0);
+    var avgCtr = totalImp > 0 ? (totalClk/totalImp*100).toFixed(1) : 0;
     var revenue = _admAdsCache.filter(function(a){return a.active;}).reduce(function(s,a){return s+(PLACEMENT_PRICES[a.placement]||0);},0);
-    var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'};
 
-        var table = document.getElementById('admStatsTable');
-    if(table) {
-      var html = _admAdsCache.map(function(a){
+    var cards = document.getElementById('admStatsCards');
+    if(cards) cards.innerHTML =
+      _admKpiHtml('👁 Показов', totalImp, '') +
+      _admKpiHtml('👆 Кликов', totalClk, '') +
+      _admKpiHtml('📊 Средний CTR', avgCtr+'%', '') +
+      _admKpiHtml('💰 Доход/мес', '₾'+revenue, '', true);
+
+    var gridCols = '1fr 80px 60px 60px 60px 80px';
+    var table = document.getElementById('admStatsTable');
+    if(table) table.innerHTML =
+      '<div class="adm-th" style="grid-template-columns:'+gridCols+'">'
+      +'<div>Рекламодатель</div><div>Место</div>'
+      +'<div style="text-align:right">Показы</div><div style="text-align:right">Клики</div>'
+      +'<div>CTR</div><div style="text-align:right">Доход/мес</div></div>'
+      + _admAdsCache.map(function(a){
           var imp=a.impressions||0, clk=a.clicks||0;
-          var ctr=imp>0?(clk/imp*100).toFixed(1)+'%':'0%';
-          var pill = pillClass[a.placement]||'place-feed';
-          var initials = a.advertiser.split(/\s+/).map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
-          return '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:1px solid #e0ddd6;overflow:hidden">'
-            + '<div style="padding:12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0ede6">'
-            + '<div style="width:38px;height:38px;border-radius:8px;background:#f0ede6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0f1923;flex-shrink:0">'+initials+'</div>'
-            + '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
-            + (a.link_url ? '<div style="font-size:11px;color:#8a9bb0">'+a.link_url.replace(/https?:\/\//,'')+'</div>' : '')
-            + '</div>'
-            + '<span class="place-pill '+pill+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+'<br><span style="font-weight:700">₾'+(PLACEMENT_PRICES[a.placement]||0)+'</span></span>'
-            + '</div>'
-            + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px">'
-            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
-            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+clk+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Клики</div></div>'
-            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+ctr+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">CTR</div></div>'
-            + '</div>'
-            + '</div>';
-        }).join('');
-      html += '<div style="margin:0 12px;background:#fff;border-radius:12px;padding:12px 14px;border:1px solid #e0ddd6;display:flex;justify-content:space-between;font-size:13px">'
-        + '<span style="color:#8a9bb0">Итого за месяц</span>'
-        + '<span style="font-weight:700;color:#854F0B">₾'+revenue+'</span>'
-        + '</div>';
-      table.innerHTML = html;
-    }
+          var ctr=imp>0?(clk/imp*100).toFixed(1):0;
+          var pillClass = PLACEMENT_PILL[a.placement]||'adm-pill-feed';
+          return '<div class="adm-tr" style="grid-template-columns:'+gridCols+'">'
+            +'<div><div style="font-weight:600;font-size:12px">'+a.advertiser+'</div>'+(a.link_url?'<div style="font-size:11px;color:#aaa">'+a.link_url.replace(/https?:\/\//,'')+'</div>':'')+'</div>'
+            +'<div><span class="adm-pill '+pillClass+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+'</span></div>'
+            +'<div style="text-align:right;font-size:12px">'+imp+'</div>'
+            +'<div style="text-align:right;font-size:12px">'+clk+'</div>'
+            +'<div style="font-size:12px">'+ctr+'%</div>'
+            +'<div style="text-align:right;font-weight:600;color:#b8860b;font-size:12px">₾'+(PLACEMENT_PRICES[a.placement]||0)+'</div>'
+            +'</div>';
+        }).join('')
+      +'<div style="padding:10px 14px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:20px;font-size:12px;color:#888">'
+      +'<span>Итого показов: <b style="color:#1a1a2e">'+totalImp+'</b></span>'
+      +'<span>Кликов: <b style="color:#1a1a2e">'+totalClk+'</b></span>'
+      +'<span style="font-weight:700;color:#b8860b">₾'+revenue+'/мес</span>'
+      +'</div>';
   } catch(e) {}
 }
 
@@ -4614,41 +4570,106 @@ window.admCopyReport = function() {
     lines.push(a.advertiser+' · '+(PLACEMENT_LABELS[a.placement]||a.placement)+' · '+imp+' показов · '+clk+' кликов · CTR '+ctr+'% · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'/мес');
   });
   var text = lines.join('\n');
-  var btn = document.getElementById('admCopyBtn');
   navigator.clipboard.writeText(text).then(function(){
-    if(btn){ var orig=btn.textContent; btn.textContent='✓ Скопировано'; btn.style.background='#3B6D11'; btn.style.color='#fff'; setTimeout(function(){ btn.textContent=orig; btn.style.background=''; btn.style.color=''; }, 2000); }
+    var msg = document.getElementById('copiedMsg');
+    if(msg){ msg.style.display='inline'; setTimeout(function(){ msg.style.display='none'; }, 2500); }
   }).catch(function(){ alert(text); });
+};
+
+// ── PAYMENTS ─────────────────────────────────────────────────────────────────
+var TYPE_NAMES_ADM = {plan_pro:'Pro план', plan_business:'Business план', promote_24h:'Топ 24ч', promote_72h:'Топ 3дн', promote_168h:'Топ 7дн'};
+
+window.admLoadPayments = async function(statusFilter) {
+  var list = document.getElementById('admPaymentsList');
+  if(!list) return;
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>';
+  try {
+    var url = ADMIN_API+'/api/payments/admin/list'+(statusFilter?'?status='+statusFilter:'');
+    var r = await fetch(url, {headers:{'X-Admin-Secret':_admToken()}});
+    var d = await r.json();
+    var payments = d.payments || [];
+
+    // Обновляем бейдж pending
+    if(statusFilter === 'pending') {
+      var badge = document.getElementById('pendingBadge');
+      if(badge) { badge.textContent = payments.length; badge.style.display = payments.length ? '' : 'none'; }
+    }
+
+    if(!payments.length) { list.innerHTML = '<div style="padding:32px;text-align:center;color:#aaa;font-size:13px">Нет платежей</div>'; return; }
+
+    var gridCols = '44px 1fr 90px 64px 80px 100px';
+    list.innerHTML =
+      '<div class="adm-th" style="grid-template-columns:'+gridCols+'">'
+      +'<div>#</div><div>Пользователь</div><div>Тип</div>'
+      +'<div style="text-align:right">Сумма</div><div>Статус</div><div style="text-align:right">Действие</div>'
+      +'</div>'
+      + payments.map(function(p){
+          var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+          var statusClass = {paid:'adm-s-paid',pending:'adm-s-pending',failed:'adm-s-failed'}[p.status]||'adm-s-failed';
+          var statusLabel = {paid:'Оплачен',pending:'Ожидает',failed:'Ошибка',cancelled:'Отменён'}[p.status]||p.status;
+          return '<div class="adm-tr" style="grid-template-columns:'+gridCols+'">'
+            +'<div style="font-size:11px;color:#aaa">#'+p.id+'</div>'
+            +'<div><div style="font-weight:600;font-size:12px">id:'+p.user_id+'</div><div style="font-size:11px;color:#aaa">'+dt+'</div></div>'
+            +'<div><span class="adm-pill adm-pill-plan">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</span></div>'
+            +'<div style="text-align:right;font-weight:700;font-size:13px">₾'+p.amount_gel+'</div>'
+            +'<div><span class="adm-s-pill '+statusClass+'">'+statusLabel+'</span></div>'
+            +'<div style="text-align:right">'
+            +(p.status==='pending'
+              ? '<button class="adm-activate-btn" id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')">✅ Активировать</button>'
+              : '<span style="font-size:11px;color:#aaa">—</span>')
+            +'</div>'
+            +'</div>';
+        }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:#e74c3c;font-size:13px">Ошибка загрузки</div>';
+  }
+};
+
+window.admActivatePayment = async function(id) {
+  if(!confirm('Активировать платёж #'+id+'?')) return;
+  try {
+    var r = await fetch(ADMIN_API+'/api/payments/admin/payments/'+id+'/activate', {method:'POST',headers:{'X-Admin-Secret':_admToken()}});
+    if(r.ok) {
+      var btn = document.getElementById('admPay'+id);
+      if(btn) { btn.textContent='✓ Активирован'; btn.disabled=true; btn.style.background='#e8f5e9'; btn.style.color='#2e7d32'; }
+    } else { alert('Ошибка: '+r.status); }
+  } catch(e) { alert('Ошибка сети'); }
 };
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
 window.admLoadUsers = async function(search) {
   var list = document.getElementById('admUsersList');
   if(!list) return;
-  list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div>';
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div>';
   try {
     var url = ADMIN_API+'/api/admin/users'+(search?'?search='+encodeURIComponent(search):'');
     var r = await fetch(url, {headers:{'X-Admin-Secret':_admToken()}});
     var d = await r.json();
     var users = d.users || [];
-    if(!users.length) { list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Не найдено</div>'; return; }
-    list.innerHTML = users.map(function(u){
-      var initials = (u.email||'').substring(0,2).toUpperCase();
-      var plan = u.plan || 'free';
-      return '<div class="adm-user-card">'
-        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
-        + '<div class="adm-user-av">'+initials+'</div>'
-        + '<div><div style="font-size:12px;font-weight:500;color:#0f1923;word-break:break-all">'+u.email+'</div>'
-        + '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+(u.role||'—')+' · id:'+u.id+(u.tg_chat_id?' · ✓ TG':'')+'</div>'
-        + '</div></div>'
-        + '<div style="display:flex;gap:8px">'
-        + '<select onchange="admSetPlan('+u.id+',this.value)" style="border:1px solid #e0ddd6;border-radius:8px;padding:8px 10px;font-size:13px;background:#f8f7f3;color:#0f1923;flex:1;cursor:pointer">'
-        + ['free','pro','pro_plus','business'].map(function(p){ return '<option value="'+p+'"'+(plan===p?' selected':'')+'>'+p+'</option>'; }).join('')
-        + '</select>'
-        + '</div>'
-        + '</div>';
-    }).join('');
+    if(!users.length) { list.innerHTML = '<div style="padding:32px;text-align:center;color:#aaa;font-size:13px">Пользователи не найдены</div>'; return; }
+    var PLAN_COLORS = {free:'#aaa',pro:'#b8860b',pro_plus:'#5e35b1',business:'#2e7d32'};
+    var gridCols = '44px 1fr 80px 90px 70px 70px';
+    list.innerHTML =
+      '<div class="adm-th" style="grid-template-columns:'+gridCols+'">'
+      +'<div>ID</div><div>Email / Компания</div><div>Роль</div><div>План</div><div>TG</div><div style="text-align:right">Сделки</div>'
+      +'</div>'
+      + users.map(function(u){
+          var plan = u.plan || 'free';
+          return '<div class="adm-tr" style="grid-template-columns:'+gridCols+'">'
+            +'<div style="font-size:11px;color:#aaa">#'+u.id+'</div>'
+            +'<div><div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">'+u.email+'</div>'
+            +(u.company_name?'<div style="font-size:11px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">'+u.company_name+'</div>':'')
+            +'</div>'
+            +'<div style="font-size:11px;color:#888">'+(u.role||'—')+'</div>'
+            +'<div><select class="adm-plan-select" onchange="admSetPlan('+u.id+',this.value)" style="color:'+(PLAN_COLORS[plan]||'#aaa')+'">'
+            +['free','pro','pro_plus','business'].map(function(p){ return '<option value="'+p+'"'+(plan===p?' selected':'')+'>'+p+'</option>'; }).join('')
+            +'</select></div>'
+            +'<div style="font-size:12px">'+(u.tg_chat_id?'<span style="color:#2ecc71">✓ TG</span>':'<span style="color:#ddd">—</span>')+'</div>'
+            +'<div style="text-align:right;font-size:12px;color:#888">'+(u.completed_deals||0)+'</div>'
+            +'</div>';
+        }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="padding:32px;text-align:center;color:#e74c3c;font-size:13px">Ошибка</div>';
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:#e74c3c;font-size:13px">Ошибка загрузки</div>';
   }
 };
 
@@ -4658,18 +4679,21 @@ window.admSetPlan = async function(userId, plan) {
       method:'PATCH', headers:{'X-Admin-Secret':_admToken(),'Content-Type':'application/json'},
       body:JSON.stringify({plan:plan})
     });
-    if(!r.ok) alert('Ошибка: '+r.status);
+    if(!r.ok) alert('Ошибка смены плана: '+r.status);
   } catch(e) { alert('Ошибка сети'); }
 };
 
-// Открытие по #admin
+function _admLogout_() {
+  localStorage.removeItem(ADMIN_SECRET_KEY);
+  document.getElementById('adminCabinet').style.display = 'none';
+  document.getElementById('adminLogin').style.display = 'block';
+}
+
+// Открытие по URL /admin или #admin
 (function() {
   if(window.location.pathname === '/admin' || window.location.hash === '#admin') {
-    setTimeout(window.openAdminPanel, 1000);
+    setTimeout(window.openAdminPanel, 600);
   }
-  window.addEventListener('hashchange', function() {
-    if(window.location.hash === '#admin') window.openAdminPanel();
-  });
 })();
 
 
