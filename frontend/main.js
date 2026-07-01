@@ -2425,7 +2425,7 @@ function switchCabTab(tab, el){
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
- if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; }
+ if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; _setupCityAutocomplete('tsSubFrom',{lang:lang||'ru'}); _setupCityAutocomplete('tsSubTo',{lang:lang||'ru'}); }
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -5844,7 +5844,7 @@ function _setupCityAutocomplete(inputId, options) {
   // Создаём выпадающий список
   var dropdown = document.createElement('div');
   dropdown.className = 'city-autocomplete-dropdown';
-  dropdown.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;display:none;min-width:200px';
+  dropdown.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #e0e0e0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;display:none;min-width:200px;width:100%;top:100%;left:0;margin-top:2px';
   input.parentElement.style.position = 'relative';
   input.parentElement.appendChild(dropdown);
 
