@@ -1541,7 +1541,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782932270"></script>
+<script src="main.js?v=1782932595"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1758,149 +1758,170 @@
 </div>
 
 <!-- ═══ ADMIN PANEL OVERLAY ═══ -->
-<div id="adminOverlay" style="display:none;position:fixed;inset:0;z-index:99995;background:#f8f7f3;flex-direction:column;font-family:system-ui,sans-serif">
+<style>
+#adminOverlay { font-family: system-ui, sans-serif; }
+/* Десктоп: показываем sidebar-версию, скрываем мобильную */
+@media(min-width:769px) {
+  #admDesktop { display:flex !important; }
+  #admMobile  { display:none !important; }
+}
+/* Мобильный: скрываем десктоп, показываем мобильную */
+@media(max-width:768px) {
+  #admDesktop { display:none !important; }
+  #admMobile  { display:flex !important; flex-direction:column; }
+}
+</style>
+<div id="adminOverlay" style="display:none;position:fixed;inset:0;z-index:99995">
 
-  <!-- Login -->
-  <div id="adminLogin" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f8f7f3">
+  <!-- Login (общий) -->
+  <div id="adminLogin" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f4f3ef">
     <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:360px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-        <div style="width:32px;height:32px;background:#0f1923;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#f0b537;font-size:11px;font-weight:700;flex-shrink:0">CH</div>
-        <div><div style="font-size:15px;font-weight:600;color:#0f1923">CaucasHub Admin</div><div style="font-size:11px;color:#8a9bb0">Панель администратора</div></div>
+        <div style="width:32px;height:32px;background:#1a1a2e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#f7b731;font-size:11px;font-weight:700;flex-shrink:0">CH</div>
+        <div><div style="font-size:15px;font-weight:600;color:#1a1a2e">CaucasHub Admin</div><div style="font-size:11px;color:#aaa">Панель администратора</div></div>
       </div>
       <input id="adminPassInput" type="password" placeholder="Пароль администратора"
-        style="width:100%;padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none;background:#f8f7f3"
+        style="width:100%;padding:11px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none"
         onkeydown="if(event.key==='Enter') adminLogin()">
-      <button onclick="adminLogin()" style="width:100%;background:#0f1923;color:#f0b537;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">Войти</button>
+      <button onclick="adminLogin()" style="width:100%;background:#1a1a2e;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">Войти</button>
       <div id="adminLoginErr" style="color:#e74c3c;font-size:12px;display:none;text-align:center;margin-bottom:6px">Неверный пароль</div>
-      <button onclick="closeAdminPanel()" style="width:100%;background:none;border:none;color:#8a9bb0;font-size:12px;cursor:pointer;padding:6px">✕ Закрыть</button>
+      <button onclick="closeAdminPanel()" style="width:100%;background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;padding:6px">✕ Закрыть</button>
     </div>
   </div>
 
-  <!-- Cabinet -->
-  <div id="adminCabinet" style="display:none;flex-direction:column;height:100%;background:#f8f7f3;overflow:hidden">
+  <!-- ═══ DESKTOP CABINET (sidebar layout) ═══ -->
+  <div id="admDesktop" style="display:none;position:absolute;inset:0;background:#f0f2f5">
+    <!-- Sidebar -->
+    <div style="width:200px;background:#fff;border-right:1px solid #e8e8e0;display:flex;flex-direction:column;flex-shrink:0;height:100%">
+      <div style="padding:14px 16px;border-bottom:1px solid #e8e8e0;display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;background:#1a1a2e;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#f7b731;font-size:11px;font-weight:700;flex-shrink:0">CH</div>
+        <div><div style="font-size:13px;font-weight:600;color:#1a1a2e">CaucasHub</div><div style="font-size:10px;color:#aaa">Администратор</div></div>
+      </div>
+      <div style="padding:8px;flex:1">
+        <div style="font-size:10px;color:#aaa;padding:10px 8px 4px;text-transform:uppercase;letter-spacing:.05em">Основное</div>
+        <div id="dNavAds" onclick="switchAdminTab('ads',this)" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;background:#f4f3ef;color:#1a1a2e;font-size:13px;font-weight:600;margin-bottom:2px">📢 Реклама</div>
+        <div id="dNavStats" onclick="switchAdminTab('stats',this)" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;color:#888;font-size:13px;margin-bottom:2px">📊 Статистика</div>
+        <div style="font-size:10px;color:#aaa;padding:10px 8px 4px;text-transform:uppercase;letter-spacing:.05em">Пользователи</div>
+        <div id="dNavPayments" onclick="switchAdminTab('payments',this)" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;color:#888;font-size:13px;margin-bottom:2px">
+          💳 Платежи <span id="dPendingBadge" style="display:none;margin-left:auto;background:#fff8e1;color:#b8860b;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600">0</span>
+        </div>
+        <div id="dNavUsers" onclick="switchAdminTab('users',this)" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;color:#888;font-size:13px;margin-bottom:2px">👥 Пользователи</div>
+      </div>
+      <div style="padding:10px;border-top:1px solid #e8e8e0">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px;background:#f4f3ef;border-radius:8px">
+          <div style="width:24px;height:24px;border-radius:50%;background:#1a1a2e;color:#f7b731;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">ТА</div>
+          <div style="flex:1"><div style="font-size:11px;font-weight:600;color:#1a1a2e">Таймураз</div><div style="font-size:10px;color:#aaa">Admin</div></div>
+          <button onclick="admLogoutBtn()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;padding:2px" title="Выйти">⎋</button>
+        </div>
+      </div>
+    </div>
+    <!-- Main -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;height:100%">
+      <div style="padding:12px 16px;background:#fff;border-bottom:1px solid #e8e8e0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="font-size:15px;font-weight:600;color:#1a1a2e" id="dPageTitle">Рекламные баннеры</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="admRefreshTab()" style="padding:5px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;cursor:pointer;background:transparent;color:#555">↻ Обновить</button>
+          <button id="dMainBtn" onclick="admOpenAdForm(null)" style="padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;background:#f7b731;color:#1a1a2e;border:none;font-weight:600">+ Новый баннер</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px 16px;flex-shrink:0" id="dKpiRow">
+        <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">👁 Показов</div><div id="dKpi0" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
+        <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">👆 Кликов</div><div id="dKpi1" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
+        <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">📊 CTR</div><div id="dKpi2" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
+        <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">💰 Доход/мес</div><div id="dKpi3" style="font-size:22px;font-weight:600;color:#f7b731">—</div></div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:0 16px 16px">
+        <div id="dTabAds"><div id="admAdsList"><div style="padding:24px;text-align:center;color:#aaa;font-size:13px">Загрузка...</div></div></div>
+        <div id="dTabStats" style="display:none"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:600;color:#1a1a2e" id="admStatsMonth">Отчёт</div><div style="display:flex;align-items:center;gap:8px"><button onclick="admCopyReport()" id="admCopyBtn" style="padding:5px 10px;border:1px solid #ccc;border-radius:8px;font-size:12px;cursor:pointer;background:transparent">📋 Копировать отчёт</button><span id="copiedMsg" style="color:#2ecc71;font-size:11px;display:none">✓ Скопировано</span></div></div><div id="admStatsTable"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div></div>
+        <div id="dTabPayments" style="display:none"><div style="display:flex;gap:8px;margin-bottom:12px"><button id="dPayF1" onclick="admLoadPayments('pending');dPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:1px solid #1a1a2e;font-size:12px;cursor:pointer;color:#fff;background:#1a1a2e">⏳ Ожидают</button><button id="dPayF2" onclick="admLoadPayments('');dPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:1px solid #e0e0e0;font-size:12px;cursor:pointer;color:#888;background:transparent">Все</button></div><div id="admPaymentsList"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div></div>
+        <div id="dTabUsers" style="display:none"><div style="margin-bottom:12px"><input id="admUserSearch" type="text" placeholder="🔍 Поиск по email..." style="width:280px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none" oninput="admLoadUsers(this.value)"></div><div id="admUsersList"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div></div>
+      </div>
+    </div>
+  </div>
 
+  <!-- ═══ MOBILE CABINET (bottomnav layout) ═══ -->
+  <div id="admMobile" style="display:none;position:absolute;inset:0;background:#f8f7f3;flex-direction:column">
     <!-- Topbar -->
     <div style="background:#0f1923;padding:44px 16px 14px;flex-shrink:0">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div id="admPageTitle" style="color:#fff;font-size:17px;font-weight:500">Реклама</div>
+          <div id="mPageTitle" style="color:#fff;font-size:17px;font-weight:500">Реклама</div>
           <div style="color:#8a9bb0;font-size:11px;margin-top:2px">CaucasHub · Admin</div>
         </div>
         <div style="display:flex;gap:12px;align-items:center">
-          <button id="admMainBtn" onclick="admOpenAdForm(null)" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">+ Новый</button>
-          <button onclick="admLogoutBtn()" style="background:none;border:none;color:#8a9bb0;font-size:20px;cursor:pointer" title="Выйти">⎋</button>
+          <button id="mMainBtn" onclick="admOpenAdForm(null)" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">+ Новый</button>
+          <button onclick="admLogoutBtn()" style="background:none;border:none;color:#8a9bb0;font-size:20px;cursor:pointer">⎋</button>
         </div>
       </div>
     </div>
-
     <!-- KPI scroll -->
-    <div id="admKpiScroll" style="display:flex;gap:10px;padding:12px 16px;overflow-x:auto;flex-shrink:0;background:#f8f7f3;border-bottom:0.5px solid #e0ddd6">
-      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
-        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Показов</div>
-        <div id="admKpi0" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
-      </div>
-      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
-        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Кликов</div>
-        <div id="admKpi1" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
-      </div>
-      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:90px;flex-shrink:0">
-        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">CTR</div>
-        <div id="admKpi2" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
-      </div>
-      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
-        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Доход/мес</div>
-        <div id="admKpi3" style="font-size:20px;font-weight:600;color:#854F0B;line-height:1">—</div>
-      </div>
+    <div id="mKpiScroll" style="display:flex;gap:10px;padding:12px 16px;overflow-x:auto;flex-shrink:0;background:#f8f7f3;border-bottom:0.5px solid #e0ddd6">
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0"><div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Показов</div><div id="mKpi0" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div></div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0"><div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Кликов</div><div id="mKpi1" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div></div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:90px;flex-shrink:0"><div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">CTR</div><div id="mKpi2" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div></div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0"><div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Доход/мес</div><div id="mKpi3" style="font-size:20px;font-weight:600;color:#854F0B;line-height:1">—</div></div>
     </div>
-
     <!-- Content -->
-    <div id="admContent" style="flex:1;overflow-y:auto;padding-bottom:4px">
-
-      <!-- ADS -->
-      <div id="admTabAds" style="display:block">
-        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:13px;font-weight:500;color:#0f1923">Рекламные баннеры</div>
-        </div>
-        <div id="admAdsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
+    <div id="mContent" style="flex:1;overflow-y:auto;padding-bottom:4px">
+      <div id="mTabAds" style="display:block">
+        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;font-weight:500;color:#0f1923">Рекламные баннеры</div></div>
+        <div id="mAdsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
-
-      <!-- PAYMENTS -->
-      <div id="admTabPayments" style="display:none">
-        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:13px;font-weight:500;color:#0f1923">Платежи</div>
-        </div>
+      <div id="mTabPayments" style="display:none">
+        <div style="padding:14px 16px 8px"><div style="font-size:13px;font-weight:500;color:#0f1923">Платежи</div></div>
         <div style="padding:0 12px 8px;display:flex;gap:8px">
-          <button id="admPayFilterPending" onclick="admLoadPayments('pending');admFilterActive(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #0f1923;font-size:12px;cursor:pointer;color:#fff;background:#0f1923">⏳ Ожидают</button>
-          <button id="admPayFilterAll" onclick="admLoadPayments('');admFilterActive(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #e0ddd6;font-size:12px;cursor:pointer;color:#8a9bb0;background:transparent">Все</button>
+          <button id="mPayF1" onclick="admLoadPayments('pending');mPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #0f1923;font-size:12px;cursor:pointer;color:#fff;background:#0f1923">⏳ Ожидают</button>
+          <button id="mPayF2" onclick="admLoadPayments('');mPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #e0ddd6;font-size:12px;cursor:pointer;color:#8a9bb0;background:transparent">Все</button>
         </div>
-        <div id="admPaymentsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
+        <div id="mPaymentsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
-
-      <!-- USERS -->
-      <div id="admTabUsers" style="display:none">
-        <div style="padding:14px 16px 8px"><div style="font-size:13px;font-weight:500;color:#0f1923">Пользователи</div></div>
-        <div style="padding:0 12px 4px">
-          <input id="admUserSearch" placeholder="Поиск по email..." oninput="admLoadUsers(this.value)"
-            style="width:100%;border:0.5px solid #e0ddd6;border-radius:9px;padding:9px 12px;font-size:13px;background:#fff;color:#0f1923;outline:none;box-sizing:border-box">
-        </div>
+      <div id="mTabUsers" style="display:none">
+        <div style="padding:10px 12px 4px"><input id="mUserSearch" placeholder="Поиск по email..." oninput="admLoadUsers(this.value)" style="width:100%;border:0.5px solid #e0ddd6;border-radius:9px;padding:9px 12px;font-size:13px;background:#fff;color:#0f1923;outline:none;box-sizing:border-box"></div>
         <div style="height:8px"></div>
-        <div id="admUsersList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
+        <div id="mUsersList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
-
-      <!-- STATS -->
-      <div id="admTabStats" style="display:none">
+      <div id="mTabStats" style="display:none">
         <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
-          <div id="admStatsMonth" style="font-size:13px;font-weight:500;color:#0f1923">Отчёт</div>
-          <button id="admCopyBtn" onclick="admCopyReport()" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">📋 Копировать</button>
+          <div id="mStatsMonth" style="font-size:13px;font-weight:500;color:#0f1923">Отчёт</div>
+          <button onclick="admCopyReport()" id="mCopyBtn" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">📋 Копировать</button>
         </div>
-        <div id="admStatsTable"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
+        <div id="mStatsTable"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
-
     </div>
-
     <!-- Bottom Nav -->
     <div style="height:60px;background:#fff;border-top:0.5px solid #e0ddd6;display:flex;flex-shrink:0">
-      <button id="bnavAds" onclick="switchAdminTab('ads',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#0f1923;border:none;background:transparent;font-size:9px;font-weight:500">
-        <span style="font-size:20px">📢</span>Реклама
-      </button>
-      <button id="bnavPayments" onclick="switchAdminTab('payments',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500;position:relative">
-        <span style="font-size:20px;position:relative">💳<span id="pendingBadge" style="display:none;position:absolute;top:-2px;right:-5px;width:8px;height:8px;background:#f0b537;border-radius:50%;border:1.5px solid #fff"></span></span>
-        Платежи
-      </button>
-      <button id="bnavUsers" onclick="switchAdminTab('users',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500">
-        <span style="font-size:20px">👥</span>Юзеры
-      </button>
-      <button id="bnavStats" onclick="switchAdminTab('stats',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500">
-        <span style="font-size:20px">📊</span>Отчёт
-      </button>
+      <button id="bnavAds" onclick="switchAdminTab('ads',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#0f1923;border:none;background:transparent;font-size:9px;font-weight:600"><span style="font-size:20px">📢</span>Реклама</button>
+      <button id="bnavPayments" onclick="switchAdminTab('payments',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500;position:relative"><span style="font-size:20px">💳</span><span id="pendingBadge" style="display:none;position:absolute;top:4px;right:22px;width:8px;height:8px;background:#f0b537;border-radius:50%;border:1.5px solid #fff"></span>Платежи</button>
+      <button id="bnavUsers" onclick="switchAdminTab('users',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500"><span style="font-size:20px">👥</span>Юзеры</button>
+      <button id="bnavStats" onclick="switchAdminTab('stats',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500"><span style="font-size:20px">📊</span>Отчёт</button>
     </div>
   </div>
 
-  <!-- Ad Form -->
+  <!-- Ad Form (общий) -->
   <div id="admAdFormModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:flex-end;justify-content:center">
-    <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-height:90vh;overflow-y:auto">
-      <div style="width:36px;height:4px;background:#e0ddd6;border-radius:2px;margin:0 auto 16px"></div>
-      <div id="admAdFormTitle" style="font-size:15px;font-weight:600;color:#0f1923;margin-bottom:14px">Новый баннер</div>
+    <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto">
+      <div style="width:36px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 16px"></div>
+      <div id="admAdFormTitle" style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:14px">Новый баннер</div>
       <div style="display:flex;flex-direction:column;gap:9px">
-        <input id="admF_advertiser" placeholder="Рекламодатель *" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <select id="admF_placement" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;width:100%">
+        <input id="admF_advertiser" placeholder="Рекламодатель *" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <select id="admF_placement" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;background:#fff;width:100%">
           <option value="feed">Лента грузов (₾300/мес)</option>
           <option value="rates">Таблица ставок (₾150/мес)</option>
           <option value="modal">Карточка груза (₾200/мес)</option>
         </select>
-        <input id="admF_title" placeholder="Заголовок RU" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_title_ge" placeholder="Заголовок GE" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_description" placeholder="Описание RU (до 60 символов)" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_description_ge" placeholder="Описание GE" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_cta_text" placeholder="Кнопка RU (Узнать цену →)" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_cta_text_ge" placeholder="Кнопка GE" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_link_url" placeholder="Ссылка URL *" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
-        <input id="admF_image_url" placeholder="URL логотипа (опционально)" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
+        <input id="admF_title" placeholder="Заголовок RU" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_title_ge" placeholder="Заголовок GE" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_description" placeholder="Описание RU (до 60 символов)" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_description_ge" placeholder="Описание GE" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_cta_text" placeholder="Кнопка RU (Узнать цену →)" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_cta_text_ge" placeholder="Кнопка GE" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_link_url" placeholder="Ссылка URL *" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
+        <input id="admF_image_url" placeholder="URL логотипа (опционально)" style="padding:11px 12px;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;width:100%">
         <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#555"><input type="checkbox" id="admF_active" checked> Активен</label>
       </div>
       <div style="display:flex;gap:10px;margin-top:16px">
-        <button onclick="admSaveAd()" style="flex:1;background:#0f1923;color:#f0b537;border:none;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer">Сохранить</button>
-        <button onclick="admCloseAdForm()" style="flex:1;background:#f0ede6;color:#555;border:none;padding:14px;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer">Отмена</button>
+        <button onclick="admSaveAd()" style="flex:1;background:#1a1a2e;color:#f7b731;border:none;padding:14px;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer">Сохранить</button>
+        <button onclick="admCloseAdForm()" style="flex:1;background:#f0f2f5;color:#555;border:none;padding:14px;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer">Отмена</button>
       </div>
     </div>
   </div>
