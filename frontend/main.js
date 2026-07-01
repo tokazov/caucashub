@@ -3052,6 +3052,7 @@ const TRANSLATIONS = {
     cab_rs_format: 'Формат совместим с rs.ge · Грузия',
     cab_export: 'Экспорт для rs.ge',
     cab_report: '📊 Отчёт',
+    cab_payments: '🧾 История',
     cab_subscriptions: '🔔 Подписки',
     cab_see_rates: '📊 Посмотреть тарифы →',
     cab_transport_offers: '🚛 Мой транспорт',
@@ -3595,6 +3596,7 @@ const TRANSLATIONS = {
     cab_rs_format: 'ფორმატი თავსებადია rs.ge-სთან · საქართველო',
     cab_export: 'ექსპორტი rs.ge-სთვის',
     cab_report: '📊 ანგარიში',
+    cab_payments: '🧾 ისტორია',
     cab_subscriptions: '🔔 გამოწერები',
     cab_see_rates: '📊 ტარიფების ნახვა →',
     this_month: 'ამ თვეში',
@@ -6296,8 +6298,20 @@ window.openPlanPayment = async function(planType) {
 async function loadMyPayments() {
   var list = document.getElementById('paymentsList');
   if(!list) return;
+  var isGe = lang === 'ge';
   var tk = typeof getToken==='function' ? getToken() : null;
-  if(!tk) { list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px">Войдите в аккаунт</div>'; return; }
+  if(!tk) {
+    list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px">' + (isGe ? 'შედით ანგარიშში' : 'Войдите в аккаунт') + '</div>';
+    return;
+  }
+
+  // Заголовок вкладки
+  var titleEl = list.previousElementSibling;
+  if(titleEl && titleEl.style && titleEl.tagName === 'DIV') {
+    // ищем h3 или первый div с заголовком
+  }
+  var cabTitle = document.querySelector('#cabTab-payments [style*="font-weight:700"]');
+  if(cabTitle) cabTitle.textContent = isGe ? '🧾 გადახდების ისტორია' : '🧾 История платежей';
 
   try {
     var r = await fetch(API_BASE + '/api/payments/my', {headers:{'Authorization':'Bearer '+tk}});
@@ -6305,19 +6319,26 @@ async function loadMyPayments() {
     var payments = d.payments || [];
 
     if(!payments.length) {
-      list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px;font-size:14px">История платежей пуста</div>';
+      list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px;font-size:14px">'
+        + (isGe ? 'გადახდების ისტორია ცარიელია' : 'История платежей пуста') + '</div>';
       return;
     }
 
-    var TYPE_NAMES = {
+    var TYPE_NAMES = isGe ? {
+      plan_pro:'Pro გეგმა', plan_business:'Business გეგმა',
+      promote_24h:'ტოპი 24 საათი', promote_72h:'ტოპი 3 დღე', promote_168h:'ტოპი 7 დღე'
+    } : {
       plan_pro:'Pro план', plan_business:'Business план',
       promote_24h:'Топ 24 часа', promote_72h:'Топ 3 дня', promote_168h:'Топ 7 дней'
     };
     var STATUS_COLORS = {pending:'#f7b731', paid:'#2ecc71', failed:'#e74c3c', cancelled:'#aaa'};
-    var STATUS_LABELS = {pending:'Ожидает', paid:'Оплачен', failed:'Ошибка', cancelled:'Отменён'};
+    var STATUS_LABELS = isGe
+      ? {pending:'მოლოდინში', paid:'გადახდილია', failed:'შეცდომა', cancelled:'გაუქმდა'}
+      : {pending:'Ожидает', paid:'Оплачен', failed:'Ошибка', cancelled:'Отменён'};
 
+    var dtLocale = isGe ? 'ka-GE' : 'ru-RU';
     list.innerHTML = payments.map(function(p) {
-      var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      var dt = p.created_at ? new Date(p.created_at).toLocaleString(dtLocale,{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #f0f2f5">'
         + '<div>'
         + '<div style="font-size:13px;font-weight:600;color:#1a1a2e">' + (TYPE_NAMES[p.type]||p.type) + '</div>'
@@ -6330,6 +6351,7 @@ async function loadMyPayments() {
         + '</div>';
     }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:32px">Ошибка загрузки</div>';
+    list.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:32px">'
+      + (isGe ? 'ჩატვირთვის შეცდომა' : 'Ошибка загрузки') + '</div>';
   }
 }

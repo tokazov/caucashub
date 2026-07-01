@@ -498,7 +498,7 @@
  <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)" data-i18n="cab_transport_subs">🔔 Подп. транспорт</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)"><span data-i18n="None"><span data-i18n="cab_report">📊 Отчёт</span></span></button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('pricing',this)"><span data-i18n="cab_pricing">💳 Тарифы</span></button>
- <button class="cab-tab-btn cab-tab" onclick="switchCabTab('payments',this)"><span>🧾 История</span></button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('payments',this)"><span data-i18n="cab_payments">🧾 История</span></button>
  </div>
 
  <!-- Тело кабинета -->
@@ -684,7 +684,7 @@
 
 <div id="cabTab-payments" class="cab-tab-content" style="display:none">
  <div style="padding:16px">
-  <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:16px">🧾 История платежей</div>
+  <div id="paymentsTabTitle" style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:16px">🧾 История платежей</div>
   <div id="paymentsList"><div style="text-align:center;color:#aaa;padding:32px;font-size:14px">Загружаем...</div></div>
  </div>
 </div>
@@ -1554,7 +1554,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782907532"></script>
+<script src="main.js?v=1782907714"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
