@@ -93,6 +93,8 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "user_id": load.user_id,
         "views": load.views or 0,
         "is_demo": getattr(load, 'is_demo', False),  # ADR-012
+        "is_promoted": bool(getattr(load, 'is_boosted', False)),
+        "promoted_until": load.promoted_until.isoformat() if getattr(load, 'promoted_until', None) else None,
         "owner_verified": bool(user.is_verified) if user else False,  # 2.4.4
         "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
@@ -121,8 +123,21 @@ async def get_loads(
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
 
-    # Сначала срочные и продвинутые
-    q = q.order_by(Load.is_urgent.desc(), Load.is_boosted.desc(), Load.created_at.desc())
+    # Сначала продвинутые (is_boosted + promoted_until > now), потом срочные, потом по дате
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    # Сбрасываем истёкшие promoted
+    # (lightweight: делаем это прямо в сортировке через CASE — не трогаем БД)
+    from sqlalchemy import case
+    is_active_promoted = case(
+        (
+            (Load.is_boosted == True) &  # noqa: E712
+            (Load.promoted_until > now),
+            1
+        ),
+        else_=0
+    )
+    q = q.order_by(is_active_promoted.desc(), Load.is_urgent.desc(), Load.created_at.desc())
     q = q.limit(limit).offset(offset)
 
     result = await db.execute(q)
@@ -385,3 +400,34 @@ async def admin_set_status(
     )
     await db.commit()
     return {"updated": ids, "status": status}
+
+
+@router.post("/{load_id}/promote")
+async def promote_load(
+    load_id: int,
+    hours: int = 24,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Поднять груз в топ ленты. hours: 24, 72, 168."""
+    from datetime import datetime, timezone, timedelta
+    if hours not in (24, 72, 168):
+        raise HTTPException(status_code=400, detail="hours must be 24, 72 or 168")
+
+    load_res = await db.execute(select(Load).where(Load.id == load_id))
+    load = load_res.scalar_one_or_none()
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    if load.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your load")
+
+    load.is_boosted = True
+    load.promoted_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+    await db.commit()
+    await db.refresh(load)
+    return {
+        "ok": True,
+        "load_id": load_id,
+        "is_promoted": True,
+        "promoted_until": load.promoted_until.isoformat()
+    }

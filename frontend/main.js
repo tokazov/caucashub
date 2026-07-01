@@ -848,6 +848,7 @@ function renderLoads(data){
     // Бейдж
     let badgeHtml = '';
     if(d.is_demo) badgeHtml = `<span class="badge-demo">🟡 ДЕМО</span>`;
+    if(d.is_promoted && d.promoted_until && new Date(d.promoted_until) > new Date()) badgeHtml = '<span style="background:#f7b731;color:#1a1a2e;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;margin-right:4px">⭐ ТОП</span>' + badgeHtml;
     else if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
     else if(d.badge==='new') badgeHtml = `<span class="badge-fresh-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_new||'НОВЫЙ'}</span>`;
     else if(d.scope==='intl') badgeHtml = `<span class="badge-intl-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_intl||'МЕЖД.'}</span>`;
@@ -2445,6 +2446,20 @@ function switchCabTab(tab, el){
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
  if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; }
+ if(tab === 'pricing') { renderPricingTab(); }
+}
+
+function renderPricingTab() {
+  var container = document.getElementById('cabTab-pricing');
+  if(!container) return;
+  // Уже отрендерен статически в HTML — просто подсветим текущий план
+  var u = typeof user !== 'undefined' ? user : null;
+  var plan = (u && u.plan) ? u.plan : 'free';
+  // Убираем все бейджи
+  container.querySelectorAll('.plan-current-badge').forEach(function(b){ b.style.display='none'; });
+  // Показываем бейдж нужного плана
+  var badge = container.querySelector('[data-plan="' + plan + '"] .plan-current-badge');
+  if(badge) badge.style.display='block';
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -2572,6 +2587,7 @@ function renderCabLoads(){
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
  + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
+ + '<button onclick="openPromoteModal(' + (l.serverId||l.id) + ')" class="cab-btn" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;font-size:11px;padding:5px 8px">⭐ Топ</button>'
  + '</div></div>'
  + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
  + respBlock
@@ -6045,3 +6061,25 @@ async function handleApiLimitError(response) {
   } catch(e) {}
   return false;
 }
+
+// ── Продвижение груза в топ ──────────────────────────────────────────────────
+window.openPromoteModal = function(loadId) {
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    + '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">⭐ Поднять груз в топ</div>'
+    + '<div style="font-size:12px;color:#666;margin-bottom:20px;line-height:1.5">Ваш груз будет показываться первым в ленте. Оплата через Telegram.</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">'
+    + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
+    + '<div><input type="radio" name="promoteHours" value="24" checked> <b>24 часа</b></div><div style="color:#f7b731;font-weight:700">₾5</div></label>'
+    + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
+    + '<div><input type="radio" name="promoteHours" value="72"> <b>3 дня</b></div><div style="color:#f7b731;font-weight:700">₾12</div></label>'
+    + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
+    + '<div><input type="radio" name="promoteHours" value="168"> <b>7 дней</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
+    + '</div>'
+    + '<a href="https://t.me/tokazov" target="_blank" style="display:block;background:#f7b731;color:#1a1a2e;text-align:center;padding:12px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:8px">✉️ Написать нам в Telegram @tokazov</a>'
+    + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">Закрыть</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+};
