@@ -106,10 +106,10 @@ async def mari_reply(user_text: str, lang: str = "ru", is_pro: bool = False) -> 
 
     if is_pro:
         system = MARI_PROMPT_PRO_GE if lang == "ge" else MARI_PROMPT_PRO_RU
-        max_tokens = 500
+        max_tokens = 800
     else:
         system = MARI_PROMPT_BASE_GE if lang == "ge" else MARI_PROMPT_BASE_RU
-        max_tokens = 250
+        max_tokens = 600
 
     prompt = f"{system}\n\nПользователь: {user_text}\n\nМари:"
 
