@@ -858,14 +858,14 @@ function _adHtml(ad) {
   var img = ad.image_url
     ? '<img src="' + ad.image_url + '" style="width:36px;height:36px;border-radius:8px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
     : '<div style="width:36px;height:36px;border-radius:8px;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📢</div>';
-  return '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:10px;cursor:pointer" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">'
-    + '<span style="font-size:9px;color:#aaa;white-space:nowrap;font-weight:600;margin-right:-4px">📢 ' + adLabel + '</span>'
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:10px;cursor:pointer" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">'
+    + '<span style="font-size:9px;color:#aaa;white-space:nowrap;font-weight:600;flex-shrink:0">📢 ' + adLabel + '</span>'
     + img
     + '<div style="flex:1;min-width:0">'
     + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
     + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
     + '</div>'
-    + '<span style="font-size:12px;color:#f7b731;font-weight:700;white-space:nowrap;flex-shrink:0">' + cta + '</span>'
+    + '<button style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;line-height:1">' + cta + '</button>'
     + '</div>';
 }
 
