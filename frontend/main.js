@@ -902,7 +902,7 @@ function renderLoads(data){
     }
     return;
   }
-  data.forEach(d=>{
+  data.forEach((d, _dataIdx)=>{
     const isOwn = currentUserId && d.userId === currentUserId;
     const dateStr = formatDateRange(d.date, d.date2);
 
@@ -991,7 +991,9 @@ function renderLoads(data){
     list.appendChild(row);
 
     // ── Рекламный блок каждые 6 грузов (Блок 1) ──
-    if((list.children.length % 6 === 0) && !d.is_demo) {
+    // Используем _dataIdx (индекс в массиве данных), не list.children.length
+    // чтобы избежать дублирования из-за асинхронно вставленных ad-слотов
+    if((_dataIdx + 1) % 6 === 0 && !d.is_demo) {
       _insertAdSlot(list, 'feed');
     }
   });
