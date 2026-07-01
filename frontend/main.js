@@ -831,10 +831,23 @@ async function _fetchAd(placement) {
   } catch(e) { return null; }
 }
 
+function _adDefaultCta() {
+  return lang === 'ge' ? 'დეტალები →' : 'Подробнее →';
+}
+
+function _adLangField(ad, fieldRu, fieldGe) {
+  // Возвращает GE поле если язык GE и поле существует, иначе RU
+  if(lang === 'ge' && ad[fieldGe]) return ad[fieldGe];
+  return ad[fieldRu] || '';
+}
+
 function _adHtml(ad) {
   if(!ad) return '';
   var isGe = lang === 'ge';
   var adLabel = isGe ? 'რეკლამა' : 'Реклама';
+  var title = isGe ? (ad.title_ge || ad.title || ad.advertiser) : (ad.title || ad.advertiser);
+  var desc = isGe ? (ad.description_ge || ad.description || '') : (ad.description || '');
+  var cta = isGe ? (ad.cta_text_ge || _adDefaultCta()) : (ad.cta_text || _adDefaultCta());
   var img = ad.image_url
     ? '<img src="' + ad.image_url + '" style="width:36px;height:36px;border-radius:8px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
     : '<div style="width:36px;height:36px;border-radius:8px;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📢</div>';
@@ -842,29 +855,31 @@ function _adHtml(ad) {
     + '<span style="font-size:9px;color:#aaa;white-space:nowrap;font-weight:600;margin-right:-4px">📢 ' + adLabel + '</span>'
     + img
     + '<div style="flex:1;min-width:0">'
-    + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (ad.title || ad.advertiser) + '</div>'
-    + (ad.description ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + ad.description + '</div>' : '')
+    + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
+    + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
     + '</div>'
-    + '<span style="font-size:12px;color:#f7b731;font-weight:700;white-space:nowrap;flex-shrink:0">' + (ad.cta_text || 'Подробнее →') + '</span>'
+    + '<span style="font-size:12px;color:#f7b731;font-weight:700;white-space:nowrap;flex-shrink:0">' + cta + '</span>'
     + '</div>';
 }
 
 function _adHtmlWide(ad) {
-  // Широкий блок для Блока 4 (под ставками) и Блока 5 (в модале)
   if(!ad) return '';
   var isGe = lang === 'ge';
   var adLabel = isGe ? 'რეკლამა' : 'Реклама';
+  var title = isGe ? (ad.title_ge || ad.title || ad.advertiser) : (ad.title || ad.advertiser);
+  var desc = isGe ? (ad.description_ge || ad.description || '') : (ad.description || '');
+  var cta = isGe ? (ad.cta_text_ge || _adDefaultCta()) : (ad.cta_text || _adDefaultCta());
   var img = ad.image_url
     ? '<img src="' + ad.image_url + '" style="width:48px;height:48px;border-radius:10px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
     : '<div style="width:48px;height:48px;border-radius:10px;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📢</div>';
-  return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:12px;cursor:pointer;margin:12px 0" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">'
+  return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:12px;cursor:pointer;margin:12px 0;position:relative" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">'
     + '<span style="font-size:9px;color:#aaa;font-weight:600;position:absolute;top:4px;left:8px">📢 ' + adLabel + '</span>'
     + img
-    + '<div style="flex:1;min-width:0">'
-    + '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + (ad.title || ad.advertiser) + '</div>'
-    + (ad.description ? '<div style="font-size:12px;color:#555;margin-top:2px">' + ad.description + '</div>' : '')
+    + '<div style="flex:1;min-width:0;margin-top:8px">'
+    + '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + title + '</div>'
+    + (desc ? '<div style="font-size:12px;color:#555;margin-top:2px">' + desc + '</div>' : '')
     + '</div>'
-    + '<button style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0">' + (ad.cta_text || 'Подробнее →') + '</button>'
+    + '<button style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-top:8px">' + cta + '</button>'
     + '</div>';
 }
 

@@ -183,6 +183,9 @@ async def lifespan(app: FastAPI):
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )""",
         "CREATE INDEX IF NOT EXISTS ix_ads_placement_active ON ads(placement, active)",
+        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS title_ge VARCHAR(200)",
+        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS description_ge TEXT",
+        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS cta_text_ge VARCHAR(100)",
     ]
     async with engine.begin() as conn:
         for sql in _emergency_migrations:

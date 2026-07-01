@@ -41,6 +41,9 @@ class AdCreate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     cta_text: Optional[str] = None
+    title_ge: Optional[str] = None
+    description_ge: Optional[str] = None
+    cta_text_ge: Optional[str] = None
     placement: str          # feed | rates | modal | footer | banner
     active: bool = True
     start_date: Optional[datetime] = None
@@ -54,6 +57,9 @@ class AdUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     cta_text: Optional[str] = None
+    title_ge: Optional[str] = None
+    description_ge: Optional[str] = None
+    cta_text_ge: Optional[str] = None
     placement: Optional[str] = None
     active: Optional[bool] = None
     start_date: Optional[datetime] = None
@@ -90,6 +96,9 @@ async def get_ad(placement: str, db: AsyncSession = Depends(get_db)):
         "title": ad.title,
         "description": ad.description,
         "cta_text": ad.cta_text or "Подробнее →",
+        "title_ge": ad.title_ge,
+        "description_ge": ad.description_ge,
+        "cta_text_ge": ad.cta_text_ge or "დეტალები →",
         "placement": ad.placement,
     }}
 

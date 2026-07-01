@@ -12,7 +12,10 @@ class Ad(Base):
     link_url = Column(String(500), nullable=False)            # Куда ведёт клик
     title = Column(String(200), nullable=True)                # Заголовок (для нативных блоков)
     description = Column(Text, nullable=True)                 # Описание (для нативных блоков)
-    cta_text = Column(String(100), nullable=True)             # Текст кнопки CTA
+    cta_text = Column(String(100), nullable=True)             # Текст кнопки CTA (RU)
+    title_ge = Column(String(200), nullable=True)             # Заголовок на грузинском
+    description_ge = Column(Text, nullable=True)              # Описание на грузинском
+    cta_text_ge = Column(String(100), nullable=True)          # CTA на грузинском
     placement = Column(String(50), nullable=False)            # feed / rates / modal / footer / banner
     clicks = Column(Integer, default=0)
     impressions = Column(Integer, default=0)
