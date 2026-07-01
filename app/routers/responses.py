@@ -88,15 +88,7 @@ async def respond_to_load(
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
-    import traceback as _tb
-    try:
-        return await _respond_to_load_impl(load_id, data, request, db, current_user)
-    except Exception as _ex:
-        tb = _tb.format_exc()
-        import logging
-        logging.getLogger(__name__).error(f"respond_to_load UNHANDLED: {_ex}\n{tb}")
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=500, content={"error": str(_ex), "trace": tb[-2000:]})
+    return await _respond_to_load_impl(load_id, data, request, db, current_user)
 
 async def _respond_to_load_impl(load_id, data, request, db, current_user):
     """Внутренняя реализация — для перехвата traceback"""
@@ -166,7 +158,7 @@ async def _respond_to_load_impl(load_id, data, request, db, current_user):
     if get_limits(current_user)["responses"] > 0:
         current_user.responses_this_month = (current_user.responses_this_month or 0) + 1
         if current_user.responses_month_reset is None:
-            current_user.responses_month_reset = datetime.now(timezone.utc)
+            current_user.responses_month_reset = datetime.utcnow()  # naive UTC — matches DB TIMESTAMP WITHOUT TIME ZONE
 
     await db.commit()
     await db.refresh(resp)
