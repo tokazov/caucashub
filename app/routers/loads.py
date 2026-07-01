@@ -128,13 +128,9 @@ async def get_loads(
     now = datetime.now(timezone.utc)
     # Сбрасываем истёкшие promoted
     # (lightweight: делаем это прямо в сортировке через CASE — не трогаем БД)
-    from sqlalchemy import case
+    from sqlalchemy import case, and_
     is_active_promoted = case(
-        (
-            (Load.is_boosted == True) &  # noqa: E712
-            (Load.promoted_until > now),
-            1
-        ),
+        (and_(Load.is_boosted == True, Load.promoted_until > now), 1),  # noqa: E712
         else_=0
     )
     q = q.order_by(is_active_promoted.desc(), Load.is_urgent.desc(), Load.created_at.desc())
