@@ -1459,19 +1459,83 @@ function updateRespondCount(){
 }
 // ── PAYWALL ───────────────────────────────────────────
 function openPaywall(reason){
-  const titles={
+  var isGe = lang === 'ge';
+  var titles = isGe ? {
+    contact:'კონტაქტების სანახავად საჭიროა გამოწერა',
+    respond:'გრუზებზე გამოხმაურებისთვის საჭიროა გამოწერა',
+    urgent:'სასწრაფო გრუზები ხელმისაწვდომია Pro გეგმაზე',
+  } : {
     contact:'Чтобы видеть контакты — нужна подписка',
     respond:'Чтобы откликаться на грузы — нужна подписка',
-    urgent:'Срочные грузы доступны на тарифе Про',
+    urgent:'Срочные грузы доступны на тарифе Pro',
   };
-  const subs={
+  var subs = isGe ? {
+    contact:'გახსენით გრუზის მფლობელის ტელეფონი და ელ-ფოსტა',
+    respond:'გაგზავნეთ განაცხადები პირდაპირ გადამზიდებს',
+    urgent:'მიიღეთ სასწრაფო გრუზები პირველებს შორის',
+  } : {
     contact:'Откройте телефон и email грузовладельца',
     respond:'Отправляйте заявки перевозчикам напрямую',
     urgent:'Получайте срочные грузы первым',
   };
-  document.getElementById('paywallTitle').textContent=titles[reason]||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_enter_open||'Откройте доступ';
-  document.getElementById('paywallSub').textContent=subs[reason]||'';
+  document.getElementById('paywallTitle').textContent = titles[reason] || (isGe ? 'სატარიფო გეგმები' : 'Тарифные планы');
+  document.getElementById('paywallSub').textContent = subs[reason] || '';
+  // Обновляем тексты кнопок и описаний по языку
+  _applyPaywallLang();
   document.getElementById('paywallOverlay').classList.add('on');
+}
+
+function _applyPaywallLang() {
+  var isGe = lang === 'ge';
+  var pw = document.getElementById('paywallOverlay');
+  if(!pw) return;
+  var u = typeof user !== 'undefined' ? user : null;
+  var currentPlan = (u && u.plan) ? u.plan : 'free';
+
+  // Описания планов
+  var features = {
+    free: isGe
+      ? '✅ 5 აქტიური ტვირთი<br>✅ 10 გამოხ./თვეში<br>✅ 1 გამოწ. მარშრ.<br>✅ rs.ge ექსპ.'
+      : '✅ 5 активных грузов<br>✅ 10 откликов/мес<br>✅ 1 подписка на маршрут<br>✅ Экспорт rs.ge',
+    pro: isGe
+      ? '✅ 50 აქტ. ტვირთი<br>✅ 100 გამოხ./თვეში<br>✅ 20 გამოწ. მარშრ.<br>✅ პრიორ. მხარდ.'
+      : '✅ 50 активных грузов<br>✅ 100 откликов/мес<br>✅ 20 подписок<br>✅ Приоритетная поддержка',
+    business: isGe
+      ? '✅ ულიმიტო ტვირთი<br>✅ ულიმიტო გამოხ.<br>✅ ულიმიტო გამოწ.<br>✅ 24/7 მხარდ.<br>✅ პირ. მენეჯ.'
+      : '✅ Безлимит грузов<br>✅ Безлимит откликов<br>✅ Безлимит подписок<br>✅ Поддержка 24/7<br>✅ Персональный менеджер',
+  };
+
+  ['free','pro','business'].forEach(function(plan) {
+    var el = pw.querySelector('[data-pw-plan="' + plan + '"]');
+    if(!el) return;
+    var feat = el.querySelector('[data-pw-features]');
+    if(feat) feat.innerHTML = features[plan] || '';
+    // Кнопки покупки
+    var btn = el.querySelector('[data-pw-btn]');
+    if(btn) {
+      var prices = {pro:'49', business:'149'};
+      var price = prices[plan];
+      btn.textContent = isGe ? ('💳 შეძენა ₾' + price + '-ად') : ('💳 Купить за ₾' + price);
+    }
+    // Free кнопка — текущий план
+    var freeBtn = el.querySelector('#paywallBtnFree');
+    if(freeBtn) freeBtn.textContent = isGe ? 'მიმდინარე გეგმა' : 'Текущий план';
+    // Популярный бейдж
+    var popBadge = el.querySelector('[data-i18n="pw_best"]');
+    if(popBadge) popBadge.textContent = isGe ? '⭐ პოპულარული' : '⭐ ПОПУЛЯРНЫЙ';
+  });
+
+  // Заголовок
+  var titleEl = pw.querySelector('#paywallTitle');
+  if(titleEl && !titleEl.textContent.includes('კონტ') && !titleEl.textContent.includes('Чтобы')) {
+    titleEl.textContent = isGe ? 'სატარიფო გეგმები' : 'Тарифные планы';
+  }
+
+  // Нижний текст
+  var freeNow = pw.querySelector('[data-i18n="pw_free_now"]');
+  if(freeNow) freeNow.textContent = isGe ? 'ახლა ყველა ფუნქცია უფასოა 🎉' : 'Сейчас все функции бесплатны 🎉';
+  var comingSoon = pw.querySelector('[data-i18n="pw_coming_soon"]');
+  if(comingSoon) comingSoon.textContent = isGe ? 'გამოწერა მოგვიანებით გაიხსნება' : 'Подписки откроются позже';
 }
 function choosePlan(plan){
   if(!user || !getToken()){ openAuth('login'); return; }
