@@ -1518,6 +1518,8 @@
     <span style="color:#444">·</span>
     <a href="https://t.me/caucashub_bot" target="_blank" style="color:#888;text-decoration:none;margin:0 8px">💬 <span data-i18n="footer_support">Поддержка</span></a>
     <span style="color:#444">·</span>
+    <a href="#" onclick="openAdvertisePage();return false" style="color:#f7b731;text-decoration:none;margin:0 8px" data-i18n="footer_advertise">📢 Реклама на сайте</a>
+    <span style="color:#444">·</span>
     <span style="margin:0 8px">© 2026 CaucasHub.ge</span>
   </div>
 </div>
@@ -1538,7 +1540,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782917178"></script>
+<script src="main.js?v=1782918132"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1633,5 +1635,95 @@
   </div>
  </div>
 </div>
+<!-- ═══ ADVERTISE PAGE OVERLAY ═══ -->
+<div id="advertiseOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:99990;overflow-y:auto">
+  <div style="max-width:800px;margin:0 auto;padding:24px 16px 60px">
+    <button onclick="closeAdvertisePage()" style="background:none;border:none;font-size:24px;cursor:pointer;margin-bottom:16px;color:#888">✕</button>
+
+    <!-- Заголовок -->
+    <div style="background:#1a1a2e;border-radius:16px;padding:32px 24px;margin-bottom:20px;text-align:center">
+      <div style="font-size:28px;font-weight:900;color:#fff;margin-bottom:8px" data-i18n="advertise_title">Реклама на CaucasHub.ge</div>
+      <div style="font-size:14px;color:#aaa;line-height:1.6" data-i18n="advertise_subtitle">Ваша реклама — грузовладельцам и перевозчикам Кавказа</div>
+    </div>
+
+    <!-- Аудитория -->
+    <div style="background:#f8f9fa;border-radius:14px;padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:12px" data-i18n="advertise_audience">👥 Кто видит вашу рекламу</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:#fff;border-radius:10px;padding:12px">🚛 <span data-i18n="adv_aud_carrier">Перевозчики — ищут грузы для машин</span></div>
+        <div style="background:#fff;border-radius:10px;padding:12px">📦 <span data-i18n="adv_aud_shipper">Грузовладельцы — отправляют товары</span></div>
+        <div style="background:#fff;border-radius:10px;padding:12px">🏢 <span data-i18n="adv_aud_companies">74+ компании на платформе</span></div>
+        <div style="background:#fff;border-radius:10px;padding:12px">🌍 <span data-i18n="adv_aud_routes">Грузия, Армения, Азербайджан, РФ, Турция</span></div>
+      </div>
+    </div>
+
+    <!-- Форматы -->
+    <div style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:12px" data-i18n="advertise_formats">📋 Форматы размещения</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+
+      <div style="border:2px solid #f7b731;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px">
+        <div style="font-size:28px;flex-shrink:0">📋</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800;color:#1a1a2e" data-i18n="adv_fmt_feed_title">Лента грузов</div>
+          <div style="font-size:12px;color:#666;margin-top:3px" data-i18n="adv_fmt_feed_desc">Вставка каждые 6 строк — каждый посетитель видит баннер</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:900;color:#f7b731">₾300<span style="font-size:11px;font-weight:400;color:#aaa" data-i18n="advertise_price_month">/мес</span></div>
+          <a href="https://t.me/tokazov?text=Хочу+разместить+рекламу+на+CaucasHub.ge+(Лента+грузов)" target="_blank" class="card-btn-resp" style="display:inline-block;margin-top:6px;text-decoration:none" data-i18n="adv_order_btn">Заказать</a>
+        </div>
+      </div>
+
+      <div style="border:2px solid #e8eaf0;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px">
+        <div style="font-size:28px;flex-shrink:0">📊</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800;color:#1a1a2e" data-i18n="adv_fmt_rates_title">Таблица ставок</div>
+          <div style="font-size:12px;color:#666;margin-top:3px" data-i18n="adv_fmt_rates_desc">Под таблицей рыночных цен — самая активная аудитория</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:900;color:#1a1a2e">₾150<span style="font-size:11px;font-weight:400;color:#aaa" data-i18n="advertise_price_month">/мес</span></div>
+          <a href="https://t.me/tokazov?text=Хочу+разместить+рекламу+на+CaucasHub.ge+(Ставки)" target="_blank" class="card-btn-resp" style="display:inline-block;margin-top:6px;text-decoration:none" data-i18n="adv_order_btn">Заказать</a>
+        </div>
+      </div>
+
+      <div style="border:2px solid #e8eaf0;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:16px">
+        <div style="font-size:28px;flex-shrink:0">📦</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:800;color:#1a1a2e" data-i18n="adv_fmt_modal_title">Карточка груза</div>
+          <div style="font-size:12px;color:#666;margin-top:3px" data-i18n="adv_fmt_modal_desc">Внутри модала груза — перевозчик рассматривает конкретный заказ</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:900;color:#1a1a2e">₾200<span style="font-size:11px;font-weight:400;color:#aaa" data-i18n="advertise_price_month">/мес</span></div>
+          <a href="https://t.me/tokazov?text=Хочу+разместить+рекламу+на+CaucasHub.ge+(Модал)" target="_blank" class="card-btn-resp" style="display:inline-block;margin-top:6px;text-decoration:none" data-i18n="adv_order_btn">Заказать</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Что входит -->
+    <div style="background:#f8f9fa;border-radius:14px;padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:#1a1a2e;margin-bottom:12px" data-i18n="adv_includes_title">✅ Что входит в размещение</div>
+      <div style="font-size:13px;color:#444;line-height:2.2">
+        <div>✅ <span data-i18n="adv_inc_1">Размещение баннера на выбранном месте</span></div>
+        <div>✅ <span data-i18n="adv_inc_2">Трекинг показов и кликов — отчёт раз в месяц</span></div>
+        <div>✅ <span data-i18n="adv_inc_3">Ротация с другими рекламодателями</span></div>
+        <div>✅ <span data-i18n="adv_inc_4">Поддержка RU и GE языков</span></div>
+        <div>✅ <span data-i18n="adv_inc_5">Минимальный срок — 1 месяц</span></div>
+      </div>
+    </div>
+
+    <!-- Контакт -->
+    <div style="background:#1a1a2e;border-radius:16px;padding:24px;text-align:center">
+      <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px" data-i18n="advertise_contact">Как разместить рекламу</div>
+      <div style="font-size:12px;color:#aaa;margin-bottom:20px;line-height:2">
+        <div>1. <span data-i18n="adv_step_1">Напишите нам — укажите формат и сроки</span></div>
+        <div>2. <span data-i18n="adv_step_2">Пришлите материалы — логотип, заголовок, ссылку</span></div>
+        <div>3. <span data-i18n="adv_step_3">Разместим баннер в течение 1 рабочего дня</span></div>
+        <div>4. <span data-i18n="adv_step_4">Получайте клиентов с CaucasHub.ge</span></div>
+      </div>
+      <a href="https://t.me/tokazov?text=Хочу+разместить+рекламу+на+CaucasHub.ge" target="_blank" style="display:block;background:#f7b731;color:#1a1a2e;text-decoration:none;padding:16px;border-radius:12px;font-weight:800;font-size:16px;margin-bottom:10px" data-i18n="advertise_tg_btn">📱 Написать в Telegram @tokazov</a>
+      <a href="mailto:ads@caucashub.ge" style="display:block;background:#2a2a40;color:#aaa;text-decoration:none;padding:12px;border-radius:12px;font-weight:600;font-size:14px" data-i18n="adv_email_btn">✉️ ads@caucashub.ge</a>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

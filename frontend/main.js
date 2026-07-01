@@ -863,7 +863,7 @@ function _adHtml(ad) {
     + '<div style="flex:1;min-width:0">'
     + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
     + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
-    + '<div style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px">' + adLabel + '</div>'
+    + '<a href="#" onclick="openAdvertisePage();return false" style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px;text-decoration:none;display:block">' + adLabel + '</a>'
     + '</div>'
     + '<button class="card-btn-resp" style="flex-shrink:0" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">' + cta + '</button>'
     + '</div>';
@@ -884,7 +884,7 @@ function _adHtmlWide(ad) {
     + '<div style="flex:1;min-width:0">'
     + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
     + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
-    + '<div style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px">' + adLabel + '</div>'
+    + '<a href="#" onclick="openAdvertisePage();return false" style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px;text-decoration:none;display:block">' + adLabel + '</a>'
     + '</div>'
     + '<button class="card-btn-resp" style="flex-shrink:0" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">' + cta + '</button>'
     + '</div>';
@@ -3334,6 +3334,36 @@ const TRANSLATIONS = {
     analytics_trips_total: 'Рейсов всего',
     analytics_rating: 'Рейтинг',
     footer_support: 'Поддержка',
+    footer_advertise: '📢 Реклама на сайте',
+    advertise_title: 'Реклама на CaucasHub.ge',
+    advertise_subtitle: 'Ваша реклама — грузовладельцам и перевозчикам Кавказа',
+    advertise_audience: '👥 Кто видит вашу рекламу',
+    advertise_formats: '📋 Форматы размещения',
+    advertise_contact: 'Как разместить рекламу',
+    advertise_tg_btn: '📱 Написать в Telegram @tokazov',
+    advertise_price_month: '/мес',
+    adv_order_btn: 'Заказать',
+    adv_email_btn: '✉️ ads@caucashub.ge',
+    adv_includes_title: '✅ Что входит в размещение',
+    adv_aud_carrier: 'Перевозчики — ищут грузы для машин',
+    adv_aud_shipper: 'Грузовладельцы — отправляют товары',
+    adv_aud_companies: '74+ компании на платформе',
+    adv_aud_routes: 'Грузия, Армения, Азербайджан, РФ, Турция',
+    adv_fmt_feed_title: 'Лента грузов',
+    adv_fmt_feed_desc: 'Вставка каждые 6 строк — каждый посетитель видит баннер',
+    adv_fmt_rates_title: 'Таблица ставок',
+    adv_fmt_rates_desc: 'Под таблицей рыночных цен — самая активная аудитория',
+    adv_fmt_modal_title: 'Карточка груза',
+    adv_fmt_modal_desc: 'Внутри модала груза — перевозчик рассматривает конкретный заказ',
+    adv_inc_1: 'Размещение баннера на выбранном месте',
+    adv_inc_2: 'Трекинг показов и кликов — отчёт раз в месяц',
+    adv_inc_3: 'Ротация с другими рекламодателями',
+    adv_inc_4: 'Поддержка RU и GE языков',
+    adv_inc_5: 'Минимальный срок — 1 месяц',
+    adv_step_1: 'Напишите нам — укажите формат и сроки',
+    adv_step_2: 'Пришлите материалы — логотип, заголовок, ссылку',
+    adv_step_3: 'Разместим баннер в течение 1 рабочего дня',
+    adv_step_4: 'Получайте клиентов с CaucasHub.ge',
     truck_carrier_data: '🚛 Данные перевозчика',
     company_requisites: '📋 Реквизиты компании',
     tg_label: 'Telegram (для уведомлений)',
@@ -3790,6 +3820,36 @@ const TRANSLATIONS = {
     analytics_trips_total: 'სულ რეისი',
     analytics_rating: 'რეიტინგი',
     footer_support: 'მხარდაჭერა',
+    footer_advertise: '📢 რეკლამა საიტზე',
+    advertise_title: 'რეკლამა CaucasHub.ge-ზე',
+    advertise_subtitle: 'თქვენი რეკლამა — გადამზიდებს და გრუზის მფლობელებს კავკასიაში',
+    advertise_audience: '👥 ვინ ხედავს თქვენს რეკლამას',
+    advertise_formats: '📋 განთავსების ფორმატები',
+    advertise_contact: 'როგორ განათავსოთ რეკლამა',
+    advertise_tg_btn: '📱 Telegram-ში წერა @tokazov',
+    advertise_price_month: '/თვეში',
+    adv_order_btn: 'შეკვეთა',
+    adv_email_btn: '✉️ ads@caucashub.ge',
+    adv_includes_title: '✅ რა შედის განთავსებაში',
+    adv_aud_carrier: 'გადამზიდები — ეძებენ გრუზს',
+    adv_aud_shipper: 'გრუზის მფლობელები — აგზავნიან საქონელს',
+    adv_aud_companies: '74+ კომპანია პლატფორმაზე',
+    adv_aud_routes: 'საქართველო, სომხეთი, აზერბაიჯანი, რუსეთი, თურქეთი',
+    adv_fmt_feed_title: 'გრუზების ლენტა',
+    adv_fmt_feed_desc: 'ჩასმა ყოველ 6 სტრიქონში — ყველა ვიზიტორი ხედავს',
+    adv_fmt_rates_title: 'ტარიფების ცხრილი',
+    adv_fmt_rates_desc: 'ბაზრის ფასების ცხრილის ქვეშ — ყველაზე აქტიური აუდიტორია',
+    adv_fmt_modal_title: 'გრუზის ბარათი',
+    adv_fmt_modal_desc: 'გრუზის მოდალის შიგნით — გადამზიდი განიხილავს კონკრეტულ შეკვეთას',
+    adv_inc_1: 'ბანერის განთავსება არჩეულ ადგილზე',
+    adv_inc_2: 'ჩვენებებისა და კლიკების ტრეკინგი — ანგარიში თვეში ერთხელ',
+    adv_inc_3: 'როტაცია სხვა რეკლამის განმთავსებლებთან',
+    adv_inc_4: 'RU და GE ენების მხარდაჭერა',
+    adv_inc_5: 'მინიმალური ვადა — 1 თვე',
+    adv_step_1: 'მოგვწერეთ — მიუთითეთ ფორმატი და ვადები',
+    adv_step_2: 'გამოგვიგზავნეთ მასალები — ლოგო, სათაური, ბმული',
+    adv_step_3: 'ბანერს განვათავსებთ 1 სამუშაო დღეში',
+    adv_step_4: 'მიიღეთ კლიენტები CaucasHub.ge-დან',
     truck_carrier_data: '🚛 გადამზიდველის მონაცემები',
     company_requisites: '📋 კომპანიის რეკვიზიტები',
     tg_label: 'Telegram (შეტყობინებებისთვის)',
@@ -4166,6 +4226,43 @@ function setLang(l, btn) {
   if(typeof aiReset === 'function') aiReset();
 }
 
+
+// ── Страница рекламы ──────────────────────────────────────────────────────────
+window.openAdvertisePage = function() {
+  var el = document.getElementById('advertiseOverlay');
+  if(!el) return;
+  el.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  // Применяем текущий язык
+  if(typeof applyLang === 'function') applyLang(lang);
+  _applyAdvertiseLang();
+};
+
+window.closeAdvertisePage = function() {
+  var el = document.getElementById('advertiseOverlay');
+  if(!el) return;
+  el.style.display = 'none';
+  document.body.style.overflow = '';
+};
+
+function _applyAdvertiseLang() {
+  var isGe = lang === 'ge';
+  var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
+  // Кнопки "Заказать"
+  var orderBtns = document.querySelectorAll('[data-i18n="adv_order_btn"]');
+  orderBtns.forEach(function(b) { b.textContent = isGe ? 'შეკვეთა' : 'Заказать'; });
+  // /мес
+  var perMonth = document.querySelectorAll('#advertiseOverlay [data-i18n="advertise_price_month"]');
+  perMonth.forEach(function(e) { e.textContent = isGe ? '/თვეში' : '/мес'; });
+}
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(e) {
+  if(e.key === 'Escape') {
+    var el = document.getElementById('advertiseOverlay');
+    if(el && el.style.display !== 'none') closeAdvertisePage();
+  }
+});
 
 // ── ACCESSIBILITY: focusTrap ──────────────────────────────────────────────────
 /**
