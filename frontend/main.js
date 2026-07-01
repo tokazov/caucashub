@@ -4689,8 +4689,12 @@ function _admLogout_() {
 // Открытие по URL /admin или #admin
 (function() {
   if(window.location.pathname === '/admin' || window.location.hash === '#admin') {
-    setTimeout(window.openAdminPanel, 600);
+    setTimeout(window.openAdminPanel, 1000);
   }
+  // Слушаем hashchange (если пользователь добавит #admin вручную)
+  window.addEventListener('hashchange', function() {
+    if(window.location.hash === '#admin') window.openAdminPanel();
+  });
 })();
 
 
