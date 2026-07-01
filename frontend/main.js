@@ -877,16 +877,16 @@ function _adHtmlWide(ad) {
   var desc = isGe ? (ad.description_ge || ad.description || '') : (ad.description || '');
   var cta = isGe ? (ad.cta_text_ge || _adDefaultCta()) : (ad.cta_text || _adDefaultCta());
   var img = ad.image_url
-    ? '<img src="' + ad.image_url + '" style="width:48px;height:48px;border-radius:10px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    : '<div style="width:48px;height:48px;border-radius:10px;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📢</div>';
-  return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:12px;cursor:pointer;margin:12px 0;position:relative" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">'
-    + '<span style="font-size:9px;color:#aaa;font-weight:600;position:absolute;top:4px;left:8px">📢 ' + adLabel + '</span>'
+    ? '<img src="' + ad.image_url + '" style="width:44px;height:44px;border-radius:8px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    : '';
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:12px;margin:8px 0">'
     + img
-    + '<div style="flex:1;min-width:0;margin-top:8px">'
-    + '<div style="font-size:14px;font-weight:800;color:#1a1a2e">' + title + '</div>'
-    + (desc ? '<div style="font-size:12px;color:#555;margin-top:2px">' + desc + '</div>' : '')
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
+    + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
+    + '<div style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px">' + adLabel + '</div>'
     + '</div>'
-    + '<button style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-top:8px">' + cta + '</button>'
+    + '<button class="card-btn-resp" style="flex-shrink:0" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">' + cta + '</button>'
     + '</div>';
 }
 
