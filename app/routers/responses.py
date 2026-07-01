@@ -92,9 +92,11 @@ async def respond_to_load(
     try:
         return await _respond_to_load_impl(load_id, data, request, db, current_user)
     except Exception as _ex:
+        tb = _tb.format_exc()
         import logging
-        logging.getLogger(__name__).error(f"respond_to_load UNHANDLED: {_ex}\n{_tb.format_exc()}")
-        raise
+        logging.getLogger(__name__).error(f"respond_to_load UNHANDLED: {_ex}\n{tb}")
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(_ex), "trace": tb[-2000:]})
 
 async def _respond_to_load_impl(load_id, data, request, db, current_user):
     """Внутренняя реализация — для перехвата traceback"""
