@@ -145,10 +145,21 @@ async def create_load(data: LoadCreate, request: Request,
                       current_user: User = Depends(require_user)):
     from app.services.exchange_rate import get_usd_gel_rate, convert_gel_to_usd, convert_usd_to_gel
     from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
+    from app.services.plan_check import check_loads_limit
     user_id = current_user.id
     cached, replayed = await check_idempotency(request, db, scope="create_load", user_id=user_id)
     if replayed:
         return make_idempotent_response(cached)
+
+    # Проверяем лимит активных грузов по тарифу
+    active_count_res = await db.execute(
+        select(func.count()).where(Load.user_id == user_id, Load.status == LoadStatus.active)
+    )
+    active_count = active_count_res.scalar_one()
+    ok, limit_err = check_loads_limit(current_user, active_count)
+    if not ok:
+        raise HTTPException(status_code=403, detail=limit_err)
+
     load_data = data.model_dump(exclude={"company_name", "load_date_end"})
 
     # Фикс 1: Серверная валидация веса и цены (P1 Cat4)

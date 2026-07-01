@@ -94,8 +94,11 @@ async def respond_to_load(
     if replayed:
         return make_idempotent_response(cached)
 
-    # ADR-013 B: проверка тарифного плана удалена — все могут откликаться.
-    # Pro-лимиты добавим с billing-модулем.
+    # Проверяем лимит откликов по тарифному плану
+    from app.services.plan_check import check_responses_limit
+    ok, limit_err = check_responses_limit(current_user)
+    if not ok:
+        raise HTTPException(status_code=403, detail=limit_err)
 
     # Проверяем груз
     load_res = await db.execute(select(Load).where(Load.id == load_id))
@@ -145,10 +148,10 @@ async def respond_to_load(
     )
     db.add(resp)
 
-    # Увеличиваем счётчик для standard плана
-    plan_val = current_user.plan.value if hasattr(current_user.plan, "value") else str(current_user.plan)
-    if plan_val == "standard":
-        from datetime import datetime, timezone
+    # Увеличиваем счётчик откликов (для всех планов с лимитом)
+    from datetime import datetime, timezone
+    from app.services.plan_check import get_limits
+    if get_limits(current_user)["responses"] > 0:
         current_user.responses_this_month = (current_user.responses_this_month or 0) + 1
         if current_user.responses_month_reset is None:
             current_user.responses_month_reset = datetime.now(timezone.utc)

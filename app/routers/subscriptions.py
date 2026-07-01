@@ -116,16 +116,22 @@ async def create_subscription(
     current_user=Depends(require_user),
 ):
     """Создать подписку на маршрут. Лимит: 50 активных подписок."""
-    # Проверяем глобальный лимит
+    # Проверяем лимит по тарифному плану
+    from app.services.plan_check import check_subscriptions_limit
     count_res = await db.execute(
         select(func.count()).where(RouteSubscription.user_id == current_user.id)
     )
     count = count_res.scalar_one()
+    # Жёсткий safety-cap
     if count >= SUBSCRIPTION_LIMIT:
         raise HTTPException(
             status_code=400,
             detail=f"Превышен лимит подписок ({SUBSCRIPTION_LIMIT}). Удалите ненужные."
         )
+    # Лимит по тарифу
+    ok, limit_err = check_subscriptions_limit(current_user, count)
+    if not ok:
+        raise HTTPException(status_code=403, detail=limit_err)
 
     # Проверяем дубликаты (from_city + to_city + is_active), case-insensitive
     dup_res = await db.execute(

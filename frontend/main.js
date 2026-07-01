@@ -1979,6 +1979,9 @@ function doPostLoad(){
           if(confirm('⚠️ ' + (r.message || 'Недостаточно прав') + '\n\nПерейти в настройки?')){
             if(typeof openSettings==='function') openSettings();
           }
+        } else if(r.error === 'limit_exceeded') {
+          closeModal('postOverlay');
+          if(typeof showLimitModal==='function') showLimitModal(r.limitData);
         } else {
           alert('⚠️ Груз не удалось сохранить на сервере. Попробуйте ещё раз.');
         }
@@ -5368,8 +5371,13 @@ window.createSubscription = async function() {
       await loadSubscriptions();
       pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), fromCity+' → '+toCity, []);
     } else {
-      var msg = d.detail || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_create_sub||'Ошибка создания подписки');
-      if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+      if(r.status===403 && d.detail && d.detail.error==='limit_exceeded') {
+        if(typeof showLimitModal==='function') showLimitModal(d.detail);
+      } else {
+        var msg = d.detail || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_create_sub||'Ошибка создания подписки');
+        if(typeof msg==='object') msg = JSON.stringify(msg);
+        if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+      }
       // Даже при ошибке (409 дубликат и др.) — перезагрузить список,
       // чтобы показать уже существующие подписки
       await loadSubscriptions();
@@ -5856,7 +5864,12 @@ window.createTransportSub = async function() {
       await loadMyTransportSubs();
       pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), from+' → '+to, []);
     } else {
-      if(errEl){errEl.textContent=d.detail||'Ошибка';errEl.style.display='block';}
+      if(r.status===403 && d.detail && d.detail.error==='limit_exceeded') {
+        if(typeof showLimitModal==='function') showLimitModal(d.detail);
+      } else {
+        var msg=d.detail||'Ошибка'; if(typeof msg==='object') msg=JSON.stringify(msg);
+        if(errEl){errEl.textContent=msg;errEl.style.display='block';}
+      }
     }
   } catch(e) { if(errEl){errEl.textContent=((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_network||'Ошибка сети');errEl.style.display='block';} }
 };
@@ -5986,3 +5999,49 @@ function showToastWarn(msg) {
   setTimeout(function(){ t.remove(); }, 3500);
 }
 window.showToastWarn = showToastWarn;
+
+// ── Обработка лимитов тарифного плана ─────────────────────────────────────
+function showLimitModal(errData) {
+  // errData: {error, resource, plan, limit, current, upgrade_url}
+  var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
+  var resourceMap = {loads:'грузов', responses:'откликов', subscriptions:'подписок'};
+  var resourceName = resourceMap[errData.resource] || errData.resource;
+  var planName = (errData.plan||'free').toUpperCase();
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:36px;margin-bottom:12px">🔒</div>
+      <div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Лимит плана ${planName}</div>
+      <div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.5">
+        Вы достигли лимита <b>${errData.limit} ${resourceName}</b> на плане ${planName}.<br>
+        Перейдите на Pro или Business для расширения лимитов.
+      </div>
+      <button onclick="switchCabTab('pricing',document.querySelector('[onclick*=pricing]'));this.closest('[style*=fixed]').remove()"
+        style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
+        💳 Смотреть тарифы
+      </button>
+      <button onclick="this.closest('[style*=fixed]').remove()"
+        style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">
+        Закрыть
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+window.showLimitModal = showLimitModal;
+
+// Обёртка: разбирает 403 ответ от API и показывает модал если limit_exceeded
+async function handleApiLimitError(response) {
+  if(response.status !== 403) return false;
+  try {
+    var d = await response.clone().json();
+    if(d.detail && d.detail.error === 'limit_exceeded') {
+      showLimitModal(d.detail);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}

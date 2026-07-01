@@ -99,6 +99,10 @@ const CaucasAPI = {
     if(r.ok && r.data?.id){
       return { ok: true, load: { ...load, id: r.data.id, serverId: r.data.id } };
     }
+    // 403 limit_exceeded
+    if(r.status === 403 && r.data?.detail?.error === 'limit_exceeded') {
+      return { ok: false, error: 'limit_exceeded', limitData: r.data.detail };
+    }
     return { ok: false, error: r.data?.detail || 'Ошибка сохранения' };
   },
 
