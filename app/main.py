@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import (loads, trucks, auth, ai, users, deals, responses,
                          tg_bot, cities, dictionaries, stats, subscriptions,
                          transport, transport_requests, transport_subscriptions,
-                         payments)
+                         payments, ads)
 from app.database import engine
-from app.models import user, load, truck, response, deal, city, status_change, payment  # noqa — регистрируем модели
+from app.models import user, load, truck, response, deal, city, status_change, payment, ad  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -166,6 +166,23 @@ async def lifespan(app: FastAPI):
         )""",
         "CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id)",
         "CREATE INDEX IF NOT EXISTS ix_payments_status ON payments(status)",
+        """CREATE TABLE IF NOT EXISTS ads (
+            id SERIAL PRIMARY KEY,
+            advertiser VARCHAR(200) NOT NULL,
+            image_url VARCHAR(500),
+            link_url VARCHAR(500) NOT NULL,
+            title VARCHAR(200),
+            description TEXT,
+            cta_text VARCHAR(100),
+            placement VARCHAR(50) NOT NULL,
+            clicks INTEGER DEFAULT 0,
+            impressions INTEGER DEFAULT 0,
+            active BOOLEAN DEFAULT TRUE,
+            start_date TIMESTAMP WITH TIME ZONE,
+            end_date TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_ads_placement_active ON ads(placement, active)",
     ]
     async with engine.begin() as conn:
         for sql in _emergency_migrations:
@@ -319,6 +336,7 @@ app.include_router(transport.router)
 app.include_router(transport_requests.router)
 app.include_router(transport_subscriptions.router)
 app.include_router(payments.router)
+app.include_router(ads.router)
 
 @app.get("/")
 def root():

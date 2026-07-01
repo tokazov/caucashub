@@ -451,6 +451,8 @@
       <tr><td><strong data-i18n-city="Тбилиси → Москва">Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td><span data-i18n-trips="11">11 рейсов</span></td></tr>
     </tbody>
   </table>
+  <!-- Блок 4: реклама под таблицей ставок -->
+  <div id="adSlotRates" style="padding:0 16px 12px"></div>
 </div>
 
 <!-- ═══ SECTION: ORDERS ═══ -->
@@ -1138,6 +1140,8 @@
       </div>
     </div>
     <div class="success-msg" id="respondSuccess"><span data-i18n="None"><span data-i18n="msg_respond_sent">✅ Заявка отправлена! Заказчик получит уведомление.</span></span></div>
+    <!-- Блок 5: реклама в модале груза -->
+    <div id="adSlotModal" style="margin-bottom:10px;position:relative"></div>
     <div id="respondActions" style="display:flex;gap:10px">
       <button id="btnRespond" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer" onclick="doRespond()">Откликнуться на груз</button>
       <button style="background:#f0f2f5;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;width:54px" onclick="showPhone()">📞</button>
@@ -1534,7 +1538,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782912177"></script>
+<script src="main.js?v=1782915697"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
