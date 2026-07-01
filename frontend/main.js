@@ -2425,7 +2425,7 @@ function switchCabTab(tab, el){
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
- if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; _setupCityAutocomplete('tsSubFrom',{lang:lang||'ru'}); _setupCityAutocomplete('tsSubTo',{lang:lang||'ru'}); }
+ if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; /* reset idempotency flag so autocomplete always re-initialises on tab open */ if(_f) delete _f.dataset.autocompleteReady; if(_t) delete _t.dataset.autocompleteReady; _setupCityAutocomplete('tsSubFrom',{lang:lang||'ru'}); _setupCityAutocomplete('tsSubTo',{lang:lang||'ru'}); }
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -5786,10 +5786,18 @@ function renderMyTransportSubs(subs) {
     list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_sub_empty||'Нет подписок на транспорт') + '</div></div>';
     return;
   }
+  var _curLang = (typeof lang !== 'undefined' ? lang : null) || 'ru';
+  var _T3 = TRANSLATIONS[_curLang] || TRANSLATIONS['ru'];
   list.innerHTML = subs.map(function(s) {
+    /* Always pass through translateCity — it handles both ka→ru and ru→ka based on lang */
+    var fromDisp = typeof translateCity==='function' ? translateCity(s.from_city) : s.from_city;
+    var toDisp   = typeof translateCity==='function' ? translateCity(s.to_city)   : s.to_city;
+    var statusColor = s.is_active ? '#2ecc71' : '#aaa';
+    var statusText  = s.is_active ? (_T3.sub_active||'Активна') : (_T3.sub_inactive||'Отключена');
     return '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin:8px 16px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
-        '<div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(s.from_city):s.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(s.to_city):s.to_city) + ' <span style="color:' + (s.is_active?'#2ecc71':'#aaa') + ';font-size:11px">● ' + (s.is_active?((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_active||'Активна'):((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_inactive||'Отключена')) + '</span></div>' +
+        '<div style="font-weight:700">' + esc(fromDisp) + ' → ' + esc(toDisp) +
+          ' <span style="color:' + statusColor + ';font-size:11px">● ' + statusText + '</span></div>' +
         '<button onclick="deleteTransportSub(' + s.id + ')" style="background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">✕</button>' +
       '</div>' +
       '<div style="font-size:12px;color:#aaa;margin-top:4px">TG: ' + (s.notify_tg?'✅':'—') + ' · Email: ' + (s.notify_email?'✅':'—') + '</div>' +
