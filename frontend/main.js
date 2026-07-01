@@ -646,6 +646,9 @@ function selectCity(dir, name, lat, lng, isCountry, nameRu){
   if(dropEl)  dropEl.classList.remove('open');
   if(dir==='from'){ selectedFrom=city; }
   else if(dir==='to'){ selectedTo=city; }
+  // subFrom/subTo — сохраняем в window как резерв
+  else if(dir==='subFrom'){ window._subFromValue = normalizedName; var elSF=document.getElementById('subFromCity'); if(elSF){ elSF.removeAttribute('readonly'); elSF.value=displayName; } }
+  else if(dir==='subTo'){   window._subToValue   = normalizedName; var elST=document.getElementById('subToCity');   if(elST){ elST.removeAttribute('readonly'); elST.value=displayName; } }
   // tsFrom/tsTo — сохраняем русское имя и явно пишем в поле
   else if(dir==='tsFrom'){ window._tsSubFromValue = normalizedName; var el=document.getElementById('tsSubFrom'); if(el) el.value=normalizedName; }
   else if(dir==='tsTo'){   window._tsSubToValue   = normalizedName; var el2=document.getElementById('tsSubTo');   if(el2) el2.value=normalizedName; }
@@ -5309,8 +5312,8 @@ function renderSubscriptions() {
 }
 
 window.createSubscription = async function() {
-  var fromCity = (document.getElementById('subFromCity')||{}).value||'';
-  var toCity   = (document.getElementById('subToCity')||{}).value||'';
+  var fromCity = (document.getElementById('subFromCity')||{}).value||(window._subFromValue||'');
+  var toCity   = (document.getElementById('subToCity')||{}).value||(window._subToValue||'');
   var errEl    = document.getElementById('subError');
   if(!fromCity.trim() || !toCity.trim()) {
     if(errEl){ errEl.textContent='Заполните города Откуда и Куда'; errEl.style.display='block'; }
@@ -5342,6 +5345,7 @@ window.createSubscription = async function() {
       if(document.getElementById('subToCity'))   document.getElementById('subToCity').value='';
       if(document.getElementById('subMaxWeight')) document.getElementById('subMaxWeight').value='';
       if(document.getElementById('subTruckType')) document.getElementById('subTruckType').value='';
+      window._subFromValue=''; window._subToValue='';
       await loadSubscriptions();
       pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), fromCity+' → '+toCity, []);
     } else {
