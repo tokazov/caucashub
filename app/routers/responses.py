@@ -165,17 +165,21 @@ async def respond_to_load(
 
     # TG-уведомление грузоотправителю
     if owner and owner.telegram_id and not owner.telegram_id.startswith("pending:"):
-        price_val = float(data.price) if data.price else 0
-        carrier_rating = round((current_user.rating or 50) / 10, 1)
-        carrier_deals = getattr(current_user, 'completed_deals_count', 0) or 0
-        asyncio.create_task(notify_new_response(
-            owner.telegram_id,
-            load.from_city, load.to_city, price_val, "₾",
-            carrier_rating=carrier_rating,
-            carrier_deals=carrier_deals,
-            load_id=load_id,
-            lang=owner.lang or "ru"
-        ))
+        try:
+            price_val = float(data.price) if data.price else 0
+            carrier_rating = round((current_user.rating or 50) / 10, 1)
+            carrier_deals = getattr(current_user, 'completed_deals_count', 0) or 0
+            asyncio.create_task(notify_new_response(
+                owner.telegram_id,
+                load.from_city, load.to_city, price_val, "₾",
+                carrier_rating=carrier_rating,
+                carrier_deals=carrier_deals,
+                load_id=load_id,
+                lang=owner.lang or "ru"
+            ))
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(f"TG notify failed (non-critical): {_e}")
 
     # Email грузоотправителю
     if owner and owner.email:
@@ -210,7 +214,11 @@ async def respond_to_load(
           {_email_footer(lang)}
         </div>
         """
-        await send_email(owner.email, subj, html)
+        try:
+            await send_email(owner.email, subj, html)
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning(f"Email send failed (non-critical): {_e}")
 
     resp_result = {
         "ok": True,
