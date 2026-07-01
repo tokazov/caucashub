@@ -88,6 +88,16 @@ async def respond_to_load(
     current_user: User = Depends(require_user)
 ):
     """Перевозчик откликается на груз"""
+    import traceback as _tb
+    try:
+        return await _respond_to_load_impl(load_id, data, request, db, current_user)
+    except Exception as _ex:
+        import logging
+        logging.getLogger(__name__).error(f"respond_to_load UNHANDLED: {_ex}\n{_tb.format_exc()}")
+        raise
+
+async def _respond_to_load_impl(load_id, data, request, db, current_user):
+    """Внутренняя реализация — для перехвата traceback"""
     # 2.5.4: idempotency check — защита от двойного отклика (Postgres-backed)
     from app.services.idempotency import check_idempotency, save_idempotency, make_idempotent_response
     cached, replayed = await check_idempotency(request, db, scope=f"respond_to_load:{load_id}", user_id=current_user.id)
@@ -225,9 +235,13 @@ async def respond_to_load(
         "response_id": resp.id,
         "status": resp.status.value if hasattr(resp.status, "value") else str(resp.status),
     }
-    await save_idempotency(request, db, scope=f"respond_to_load:{load_id}",
-                           user_id=current_user.id, response_status=200,
-                           response_body=resp_result)
+    try:
+        await save_idempotency(request, db, scope=f"respond_to_load:{load_id}",
+                               user_id=current_user.id, response_status=200,
+                               response_body=resp_result)
+    except Exception as _se:
+        import logging
+        logging.getLogger(__name__).warning(f"save_idempotency failed (non-critical): {_se}")
     return resp_result
 
 @router.get("/load/{load_id}")
