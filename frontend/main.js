@@ -6136,8 +6136,9 @@ async function handleApiLimitError(response) {
 window.openPromoteModal = function(loadId) {
   var PROMOTE_PRICES = {'24':'5','72':'12','168':'25'};
   var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
+  var isGe = lang === 'ge';
   // Переводы вариантов срока
-  var HOUR_LABELS = lang==='ge'
+  var HOUR_LABELS = isGe
     ? {'24':'24 საათი','72':'3 დღე','168':'7 დღე'}
     : {'24':'24 часа','72':'3 дня','168':'7 дней'};
   var modal = document.createElement('div');
@@ -6153,7 +6154,7 @@ window.openPromoteModal = function(loadId) {
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
     + '<div><input type="radio" name="promoteHours" value="168"> <b>'+HOUR_LABELS['168']+'</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
     + '</div>'
-    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">'+(_T.btn_buy||'💳 Купить за')+' ₾5</button>'
+    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">'+(isGe?'💳 ყიდვა ₾5':'💳 Купить за ₾5')+'</button>'
     + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">'+(_T.promote_close||'Закрыть')+'</button>'
     + '</div>';
   document.body.appendChild(modal);
@@ -6164,7 +6165,7 @@ window.openPromoteModal = function(loadId) {
     radio.addEventListener('change', function() {
       var p = PROMOTE_PRICES[this.value] || '5';
       var btn = modal.querySelector('#promoteTgBtn');
-      if(btn) btn.textContent = '💳 Купить за ₾' + p;
+      if(btn) btn.textContent = (lang==='ge' ? '💳 ყიდვა ₾' : '💳 Купить за ₾') + p;
     });
   });
 
