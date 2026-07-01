@@ -581,7 +581,9 @@ function filterCity(dir, val){
         drop.classList.add('open');
         return;
       }
-      // Рендерим результаты API
+      // Рендерим результаты API — дедупликация по nameRu
+      var _seenRu={};
+      results=results.filter(function(r){ var k=(r.name_ru||r.display_name.split(',')[0]).toLowerCase(); if(_seenRu[k]) return false; _seenRu[k]=1; return true; });
       let dropHtml=results.map(r=>{
         const nameRu=r.name_ru||r.display_name.split(',')[0];
         const nameLocal=r.name_local||'';
@@ -1436,7 +1438,8 @@ function updateRespondCount(){
   // Показываем в шапке профиля
   const pr = document.getElementById('profileRole');
   if(pr && user){
-    const role = user.role==='shipper' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик';
+    const _Tru = TRANSLATIONS['ru'];
+    const role = user.role==='shipper' ? _Tru.role_shipper||'Грузовладелец' : user.role==='both' ? _Tru.role_both||'Перевозчик и грузовладелец' : _Tru.role_carrier||'Перевозчик';
     pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
@@ -2457,7 +2460,7 @@ function showCabinet(){
  var subEl = document.getElementById('cabUserSub');
  var avatarEl = document.getElementById('cabAvatar');
  if(nameEl) nameEl.textContent = u.name || u.company_name || u.email || '';
- if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик' : (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец') : '');
+ if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? TRANSLATIONS['ru'].role_carrier||'Перевозчик' : u.role === 'both' ? TRANSLATIONS['ru'].role_both||'Перевозчик и грузовладелец' : TRANSLATIONS['ru'].role_shipper||'Грузовладелец') : '');
  if(avatarEl){
  var nm = u.name || u.company_name || u.email || '?';
  avatarEl.textContent = nm.charAt(0).toUpperCase();
@@ -5319,9 +5322,17 @@ function renderSubscriptions() {
   list.innerHTML = html;
 }
 
+// Нормализует название города: грузинский → русский (для хранения в БД)
+function _cityToRu(name) {
+  if(!name) return name;
+  if(!/[\u10d0-\u10ff]/.test(name)) return name; // уже не грузинский
+  var found = (typeof CITIES!=='undefined'?CITIES:[]).find(function(c){ return c.nameGe && c.nameGe === name.trim(); });
+  return found ? found.name : name;
+}
+
 window.createSubscription = async function() {
-  var fromCity = (document.getElementById('subFromCity')||{}).value||(window._subFromValue||'');
-  var toCity   = (document.getElementById('subToCity')||{}).value||(window._subToValue||'');
+  var fromCity = _cityToRu((document.getElementById('subFromCity')||{}).value||(window._subFromValue||''));
+  var toCity   = _cityToRu((document.getElementById('subToCity')||{}).value||(window._subToValue||''));
   var errEl    = document.getElementById('subError');
   if(!fromCity.trim() || !toCity.trim()) {
     if(errEl){ errEl.textContent='Заполните города Откуда и Куда'; errEl.style.display='block'; }
@@ -5825,8 +5836,8 @@ function renderMyTransportSubs(subs) {
 }
 
 window.createTransportSub = async function() {
-  var from = (document.getElementById('tsSubFrom')||{}).value||window._tsSubFromValue||'';
-  var to   = (document.getElementById('tsSubTo')  ||{}).value||window._tsSubToValue  ||'';
+  var from = _cityToRu((document.getElementById('tsSubFrom')||{}).value||window._tsSubFromValue||'');
+  var to   = _cityToRu((document.getElementById('tsSubTo')  ||{}).value||window._tsSubToValue  ||'');
   var errEl = document.getElementById('tsSubError');
   if(!from.trim()||!to.trim()){ if(errEl){errEl.textContent=((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_fill_cities||'Заполните оба города');errEl.style.display='block';} return; }
   if(errEl) errEl.style.display='none';
