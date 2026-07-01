@@ -151,6 +151,21 @@ async def lifespan(app: FastAPI):
         "CREATE INDEX IF NOT EXISTS ix_transport_sub_route ON transport_subscriptions(from_city, to_city, is_active)",
         "ALTER TABLE deals ADD COLUMN IF NOT EXISTS transport_offer_id INTEGER REFERENCES transport_offers(id)",
         "ALTER TABLE deals ADD COLUMN IF NOT EXISTS transport_request_id INTEGER REFERENCES transport_requests(id)",
+        # payments table (2026-07-01)
+        """CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            type VARCHAR(50) NOT NULL,
+            payload JSONB NOT NULL DEFAULT '{}',
+            amount_gel NUMERIC(10,2) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            provider VARCHAR(30) NOT NULL DEFAULT 'manual',
+            provider_tx_id VARCHAR(200),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            paid_at TIMESTAMP WITH TIME ZONE
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_payments_status ON payments(status)",
     ]
     async with engine.begin() as conn:
         for sql in _emergency_migrations:
