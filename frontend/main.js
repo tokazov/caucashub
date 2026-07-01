@@ -4472,6 +4472,16 @@ async function admLoadAds() {
         +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
         +'<div style="font-size:11px;color:#8a9bb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+(a.title||a.link_url||'')+'</div></div>'
         +'<span style="'+pill+'">'+PLACEMENT_LABELS[a.placement]+'</span></div>'
+        // Dates row
+        +(function(){
+          var fmt = function(s){ if(!s) return null; var d=new Date(s); return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}); };
+          var start = fmt(a.created_at||a.start_date);
+          var end = fmt(a.end_date);
+          var parts = [];
+          if(start) parts.push('📅 с '+start);
+          if(end) parts.push('по '+end);
+          return parts.length ? '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+parts.join(' ')+'</div>' : '';
+        })()
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;gap:4px;border-bottom:0.5px solid #f0ede6">'
         +'<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
         +'<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+clk+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Клики</div></div>'

@@ -132,11 +132,16 @@ async def admin_list(
             "clicks": a.clicks,
             "impressions": a.impressions,
             "title": a.title,
+            "title_ge": a.title_ge,
+            "description": a.description,
+            "description_ge": a.description_ge,
             "image_url": a.image_url,
             "link_url": a.link_url,
             "cta_text": a.cta_text,
-            "start_date": a.start_date,
-            "end_date": a.end_date,
+            "cta_text_ge": a.cta_text_ge,
+            "start_date": a.start_date.isoformat() if a.start_date else None,
+            "end_date": a.end_date.isoformat() if a.end_date else None,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
         }
         for a in ads
     ]}
