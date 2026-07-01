@@ -5260,10 +5260,11 @@ var _subscriptions = [];
 
 async function loadSubscriptions() {
   var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
-  if(!tk) return;
+  if(!tk) { console.warn('[SUB] no token, skip'); return; }
   try {
     var r = await fetch(API_BASE + '/api/subscriptions/', {headers:{'Authorization':'Bearer '+tk}});
     var d = await r.json();
+    console.log('[SUB] API response:', JSON.stringify(d).slice(0,200));
     _subscriptions = d.subscriptions || [];
     renderSubscriptions();
   } catch(e) {
@@ -5273,7 +5274,8 @@ async function loadSubscriptions() {
 
 function renderSubscriptions() {
   var list = document.getElementById('subscriptionsList');
-  if(!list) return;
+  if(!list) { console.warn('[SUB] subscriptionsList not found in DOM'); return; }
+  console.log('[SUB] rendering', _subscriptions.length, 'subscriptions');
   if(!_subscriptions.length) {
     list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_title||'Нет подписок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_sub||'Подпишитесь на маршрут — получите уведомление когда появится новый груз') + '</div></div>';
     return;
