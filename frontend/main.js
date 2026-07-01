@@ -4421,10 +4421,10 @@ window.switchAdminTab = function(tab, el) {
   var mContent = document.getElementById('mContent');
   if(mContent) mContent.scrollTop=0;
 
-  if(tab === 'ads') admLoadAds();
+  if(tab === 'ads') { _admRestoreAdsKpi(); admLoadAds(); }
   if(tab === 'payments') admLoadPayments('pending');
   if(tab === 'users') { admLoadUsers(''); _admLoadPlatformStats(); }
-  if(tab === 'stats') admLoadStats();
+  if(tab === 'stats') { _admRestoreAdsKpi(); admLoadStats(); }
 };
 
 // ── KPI ───────────────────────────────────────────────────────────────────────
