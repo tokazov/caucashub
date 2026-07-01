@@ -4573,29 +4573,34 @@ async function admLoadStats() {
     var revenue = _admAdsCache.filter(function(a){return a.active;}).reduce(function(s,a){return s+(PLACEMENT_PRICES[a.placement]||0);},0);
     var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'};
 
-    var table = document.getElementById('admStatsTable');
-    if(table) table.innerHTML = '<div class="adm-pay-card">'
-      + _admAdsCache.map(function(a){
+        var table = document.getElementById('admStatsTable');
+    if(table) {
+      var html = _admAdsCache.map(function(a){
           var imp=a.impressions||0, clk=a.clicks||0;
           var ctr=imp>0?(clk/imp*100).toFixed(1)+'%':'0%';
           var pill = pillClass[a.placement]||'place-feed';
-          return '<div class="adm-pay-row">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-            + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
-            + '<span class="place-pill '+pill+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+' · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'</span>'
+          var initials = a.advertiser.split(/\s+/).map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
+          return '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:1px solid #e0ddd6;overflow:hidden">'
+            + '<div style="padding:12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0ede6">'
+            + '<div style="width:38px;height:38px;border-radius:8px;background:#f0ede6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0f1923;flex-shrink:0">'+initials+'</div>'
+            + '<div style="flex:1"><div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
+            + (a.link_url ? '<div style="font-size:11px;color:#8a9bb0">'+a.link_url.replace(/https?:\/\//,'')+'</div>' : '')
             + '</div>'
-            + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">'
-            + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val" style="font-size:14px">'+imp+'</div><div class="adm-ad-stat-lab">Показы</div></div>'
-            + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val" style="font-size:14px">'+clk+'</div><div class="adm-ad-stat-lab">Клики</div></div>'
-            + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val" style="font-size:14px">'+ctr+'</div><div class="adm-ad-stat-lab">CTR</div></div>'
+            + '<span class="place-pill '+pill+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+'<br><span style="font-weight:700">₾'+(PLACEMENT_PRICES[a.placement]||0)+'</span></span>'
+            + '</div>'
+            + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px">'
+            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
+            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+clk+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Клики</div></div>'
+            + '<div style="text-align:center"><div style="font-size:15px;font-weight:600;color:#0f1923">'+ctr+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">CTR</div></div>'
             + '</div>'
             + '</div>';
-        }).join('')
-      + '<div style="padding:10px 14px;border-top:1px solid #e0ddd6;display:flex;justify-content:space-between;font-size:12px">'
-      + '<span style="color:#8a9bb0">Итого за месяц</span>'
-      + '<span style="font-weight:700;color:#854F0B">₾'+revenue+'</span>'
-      + '</div>'
-      + '</div>';
+        }).join('');
+      html += '<div style="margin:0 12px;background:#fff;border-radius:12px;padding:12px 14px;border:1px solid #e0ddd6;display:flex;justify-content:space-between;font-size:13px">'
+        + '<span style="color:#8a9bb0">Итого за месяц</span>'
+        + '<span style="font-weight:700;color:#854F0B">₾'+revenue+'</span>'
+        + '</div>';
+      table.innerHTML = html;
+    }
   } catch(e) {}
 }
 
