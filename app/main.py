@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import (loads, trucks, auth, ai, users, deals, responses,
                          tg_bot, cities, dictionaries, stats, subscriptions,
-                         transport, transport_requests, transport_subscriptions)
+                         transport, transport_requests, transport_subscriptions,
+                         payments)
 from app.database import engine
 from app.models import user, load, truck, response, deal, city, status_change  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
@@ -302,6 +303,7 @@ app.include_router(subscriptions.router, tags=["subscriptions"])
 app.include_router(transport.router)
 app.include_router(transport_requests.router)
 app.include_router(transport_subscriptions.router)
+app.include_router(payments.router)
 
 @app.get("/")
 def root():

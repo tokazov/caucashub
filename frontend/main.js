@@ -6070,6 +6070,7 @@ async function handleApiLimitError(response) {
 
 // ── Продвижение груза в топ ──────────────────────────────────────────────────
 window.openPromoteModal = function(loadId) {
+  var PROMOTE_PRICES = {'24':'5','72':'12','168':'25'};
   var modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
@@ -6083,9 +6084,66 @@ window.openPromoteModal = function(loadId) {
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
     + '<div><input type="radio" name="promoteHours" value="168"> <b>7 дней</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
     + '</div>'
-    + '<a href="https://t.me/tokazov" target="_blank" style="display:block;background:#f7b731;color:#1a1a2e;text-align:center;padding:12px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:8px">✉️ Написать нам в Telegram @tokazov</a>'
+    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">✉️ Написать нам в Telegram @tokazov</button>'
     + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">Закрыть</button>'
     + '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  // Кнопка создаёт payment record, потом открывает Telegram
+  modal.querySelector('#promoteTgBtn').addEventListener('click', async function() {
+    var btn = this;
+    var hours = (modal.querySelector('input[name="promoteHours"]:checked')||{}).value || '24';
+    var price = PROMOTE_PRICES[hours] || '5';
+    var payType = 'promote_' + hours + 'h';
+    btn.disabled = true; btn.textContent = '⏳ Создаём заявку...';
+    var tk = typeof getToken==='function' ? getToken() : null;
+    var paymentId = null;
+    if(tk) {
+      try {
+        var r = await fetch(API_BASE + '/api/payments/create', {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+          body: JSON.stringify({type: payType, payload: {load_id: parseInt(loadId)}})
+        });
+        var d = await r.json();
+        paymentId = d.payment_id;
+        if(paymentId) localStorage.setItem('pending_payment_' + paymentId, JSON.stringify({type:payType, load_id:loadId, created:Date.now()}));
+        // Если TBC вернул pay_url — открываем его
+        if(d.pay_url) { window.open(d.pay_url, '_blank'); modal.remove(); return; }
+      } catch(e) {}
+    }
+    // Открываем Telegram с деталями
+    var text = encodeURIComponent('Хочу поднять груз #' + loadId + ' на ' + hours + ' ч за ₾' + price + (paymentId ? '. Payment ID: ' + paymentId : ''));
+    window.open('https://t.me/tokazov?text=' + text, '_blank');
+    btn.textContent = '✅ Telegram открыт';
+    setTimeout(function(){ modal.remove(); }, 1500);
+  });
+};
+
+// ── Покупка тарифного плана ──────────────────────────────────────────────────
+window.openPlanPayment = async function(planType) {
+  var PLAN_PRICES = {'plan_pro': '49', 'plan_business': '149'};
+  var PLAN_NAMES  = {'plan_pro': 'Pro', 'plan_business': 'Business'};
+  var price = PLAN_PRICES[planType] || '49';
+  var name  = PLAN_NAMES[planType]  || 'Pro';
+
+  var tk = typeof getToken==='function' ? getToken() : null;
+  if(!tk) { openAuth('login'); return; }
+
+  var paymentId = null;
+  try {
+    var r = await fetch(API_BASE + '/api/payments/create', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body: JSON.stringify({type: planType, payload: {}})
+    });
+    var d = await r.json();
+    paymentId = d.payment_id;
+    if(paymentId) localStorage.setItem('pending_payment_' + paymentId, JSON.stringify({type:planType, created:Date.now()}));
+    if(d.pay_url) { window.open(d.pay_url, '_blank'); return; }
+  } catch(e) {}
+
+  var text = encodeURIComponent('Хочу подключить план ' + name + ' за ₾' + price + '/мес' + (paymentId ? '. Payment ID: ' + paymentId : ''));
+  window.open('https://t.me/tokazov?text=' + text, '_blank');
 };
