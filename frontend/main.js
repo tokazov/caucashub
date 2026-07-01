@@ -3053,6 +3053,8 @@ const TRANSLATIONS = {
     stat_loads: 'грузов',
     stat_trucks: 'машин онлайн',
     stat_companies: 'компаний',
+    stat_users: 'пользователей',
+    stat_online: 'онлайн',
     type_tent: 'Тент',
     type_ref: 'Рефриж.',
     type_bort: 'Борт',
@@ -3608,6 +3610,8 @@ const TRANSLATIONS = {
     stat_loads: 'ტვირთი',
     stat_trucks: 'მანქანა ონლაინ',
     stat_companies: 'კომპანია',
+    stat_users: 'მომხმარებელი',
+    stat_online: 'ონლაინ',
     type_tent: 'ტენტი',
     type_ref: 'რეფრიჟ.',
     type_bort: 'ბორტი',
@@ -4625,6 +4629,17 @@ window.admActivatePayment = async function(id){
 async function admLoadStats(){
   try{
     if(!_admAdsCache.length){var r=await fetch(ADMIN_API+'/api/ads/admin/list',{headers:{'X-Admin-Secret':_admToken()}});var d=await r.json();_admAdsCache=d.ads||[];}
+    // Платформенная статистика
+    fetch(ADMIN_API+'/api/admin/stats',{headers:{'X-Admin-Secret':_admToken()}})
+      .then(function(r2){return r2.json();}).then(function(ps){
+        var dpU=document.getElementById('dpStatUsers'); if(dpU) dpU.textContent=ps.total_users||'—';
+        var dpN=document.getElementById('dpStatNew'); if(dpN) dpN.textContent='+'+(ps.new_this_month||0);
+        var dpO=document.getElementById('dpStatOnline'); if(dpO) dpO.textContent=ps.online_users!==undefined?ps.online_users:'—';
+      }).catch(function(){});
+    // Также из counters для online_users
+    fetch(ADMIN_API+'/api/stats/counters').then(function(r3){return r3.json();}).then(function(ct){
+      var dpO=document.getElementById('dpStatOnline'); if(dpO&&ct.online_users!=null) dpO.textContent=ct.online_users;
+    }).catch(function(){});
     var now=new Date();
     var months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     var month=months[now.getMonth()]+' '+now.getFullYear();

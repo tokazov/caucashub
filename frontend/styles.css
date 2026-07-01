@@ -47,6 +47,7 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* STATS */
 .stats-bar { background:#0d1526; padding:8px 16px; display:flex; gap:20px; font-size:13px; color:#666; }
 .dot { width:6px; height:6px; border-radius:50%; background:#2ecc71; display:inline-block; margin-right:4px; animation:pulse 2s infinite; }
+.dot-green { background:#2ecc71; }
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* FILTERS */

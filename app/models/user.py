@@ -44,6 +44,8 @@ class User(Base):
     responses_month_reset = Column(DateTime, nullable=True)
     # Фикс 3: инвалидация JWT при смене пароля (OQ-008 partial)
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
+    # Online tracking
+    last_seen = Column(DateTime, nullable=True)  # naive UTC, обновляется при /api/users/me
     # Demo mode (ADR-012)
     is_demo     = Column(Boolean, default=False, nullable=False)
     # Soft delete (ADR-010 GDPR)

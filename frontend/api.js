@@ -385,15 +385,27 @@ window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRout
     if(ldEl) ldEl.textContent = '0';
   };
   _initZero(); // сразу при загрузке
+  function _applyCounters(d) {
+    var trEl = document.getElementById('statTrucks');
+    var coEl = document.getElementById('statCompanies');
+    var ldEl = document.getElementById('statLoads');
+    var usEl = document.getElementById('statUsers');
+    var olEl = document.getElementById('statOnlineUsers');
+    if(trEl) trEl.textContent = (d.online_trucks != null ? d.online_trucks : 0).toLocaleString();
+    if(coEl) coEl.textContent = (d.companies != null ? d.companies : 0).toLocaleString();
+    if(ldEl) ldEl.textContent = (d.active_loads != null ? d.active_loads : 0).toLocaleString();
+    if(usEl && d.total_users != null) usEl.textContent = d.total_users.toLocaleString();
+    if(olEl && d.online_users != null) olEl.textContent = d.online_users.toLocaleString();
+  }
   fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
     .then(function(r){ return r.json(); })
-    .then(function(d){
-      var trEl = document.getElementById('statTrucks');
-      var coEl = document.getElementById('statCompanies');
-      var ldEl = document.getElementById('statLoads');
-      if(trEl) trEl.textContent = (d.online_trucks != null ? d.online_trucks : 0).toLocaleString();
-      if(coEl) coEl.textContent = (d.companies != null ? d.companies : 0).toLocaleString();
-      if(ldEl) ldEl.textContent = (d.active_loads != null ? d.active_loads : 0).toLocaleString();
-    })
+    .then(_applyCounters)
     .catch(function(){ _initZero(); });
+  // Обновление онлайн каждые 30 секунд
+  setInterval(function(){
+    fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
+      .then(function(r){ return r.json(); })
+      .then(_applyCounters)
+      .catch(function(){});
+  }, 30000);
 })();

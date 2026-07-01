@@ -64,6 +64,10 @@ async def get_me(
     user = current_user
     if not user:
         raise HTTPException(404, "User not found")
+    # Обновляем last_seen для online tracking
+    from datetime import datetime as _dt
+    user.last_seen = _dt.utcnow()
+    await db.commit()
     plan_val = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
     return {
         "id":                    user.id,

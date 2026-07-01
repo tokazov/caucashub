@@ -73,10 +73,34 @@ async def get_counters(db: AsyncSession = Depends(get_db)):
         )
         companies = companies_res.scalar() or 0
 
+        # Всего пользователей
+        from app.models.user import User as UserModel
+        total_users_res = await db.execute(
+            select(func.count(UserModel.id)).where(
+                UserModel.is_deleted.is_(False),
+                UserModel.is_demo.is_(False)
+            )
+        )
+        total_users = total_users_res.scalar() or 0
+
+        # Онлайн — last_seen за последние 5 минут
+        from datetime import datetime as _dt
+        online_cutoff = _dt.utcnow() - timedelta(minutes=5)
+        online_users_res = await db.execute(
+            select(func.count(UserModel.id)).where(
+                UserModel.is_deleted.is_(False),
+                UserModel.last_seen.isnot(None),
+                UserModel.last_seen >= online_cutoff
+            )
+        )
+        online_users = online_users_res.scalar() or 0
+
         data = {
             "active_loads":   active_loads,
             "online_trucks":  online_trucks,
             "companies":      companies,
+            "total_users":    total_users,
+            "online_users":   online_users,
             "cached_at":      now.isoformat(),
             "cache_ttl_min":  10,
         }
