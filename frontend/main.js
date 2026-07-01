@@ -6486,7 +6486,7 @@ window.openPromoteModal = function(loadId) {
     }
     // Открываем Telegram с деталями
     var text = encodeURIComponent('Хочу поднять груз #' + loadId + ' на ' + hours + ' ч за ₾' + price + (paymentId ? '. Payment ID: ' + paymentId : ''));
-    window.open('https://t.me/caucashub_bot?text=' + text, '_blank');
+    window.open('https://t.me/caucashub_bot', '_blank');
     btn.textContent = '✅ Telegram открыт';
     setTimeout(function(){ modal.remove(); }, 1500);
   });
@@ -6516,7 +6516,7 @@ window.openPlanPayment = async function(planType) {
   } catch(e) {}
 
   var text = encodeURIComponent('Хочу подключить план ' + name + ' за ₾' + price + '/мес' + (paymentId ? '. Payment ID: ' + paymentId : ''));
-  window.open('https://t.me/caucashub_bot?text=' + text, '_blank');
+  window.open('https://t.me/caucashub_bot', '_blank');
 };
 
 // ── Страница /payment/success ─────────────────────────────────────────────────
