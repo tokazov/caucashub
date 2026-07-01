@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import select, update
@@ -417,6 +417,34 @@ async def bog_callback(
             logger.error(f"[BOG CALLBACK] Error: {e}")
 
     return "OK"
+
+
+@router.get("/admin/payments/list")
+async def admin_payments_list(
+    status: Optional[str] = None,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    x_admin_secret: str = Header(default=""),
+):
+    if x_admin_secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    q = select(Payment).order_by(Payment.id.desc()).limit(limit)
+    if status:
+        q = q.where(Payment.status == status)
+    result = await db.execute(q)
+    payments = result.scalars().all()
+    return {"payments": [
+        {
+            "id": p.id,
+            "user_id": p.user_id,
+            "type": p.type,
+            "amount_gel": p.amount_gel,
+            "status": p.status,
+            "pay_url": p.pay_url,
+            "created_at": p.created_at,
+        }
+        for p in payments
+    ]}
 
 
 @router.post("/admin/payments/{payment_id}/activate")

@@ -1540,7 +1540,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782920480"></script>
+<script src="main.js?v=1782925854"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1752,6 +1752,119 @@
       </div>
       <a href="https://t.me/caucashub_bot" target="_blank" style="display:block;background:#f7b731;color:#1a1a2e;text-decoration:none;padding:16px;border-radius:12px;font-weight:800;font-size:16px;margin-bottom:10px" data-i18n="advertise_tg_btn">📱 Написать в Telegram @caucashub_bot</a>
       <a href="mailto:ads@caucashub.ge" style="display:block;background:#2a2a40;color:#aaa;text-decoration:none;padding:12px;border-radius:12px;font-weight:600;font-size:14px" data-i18n="adv_email_btn">✉️ ads@caucashub.ge</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADMIN PANEL OVERLAY ═══ -->
+<div id="adminOverlay" style="display:none;position:fixed;inset:0;background:#f0f2f5;z-index:99995;overflow-y:auto">
+  <!-- Login screen -->
+  <div id="adminLogin" style="display:flex;align-items:center;justify-content:center;min-height:100vh">
+    <div style="background:#fff;border-radius:16px;padding:32px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.1)">
+      <div style="font-size:24px;font-weight:900;color:#1a1a2e;margin-bottom:4px">🏗️ Admin Panel</div>
+      <div style="font-size:13px;color:#888;margin-bottom:24px">CaucasHub.ge</div>
+      <input id="adminPassInput" type="password" placeholder="Пароль администратора"
+        style="width:100%;padding:12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:12px"
+        onkeydown="if(event.key==='Enter') adminLogin()">
+      <button onclick="adminLogin()" style="width:100%;background:#1a1a2e;color:#fff;border:none;padding:13px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer">Войти</button>
+      <div id="adminLoginErr" style="color:#e74c3c;font-size:12px;margin-top:8px;display:none">Неверный пароль</div>
+      <button onclick="closeAdminPanel()" style="width:100%;background:none;border:none;color:#aaa;font-size:13px;margin-top:12px;cursor:pointer">✕ Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Cabinet -->
+  <div id="adminCabinet" style="display:none;max-width:1100px;margin:0 auto;padding:20px 16px 60px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:20px;font-weight:900;color:#1a1a2e">🏗️ Admin Panel</div>
+      <button onclick="closeAdminPanel()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;background:#fff;border-radius:12px;padding:6px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <button class="adm-tab active" onclick="switchAdminTab('ads',this)">📢 Реклама</button>
+      <button class="adm-tab" onclick="switchAdminTab('stats',this)">📊 Статистика</button>
+      <button class="adm-tab" onclick="switchAdminTab('payments',this)">💳 Платежи</button>
+      <button class="adm-tab" onclick="switchAdminTab('users',this)">👥 Пользователи</button>
+    </div>
+
+    <!-- TAB: ADS -->
+    <div id="admTab-ads">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:700;font-size:15px">Рекламные баннеры</div>
+        <button onclick="admOpenAdForm(null)" style="background:#f7b731;color:#1a1a2e;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">+ Новый баннер</button>
+      </div>
+      <div id="admAdsList" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- TAB: STATS -->
+    <div id="admTab-stats" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px" id="admStatsCards"></div>
+      <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-weight:700">По рекламодателям</div>
+          <button onclick="admCopyReport()" style="background:#f0f2f5;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📋 Копировать отчёт</button>
+        </div>
+        <div id="admStatsTable"></div>
+      </div>
+    </div>
+
+    <!-- TAB: PAYMENTS -->
+    <div id="admTab-payments" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="admLoadPayments('pending')" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">⏳ Pending</button>
+        <button onclick="admLoadPayments('')" style="background:#f0f2f5;color:#555;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Все</button>
+      </div>
+      <div id="admPaymentsList" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- TAB: USERS -->
+    <div id="admTab-users" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="admUserSearch" type="text" placeholder="Поиск по email..."
+          style="flex:1;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px"
+          oninput="admLoadUsers(this.value)">
+      </div>
+      <div id="admUsersList" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad Form Modal -->
+  <div id="admAdFormModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:none;align-items:center;justify-content:center;padding:16px">
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:800;margin-bottom:16px" id="admAdFormTitle">Новый баннер</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input id="admF_advertiser" placeholder="Рекламодатель *" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <select id="admF_placement" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+          <option value="feed">feed — Лента грузов</option>
+          <option value="rates">rates — Таблица ставок</option>
+          <option value="modal">modal — Карточка груза</option>
+        </select>
+        <input id="admF_title" placeholder="Заголовок RU (до 7 слов)" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_title_ge" placeholder="Заголовок GE" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_description" placeholder="Описание RU (до 60 символов)" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_description_ge" placeholder="Описание GE" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_cta_text" placeholder="Текст кнопки RU (до 4 слов)" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_cta_text_ge" placeholder="Текст кнопки GE" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_link_url" placeholder="Ссылка URL *" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <input id="admF_image_url" placeholder="URL логотипа (PNG/SVG, опционально)" style="padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px">
+        <div style="display:flex;gap:8px">
+          <input id="admF_start_date" type="date" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px" title="Дата начала (опционально)">
+          <input id="admF_end_date" type="date" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px" title="Дата окончания (опционально)">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <input type="checkbox" id="admF_active" checked> Активен
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="admSaveAd()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:8px;font-weight:700;cursor:pointer">Сохранить</button>
+        <button onclick="admCloseAdForm()" style="flex:1;background:#f0f2f5;color:#555;border:none;padding:12px;border-radius:8px;font-weight:600;cursor:pointer">Отмена</button>
+      </div>
     </div>
   </div>
 </div>
