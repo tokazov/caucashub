@@ -4121,8 +4121,19 @@ function setLang(l, btn) {
   try { if(typeof renderCabLoads === 'function' && document.getElementById('myLoadsList')) renderCabLoads(); } catch(e) {}
   try { if(typeof renderCabResponses === 'function' && document.getElementById('myResponsesList')) renderCabResponses(); } catch(e) {}
   try { if(typeof renderCabDeals === 'function' && document.getElementById('myDealsList')) renderCabDeals(); } catch(e) {}
-  if(_currentCabTab === 'subscriptions' && typeof loadSubscriptions === 'function') { loadSubscriptions(); if(typeof applyLang==='function') applyLang(l); }
-  if(_currentCabTab === 'transport-subs' && typeof loadMyTransportSubs === 'function') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(l); }
+  // Перерисовываем активную вкладку кабинета при смене языка
+  try {
+    var _tab = _currentCabTab || 'loads';
+    if(_tab === 'subscriptions' && typeof loadSubscriptions === 'function') loadSubscriptions();
+    else if(_tab === 'transport-subs' && typeof loadMyTransportSubs === 'function') loadMyTransportSubs();
+    else if(_tab === 'pricing' && typeof renderPricingTab === 'function') renderPricingTab();
+    else if(_tab === 'payments' && typeof loadMyPayments === 'function') loadMyPayments();
+    else if(_tab === 'loads' && typeof renderCabLoads === 'function') renderCabLoads();
+    else if(_tab === 'responses' && typeof renderCabResponses === 'function') renderCabResponses();
+    else if(_tab === 'deals' && typeof renderCabDeals === 'function') renderCabDeals();
+    // Всегда обновляем paywall
+    if(typeof _applyPaywallLang === 'function') _applyPaywallLang();
+  } catch(e) {}
   // AI чат placeholder и приветствие
   var aiInp = document.getElementById('aiInput');
   if(aiInp){ var phs={ru:'Напишите о грузе...',ge:'დაწერეთ ტვირთის შესახებ...',en:'Describe your cargo...'}; aiInp.placeholder=phs[l]||phs['ru']; }
