@@ -583,3 +583,27 @@ async def cancel_response(
     await log_status_change(db, "response", resp.id, current_status, "withdrawn", current_user.id)
     await db.commit()
     return {"ok": True, "status": "withdrawn"}
+
+
+@router.post("/debug/test-load/{load_id}")
+async def debug_test_respond(
+    load_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_user)
+):
+    """Debug endpoint — диагностика ошибки отклика"""
+    import traceback
+    try:
+        from app.services.exchange_rate import get_usd_gel_rate
+        rate = await get_usd_gel_rate()
+        load_res = await db.execute(select(Load).where(Load.id == load_id))
+        load = load_res.scalar_one_or_none()
+        return {
+            "rate": rate,
+            "load": str(load),
+            "load_status": str(load.status) if load else None,
+            "user_plan": current_user.plan,
+            "responses_this_month": current_user.responses_this_month,
+        }
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()[-1000:]}
