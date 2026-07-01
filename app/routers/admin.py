@@ -48,14 +48,13 @@ async def admin_list_users(
         {
             "id": u.id,
             "email": u.email,
-            "company_name": u.company_name,
-            "role": u.role,
-            "plan": u.plan,
+            "company_name": getattr(u, "company_name", None),
+            "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+            "plan": u.plan.value if hasattr(u.plan, "value") else str(u.plan),
             "is_active": u.is_active,
-            "tg_chat_id": u.tg_chat_id,
-            "created_at": u.created_at,
-            "responses_count": u.responses_count,
-            "responses_limit": u.responses_limit,
+            "tg_chat_id": getattr(u, "telegram_id", None),
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "completed_deals": getattr(u, "completed_deals_count", 0),
         }
         for u in users
     ]}
