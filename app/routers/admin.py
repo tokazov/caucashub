@@ -31,6 +31,62 @@ class PlanUpdate(BaseModel):
     plan: str  # free | pro | pro_plus | business
 
 
+@router.get("/stats")
+async def admin_stats(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Общая статистика платформы."""
+    from sqlalchemy import func as sqlfunc
+    from datetime import datetime, timezone
+    import calendar
+
+    now = datetime.now(timezone.utc)
+    # Начало текущего месяца
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Всего пользователей
+    total_users_q = await db.execute(select(sqlfunc.count(User.id)).where(User.is_active == True))
+    total_users = total_users_q.scalar() or 0
+
+    # Новых за месяц
+    new_this_month_q = await db.execute(
+        select(sqlfunc.count(User.id)).where(
+            User.is_active == True,
+            User.created_at >= month_start
+        )
+    )
+    new_this_month = new_this_month_q.scalar() or 0
+
+    # Всего грузов активных
+    from app.models.load import Load, LoadStatus
+    total_loads_q = await db.execute(select(sqlfunc.count(Load.id)).where(Load.status == LoadStatus.active))
+    total_loads = total_loads_q.scalar() or 0
+
+    # Всего грузов за месяц
+    new_loads_q = await db.execute(
+        select(sqlfunc.count(Load.id)).where(Load.created_at >= month_start)
+    )
+    new_loads_month = new_loads_q.scalar() or 0
+
+    # Pro/Business пользователей
+    paid_q = await db.execute(
+        select(sqlfunc.count(User.id)).where(
+            User.plan.in_(['pro', 'pro_plus', 'business']),
+            User.is_active == True
+        )
+    )
+    paid_users = paid_q.scalar() or 0
+
+    return {
+        "total_users": total_users,
+        "new_this_month": new_this_month,
+        "paid_users": paid_users,
+        "total_loads": total_loads,
+        "new_loads_month": new_loads_month,
+    }
+
+
 @router.get("/users")
 async def admin_list_users(
     search: Optional[str] = None,

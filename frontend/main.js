@@ -4423,7 +4423,7 @@ window.switchAdminTab = function(tab, el) {
 
   if(tab === 'ads') admLoadAds();
   if(tab === 'payments') admLoadPayments('pending');
-  if(tab === 'users') admLoadUsers('');
+  if(tab === 'users') { admLoadUsers(''); _admLoadPlatformStats(); }
   if(tab === 'stats') admLoadStats();
 };
 
