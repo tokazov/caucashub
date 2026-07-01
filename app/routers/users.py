@@ -48,10 +48,11 @@ class SetPlanRequest(BaseModel):
 
 
 PLAN_LIMITS = {
-    "free":     0,
+    "free":     10,
     "standard": 50,
-    "pro":      -1,   # безлимит
-    "pro_plus": -1,   # безлимит
+    "pro":      100,
+    "pro_plus": 0,    # 0 = безлимит
+    "business": 0,
 }
 
 

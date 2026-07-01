@@ -848,7 +848,7 @@ function renderLoads(data){
     // Бейдж
     let badgeHtml = '';
     if(d.is_demo) badgeHtml = `<span class="badge-demo">🟡 ДЕМО</span>`;
-    if(d.is_promoted && d.promoted_until && new Date(d.promoted_until) > new Date()) badgeHtml = '<span style="background:#f7b731;color:#1a1a2e;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;margin-right:4px">⭐ ТОП</span>' + badgeHtml;
+    if(d.is_promoted) badgeHtml = '<span style="background:#f7b731;color:#1a1a2e;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;margin-right:4px">⭐ ТОП</span>' + badgeHtml;
     else if(d.badge==='urgent') badgeHtml = `<span class="badge-urgent-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО'}</span>`;
     else if(d.badge==='new') badgeHtml = `<span class="badge-fresh-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_new||'НОВЫЙ'}</span>`;
     else if(d.scope==='intl') badgeHtml = `<span class="badge-intl-new">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_intl||'МЕЖД.'}</span>`;
