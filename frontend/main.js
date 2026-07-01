@@ -821,8 +821,8 @@ var _adCache = {};     // placement → {ad, _ts}
 var _adFetching = {};  // placement → Promise (дедупликация параллельных запросов)
 
 async function _fetchAd(placement) {
-  if(_adCache[placement] && _adCache[placement]._ts > Date.now() - 300000) {
-    return _adCache[placement].ad; // 5 мин кэш
+  if(_adCache[placement] && _adCache[placement]._ts > Date.now() - 30000) {
+    return _adCache[placement].ad; // 30 сек кэш
   }
   // Если уже идёт запрос — возвращаем тот же Promise
   if(_adFetching[placement]) return _adFetching[placement];
