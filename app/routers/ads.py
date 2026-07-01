@@ -165,7 +165,10 @@ async def admin_update(
     ad = await db.get(Ad, ad_id)
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    for field, value in body.model_dump(exclude_unset=True).items():
+        # Пустая строка → None для nullable полей
+        if value == '':
+            value = None
         setattr(ad, field, value)
     await db.commit()
     return {"ok": True}
