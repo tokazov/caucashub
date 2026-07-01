@@ -1180,7 +1180,7 @@ function openCargo(d){
           <button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
           <button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>
         </div>
-        <button onclick="closeModal('cargoOverlay');openPromoteModal(${d.serverId||d.id})" style="width:100%;background:#fff8e1;color:#b8860b;border:2px solid #f7b731;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">⭐ Поднять в топ</button>
+        <button onclick="closeModal('cargoOverlay');openPromoteModal(${d.serverId||d.id})" style="width:100%;background:#fff8e1;color:#b8860b;border:2px solid #f7b731;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_promote_top||'⭐ Поднять в топ'}</button>
       </div>`;
     } else if(!currentUserId) {
       // ADR-008: незалогиненный — показываем приглашение войти, кнопки нет
@@ -2459,14 +2459,55 @@ function switchCabTab(tab, el){
 function renderPricingTab() {
   var container = document.getElementById('cabTab-pricing');
   if(!container) return;
-  // Уже отрендерен статически в HTML — просто подсветим текущий план
+  var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
   var u = typeof user !== 'undefined' ? user : null;
   var plan = (u && u.plan) ? u.plan : 'free';
-  // Убираем все бейджи
+  var isGe = lang === 'ge';
+
+  // Переводим заголовок и подзаголовок
+  var titleEl = container.querySelector('[data-i18n-pricing="title"]');
+  if(titleEl) titleEl.textContent = _T.pricing_title || '💳 Тарифные планы';
+  var subEl = container.querySelector('[data-i18n-pricing="subtitle"]');
+  if(subEl) subEl.textContent = _T.pricing_subtitle || 'Выберите подходящий план для вашего бизнеса';
+
+  // Переводим план descriptions
+  var planTexts = {
+    free: isGe
+      ? ['5 აქტიური ტვირთი','10 გამოხმაურება/თვე','1 მარშრუტის გამოწერა','rs.ge-ის ექსპორტი']
+      : ['5 активных грузов','10 откликов в месяц','1 подписка на маршрут','Экспорт rs.ge'],
+    pro: isGe
+      ? ['50 აქტიური ტვირთი','100 გამოხმაურება/თვე','20 მარშრუტის გამოწერა','პრიორიტეტული მხარდაჭერა']
+      : ['50 активных грузов','100 откликов в месяц','20 подписок на маршрут','Приоритетная поддержка'],
+    business: isGe
+      ? ['ულიმიტო ტვირთი','ულიმიტო გამოხმაურება','ულიმიტო გამოწერა','24/7 მხარდაჭერა','პირადი მენეჯერი']
+      : ['Безлимит грузов','Безлимит откликов','Безлимит подписок','Поддержка 24/7','Персональный менеджер'],
+  };
+
+  Object.keys(planTexts).forEach(function(planKey) {
+    var el = container.querySelector('[data-plan="' + planKey + '"]');
+    if(!el) return;
+    var descEl = el.querySelector('[data-pricing-desc]');
+    if(descEl) {
+      descEl.innerHTML = planTexts[planKey].map(function(t){ return '✅ ' + t; }).join('<br>');
+    }
+  });
+
+  // Переводим кнопки "Популярный" / "Купить"
+  var popEl = container.querySelector('[data-pricing-popular]');
+  if(popEl) popEl.textContent = _T.pricing_popular || 'Популярный';
+  var perMonthEls = container.querySelectorAll('[data-pricing-month]');
+  perMonthEls.forEach(function(e){ e.textContent = _T.pricing_per_month || '/мес'; });
+
+  // Переводим кнопки покупки
+  var buyProBtn = container.querySelector('[data-plan="pro"] [onclick*="openPlanPayment"]');
+  if(buyProBtn) buyProBtn.textContent = (isGe ? '💳 შეძენა ₾49-ად' : '💳 Купить за ₾49');
+  var buyBizBtn = container.querySelector('[data-plan="business"] [onclick*="openPlanPayment"]');
+  if(buyBizBtn) buyBizBtn.textContent = (isGe ? '💳 შეძენა ₾149-ად' : '💳 Купить за ₾149');
+
+  // Бейдж текущего плана
   container.querySelectorAll('.plan-current-badge').forEach(function(b){ b.style.display='none'; });
-  // Показываем бейдж нужного плана
   var badge = container.querySelector('[data-plan="' + plan + '"] .plan-current-badge');
-  if(badge) badge.style.display='block';
+  if(badge) { badge.textContent = _T.pricing_current || '✓ Ваш текущий план'; badge.style.display='block'; }
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
@@ -2594,7 +2635,7 @@ function renderCabLoads(){
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
  + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
- + '<button onclick="openPromoteModal(' + (l.serverId||l.id) + ')" class="cab-btn" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;font-size:11px;padding:5px 8px;white-space:nowrap">⭐ Поднять в топ</button>'
+ + '<button onclick="openPromoteModal(' + (l.serverId||l.id) + ')" class="cab-btn" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;font-size:11px;padding:5px 8px;white-space:nowrap">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_promote_top||'⭐ Поднять в топ')+'</button>'
  + '</div></div>'
  + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
  + respBlock
@@ -3176,6 +3217,16 @@ const TRANSLATIONS = {
     err_fill_cities: 'Заполните города Откуда и Куда',
     err_network: 'Ошибка сети',
     btn_edit: '✏️ Редактировать',
+    btn_promote_top: '⭐ Поднять в топ',
+    btn_buy: '💳 Купить за',
+    promote_modal_title: '⭐ Поднять груз в топ',
+    promote_modal_desc: 'Ваш груз будет показываться первым в ленте.',
+    promote_close: 'Закрыть',
+    pricing_title: '💳 Тарифные планы',
+    pricing_subtitle: 'Выберите подходящий план для вашего бизнеса',
+    pricing_popular: 'Популярный',
+    pricing_per_month: '/мес',
+    pricing_current: '✓ Ваш текущий план',
     lbl_rate_modal: 'Ставка',
     lbl_distance: 'Расстояние',
     pay_cash_short: 'Наличные',
@@ -3603,6 +3654,16 @@ const TRANSLATIONS = {
     respond_sent: '✅ განაცხადი გაგზავნილია',
     btn_cancel: '✕ გაუქმება',
     btn_edit: '✏️ რედაქტირება',
+    btn_promote_top: '⭐ ტოპში ასვლა',
+    btn_buy: '💳 ყიდვა',
+    promote_modal_title: '⭐ ტვირთის ტოპში ასვლა',
+    promote_modal_desc: 'თქვენი ტვირთი პირველი გამოჩნდება სიაში.',
+    promote_close: 'დახურვა',
+    pricing_title: '💳 სატარიფო გეგმები',
+    pricing_subtitle: 'აირჩიეთ თქვენი ბიზნესისთვის შესაფერი გეგმა',
+    pricing_popular: 'პოპულარული',
+    pricing_per_month: '/თვე',
+    pricing_current: '✓ თქვენი მიმდინარე გეგმა',
     lbl_rate_modal: 'ტარიფი',
     lbl_distance: 'მანძილი',
     pay_cash_short: 'ნაღდი',
@@ -6072,21 +6133,26 @@ async function handleApiLimitError(response) {
 // ── Продвижение груза в топ ──────────────────────────────────────────────────
 window.openPromoteModal = function(loadId) {
   var PROMOTE_PRICES = {'24':'5','72':'12','168':'25'};
+  var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
+  // Переводы вариантов срока
+  var HOUR_LABELS = lang==='ge'
+    ? {'24':'24 საათი','72':'3 დღე','168':'7 დღე'}
+    : {'24':'24 часа','72':'3 дня','168':'7 дней'};
   var modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
-    + '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">⭐ Поднять груз в топ</div>'
-    + '<div style="font-size:12px;color:#666;margin-bottom:20px;line-height:1.5">Ваш груз будет показываться первым в ленте. Оплата через Telegram.</div>'
+    + '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">'+(_T.promote_modal_title||'⭐ Поднять груз в топ')+'</div>'
+    + '<div style="font-size:12px;color:#666;margin-bottom:20px;line-height:1.5">'+(_T.promote_modal_desc||'Ваш груз будет показываться первым в ленте.')+'</div>'
     + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">'
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
-    + '<div><input type="radio" name="promoteHours" value="24" checked> <b>24 часа</b></div><div style="color:#f7b731;font-weight:700">₾5</div></label>'
+    + '<div><input type="radio" name="promoteHours" value="24" checked> <b>'+HOUR_LABELS['24']+'</b></div><div style="color:#f7b731;font-weight:700">₾5</div></label>'
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
-    + '<div><input type="radio" name="promoteHours" value="72"> <b>3 дня</b></div><div style="color:#f7b731;font-weight:700">₾12</div></label>'
+    + '<div><input type="radio" name="promoteHours" value="72"> <b>'+HOUR_LABELS['72']+'</b></div><div style="color:#f7b731;font-weight:700">₾12</div></label>'
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
-    + '<div><input type="radio" name="promoteHours" value="168"> <b>7 дней</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
+    + '<div><input type="radio" name="promoteHours" value="168"> <b>'+HOUR_LABELS['168']+'</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
     + '</div>'
-    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">💳 Купить</button>'
-    + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">Закрыть</button>'
+    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">'+(_T.btn_buy||'💳 Купить за')+' ₾5</button>'
+    + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">'+(_T.promote_close||'Закрыть')+'</button>'
     + '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
