@@ -5351,6 +5351,9 @@ window.createSubscription = async function() {
     } else {
       var msg = d.detail || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_create_sub||'Ошибка создания подписки');
       if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+      // Даже при ошибке (409 дубликат и др.) — перезагрузить список,
+      // чтобы показать уже существующие подписки
+      await loadSubscriptions();
     }
   } catch(e) {
     if(errEl){ errEl.textContent='Ошибка сети. Попробуйте ещё раз.'; errEl.style.display='block'; }
