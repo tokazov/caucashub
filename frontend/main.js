@@ -857,13 +857,13 @@ function _adHtml(ad) {
   var cta = isGe ? (ad.cta_text_ge || _adDefaultCta()) : (ad.cta_text || _adDefaultCta());
   var img = ad.image_url
     ? '<img src="' + ad.image_url + '" style="width:36px;height:36px;border-radius:8px;object-fit:contain;background:#f0f2f5;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    : '<div style="width:36px;height:36px;border-radius:8px;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📢</div>';
+    : '';
   return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fffbf0;border:1px solid #f7e8b0;border-radius:10px">'
-    + '<span style="font-size:9px;color:#aaa;white-space:nowrap;font-weight:600;flex-shrink:0">📢 ' + adLabel + '</span>'
     + img
     + '<div style="flex:1;min-width:0">'
     + '<div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>'
     + (desc ? '<div style="font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + desc + '</div>' : '')
+    + '<div style="font-size:9px;color:#bbb;font-weight:500;margin-top:2px">' + adLabel + '</div>'
     + '</div>'
     + '<button class="card-btn-resp" style="flex-shrink:0" onclick="_adClick('+ad.id+',\''+ad.link_url+'\')">' + cta + '</button>'
     + '</div>';
