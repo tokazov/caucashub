@@ -4445,7 +4445,7 @@ async function admLoadAds() {
             + '<div><div class="adm-ctr-bar"><div class="adm-bar-bg"><div class="adm-bar-fill" style="width:'+pct+'%"></div></div><span>'+ctr+'%</span></div></div>'
             + '<div><span class="adm-status-dot '+(a.active?'adm-dot-green':'adm-dot-gray')+'"></span><span style="font-size:12px">'+(a.active?'Активен':'Пауза')+'</span></div>'
             + '<div style="display:flex;gap:4px;justify-content:flex-end">'
-            + '<button class="adm-icon-btn" title="Редактировать" onclick="admOpenAdForm(''+JSON.stringify(a).replace(/'/g,"\'").replace(/"/g,'\"')+'')">✏️</button>'
+            + '<button class="adm-icon-btn" title="Редактировать" onclick="admEditAd('+a.id+')">✏️</button>'
             + '<button class="adm-icon-btn" title="'+(a.active?'Пауза':'Активировать')+'" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸':'▶️')+'</button>'
             + '<button class="adm-icon-btn danger" title="Удалить" onclick="admDeleteAd('+a.id+')">🗑</button>'
             + '</div>'
@@ -4456,9 +4456,14 @@ async function admLoadAds() {
   }
 }
 
+window.admEditAd = function(id) {
+  var ad = _admAdsCache.find(function(a){ return a.id === id; });
+  admOpenAdForm(ad || null);
+};
+
 window.admOpenAdForm = function(adRaw) {
   var ad = null;
-  if(adRaw) { try { ad = typeof adRaw === 'string' ? JSON.parse(adRaw) : adRaw; } catch(e) {} }
+  if(adRaw) { try { ad = typeof adRaw === 'string' ? JSON.parse(adRaw) : adRaw; } catch(e) { ad = adRaw; } }
   _admEditingAdId = ad ? (ad.id || null) : null;
   var modal = document.getElementById('admAdFormModal');
   if(!modal) return;
@@ -4558,15 +4563,13 @@ async function admLoadStats() {
 window.admCopyReport = function() {
   var now = new Date();
   var months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-  var text = 'Отчёт CaucasHub.ge · ' + months[now.getMonth()] + ' ' + now.getFullYear() + '
-
-';
+  var lines = ['Отчёт CaucasHub.ge · ' + months[now.getMonth()] + ' ' + now.getFullYear(), ''];
   _admAdsCache.forEach(function(a){
     var imp=a.impressions||0, clk=a.clicks||0;
     var ctr=imp>0?(clk/imp*100).toFixed(1):0;
-    text += a.advertiser+' · '+(PLACEMENT_LABELS[a.placement]||a.placement)+' · '+imp+' показов · '+clk+' кликов · CTR '+ctr+'% · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'/мес
-';
+    lines.push(a.advertiser+' · '+(PLACEMENT_LABELS[a.placement]||a.placement)+' · '+imp+' показов · '+clk+' кликов · CTR '+ctr+'% · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'/мес');
   });
+  var text = lines.join('\n');
   navigator.clipboard.writeText(text).then(function(){
     var msg = document.getElementById('copiedMsg');
     if(msg){ msg.style.display='inline'; setTimeout(function(){ msg.style.display='none'; }, 2500); }
