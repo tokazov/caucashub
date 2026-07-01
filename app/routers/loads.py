@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.models.user import User
@@ -94,7 +94,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "views": load.views or 0,
         "is_demo": getattr(load, 'is_demo', False),  # ADR-012
         "is_promoted": bool(getattr(load, 'is_boosted', False)),
-        "promoted_until": load.promoted_until.isoformat() if getattr(load, 'promoted_until', None) else None,
+        "promoted_until": getattr(load, 'promoted_until', None) and load.promoted_until.isoformat(),
         "owner_verified": bool(user.is_verified) if user else False,  # 2.4.4
         "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
@@ -123,17 +123,8 @@ async def get_loads(
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
 
-    # Сначала продвинутые (is_boosted + promoted_until > now), потом срочные, потом по дате
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
-    # Сбрасываем истёкшие promoted
-    # (lightweight: делаем это прямо в сортировке через CASE — не трогаем БД)
-    from sqlalchemy import case, and_
-    is_active_promoted = case(
-        (and_(Load.is_boosted == True, Load.promoted_until > now), 1),  # noqa: E712
-        else_=0
-    )
-    q = q.order_by(is_active_promoted.desc(), Load.is_urgent.desc(), Load.created_at.desc())
+    # Продвинутые грузы первые, потом срочные, потом по дате
+    q = q.order_by(Load.is_boosted.desc(), Load.is_urgent.desc(), Load.created_at.desc())
     q = q.limit(limit).offset(offset)
 
     result = await db.execute(q)
