@@ -2450,6 +2450,9 @@ function editMyLoad(id){
   if(!load) return;
   _editingLoadId = id;
 
+  // Закрываем модал груза перед открытием формы редактирования
+  if(typeof closeModal === 'function') closeModal('cargoOverlay');
+
   // Открываем форму размещения с данными груза
   if(typeof openPostLoad === 'function') openPostLoad();
 
