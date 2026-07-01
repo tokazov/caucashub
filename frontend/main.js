@@ -3340,7 +3340,7 @@ const TRANSLATIONS = {
     advertise_audience: '👥 Кто видит вашу рекламу',
     advertise_formats: '📋 Форматы размещения',
     advertise_contact: 'Как разместить рекламу',
-    advertise_tg_btn: '📱 Написать в Telegram @tokazov',
+    advertise_tg_btn: '📱 Написать в Telegram @caucashub_bot',
     advertise_price_month: '/мес',
     adv_order_btn: 'Заказать',
     adv_email_btn: '✉️ ads@caucashub.ge',
@@ -3826,7 +3826,7 @@ const TRANSLATIONS = {
     advertise_audience: '👥 ვინ ხედავს თქვენს რეკლამას',
     advertise_formats: '📋 განთავსების ფორმატები',
     advertise_contact: 'როგორ განათავსოთ რეკლამა',
-    advertise_tg_btn: '📱 Telegram-ში წერა @tokazov',
+    advertise_tg_btn: '📱 Telegram-ში წერა @caucashub_bot',
     advertise_price_month: '/თვეში',
     adv_order_btn: 'შეკვეთა',
     adv_email_btn: '✉️ ads@caucashub.ge',
@@ -6486,7 +6486,7 @@ window.openPromoteModal = function(loadId) {
     }
     // Открываем Telegram с деталями
     var text = encodeURIComponent('Хочу поднять груз #' + loadId + ' на ' + hours + ' ч за ₾' + price + (paymentId ? '. Payment ID: ' + paymentId : ''));
-    window.open('https://t.me/tokazov?text=' + text, '_blank');
+    window.open('https://t.me/caucashub_bot?text=' + text, '_blank');
     btn.textContent = '✅ Telegram открыт';
     setTimeout(function(){ modal.remove(); }, 1500);
   });
@@ -6516,7 +6516,7 @@ window.openPlanPayment = async function(planType) {
   } catch(e) {}
 
   var text = encodeURIComponent('Хочу подключить план ' + name + ' за ₾' + price + '/мес' + (paymentId ? '. Payment ID: ' + paymentId : ''));
-  window.open('https://t.me/tokazov?text=' + text, '_blank');
+  window.open('https://t.me/caucashub_bot?text=' + text, '_blank');
 };
 
 // ── Страница /payment/success ─────────────────────────────────────────────────
@@ -6546,16 +6546,16 @@ window.openPlanPayment = async function(planType) {
           if(d.status === 'paid') {
             showResult(true, d.type);
           } else if(d.status === 'failed' || d.status === 'cancelled') {
-            showResult(false, 'Оплата не прошла. Попробуйте снова или напишите @tokazov');
+            showResult(false, 'Оплата не прошла. Попробуйте снова или напишите @caucashub_bot');
           } else if(attempts >= maxAttempts) {
-            showResult(false, 'Время ожидания истекло. Напишите нам: @tokazov (укажите Payment ID: ' + pid + ')');
+            showResult(false, 'Время ожидания истекло. Напишите нам: @caucashub_bot (укажите Payment ID: ' + pid + ')');
           } else {
             setTimeout(poll, 2000);
           }
         })
         .catch(function() {
           if(attempts < maxAttempts) setTimeout(poll, 3000);
-          else showResult(false, 'Ошибка связи. Напишите @tokazov');
+          else showResult(false, 'Ошибка связи. Напишите @caucashub_bot');
         });
     }
 
