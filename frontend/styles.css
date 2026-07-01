@@ -594,3 +594,36 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .adm-activate-btn:disabled { background: #e8f5e9; color: #2e7d32; }
 
 .adm-plan-select { border: 1px solid #e0e0e0; border-radius: 6px; padding: 3px 6px; font-size: 12px; background: #fff; color: #1a1a2e; cursor: pointer; }
+
+/* ── Admin Mobile v3 ── */
+.adm-kpi-m { background:#fff;border:1px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:90px;flex-shrink:0; }
+.adm-kpi-m-lbl { font-size:10px;color:#8a9bb0;margin-bottom:5px; }
+.adm-kpi-m-val { font-size:20px;font-weight:600;color:#0f1923;line-height:1; }
+.adm-kpi-m-gold .adm-kpi-m-val { color:#854F0B; }
+
+.adm-bnav { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500;padding:4px 0; }
+.adm-bnav.active { color:#0f1923; }
+
+.adm-ad-card { background:#fff;border-radius:12px;margin:0 12px 10px;border:1px solid #e0ddd6;overflow:hidden; }
+.adm-ad-head { padding:12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0ede6; }
+.adm-ad-avatar { width:38px;height:38px;border-radius:8px;background:#f0ede6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0f1923;flex-shrink:0; }
+.adm-ad-stats { display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;border-bottom:1px solid #f0ede6; }
+.adm-ad-stat-item { text-align:center; }
+.adm-ad-stat-val { font-size:15px;font-weight:600;color:#0f1923; }
+.adm-ad-stat-lab { font-size:10px;color:#8a9bb0;margin-top:2px; }
+.adm-ad-actions { display:flex; }
+.adm-ad-act { flex:1;padding:9px 4px;border:none;background:transparent;font-size:11px;color:#8a9bb0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px; }
+.adm-ad-act:not(:last-child) { border-right:1px solid #f0ede6; }
+.adm-ad-act.primary { color:#0f1923;font-weight:500; }
+.adm-ad-act.danger { color:#A32D2D; }
+
+.adm-pay-card { background:#fff;border-radius:12px;margin:0 12px 10px;border:1px solid #e0ddd6;overflow:hidden; }
+.adm-pay-row { padding:12px;border-bottom:1px solid #f0ede6; }
+.adm-pay-row:last-child { border-bottom:none; }
+.adm-s-pill-m { padding:3px 9px;border-radius:10px;font-size:11px;font-weight:500; }
+.adm-s-pending-m { background:#FAEEDA;color:#854F0B; }
+.adm-s-paid-m { background:#EAF3DE;color:#3B6D11; }
+.adm-activate-m { background:#0f1923;color:#f0b537;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer; }
+
+.adm-user-card { background:#fff;border-radius:12px;margin:0 12px 10px;border:1px solid #e0ddd6;padding:12px; }
+.adm-user-av { width:38px;height:38px;border-radius:50%;background:#0f1923;color:#f0b537;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
