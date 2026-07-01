@@ -1541,7 +1541,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782940340"></script>
+<script src="main.js?v=1782940498"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1835,12 +1835,6 @@
         <div id="dTabStats" style="display:none"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:600;color:#1a1a2e" id="admStatsMonth">Отчёт</div><div style="display:flex;align-items:center;gap:8px"><button onclick="admCopyReport()" id="admCopyBtn" style="padding:5px 10px;border:1px solid #ccc;border-radius:8px;font-size:12px;cursor:pointer;background:transparent">📋 Копировать отчёт</button><span id="copiedMsg" style="color:#2ecc71;font-size:11px;display:none">✓ Скопировано</span></div></div><div id="admStatsTable"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div></div>
         <div id="dTabPayments" style="display:none"><div style="display:flex;gap:8px;margin-bottom:12px"><button id="dPayF1" onclick="admLoadPayments('pending');dPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:1px solid #1a1a2e;font-size:12px;cursor:pointer;color:#fff;background:#1a1a2e">⏳ Ожидают</button><button id="dPayF2" onclick="admLoadPayments('');dPayFilter(this)" style="padding:5px 12px;border-radius:20px;border:1px solid #e0e0e0;font-size:12px;cursor:pointer;color:#888;background:transparent">Все</button></div><div id="admPaymentsList"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div></div>
         <div id="dTabUsers" style="display:none">
-          <div id="dUsersKpiRow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-            <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">👥 Пользователей</div><div id="dStatUsers" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
-            <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">📈 Новых за месяц</div><div id="dStatNew" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
-            <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">💳 Платных</div><div id="dStatPaid" style="font-size:22px;font-weight:600;color:#f7b731">—</div></div>
-            <div style="background:#fff;border:1px solid #e8e8e0;border-radius:12px;padding:12px 14px"><div style="font-size:11px;color:#aaa;margin-bottom:6px">📦 Активных грузов</div><div id="dStatLoads" style="font-size:22px;font-weight:600;color:#1a1a2e">—</div></div>
-          </div>
           <div style="margin-bottom:12px"><input id="admUserSearch" type="text" placeholder="🔍 Поиск по email..." style="width:280px;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;outline:none" oninput="admLoadUsers(this.value)"></div>
           <div id="admUsersList"><div style="padding:24px;text-align:center;color:#aaa">Загрузка...</div></div>
         </div>
