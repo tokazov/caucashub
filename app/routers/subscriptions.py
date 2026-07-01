@@ -12,6 +12,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy import func as sa_func
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from app.database import get_db
@@ -41,7 +42,9 @@ class SubscriptionCreate(BaseModel):
             raise ValueError("Город не может быть пустым")
         if len(v) > 100:
             raise ValueError("Название города слишком длинное")
-        return v.lower()
+        # Сохраняем оригинальный регистр (не делаем lower — это ломает translateCity на фронте)
+        # Дубликат-чек делается case-insensitive через ilike в запросе
+        return v
 
     @field_validator("max_weight_t")
     @classmethod
@@ -124,12 +127,12 @@ async def create_subscription(
             detail=f"Превышен лимит подписок ({SUBSCRIPTION_LIMIT}). Удалите ненужные."
         )
 
-    # Проверяем дубликаты (from_city + to_city + is_active)
+    # Проверяем дубликаты (from_city + to_city + is_active), case-insensitive
     dup_res = await db.execute(
         select(RouteSubscription).where(
             RouteSubscription.user_id == current_user.id,
-            RouteSubscription.from_city == data.from_city,
-            RouteSubscription.to_city == data.to_city,
+            func.lower(RouteSubscription.from_city) == data.from_city.lower(),
+            func.lower(RouteSubscription.to_city) == data.to_city.lower(),
             RouteSubscription.is_active == True,  # noqa: E712
         )
     )

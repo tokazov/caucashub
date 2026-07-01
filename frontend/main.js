@@ -484,8 +484,13 @@ function translatePay(pay) {
   return map[pay] || pay;
 }
 
+function _capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
 function translateCity(name) {
   if (!name) return name;
+  // Нормализуем: если всё lowercase (из БД) — капитализируем первую букву
+  if (name === name.toLowerCase()) name = _capitalize(name);
+  try {
   // На RU: если текст содержит грузинские символы — конвертируем обратно в RU
   if (lang !== 'ge') {
     if (/[\u10d0-\u10ff]/.test(name)) {
@@ -517,6 +522,7 @@ function translateCity(name) {
     result = transliterateRuToGe(result);
   }
   return result;
+  } catch(e) { return name; }
 }
 
 // Получить наиболее конкретный город из полного адреса
