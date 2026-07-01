@@ -533,8 +533,8 @@ const _filterCityTimers = {};
 const _CITY_TYPES = new Set(['city','town','village','suburb','administrative','hamlet','locality']);
 
 // dir → dropId/inputId mapping (расширяемо для subFrom/subTo и др.)
-function _dirToDropId(dir){ return dir==='from'?'dropFrom': dir==='to'?'dropTo': dir==='subFrom'?'dropSubFrom': dir==='subTo'?'dropSubTo': 'drop'+dir.charAt(0).toUpperCase()+dir.slice(1); }
-function _dirToInputId(dir){ return dir==='from'?'fFrom': dir==='to'?'fTo': dir==='subFrom'?'subFromCity': dir==='subTo'?'subToCity': dir; }
+function _dirToDropId(dir){ return dir==='from'?'dropFrom': dir==='to'?'dropTo': dir==='subFrom'?'dropSubFrom': dir==='subTo'?'dropSubTo': dir==='tsFrom'?'dropTsFrom': dir==='tsTo'?'dropTsTo': 'drop'+dir.charAt(0).toUpperCase()+dir.slice(1); }
+function _dirToInputId(dir){ return dir==='from'?'fFrom': dir==='to'?'fTo': dir==='subFrom'?'subFromCity': dir==='subTo'?'subToCity': dir==='tsFrom'?'tsSubFrom': dir==='tsTo'?'tsSubTo': dir; }
 
 function filterCity(dir, val){
   const q=val.trim();
@@ -2425,7 +2425,7 @@ function switchCabTab(tab, el){
  if(tab === 'my-transport') loadMyTransportOffers();
  if(tab === 'transport-requests-in') loadIncomingTransportRequests();
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
- if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; /* reset idempotency flag so autocomplete always re-initialises on tab open */ if(_f) delete _f.dataset.autocompleteReady; if(_t) delete _t.dataset.autocompleteReady; _setupCityAutocomplete('tsSubFrom',{lang:lang||'ru'}); _setupCityAutocomplete('tsSubTo',{lang:lang||'ru'}); }
+ if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; }
 }
 function showCabinet(){
   var empty = document.getElementById('ordersEmpty');
