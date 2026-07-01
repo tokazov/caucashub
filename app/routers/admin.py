@@ -37,46 +37,38 @@ async def admin_stats(
     _: None = Depends(_require_admin),
 ):
     """Общая статистика платформы."""
-    from sqlalchemy import func as sqlfunc
-    from datetime import datetime, timezone
-    import calendar
-
-    now = datetime.now(timezone.utc)
-    # Начало текущего месяца
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    from sqlalchemy import func as sqlfunc, text
 
     # Всего пользователей
     total_users_q = await db.execute(select(sqlfunc.count(User.id)).where(User.is_active == True))
     total_users = total_users_q.scalar() or 0
 
-    # Новых за месяц
+    # Новых за текущий месяц
     new_this_month_q = await db.execute(
         select(sqlfunc.count(User.id)).where(
             User.is_active == True,
-            User.created_at >= month_start
+            sqlfunc.date_trunc('month', User.created_at) == sqlfunc.date_trunc('month', sqlfunc.now())
         )
     )
     new_this_month = new_this_month_q.scalar() or 0
 
-    # Всего грузов активных
-    from app.models.load import Load, LoadStatus
-    total_loads_q = await db.execute(select(sqlfunc.count(Load.id)).where(Load.status == LoadStatus.active))
-    total_loads = total_loads_q.scalar() or 0
-
-    # Всего грузов за месяц
-    new_loads_q = await db.execute(
-        select(sqlfunc.count(Load.id)).where(Load.created_at >= month_start)
-    )
-    new_loads_month = new_loads_q.scalar() or 0
-
-    # Pro/Business пользователей
+    # Pro/Business пользователей — через SQL cast
     paid_q = await db.execute(
-        select(sqlfunc.count(User.id)).where(
-            User.plan.in_(['pro', 'pro_plus', 'business']),
-            User.is_active == True
-        )
+        text("SELECT COUNT(*) FROM users WHERE is_active=true AND plan::text IN ('pro','pro_plus','business')")
     )
     paid_users = paid_q.scalar() or 0
+
+    # Всего грузов активных
+    total_loads_q = await db.execute(
+        text("SELECT COUNT(*) FROM loads WHERE status='active'")
+    )
+    total_loads = total_loads_q.scalar() or 0
+
+    # Грузов за месяц
+    new_loads_q = await db.execute(
+        text("SELECT COUNT(*) FROM loads WHERE date_trunc('month', created_at) = date_trunc('month', NOW())")
+    )
+    new_loads_month = new_loads_q.scalar() or 0
 
     return {
         "total_users": total_users,
