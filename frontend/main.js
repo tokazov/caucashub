@@ -817,18 +817,25 @@ function formatDateRange(d1,d2){
 
 // ── RENDER LOADS ─────────────────────────────────────
 // ── Рекламные блоки ───────────────────────────────────────────────────────────
-var _adCache = {}; // placement → ad
+var _adCache = {};     // placement → {ad, _ts}
+var _adFetching = {};  // placement → Promise (дедупликация параллельных запросов)
 
 async function _fetchAd(placement) {
   if(_adCache[placement] && _adCache[placement]._ts > Date.now() - 300000) {
     return _adCache[placement].ad; // 5 мин кэш
   }
-  try {
-    var r = await fetch(API_BASE + '/api/ads/' + placement);
-    var d = await r.json();
-    _adCache[placement] = {ad: d.ad, _ts: Date.now()};
-    return d.ad;
-  } catch(e) { return null; }
+  // Если уже идёт запрос — возвращаем тот же Promise
+  if(_adFetching[placement]) return _adFetching[placement];
+  _adFetching[placement] = (async function() {
+    try {
+      var r = await fetch(API_BASE + '/api/ads/' + placement);
+      var d = await r.json();
+      _adCache[placement] = {ad: d.ad, _ts: Date.now()};
+      return d.ad;
+    } catch(e) { return null; }
+    finally { delete _adFetching[placement]; }
+  })();
+  return _adFetching[placement];
 }
 
 function _adDefaultCta() {
@@ -889,13 +896,15 @@ window._adClick = function(adId, url) {
 };
 
 function _insertAdSlot(container, placement) {
+  // Создаём placeholder синхронно — чтобы место было зарезервировано сразу
+  var adEl = document.createElement('div');
+  adEl.className = 'ad-slot-feed';
+  adEl.style.cssText = 'padding:4px 0;position:relative;min-height:0';
+  container.appendChild(adEl);
+  // Заполняем async
   _fetchAd(placement).then(function(ad) {
-    if(!ad) return;
-    var adEl = document.createElement('div');
-    adEl.className = 'ad-slot-feed';
-    adEl.style.cssText = 'padding:4px 0;position:relative';
+    if(!ad) { adEl.remove(); return; }
     adEl.innerHTML = _adHtml(ad);
-    container.appendChild(adEl);
   });
 }
 
