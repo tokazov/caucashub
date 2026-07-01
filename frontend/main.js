@@ -4476,11 +4476,9 @@ async function admLoadAds() {
         +(function(){
           var fmt = function(s){ if(!s) return null; var d=new Date(s); return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}); };
           var start = fmt(a.created_at||a.start_date);
-          var end = fmt(a.end_date);
-          var parts = [];
-          if(start) parts.push('📅 с '+start);
-          if(end) parts.push('по '+end);
-          return parts.length ? '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+parts.join(' ')+'</div>' : '';
+          var end = a.end_date ? fmt(a.end_date) : 'бессрочно';
+          var txt = (start ? '📅 с '+start : '') + (end ? ' — '+end : '');
+          return txt ? '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+txt+'</div>' : '';
         })()
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;gap:4px;border-bottom:0.5px solid #f0ede6">'
         +'<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
@@ -4514,6 +4512,11 @@ window.admOpenAdForm = function(ad) {
   ['advertiser','title','title_ge','description','description_ge','cta_text','cta_text_ge','link_url','image_url'].forEach(function(f){
     var el=document.getElementById('admF_'+f); if(el) el.value=(ad&&ad[f])?ad[f]:'';
   });
+  // Даты — конвертируем ISO в yyyy-mm-dd для input[type=date]
+  var sdEl=document.getElementById('admF_start_date');
+  if(sdEl) sdEl.value=(ad&&ad.start_date)?ad.start_date.substring(0,10):'';
+  var edEl=document.getElementById('admF_end_date');
+  if(edEl) edEl.value=(ad&&ad.end_date)?ad.end_date.substring(0,10):'';
   var plEl=document.getElementById('admF_placement'); if(plEl) plEl.value=(ad&&ad.placement)?ad.placement:'feed';
   var actEl=document.getElementById('admF_active'); if(actEl) actEl.checked=ad?(ad.active!==false):true;
   modal.style.display='flex';
@@ -4527,6 +4530,8 @@ window.admSaveAd = async function() {
     var el=document.getElementById('admF_'+f); if(el) body[f]=el.value.trim()||null;
   });
   var actEl=document.getElementById('admF_active'); body.active=actEl?actEl.checked:true;
+  var sdEl=document.getElementById('admF_start_date'); if(sdEl) body.start_date=sdEl.value||null;
+  var edEl=document.getElementById('admF_end_date'); if(edEl) body.end_date=edEl.value||null;
   if(!body.advertiser||!body.link_url){alert('Рекламодатель и ссылка обязательны');return;}
   var url=_admEditingAdId?(ADMIN_API+'/api/ads/admin/'+_admEditingAdId):(ADMIN_API+'/api/ads/admin/create');
   var method=_admEditingAdId?'PATCH':'POST';
