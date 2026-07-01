@@ -4417,32 +4417,31 @@ async function admLoadAds() {
       return;
     }
 
-    var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'};
-    var pillLabel = PLACEMENT_LABELS;
+    var pillMap = {feed:'adm-place-feed', rates:'adm-place-rates', modal:'adm-place-modal'};
 
     list.innerHTML = _admAdsCache.map(function(a) {
       var imp = a.impressions||0, clk = a.clicks||0;
       var ctr = imp > 0 ? (clk/imp*100).toFixed(1)+'%' : '0%';
       var initials = a.advertiser.split(/\s+/).map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
-      var pill = pillClass[a.placement] || 'place-feed';
+      var pill = pillMap[a.placement] || 'adm-place-feed';
       return '<div class="adm-ad-card">'
-        + '<div class="adm-ad-head">'
+        + '<div class="adm-ad-card-head">'
         + '<div class="adm-ad-avatar">'+initials+'</div>'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
-        + (a.title ? '<div style="font-size:11px;color:#8a9bb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+a.title+'</div>' : '')
+        + '<div class="adm-ad-info">'
+        + '<div class="adm-ad-name">'+a.advertiser+'</div>'
+        + '<div class="adm-ad-desc">'+(a.title||a.link_url||'')+'</div>'
         + '</div>'
-        + '<span class="place-pill '+pill+'">'+(pillLabel[a.placement]||a.placement)+'</span>'
+        + '<span class="'+pill+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+'</span>'
         + '</div>'
         + '<div class="adm-ad-stats">'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+imp+'</div><div class="adm-ad-stat-lab">Показы</div></div>'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+clk+'</div><div class="adm-ad-stat-lab">Клики</div></div>'
-        + '<div class="adm-ad-stat-item"><div class="adm-ad-stat-val">'+ctr+'</div><div class="adm-ad-stat-lab">CTR</div></div>'
+        + '<div class="adm-stat-item"><div class="adm-stat-val">'+imp+'</div><div class="adm-stat-lab">Показы</div></div>'
+        + '<div class="adm-stat-item"><div class="adm-stat-val">'+clk+'</div><div class="adm-stat-lab">Клики</div></div>'
+        + '<div class="adm-stat-item"><div class="adm-stat-val">'+ctr+'</div><div class="adm-stat-lab">CTR</div></div>'
         + '</div>'
         + '<div class="adm-ad-actions">'
-        + '<button class="adm-ad-act primary" onclick="admEditAd('+a.id+')">✏️ Изменить</button>'
-        + '<button class="adm-ad-act" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸ Пауза':'▶️ Вкл')+'</button>'
-        + '<button class="adm-ad-act danger" onclick="admDeleteAd('+a.id+')">🗑 Удалить</button>'
+        + '<button class="adm-act-btn primary" onclick="admEditAd('+a.id+')">✏️ Изменить</button>'
+        + '<button class="adm-act-btn" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸ Пауза':'▶️ Вкл')+'</button>'
+        + '<button class="adm-act-btn danger" onclick="admDeleteAd('+a.id+')">🗑️ Удалить</button>'
         + '</div>'
         + '</div>';
     }).join('');
@@ -4529,14 +4528,14 @@ window.admLoadPayments = async function(statusFilter) {
           var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
           var isPending = p.status === 'pending';
           return '<div class="adm-pay-row">'
-            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
-            + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</div>'
-            + '<div style="font-size:15px;font-weight:600;color:#0f1923">₾'+p.amount_gel+'</div>'
+            + '<div class="adm-pay-top">'
+            + '<div class="adm-pay-type">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</div>'
+            + '<div class="adm-pay-amount">₾'+p.amount_gel+'</div>'
             + '</div>'
-            + '<div style="font-size:11px;color:#8a9bb0;margin-bottom:8px">id:'+p.user_id+' · '+dt+'</div>'
-            + '<div style="display:flex;align-items:center;justify-content:space-between">'
-            + '<span class="adm-s-pill-m '+(isPending?'adm-s-pending-m':'adm-s-paid-m')+'">'+(isPending?'Ожидает':'Оплачен')+'</span>'
-            + (isPending ? '<button class="adm-activate-m" id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')">✅ Активировать</button>' : '<span style="font-size:11px;color:#8a9bb0">'+dt+'</span>')
+            + '<div class="adm-pay-meta">id:'+p.user_id+' · '+dt+'</div>'
+            + '<div class="adm-pay-bottom">'
+            + '<span class="'+(isPending?'adm-status-pending':'adm-status-paid')+'">'+(isPending?'Ожидает':'Оплачен')+'</span>'
+            + (isPending ? '<button class="adm-btn-activate" id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')">✅ Активировать</button>' : '<span style="font-size:11px;color:#8a9bb0">'+dt+'</span>')
             + '</div>'
             + '</div>';
         }).join('')
@@ -4635,13 +4634,14 @@ window.admLoadUsers = async function(search) {
       var initials = (u.email||'').substring(0,2).toUpperCase();
       var plan = u.plan || 'free';
       return '<div class="adm-user-card">'
-        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<div class="adm-user-top">'
         + '<div class="adm-user-av">'+initials+'</div>'
-        + '<div><div style="font-size:12px;font-weight:500;color:#0f1923;word-break:break-all">'+u.email+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:12px;font-weight:500;color:#0f1923;word-break:break-all">'+u.email+'</div>'
         + '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+(u.role||'—')+' · id:'+u.id+(u.tg_chat_id?' · ✓ TG':'')+'</div>'
         + '</div></div>'
         + '<div style="display:flex;gap:8px">'
-        + '<select onchange="admSetPlan('+u.id+',this.value)" style="border:1px solid #e0ddd6;border-radius:8px;padding:8px 10px;font-size:13px;background:#f8f7f3;color:#0f1923;flex:1;cursor:pointer">'
+        + '<select class="adm-plan-select" onchange="admSetPlan('+u.id+',this.value)">'
         + ['free','pro','pro_plus','business'].map(function(p){ return '<option value="'+p+'"'+(plan===p?' selected':'')+'>'+p+'</option>'; }).join('')
         + '</select>'
         + '</div>'
