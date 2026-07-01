@@ -544,53 +544,66 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 
 .adm-btn-sm { border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-/* ── Admin Panel v2 ── */
-.adm-nav-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 8px; cursor: pointer;
-  color: #888; font-size: 13px; transition: none; margin-bottom: 2px;
-}
-.adm-nav-item:hover { background: #f4f3ef; color: #1a1a2e; }
-.adm-nav-item.active { background: #f4f3ef; color: #1a1a2e; font-weight: 600; }
-
-.adm-kpi { background: #fff; border: 1px solid #e8e8e0; border-radius: 12px; padding: 12px 14px; }
-.adm-kpi-lbl { font-size: 11px; color: #aaa; margin-bottom: 6px; }
-.adm-kpi-val { font-size: 22px; font-weight: 600; color: #1a1a2e; line-height: 1; margin-bottom: 3px; }
-.adm-kpi-sub { font-size: 11px; color: #aaa; }
-.adm-kpi-rev .adm-kpi-val { color: #f7b731; }
-
-.adm-th { display: grid; padding: 8px 14px; background: #f8f9fa; font-size: 11px; color: #aaa; font-weight: 600; border-bottom: 1px solid #e8e8e0; text-transform: uppercase; letter-spacing: .04em; }
-.adm-tr { display: grid; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; align-items: center; font-size: 12px; }
-.adm-tr:last-child { border-bottom: none; }
-.adm-tr:hover { background: #fafafa; }
-
-.adm-pill { padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
-.adm-pill-feed { background: #fff8e1; color: #b8860b; }
-.adm-pill-rates { background: #e8f5e9; color: #2e7d32; }
-.adm-pill-modal { background: #ede7f6; color: #5e35b1; }
-.adm-pill-plan { background: #e3f2fd; color: #1565c0; }
-
-.adm-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-.adm-dot-green { background: #2ecc71; }
-.adm-dot-gray { background: #ccc; }
-
-.adm-ctr-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.adm-bar-bg { height: 4px; background: #f0f0f0; border-radius: 2px; flex: 1; overflow: hidden; min-width: 40px; }
-.adm-bar-fill { height: 100%; border-radius: 2px; background: #f7b731; }
-
-.adm-icon-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e0e0e0; background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
-.adm-icon-btn:hover { background: #f4f3ef; color: #1a1a2e; }
-.adm-icon-btn.danger:hover { background: #fee; color: #e74c3c; border-color: #fcc; }
-
-.adm-filter { padding: 5px 12px; border-radius: 20px; border: 1px solid #e0e0e0; font-size: 12px; cursor: pointer; color: #888; background: transparent; }
-.adm-filter.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-
-.adm-s-pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.adm-s-paid { background: #e8f5e9; color: #2e7d32; }
-.adm-s-pending { background: #fff8e1; color: #b8860b; }
-.adm-s-failed { background: #fee; color: #e74c3c; }
-
-.adm-activate-btn { padding: 4px 10px; font-size: 11px; border-radius: 6px; background: #f7b731; color: #1a1a2e; border: none; cursor: pointer; font-weight: 600; }
-.adm-activate-btn:disabled { background: #e8f5e9; color: #2e7d32; }
-
-.adm-plan-select { border: 1px solid #e0e0e0; border-radius: 6px; padding: 3px 6px; font-size: 12px; background: #fff; color: #1a1a2e; cursor: pointer; }
+/* ── Admin Panel — mobile mockup styles ── */
+#adminOverlay .kpi-scroll{display:flex;gap:10px;padding:12px 16px;overflow-x:auto;flex-shrink:0;background:#f8f7f3;border-bottom:0.5px solid #e0ddd6}
+#adminOverlay .kpi-scroll::-webkit-scrollbar{display:none}
+#adminOverlay .kpi-card{background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0}
+#adminOverlay .kpi-label{font-size:10px;color:#8a9bb0;margin-bottom:5px}
+#adminOverlay .kpi-val{font-size:20px;font-weight:600;color:#0f1923;line-height:1}
+#adminOverlay .kpi-val.gold{color:#854F0B}
+#adminOverlay .kpi-sub{font-size:10px;color:#3B6D11;margin-top:3px}
+#adminOverlay .section-head{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+#adminOverlay .section-label{font-size:13px;font-weight:500;color:#0f1923}
+#adminOverlay .btn-add{background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
+#adminOverlay .ad-card{background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;overflow:hidden}
+#adminOverlay .ad-card-head{padding:12px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #f0ede6}
+#adminOverlay .ad-avatar{width:38px;height:38px;border-radius:8px;background:#f0ede6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#0f1923;flex-shrink:0}
+#adminOverlay .ad-info{flex:1;min-width:0}
+#adminOverlay .ad-name{font-size:13px;font-weight:500;color:#0f1923}
+#adminOverlay .ad-desc{font-size:11px;color:#8a9bb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#adminOverlay .place-pill{padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;flex-shrink:0}
+#adminOverlay .place-feed{background:#E6F1FB;color:#185FA5}
+#adminOverlay .place-rates{background:#EAF3DE;color:#3B6D11}
+#adminOverlay .place-modal{background:#EEEDFE;color:#534AB7}
+#adminOverlay .ad-stats{display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;gap:4px;border-bottom:0.5px solid #f0ede6}
+#adminOverlay .stat-item{text-align:center}
+#adminOverlay .stat-val{font-size:15px;font-weight:500;color:#0f1923}
+#adminOverlay .stat-lab{font-size:10px;color:#8a9bb0;margin-top:2px}
+#adminOverlay .ad-actions{display:flex}
+#adminOverlay .ad-act{flex:1;padding:9px 4px;border:none;background:transparent;font-size:11px;color:#8a9bb0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+#adminOverlay .ad-act:not(:last-child){border-right:0.5px solid #f0ede6}
+#adminOverlay .ad-act.primary{color:#0f1923;font-weight:500}
+#adminOverlay .ad-act.danger{color:#A32D2D}
+#adminOverlay .adm-tab-content{display:none}
+#adminOverlay .adm-tab-content.active{display:block}
+#adminOverlay .pay-card{background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;overflow:hidden}
+#adminOverlay .pay-row{padding:12px;border-bottom:0.5px solid #f0ede6}
+#adminOverlay .pay-row:last-child{border-bottom:none}
+#adminOverlay .pay-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+#adminOverlay .pay-type{font-size:13px;font-weight:500;color:#0f1923}
+#adminOverlay .pay-amount{font-size:15px;font-weight:600;color:#0f1923}
+#adminOverlay .pay-meta{font-size:11px;color:#8a9bb0;margin-bottom:8px}
+#adminOverlay .pay-bottom{display:flex;align-items:center;justify-content:space-between}
+#adminOverlay .status-pill{padding:3px 9px;border-radius:10px;font-size:11px;font-weight:500}
+#adminOverlay .s-pending{background:#FAEEDA;color:#854F0B}
+#adminOverlay .s-paid{background:#EAF3DE;color:#3B6D11}
+#adminOverlay .btn-act{background:#0f1923;color:#f0b537;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer}
+#adminOverlay .btn-act:disabled{background:#EAF3DE;color:#3B6D11}
+#adminOverlay .user-card{background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;padding:12px}
+#adminOverlay .user-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+#adminOverlay .user-av{width:38px;height:38px;border-radius:50%;background:#0f1923;color:#f0b537;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#adminOverlay .user-email{font-size:12px;font-weight:500;color:#0f1923}
+#adminOverlay .user-role{font-size:10px;color:#8a9bb0;margin-top:2px}
+#adminOverlay .user-bottom{display:flex;gap:8px}
+#adminOverlay .plan-select{border:0.5px solid #e0ddd6;border-radius:7px;padding:6px 8px;font-size:13px;background:#f8f7f3;color:#0f1923;flex:1;cursor:pointer}
+#adminOverlay .btn-save{background:#0f1923;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer}
+#adminOverlay .search-wrap{padding:10px 12px 4px}
+#adminOverlay .search-wrap input{width:100%;border:0.5px solid #e0ddd6;border-radius:9px;padding:9px 12px;font-size:13px;background:#fff;color:#0f1923;outline:none;box-sizing:border-box}
+#adminOverlay .total-bar{padding:10px 14px;background:#f8f7f3;display:flex;justify-content:space-between;font-size:12px;border-top:0.5px solid #e0ddd6}
+#adminOverlay .bottomnav{height:60px;background:#fff;border-top:0.5px solid #e0ddd6;display:flex;flex-shrink:0}
+#adminOverlay .nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500}
+#adminOverlay .nav-tab.active{color:#0f1923}
+#adminOverlay .badge-wrap{position:relative;display:inline-flex}
+#adminOverlay .badge-dot{position:absolute;top:-2px;right:-5px;width:8px;height:8px;background:#f0b537;border-radius:50%;border:1.5px solid #fff}
+#adminOverlay .adm-filter{padding:5px 12px;border-radius:20px;border:0.5px solid #e0ddd6;font-size:12px;cursor:pointer;color:#8a9bb0;background:transparent}
+#adminOverlay .adm-filter.active{background:#0f1923;color:#fff;border-color:#0f1923}
