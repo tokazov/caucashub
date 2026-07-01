@@ -540,7 +540,8 @@ function filterCity(dir, val){
   const q=val.trim();
   const id=_dirToDropId(dir);
   const drop=document.getElementById(id);
-  if(q.length<1){drop.classList.remove('open');return;}
+  if(q.length<1){if(drop) drop.classList.remove('open');return;}
+  if(!drop) return;
 
   if(scope==='intl'){
     // Международные — показываем только страны (без изменений)
@@ -645,8 +646,11 @@ function selectCity(dir, name, lat, lng, isCountry, nameRu){
   if(dropEl)  dropEl.classList.remove('open');
   if(dir==='from'){ selectedFrom=city; }
   else if(dir==='to'){ selectedTo=city; }
+  // tsFrom/tsTo — сохраняем русское имя и явно пишем в поле
+  else if(dir==='tsFrom'){ window._tsSubFromValue = normalizedName; var el=document.getElementById('tsSubFrom'); if(el) el.value=normalizedName; }
+  else if(dir==='tsTo'){   window._tsSubToValue   = normalizedName; var el2=document.getElementById('tsSubTo');   if(el2) el2.value=normalizedName; }
   // subFrom/subTo — только ставим значение (не трогаем карту)
-  if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat&&dir!=='subFrom'&&dir!=='subTo') showRouteMap();
+  if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat&&dir!=='subFrom'&&dir!=='subTo'&&dir!=='tsFrom'&&dir!=='tsTo') showRouteMap();
 }
 
 // ── YANDEX MAP ────────────────────────────────────────
@@ -5806,8 +5810,8 @@ function renderMyTransportSubs(subs) {
 }
 
 window.createTransportSub = async function() {
-  var from = (document.getElementById('tsSubFrom')||{}).value||'';
-  var to   = (document.getElementById('tsSubTo')  ||{}).value||'';
+  var from = (document.getElementById('tsSubFrom')||{}).value||window._tsSubFromValue||'';
+  var to   = (document.getElementById('tsSubTo')  ||{}).value||window._tsSubToValue  ||'';
   var errEl = document.getElementById('tsSubError');
   if(!from.trim()||!to.trim()){ if(errEl){errEl.textContent=((TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_fill_cities||'Заполните оба города');errEl.style.display='block';} return; }
   if(errEl) errEl.style.display='none';
@@ -5822,6 +5826,7 @@ window.createTransportSub = async function() {
     if(r.status===201) {
       if(document.getElementById('tsSubFrom')) document.getElementById('tsSubFrom').value='';
       if(document.getElementById('tsSubTo'))   document.getElementById('tsSubTo').value='';
+      window._tsSubFromValue=''; window._tsSubToValue='';
       await loadMyTransportSubs();
       pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_created||'Подписка создана'), from+' → '+to, []);
     } else {
