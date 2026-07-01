@@ -10,7 +10,7 @@ from app.models.response import Response, ResponseStatus
 from app.routers.auth import require_user
 from app.services.telegram_notify import (
     notify_new_response, notify_response_accepted, notify_deal_created,
-    notify_response_rejected, notify_response_withdrawn,
+    notify_response_rejected,
 )
 # plan_check.check_can_respond удалён (ADR-013 B) — лимиты вернутся с Pro-тарифом
 import os
@@ -21,6 +21,19 @@ router = APIRouter(prefix="/api/responses", tags=["responses"])
 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+
+# ---------------------------------------------------------------------------
+# Email i18n — Georgian first (internal Georgian freight market)
+# ---------------------------------------------------------------------------
+def _t(lang: str | None, ka: str, ru: str) -> str:
+    """Return Georgian text for 'ka' lang, Russian otherwise."""
+    return ka if (lang or "ka") == "ka" else ru
+
+def _email_header() -> str:
+    return '<div style="background:#1a1a2e;padding:20px;text-align:center"><h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2></div>'
+
+def _email_footer(lang: str | None) -> str:
+    return f'<div style="background:#f0f2f5;padding:12px;text-align:center;font-size:12px;color:#999">{_t(lang,"CaucasHub.ge — საქართველოს სატვირთო ბირჟა","CaucasHub.ge — Биржа грузов Грузии")}</div>'
 
 async def send_email(to: str, subject: str, html: str):
     """Отправка email через Brevo (основной) или Resend (fallback)"""
@@ -165,30 +178,36 @@ async def respond_to_load(
     if owner and owner.email:
         carrier_name = current_user.company_name or current_user.email
         route = f"{load.from_city} → {load.to_city}"
-        price_text = f"<b>Предложенная цена:</b> {data.price} ₾<br>" if data.price else ""
-        msg_text = f"<b>Сообщение:</b> {data.message}<br>" if data.message else ""
+        lang = owner.lang or "ka"
+        price_text = (
+            f"<b>{_t(lang,'შეთავაზებული ფასი','Предложенная цена')}:</b> {data.price} ₾<br>"
+            if data.price else ""
+        )
+        msg_text = (
+            f"<b>{_t(lang,'შეტყობინება','Сообщение')}:</b> {data.message}<br>"
+            if data.message else ""
+        )
+        subj = _t(lang, f"🚛 ახალი გამოხმაურება თქვენს ტვირთზე {route}", f"Новый отклик на груз {route}")
         html = f"""
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:#1a1a2e;padding:20px;text-align:center">
-            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
-          </div>
+          {_email_header()}
           <div style="padding:24px;background:#fff">
-            <h3>🚛 Новый отклик на ваш груз!</h3>
-            <p>Перевозчик <b>{carrier_name}</b> готов везти ваш груз:</p>
+            <h3>🚛 {_t(lang,'ახალი გამოხმაურება თქვენს ტვირთზე!','Новый отклик на ваш груз!')}</h3>
+            <p>{_t(lang,f'გადამზიდი <b>{carrier_name}</b> მზადაა თქვენი ტვირთი გადაიტანოს:',f'Перевозчик <b>{carrier_name}</b> готов везти ваш груз:')}</p>
             <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
-              <b>Маршрут:</b> {route}<br>
-              <b>Перевозчик:</b> {carrier_name}<br>
+              <b>{_t(lang,'მარშრუტი','Маршрут')}:</b> {route}<br>
+              <b>{_t(lang,'გადამზიდი','Перевозчик')}:</b> {carrier_name}<br>
               {price_text}{msg_text}
             </div>
-            <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> 
-            → вкладка "Мои заказы" чтобы принять или отклонить.</p>
+            <p>{_t(lang,
+              'შედით <a href="https://caucashub.ge" style="color:#f7b731">პირად კაბინეტში</a> → "ჩემი შეკვეთები" განყოფილება, რათა მიიღოთ ან უარყოთ.',
+              'Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> → вкладка "Мои заказы" чтобы принять или отклонить.'
+            )}</p>
           </div>
-          <div style="background:#f0f2f5;padding:12px;text-align:center;font-size:12px;color:#999">
-            CaucasHub.ge — Биржа грузов Кавказа
-          </div>
+          {_email_footer(lang)}
         </div>
         """
-        await send_email(owner.email, f"Новый отклик на груз {route}", html)
+        await send_email(owner.email, subj, html)
 
     resp_result = {
         "ok": True,
@@ -382,30 +401,34 @@ async def accept_response(
     if carrier and carrier.email:
         route = f"{load.from_city} → {load.to_city}"
         shipper_name = current_user.company_name or current_user.email
+        lang = carrier.lang or "ka"
+        deal_num = deal.act_number or f"CH-{deal.id:04d}"
+        subj = _t(lang, f"✅ თქვენი გამოხმაურება მიღებულია — {route}", f"✅ Ваш отклик принят — {route}")
         html = f"""
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:#1a1a2e;padding:20px;text-align:center">
-            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
-          </div>
+          {_email_header()}
           <div style="padding:24px;background:#fff">
-            <h3>✅ Ваш отклик принят!</h3>
-            <p>Грузоотправитель <b>{shipper_name}</b> принял ваш отклик.</p>
+            <h3>✅ {_t(lang,'თქვენი გამოხმაურება მიღებულია!','Ваш отклик принят!')}</h3>
+            <p>{_t(lang,f'გამგზავნმა <b>{shipper_name}</b> მიიღო თქვენი გამოხმაურება.',f'Грузоотправитель <b>{shipper_name}</b> принял ваш отклик.')}</p>
             <div style="background:#e8f5e9;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #2ecc71">
-              <b>Маршрут:</b> {route}<br>
-              <b>Номер сделки:</b> {deal.act_number or f"CH-{deal.id:04d}"}<br>
-              <b>Статус:</b> Подтверждена
+              <b>{_t(lang,'მარშრუტი','Маршрут')}:</b> {route}<br>
+              <b>{_t(lang,'გარიგების ნომერი','Номер сделки')}:</b> {deal_num}<br>
+              <b>{_t(lang,'სტატუსი','Статус')}:</b> {_t(lang,'დადასტურებულია','Подтверждена')}
             </div>
             <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
-              <b>Контакт грузоотправителя:</b><br>
+              <b>{_t(lang,'გამგზავნის კონტაქტი','Контакт грузоотправителя')}:</b><br>
               {f"📞 {current_user.phone}<br>" if current_user.phone else ""}
               📧 {current_user.email}
             </div>
-            <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> 
-            → "Мои сделки" для управления доставкой.</p>
+            <p>{_t(lang,
+              'შედით <a href="https://caucashub.ge" style="color:#f7b731">პირად კაბინეტში</a> → "ჩემი გარიგებები" მიწოდების სამართავად.',
+              'Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> → "Мои сделки" для управления доставкой.'
+            )}</p>
           </div>
+          {_email_footer(lang)}
         </div>
         """
-        await send_email(carrier.email, f"✅ Ваш отклик принят — {route}", html)
+        await send_email(carrier.email, subj, html)
 
     # 3.2: Email грузовладельцу — симметричное уведомление о создании сделки
     deal_num = deal.act_number or f"CH-{deal.id:04d}"
@@ -422,26 +445,32 @@ async def accept_response(
             lang=current_user.lang or "ru"
         ))
     if current_user.email:
-        carrier_name = carrier.company_name if carrier else "Перевозчик"
+        carrier_name = carrier.company_name if carrier else _t(current_user.lang or "ka", "გადამზიდი", "Перевозчик")
+        lang_sh = current_user.lang or "ka"
+        subj_sh = _t(lang_sh, f"✅ გარიგება {deal_num} შეიქმნა — {route}", f"✅ Сделка {deal_num} создана — {route}")
         html_shipper = f"""
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:#1a1a2e;padding:20px;text-align:center">
-            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
-          </div>
+          {_email_header()}
           <div style="padding:24px;background:#fff">
-            <h3>✅ Сделка создана!</h3>
-            <p>Вы приняли отклик перевозчика <b>{carrier_name}</b>. Сделка <b>{deal_num}</b> создана.</p>
+            <h3>✅ {_t(lang_sh,'გარიგება შეიქმნა!','Сделка создана!')}</h3>
+            <p>{_t(lang_sh,
+              f'თქვენ მიიღეთ გადამზიდის <b>{carrier_name}</b> გამოხმაურება. გარიგება <b>{deal_num}</b> შეიქმნა.',
+              f'Вы приняли отклик перевозчика <b>{carrier_name}</b>. Сделка <b>{deal_num}</b> создана.'
+            )}</p>
             <div style="background:#e8f5e9;border-radius:8px;padding:16px;margin:16px 0;border-left:4px solid #2ecc71">
-              <b>Маршрут:</b> {route}<br>
-              <b>Номер сделки:</b> {deal_num}<br>
-              <b>Перевозчик:</b> {carrier_name}
-              {f"<br><b>Телефон:</b> {carrier.phone}" if carrier and carrier.phone else ""}
+              <b>{_t(lang_sh,'მარშრუტი','Маршрут')}:</b> {route}<br>
+              <b>{_t(lang_sh,'გარიგების ნომერი','Номер сделки')}:</b> {deal_num}<br>
+              <b>{_t(lang_sh,'გადამზიდი','Перевозчик')}:</b> {carrier_name}
+              {f"<br><b>{_t(lang_sh,'ტელეფონი','Телефон')}:</b> {carrier.phone}" if carrier and carrier.phone else ""}
             </div>
-            <p>Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a>
-            → "Мои сделки" чтобы отслеживать статус доставки.</p>
+            <p>{_t(lang_sh,
+              'შედით <a href="https://caucashub.ge" style="color:#f7b731">პირად კაბინეტში</a> → "ჩემი გარიგებები" მიწოდების სტატუსის თვალყურის დევნებისთვის.',
+              'Зайдите в <a href="https://caucashub.ge" style="color:#f7b731">личный кабинет</a> → "Мои сделки" чтобы отслеживать статус доставки.'
+            )}</p>
           </div>
+          {_email_footer(lang_sh)}
         </div>"""
-        await send_email(current_user.email, f"✅ Сделка {deal_num} создана — {route}", html_shipper)
+        await send_email(current_user.email, subj_sh, html_shipper)
 
     accept_result = {
         "ok": True,
@@ -493,20 +522,26 @@ async def reject_response(
     carrier = carrier_res.scalar_one_or_none()
     if carrier and carrier.email:
         route = f"{load.from_city} → {load.to_city}"
+        lang = getattr(carrier, 'lang', None) or "ka"
+        subj = _t(lang, f"ℹ️ გამოხმაურება ტვირთზე {route}", f"ℹ️ Отклик на груз {route}")
         html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:600px">
-          <div style="background:#1a1a2e;padding:20px;text-align:center">
-            <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          {_email_header()}
+          <div style="padding:24px;background:#fff">
+            <h3>ℹ️ {_t(lang,'თქვენი გამოხმაურება არ შეირჩა','Ваш отклик не был выбран')}</h3>
+            <p>{_t(lang,
+              f'სამწუხაროდ, გამგზავნმა სხვა გადამზიდი აირჩია მარშრუტისთვის <b>{route}</b>.',
+              f'К сожалению, грузоотправитель выбрал другого перевозчика для маршрута <b>{route}</b>.'
+            )}</p>
+            <p>{_t(lang,
+              'ნუ დანაღვლდებით — ახალი ტვირთები ყოველდღე ჩნდება. <a href="https://caucashub.ge" style="color:#f7b731">იხილეთ აქტუალური ტვირთები →</a>',
+              'Не расстраивайтесь — новые грузы появляются каждый день. <a href="https://caucashub.ge" style="color:#f7b731">Смотрите актуальные грузы →</a>'
+            )}</p>
           </div>
-          <div style="padding:24px">
-            <h3>ℹ️ Ваш отклик не был выбран</h3>
-            <p>К сожалению, грузоотправитель выбрал другого перевозчика для маршрута <b>{route}</b>.</p>
-            <p>Не расстраивайтесь — новые грузы появляются каждый день. 
-            <a href="https://caucashub.ge" style="color:#f7b731">Смотрите актуальные грузы →</a></p>
-          </div>
+          {_email_footer(lang)}
         </div>
         """
-        await send_email(carrier.email, f"ℹ️ Отклик на груз {route}", html)
+        await send_email(carrier.email, subj, html)
 
     return {"ok": True}
 

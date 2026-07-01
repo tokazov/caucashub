@@ -156,30 +156,51 @@ async def _send_tg_notification(
         return False
 
 
+def _tm(lang: str | None, ka: str, ru: str) -> str:
+    return ka if (lang or "ka") == "ka" else ru
+
+
 async def _send_email_notification(
     email: str,
     offer: TransportOffer,
     site_url: str = "https://caucashub.ge",
+    lang: str | None = None,
 ) -> bool:
     try:
         from app.services.email_service import send_email
     except ImportError:
         return False
 
-    subject = f"🚛 Транспорт: {offer.from_city} → {offer.to_city}"
+    lang = lang or "ka"
+    subject = _tm(lang,
+        f"🚛 ტრანსპორტი: {offer.from_city} → {offer.to_city}",
+        f"🚛 Транспорт: {offer.from_city} → {offer.to_city}"
+    )
     price_str = _format_offer_price(offer)
     cap_str   = _format_capacity(offer)
+    note_row = (
+        f'<tr><td>{_tm(lang,"შენიშვნა","Примечание")}:</td><td>{offer.notes[:100]}</td></tr>'
+        if offer.notes else ""
+    )
     html = f"""
-    <div style="font-family:sans-serif;max-width:500px">
-      <h3 style="color:#1a1a2e">🚛 Новое транспортное предложение по вашей подписке</h3>
-      <p style="font-size:18px;font-weight:bold">{offer.from_city} → {offer.to_city}</p>
-      <table style="font-size:14px;color:#333">
-        <tr><td>Кузов:</td><td>{offer.truck_type or '—'}</td></tr>
-        <tr><td>Вместимость:</td><td>{cap_str or '—'}</td></tr>
-        <tr><td>Цена:</td><td>{price_str}</td></tr>
-        {'<tr><td>Примечание:</td><td>' + offer.notes[:100] + '</td></tr>' if offer.notes else ''}
-      </table>
-      <a href="{site_url}" style="display:inline-block;margin-top:16px;background:#f7b731;color:#1a1a2e;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Смотреть →</a>
+    <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
+      <div style="background:#1a1a2e;padding:16px;text-align:center">
+        <h2 style="color:#f7b731;margin:0">CaucasHub.ge</h2>
+      </div>
+      <div style="padding:20px;background:#fff">
+        <h3 style="color:#1a1a2e">🚛 {_tm(lang,'ახალი სატრანსპორტო შეთავაზება თქვენი გამოწერით','Новое транспортное предложение по вашей подписке')}</h3>
+        <p style="font-size:18px;font-weight:bold">{offer.from_city} → {offer.to_city}</p>
+        <table style="font-size:14px;color:#333">
+          <tr><td>{_tm(lang,'კუზოვი','Кузов')}:</td><td>{offer.truck_type or '—'}</td></tr>
+          <tr><td>{_tm(lang,'ტევადობა','Вместимость')}:</td><td>{cap_str or '—'}</td></tr>
+          <tr><td>{_tm(lang,'ფასი','Цена')}:</td><td>{price_str}</td></tr>
+          {note_row}
+        </table>
+        <a href="{site_url}" style="display:inline-block;margin-top:16px;background:#f7b731;color:#1a1a2e;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">{_tm(lang,'ნახვა →','Смотреть →')}</a>
+      </div>
+      <div style="background:#f0f2f5;padding:10px;text-align:center;font-size:12px;color:#999">
+        CaucasHub.ge — {_tm(lang,'საქართველოს სატვირთო ბირჟა','Биржа грузов Грузии')}
+      </div>
     </div>
     """
     try:
@@ -224,7 +245,7 @@ async def notify_transport_subscribers(offer: TransportOffer, db: AsyncSession) 
                 ok = await _send_tg_notification(user.telegram_id, offer)
 
             if not ok and sub.notify_email and user.email:
-                ok = await _send_email_notification(user.email, offer)
+                ok = await _send_email_notification(user.email, offer, lang=getattr(user, 'lang', None))
 
             if ok:
                 _mark_debounce(sub.id, offer.id)
