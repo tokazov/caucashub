@@ -65,7 +65,6 @@ class Load(Base):
     # Мета
     views         = Column(Integer, default=0)
     is_boosted    = Column(Boolean, default=False)  # платное поднятие (alias: is_promoted)
-    promoted_until = Column(DateTime(timezone=True), nullable=True)  # до какого времени продвинут
     is_demo       = Column(Boolean, default=False)  # демо-груз (ADR-012)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())

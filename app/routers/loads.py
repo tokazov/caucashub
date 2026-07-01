@@ -94,7 +94,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "views": load.views or 0,
         "is_demo": getattr(load, 'is_demo', False),  # ADR-012
         "is_promoted": bool(getattr(load, 'is_boosted', False)),
-        "promoted_until": getattr(load, 'promoted_until', None) and load.promoted_until.isoformat(),
+        "promoted_until": None,
         "owner_verified": bool(user.is_verified) if user else False,  # 2.4.4
         "created_at": load.created_at.isoformat() if load.created_at else None,
         # Контакты владельца — только для платных планов
@@ -409,12 +409,10 @@ async def promote_load(
         raise HTTPException(status_code=403, detail="Not your load")
 
     load.is_boosted = True
-    load.promoted_until = datetime.now(timezone.utc) + timedelta(hours=hours)
     await db.commit()
-    await db.refresh(load)
     return {
         "ok": True,
         "load_id": load_id,
         "is_promoted": True,
-        "promoted_until": load.promoted_until.isoformat()
+        "hours": hours
     }
