@@ -4478,7 +4478,7 @@ async function admLoadAds() {
           var start = fmt(a.created_at||a.start_date);
           var end = a.end_date ? fmt(a.end_date) : 'бессрочно';
           var txt = (start ? '📅 с '+start : '') + (end ? ' — '+end : '');
-          return txt ? '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+txt+'</div>' : '';
+          return txt ? '<div style="font-size:10px;color:#8a9bb0;margin-top:2px;padding-left:60px">'+txt+'</div>' : '';
         })()
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;gap:4px;border-bottom:0.5px solid #f0ede6">'
         +'<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
