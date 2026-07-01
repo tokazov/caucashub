@@ -1175,7 +1175,13 @@ function openCargo(d){
       const _demoBtn = lang==='ge' ? 'გამოხმაურება' : 'Откликнуться';
       _actRow.innerHTML = `<button onclick="openDemoNotice()" style="flex:1;background:#e8c200;color:#1a1a2e;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">🟡 ${_demoBtn}</button>`;
     } else if(_isOwn){
-      _actRow.innerHTML = `<button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button><button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>`;
+      _actRow.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;flex:1">
+        <div style="display:flex;gap:8px">
+          <button onclick="editMyLoad(${d.id})" style="flex:1;background:#1a1a2e;color:#fff;border:none;padding:14px;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit||'✏️ Редактировать'}</button>
+          <button onclick="closeModal('cargoOverlay');deleteMyLoad(${d.id})" style="background:#e74c3c;color:#fff;border:none;padding:14px;border-radius:10px;font-size:18px;cursor:pointer;min-width:54px">🗑️</button>
+        </div>
+        <button onclick="closeModal('cargoOverlay');openPromoteModal(${d.serverId||d.id})" style="width:100%;background:#fff8e1;color:#b8860b;border:2px solid #f7b731;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">⭐ Поднять в топ</button>
+      </div>`;
     } else if(!currentUserId) {
       // ADR-008: незалогиненный — показываем приглашение войти, кнопки нет
       _actRow.innerHTML = `<div style="text-align:center;padding:14px;background:#f8f9fa;border-radius:10px;font-size:14px;color:#555">
@@ -2587,7 +2593,7 @@ function renderCabLoads(){
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
  + '<button onclick="deleteMyLoad(' + l.id + ')" class="cab-btn del">✕ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete||'Удалить') + '</button>'
- + '<button onclick="openPromoteModal(' + (l.serverId||l.id) + ')" class="cab-btn" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;font-size:11px;padding:5px 8px">⭐ Топ</button>'
+ + '<button onclick="openPromoteModal(' + (l.serverId||l.id) + ')" class="cab-btn" style="background:#fff8e1;color:#b8860b;border:1px solid #f7b731;font-size:11px;padding:5px 8px;white-space:nowrap">⭐ Поднять в топ</button>'
  + '</div></div>'
  + '<div class="cab-load-footer" style="margin-top:10px">' + respBadge + '</div>'
  + respBlock
