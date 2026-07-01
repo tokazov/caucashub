@@ -1541,7 +1541,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782931970"></script>
+<script src="main.js?v=1782932270"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1758,7 +1758,7 @@
 </div>
 
 <!-- ═══ ADMIN PANEL OVERLAY ═══ -->
-<div id="adminOverlay" style="display:none;position:fixed;inset:0;z-index:99995;background:#f8f7f3;flex-direction:column">
+<div id="adminOverlay" style="display:none;position:fixed;inset:0;z-index:99995;background:#f8f7f3;flex-direction:column;font-family:system-ui,sans-serif">
 
   <!-- Login -->
   <div id="adminLogin" style="display:flex;align-items:center;justify-content:center;height:100%;background:#f8f7f3">
@@ -1781,64 +1781,77 @@
 
     <!-- Topbar -->
     <div style="background:#0f1923;padding:44px 16px 14px;flex-shrink:0">
-      <div class="topbar-row">
+      <div style="display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div class="topbar-title" id="admPageTitle">Реклама</div>
-          <div class="topbar-sub">CaucasHub · Admin</div>
+          <div id="admPageTitle" style="color:#fff;font-size:17px;font-weight:500">Реклама</div>
+          <div style="color:#8a9bb0;font-size:11px;margin-top:2px">CaucasHub · Admin</div>
         </div>
         <div style="display:flex;gap:12px;align-items:center">
-          <button id="admMainBtn" onclick="admOpenAdForm(null)" class="btn-add">+ Новый</button>
+          <button id="admMainBtn" onclick="admOpenAdForm(null)" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">+ Новый</button>
           <button onclick="admLogoutBtn()" style="background:none;border:none;color:#8a9bb0;font-size:20px;cursor:pointer" title="Выйти">⎋</button>
         </div>
       </div>
     </div>
 
     <!-- KPI scroll -->
-    <div class="kpi-scroll" id="admKpiScroll">
-      <div class="kpi-card"><div class="kpi-label">Показов</div><div class="kpi-val" id="admKpi0">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Кликов</div><div class="kpi-val" id="admKpi1">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">CTR</div><div class="kpi-val" id="admKpi2">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Доход/мес</div><div class="kpi-val gold" id="admKpi3">—</div></div>
+    <div id="admKpiScroll" style="display:flex;gap:10px;padding:12px 16px;overflow-x:auto;flex-shrink:0;background:#f8f7f3;border-bottom:0.5px solid #e0ddd6">
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
+        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Показов</div>
+        <div id="admKpi0" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
+      </div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
+        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Кликов</div>
+        <div id="admKpi1" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
+      </div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:90px;flex-shrink:0">
+        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">CTR</div>
+        <div id="admKpi2" style="font-size:20px;font-weight:600;color:#0f1923;line-height:1">—</div>
+      </div>
+      <div style="background:#fff;border:0.5px solid #e0ddd6;border-radius:10px;padding:10px 14px;min-width:100px;flex-shrink:0">
+        <div style="font-size:10px;color:#8a9bb0;margin-bottom:5px">Доход/мес</div>
+        <div id="admKpi3" style="font-size:20px;font-weight:600;color:#854F0B;line-height:1">—</div>
+      </div>
     </div>
 
     <!-- Content -->
     <div id="admContent" style="flex:1;overflow-y:auto;padding-bottom:4px">
 
       <!-- ADS -->
-      <div class="adm-tab-content active" id="admTabAds">
-        <div class="section-head">
-          <div class="section-label">Рекламные баннеры</div>
+      <div id="admTabAds" style="display:block">
+        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:13px;font-weight:500;color:#0f1923">Рекламные баннеры</div>
         </div>
         <div id="admAdsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
 
       <!-- PAYMENTS -->
-      <div class="adm-tab-content" id="admTabPayments">
-        <div class="section-head">
-          <div class="section-label" id="admPayTitle">Ожидают активации</div>
+      <div id="admTabPayments" style="display:none">
+        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:13px;font-weight:500;color:#0f1923">Платежи</div>
         </div>
         <div style="padding:0 12px 8px;display:flex;gap:8px">
-          <button class="adm-filter active" onclick="admLoadPayments('pending');admFilterActive(this)">⏳ Ожидают</button>
-          <button class="adm-filter" onclick="admLoadPayments('');admFilterActive(this)">Все</button>
+          <button id="admPayFilterPending" onclick="admLoadPayments('pending');admFilterActive(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #0f1923;font-size:12px;cursor:pointer;color:#fff;background:#0f1923">⏳ Ожидают</button>
+          <button id="admPayFilterAll" onclick="admLoadPayments('');admFilterActive(this)" style="padding:5px 12px;border-radius:20px;border:0.5px solid #e0ddd6;font-size:12px;cursor:pointer;color:#8a9bb0;background:transparent">Все</button>
         </div>
         <div id="admPaymentsList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
 
       <!-- USERS -->
-      <div class="adm-tab-content" id="admTabUsers">
-        <div class="section-head"><div class="section-label">Пользователи</div></div>
-        <div class="search-wrap">
-          <input id="admUserSearch" placeholder="Поиск по email..." oninput="admLoadUsers(this.value)">
+      <div id="admTabUsers" style="display:none">
+        <div style="padding:14px 16px 8px"><div style="font-size:13px;font-weight:500;color:#0f1923">Пользователи</div></div>
+        <div style="padding:0 12px 4px">
+          <input id="admUserSearch" placeholder="Поиск по email..." oninput="admLoadUsers(this.value)"
+            style="width:100%;border:0.5px solid #e0ddd6;border-radius:9px;padding:9px 12px;font-size:13px;background:#fff;color:#0f1923;outline:none;box-sizing:border-box">
         </div>
         <div style="height:8px"></div>
         <div id="admUsersList"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
 
       <!-- STATS -->
-      <div class="adm-tab-content" id="admTabStats">
-        <div class="section-head">
-          <div class="section-label" id="admStatsMonth">Отчёт</div>
-          <button class="btn-add" onclick="admCopyReport()" id="admCopyBtn">📋 Копировать</button>
+      <div id="admTabStats" style="display:none">
+        <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between">
+          <div id="admStatsMonth" style="font-size:13px;font-weight:500;color:#0f1923">Отчёт</div>
+          <button id="admCopyBtn" onclick="admCopyReport()" style="background:#f0b537;color:#0f1923;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">📋 Копировать</button>
         </div>
         <div id="admStatsTable"><div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Загрузка...</div></div>
       </div>
@@ -1846,18 +1859,18 @@
     </div>
 
     <!-- Bottom Nav -->
-    <div class="bottomnav">
-      <button class="nav-tab active" id="bnavAds" onclick="switchAdminTab('ads',this)">
+    <div style="height:60px;background:#fff;border-top:0.5px solid #e0ddd6;display:flex;flex-shrink:0">
+      <button id="bnavAds" onclick="switchAdminTab('ads',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#0f1923;border:none;background:transparent;font-size:9px;font-weight:500">
         <span style="font-size:20px">📢</span>Реклама
       </button>
-      <button class="nav-tab" id="bnavPayments" onclick="switchAdminTab('payments',this)">
-        <div class="badge-wrap"><span style="font-size:20px">💳</span><div class="badge-dot" id="pendingBadge" style="display:none"></div></div>
+      <button id="bnavPayments" onclick="switchAdminTab('payments',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500;position:relative">
+        <span style="font-size:20px;position:relative">💳<span id="pendingBadge" style="display:none;position:absolute;top:-2px;right:-5px;width:8px;height:8px;background:#f0b537;border-radius:50%;border:1.5px solid #fff"></span></span>
         Платежи
       </button>
-      <button class="nav-tab" id="bnavUsers" onclick="switchAdminTab('users',this)">
+      <button id="bnavUsers" onclick="switchAdminTab('users',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500">
         <span style="font-size:20px">👥</span>Юзеры
       </button>
-      <button class="nav-tab" id="bnavStats" onclick="switchAdminTab('stats',this)">
+      <button id="bnavStats" onclick="switchAdminTab('stats',this)" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8a9bb0;border:none;background:transparent;font-size:9px;font-weight:500">
         <span style="font-size:20px">📊</span>Отчёт
       </button>
     </div>
@@ -1867,7 +1880,7 @@
   <div id="admAdFormModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;align-items:flex-end;justify-content:center">
     <div style="background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-height:90vh;overflow-y:auto">
       <div style="width:36px;height:4px;background:#e0ddd6;border-radius:2px;margin:0 auto 16px"></div>
-      <div style="font-size:15px;font-weight:600;color:#0f1923;margin-bottom:14px" id="admAdFormTitle">Новый баннер</div>
+      <div id="admAdFormTitle" style="font-size:15px;font-weight:600;color:#0f1923;margin-bottom:14px">Новый баннер</div>
       <div style="display:flex;flex-direction:column;gap:9px">
         <input id="admF_advertiser" placeholder="Рекламодатель *" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;box-sizing:border-box;width:100%">
         <select id="admF_placement" style="padding:11px 12px;border:1px solid #e0ddd6;border-radius:10px;font-size:14px;outline:none;background:#f8f7f3;width:100%">

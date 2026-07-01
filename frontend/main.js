@@ -4302,6 +4302,12 @@ var _admAdsCache = [];
 var PLACEMENT_LABELS = {feed:'Лента', rates:'Ставки', modal:'Модал'};
 var PLACEMENT_PRICES = {feed:300, rates:150, modal:200};
 
+var PILL_STYLES = {
+  feed: 'padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;flex-shrink:0;background:#E6F1FB;color:#185FA5',
+  rates: 'padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;flex-shrink:0;background:#EAF3DE;color:#3B6D11',
+  modal: 'padding:3px 8px;border-radius:10px;font-size:10px;font-weight:500;flex-shrink:0;background:#EEEDFE;color:#534AB7'
+};
+
 function _admToken() { return localStorage.getItem(ADMIN_SECRET_KEY) || ''; }
 
 window.openAdminPanel = function() {
@@ -4357,19 +4363,29 @@ window.admLogoutBtn = function() {
 };
 
 window.admFilterActive = function(el) {
-  document.querySelectorAll('.adm-filter').forEach(function(b){ b.classList.remove('active'); });
-  if(el) el.classList.add('active');
+  ['admPayFilterPending','admPayFilterAll'].forEach(function(id){
+    var b = document.getElementById(id);
+    if(!b) return;
+    if(b === el) { b.style.background='#0f1923'; b.style.color='#fff'; b.style.borderColor='#0f1923'; }
+    else { b.style.background='transparent'; b.style.color='#8a9bb0'; b.style.borderColor='#e0ddd6'; }
+  });
 };
 
 window.switchAdminTab = function(tab, el) {
   _admCurrentTab = tab;
-  document.querySelectorAll('#adminCabinet .nav-tab').forEach(function(b){ b.classList.remove('active'); });
-  if(el) el.classList.add('active');
+  ['bnavAds','bnavPayments','bnavUsers','bnavStats'].forEach(function(id){
+    var b = document.getElementById(id);
+    if(!b) return;
+    b.style.color = (b === el) ? '#0f1923' : '#8a9bb0';
+  });
 
-  document.querySelectorAll('.adm-tab-content').forEach(function(d){ d.classList.remove('active'); });
-  var tabs = {ads:'admTabAds', payments:'admTabPayments', users:'admTabUsers', stats:'admTabStats'};
-  var activeTab = document.getElementById(tabs[tab]);
-  if(activeTab) activeTab.classList.add('active');
+  ['admTabAds','admTabPayments','admTabUsers','admTabStats'].forEach(function(id){
+    var d = document.getElementById(id);
+    if(d) d.style.display = 'none';
+  });
+  var tabMap = {ads:'admTabAds', payments:'admTabPayments', users:'admTabUsers', stats:'admTabStats'};
+  var activeTab = document.getElementById(tabMap[tab]);
+  if(activeTab) activeTab.style.display = '';
 
   var titles = {ads:'Реклама', payments:'Платежи', users:'Пользователи', stats:'Статистика'};
   var titleEl = document.getElementById('admPageTitle');
@@ -4420,26 +4436,28 @@ async function admLoadAds() {
       var imp = a.impressions||0, clk = a.clicks||0;
       var ctr = imp > 0 ? (clk/imp*100).toFixed(1)+'%' : '0%';
       var initials = a.advertiser.split(/\s+/).map(function(w){return w[0]||'';}).join('').substring(0,2).toUpperCase();
-      var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'}[a.placement] || 'place-feed';
-      var pillLabel = PLACEMENT_LABELS[a.placement] || a.placement;
-      return '<div class="ad-card">'
-        + '<div class="ad-card-head">'
-        + '<div class="ad-avatar">'+initials+'</div>'
-        + '<div class="ad-info">'
-        + '<div class="ad-name">'+a.advertiser+'</div>'
-        + '<div class="ad-desc">'+(a.title||a.link_url||'')+'</div>'
+      var pill = PILL_STYLES[a.placement] || PILL_STYLES.feed;
+      return '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;overflow:hidden">'
+        // head
+        + '<div style="padding:12px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #f0ede6">'
+        + '<div style="width:38px;height:38px;border-radius:8px;background:#f0ede6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#0f1923;flex-shrink:0">'+initials+'</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
+        + '<div style="font-size:11px;color:#8a9bb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+(a.title||a.link_url||'')+'</div>'
         + '</div>'
-        + '<span class="place-pill '+pillClass+'">'+pillLabel+'</span>'
+        + '<span style="'+pill+'">'+PLACEMENT_LABELS[a.placement]+'</span>'
         + '</div>'
-        + '<div class="ad-stats">'
-        + '<div class="stat-item"><div class="stat-val">'+imp+'</div><div class="stat-lab">Показы</div></div>'
-        + '<div class="stat-item"><div class="stat-val">'+clk+'</div><div class="stat-lab">Клики</div></div>'
-        + '<div class="stat-item"><div class="stat-val">'+ctr+'</div><div class="stat-lab">CTR</div></div>'
+        // stats
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:10px 12px;gap:4px;border-bottom:0.5px solid #f0ede6">'
+        + '<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Показы</div></div>'
+        + '<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+clk+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">Клики</div></div>'
+        + '<div style="text-align:center"><div style="font-size:15px;font-weight:500;color:#0f1923">'+ctr+'</div><div style="font-size:10px;color:#8a9bb0;margin-top:2px">CTR</div></div>'
         + '</div>'
-        + '<div class="ad-actions">'
-        + '<button class="ad-act primary" onclick="admEditAd('+a.id+')">✏️ Изменить</button>'
-        + '<button class="ad-act" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸ Пауза':'▶️ Вкл')+'</button>'
-        + '<button class="ad-act danger" onclick="admDeleteAd('+a.id+')">🗑️ Удалить</button>'
+        // actions
+        + '<div style="display:flex">'
+        + '<button style="flex:1;padding:9px 4px;border:none;background:transparent;font-size:11px;color:#0f1923;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;border-right:0.5px solid #f0ede6" onclick="admEditAd('+a.id+')">✏️ Изменить</button>'
+        + '<button style="flex:1;padding:9px 4px;border:none;background:transparent;font-size:11px;color:#8a9bb0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;border-right:0.5px solid #f0ede6" onclick="admToggleAd('+a.id+','+(!a.active)+')">'+(a.active?'⏸ Пауза':'▶️ Вкл')+'</button>'
+        + '<button style="flex:1;padding:9px 4px;border:none;background:transparent;font-size:11px;color:#A32D2D;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px" onclick="admDeleteAd('+a.id+')">🗑️ Удалить</button>'
         + '</div>'
         + '</div>';
     }).join('');
@@ -4516,25 +4534,23 @@ window.admLoadPayments = async function(statusFilter) {
     var r = await fetch(url, {headers:{'X-Admin-Secret':_admToken()}});
     var d = await r.json();
     var payments = d.payments || [];
-
     var badge = document.getElementById('pendingBadge');
     if(badge && statusFilter==='pending') badge.style.display = payments.length ? '' : 'none';
-
     if(!payments.length) { list.innerHTML = '<div style="padding:32px;text-align:center;color:#8a9bb0;font-size:13px">Нет платежей</div>'; return; }
-
-    list.innerHTML = '<div class="pay-card">'
+    list.innerHTML = '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;overflow:hidden">'
       + payments.map(function(p){
           var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
           var isPending = p.status === 'pending';
-          return '<div class="pay-row">'
-            + '<div class="pay-top">'
-            + '<div class="pay-type">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</div>'
-            + '<div class="pay-amount">₾'+p.amount_gel+'</div>'
+          return '<div style="padding:12px;border-bottom:0.5px solid #f0ede6">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+            + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+(TYPE_NAMES_ADM[p.type]||p.type)+'</div>'
+            + '<div style="font-size:15px;font-weight:600;color:#0f1923">₾'+p.amount_gel+'</div>'
             + '</div>'
-            + '<div class="pay-meta">id:'+p.user_id+' · '+dt+'</div>'
-            + '<div class="pay-bottom">'
-            + '<span class="status-pill '+(isPending?'s-pending':'s-paid')+'">'+(isPending?'Ожидает':'Оплачен')+'</span>'
-            + (isPending ? '<button class="btn-act" id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')">✅ Активировать</button>' : '<span style="font-size:11px;color:#8a9bb0">'+dt+'</span>')
+            + '<div style="font-size:11px;color:#8a9bb0;margin-bottom:8px">id:'+p.user_id+' · '+dt+'</div>'
+            + '<div style="display:flex;align-items:center;justify-content:space-between">'
+            + '<span style="padding:3px 9px;border-radius:10px;font-size:11px;font-weight:500;background:'+(isPending?'#FAEEDA':'#EAF3DE')+';color:'+(isPending?'#854F0B':'#3B6D11')+'">'+(isPending?'Ожидает':'Оплачен')+'</span>'
+            + (isPending ? '<button id="admPay'+p.id+'" onclick="admActivatePayment('+p.id+')" style="background:#0f1923;color:#f0b537;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">✅ Активировать</button>'
+                         : '<span style="font-size:11px;color:#8a9bb0">'+dt+'</span>')
             + '</div>'
             + '</div>';
         }).join('')
@@ -4567,34 +4583,29 @@ async function admLoadStats() {
     var months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     var monthEl = document.getElementById('admStatsMonth');
     if(monthEl) monthEl.textContent = 'Отчёт — ' + months[now.getMonth()] + ' ' + now.getFullYear();
-
     var revenue = _admAdsCache.filter(function(a){return a.active;}).reduce(function(s,a){return s+(PLACEMENT_PRICES[a.placement]||0);},0);
-    var pillClass = {feed:'place-feed', rates:'place-rates', modal:'place-modal'};
-
     var table = document.getElementById('admStatsTable');
     if(table) {
-      table.innerHTML = '<div class="pay-card">'
+      table.innerHTML = '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;overflow:hidden">'
         + _admAdsCache.map(function(a){
             var imp=a.impressions||0, clk=a.clicks||0;
             var ctr=imp>0?(clk/imp*100).toFixed(1)+'%':'0%';
-            var pill = pillClass[a.placement]||'place-feed';
-            return '<div class="pay-row">'
+            var pill = PILL_STYLES[a.placement]||PILL_STYLES.feed;
+            return '<div style="padding:12px;border-bottom:0.5px solid #f0ede6">'
               + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
               + '<div style="font-size:13px;font-weight:500;color:#0f1923">'+a.advertiser+'</div>'
-              + '<span class="place-pill '+pill+'">'+(PLACEMENT_LABELS[a.placement]||a.placement)+' · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'</span>'
+              + '<span style="'+pill+'">'+PLACEMENT_LABELS[a.placement]+' · ₾'+PLACEMENT_PRICES[a.placement]+'</span>'
               + '</div>'
               + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">'
-              + '<div class="stat-item"><div class="stat-val" style="font-size:14px">'+imp+'</div><div class="stat-lab">Показы</div></div>'
-              + '<div class="stat-item"><div class="stat-val" style="font-size:14px">'+clk+'</div><div class="stat-lab">Клики</div></div>'
-              + '<div class="stat-item"><div class="stat-val" style="font-size:14px">'+ctr+'</div><div class="stat-lab">CTR</div></div>'
-              + '</div>'
-              + '</div>';
+              + '<div style="text-align:center"><div style="font-size:14px;font-weight:500;color:#0f1923">'+imp+'</div><div style="font-size:10px;color:#8a9bb0">Показы</div></div>'
+              + '<div style="text-align:center"><div style="font-size:14px;font-weight:500;color:#0f1923">'+clk+'</div><div style="font-size:10px;color:#8a9bb0">Клики</div></div>'
+              + '<div style="text-align:center"><div style="font-size:14px;font-weight:500;color:#0f1923">'+ctr+'</div><div style="font-size:10px;color:#8a9bb0">CTR</div></div>'
+              + '</div></div>';
           }).join('')
-        + '<div class="total-bar">'
+        + '<div style="padding:10px 14px;background:#f8f7f3;display:flex;justify-content:space-between;font-size:12px;border-top:0.5px solid #e0ddd6">'
         + '<span style="color:#8a9bb0">Итого за месяц</span>'
         + '<span style="font-weight:600;color:#854F0B">₾'+revenue+'</span>'
-        + '</div>'
-        + '</div>';
+        + '</div></div>';
     }
   } catch(e) {}
 }
@@ -4606,12 +4617,12 @@ window.admCopyReport = function() {
   _admAdsCache.forEach(function(a){
     var imp=a.impressions||0, clk=a.clicks||0;
     var ctr=imp>0?(clk/imp*100).toFixed(1):0;
-    lines.push(a.advertiser+' · '+(PLACEMENT_LABELS[a.placement]||a.placement)+' · '+imp+' показов · '+clk+' кликов · CTR '+ctr+'% · ₾'+(PLACEMENT_PRICES[a.placement]||0)+'/мес');
+    lines.push(a.advertiser+' · '+PLACEMENT_LABELS[a.placement]+' · '+imp+' показов · '+clk+' кликов · CTR '+ctr+'% · ₾'+PLACEMENT_PRICES[a.placement]+'/мес');
   });
   var text = lines.join('\n');
   var btn = document.getElementById('admCopyBtn');
   navigator.clipboard.writeText(text).then(function(){
-    if(btn){ var orig=btn.innerHTML; btn.innerHTML='✓ Скопировано'; btn.style.background='#3B6D11'; btn.style.color='#fff'; setTimeout(function(){ btn.innerHTML=orig; btn.style.background=''; btn.style.color=''; }, 2000); }
+    if(btn){ var orig=btn.innerHTML; btn.innerHTML='✓ Скопировано'; btn.style.background='#3B6D11'; btn.style.color='#fff'; setTimeout(function(){ btn.innerHTML=orig; btn.style.background='#f0b537'; btn.style.color='#0f1923'; }, 2000); }
   }).catch(function(){ alert(text); });
 };
 
@@ -4629,13 +4640,14 @@ window.admLoadUsers = async function(search) {
     list.innerHTML = users.map(function(u){
       var initials = (u.email||'').substring(0,2).toUpperCase();
       var plan = u.plan || 'free';
-      return '<div class="user-card">'
-        + '<div class="user-top">'
-        + '<div class="user-av">'+initials+'</div>'
-        + '<div><div class="user-email">'+u.email+'</div><div class="user-role">'+(u.role||'—')+' · id:'+u.id+(u.tg_chat_id?' · ✓ TG':'')+'</div></div>'
-        + '</div>'
-        + '<div class="user-bottom">'
-        + '<select class="plan-select" onchange="admSetPlan('+u.id+',this.value)">'
+      return '<div style="background:#fff;border-radius:12px;margin:0 12px 10px;border:0.5px solid #e0ddd6;padding:12px">'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<div style="width:38px;height:38px;border-radius:50%;background:#0f1923;color:#f0b537;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+initials+'</div>'
+        + '<div><div style="font-size:12px;font-weight:500;color:#0f1923;word-break:break-all">'+u.email+'</div>'
+        + '<div style="font-size:10px;color:#8a9bb0;margin-top:2px">'+(u.role||'—')+' · id:'+u.id+(u.tg_chat_id?' · ✓ TG':'')+'</div>'
+        + '</div></div>'
+        + '<div style="display:flex;gap:8px">'
+        + '<select onchange="admSetPlan('+u.id+',this.value)" style="border:0.5px solid #e0ddd6;border-radius:7px;padding:6px 8px;font-size:13px;background:#f8f7f3;color:#0f1923;flex:1;cursor:pointer">'
         + ['free','pro','pro_plus','business'].map(function(p){ return '<option value="'+p+'"'+(plan===p?' selected':'')+'>'+p+'</option>'; }).join('')
         + '</select>'
         + '</div>'
@@ -4656,7 +4668,6 @@ window.admSetPlan = async function(userId, plan) {
   } catch(e) { alert('Ошибка сети'); }
 };
 
-// Открытие по #admin
 (function() {
   if(window.location.pathname === '/admin' || window.location.hash === '#admin') {
     setTimeout(window.openAdminPanel, 1000);
