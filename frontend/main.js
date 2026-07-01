@@ -2453,6 +2453,7 @@ function switchCabTab(tab, el){
  if(tab === 'transport-requests-out') loadMyTransportRequestsOut();
  if(tab === 'transport-subs') { loadMyTransportSubs(); if(typeof applyLang==='function') applyLang(lang); var _T2=TRANSLATIONS[lang]||TRANSLATIONS['ru']; var _f=document.getElementById('tsSubFrom'); if(_f&&_T2.transport_sub_from_ph) _f.placeholder=_T2.transport_sub_from_ph; var _t=document.getElementById('tsSubTo'); if(_t&&_T2.transport_sub_to_ph) _t.placeholder=_T2.transport_sub_to_ph; }
  if(tab === 'pricing') { renderPricingTab(); }
+ if(tab === 'payments') { loadMyPayments(); }
 }
 
 function renderPricingTab() {
@@ -6147,3 +6148,113 @@ window.openPlanPayment = async function(planType) {
   var text = encodeURIComponent('Хочу подключить план ' + name + ' за ₾' + price + '/мес' + (paymentId ? '. Payment ID: ' + paymentId : ''));
   window.open('https://t.me/tokazov?text=' + text, '_blank');
 };
+
+// ── Страница /payment/success ─────────────────────────────────────────────────
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var pid = params.get('pid');
+  if(!pid || !window.location.pathname.includes('payment')) return;
+
+  var overlay = document.getElementById('paymentSuccessOverlay');
+  if(overlay) {
+    overlay.style.display = 'flex';
+    var icon  = document.getElementById('paySuccessIcon');
+    var title = document.getElementById('paySuccessTitle');
+    var text  = document.getElementById('paySuccessText');
+    var acts  = document.getElementById('paySuccessActions');
+
+    var attempts = 0;
+    var maxAttempts = 90; // 3 мин polling
+    var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+
+    function poll() {
+      attempts++;
+      if(!tk) { showResult(false, 'Войдите в аккаунт чтобы проверить статус.'); return; }
+      fetch(API_BASE + '/api/payments/status/' + pid, {headers:{'Authorization':'Bearer '+tk}})
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+          if(d.status === 'paid') {
+            showResult(true, d.type);
+          } else if(d.status === 'failed' || d.status === 'cancelled') {
+            showResult(false, 'Оплата не прошла. Попробуйте снова или напишите @tokazov');
+          } else if(attempts >= maxAttempts) {
+            showResult(false, 'Время ожидания истекло. Напишите нам: @tokazov (укажите Payment ID: ' + pid + ')');
+          } else {
+            setTimeout(poll, 2000);
+          }
+        })
+        .catch(function() {
+          if(attempts < maxAttempts) setTimeout(poll, 3000);
+          else showResult(false, 'Ошибка связи. Напишите @tokazov');
+        });
+    }
+
+    function showResult(ok, typeOrMsg) {
+      var TYPE_NAMES = {
+        plan_pro:'Pro план', plan_business:'Business план',
+        promote_24h:'продвижение на 24 часа', promote_72h:'продвижение на 3 дня', promote_168h:'продвижение на 7 дней'
+      };
+      if(ok) {
+        icon.textContent = '✅';
+        title.textContent = 'Оплата прошла успешно!';
+        text.textContent = 'Услуга "' + (TYPE_NAMES[typeOrMsg]||typeOrMsg) + '" активирована.';
+        acts.style.display = 'block';
+        // Обновляем данные пользователя
+        if(tk) fetch(API_BASE + '/api/users/me', {headers:{'Authorization':'Bearer '+tk}})
+          .then(function(r){ return r.json(); })
+          .then(function(u){ if(u && u.id && typeof user!=='undefined') { user=u; } })
+          .catch(function(){});
+        setTimeout(function(){ window.location.href = '/#cabinet'; }, 4000);
+      } else {
+        icon.textContent = '❌';
+        title.textContent = 'Что-то пошло не так';
+        text.textContent = typeOrMsg;
+        acts.style.display = 'block';
+      }
+    }
+
+    setTimeout(poll, 1000);
+  }
+})();
+
+// ── История платежей ─────────────────────────────────────────────────────────
+async function loadMyPayments() {
+  var list = document.getElementById('paymentsList');
+  if(!list) return;
+  var tk = typeof getToken==='function' ? getToken() : null;
+  if(!tk) { list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px">Войдите в аккаунт</div>'; return; }
+
+  try {
+    var r = await fetch(API_BASE + '/api/payments/my', {headers:{'Authorization':'Bearer '+tk}});
+    var d = await r.json();
+    var payments = d.payments || [];
+
+    if(!payments.length) {
+      list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px;font-size:14px">История платежей пуста</div>';
+      return;
+    }
+
+    var TYPE_NAMES = {
+      plan_pro:'Pro план', plan_business:'Business план',
+      promote_24h:'Топ 24 часа', promote_72h:'Топ 3 дня', promote_168h:'Топ 7 дней'
+    };
+    var STATUS_COLORS = {pending:'#f7b731', paid:'#2ecc71', failed:'#e74c3c', cancelled:'#aaa'};
+    var STATUS_LABELS = {pending:'Ожидает', paid:'Оплачен', failed:'Ошибка', cancelled:'Отменён'};
+
+    list.innerHTML = payments.map(function(p) {
+      var dt = p.created_at ? new Date(p.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid #f0f2f5">'
+        + '<div>'
+        + '<div style="font-size:13px;font-weight:600;color:#1a1a2e">' + (TYPE_NAMES[p.type]||p.type) + '</div>'
+        + '<div style="font-size:11px;color:#aaa;margin-top:2px">' + dt + ' · #' + p.id + '</div>'
+        + '</div>'
+        + '<div style="text-align:right">'
+        + '<div style="font-size:13px;font-weight:700">₾' + p.amount_gel + '</div>'
+        + '<div style="font-size:11px;color:' + (STATUS_COLORS[p.status]||'#aaa') + ';font-weight:600">' + (STATUS_LABELS[p.status]||p.status) + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:32px">Ошибка загрузки</div>';
+  }
+}

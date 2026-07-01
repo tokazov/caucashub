@@ -498,6 +498,7 @@
  <button class="cab-tab-btn cab-tab cab-tab-shipper" style="display:none" onclick="switchCabTab('transport-subs',this)" data-i18n="cab_transport_subs">🔔 Подп. транспорт</button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('report',this)"><span data-i18n="None"><span data-i18n="cab_report">📊 Отчёт</span></span></button>
  <button class="cab-tab-btn cab-tab" onclick="switchCabTab('pricing',this)"><span data-i18n="cab_pricing">💳 Тарифы</span></button>
+ <button class="cab-tab-btn cab-tab" onclick="switchCabTab('payments',this)"><span>🧾 История</span></button>
  </div>
 
  <!-- Тело кабинета -->
@@ -693,6 +694,14 @@
    <button onclick="openPlanPayment('plan_business')" style="display:block;width:100%;margin-top:12px;background:#f7b731;color:#1a1a2e;text-align:center;padding:10px;border-radius:10px;font-weight:700;font-size:13px;border:none;cursor:pointer">✉️ Написать нам в Telegram</button>
   </div>
 
+ </div>
+</div>
+
+
+<div id="cabTab-payments" class="cab-tab-content" style="display:none">
+ <div style="padding:16px">
+  <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:16px">🧾 История платежей</div>
+  <div id="paymentsList"><div style="text-align:center;color:#aaa;padding:32px;font-size:14px">Загружаем...</div></div>
  </div>
 </div>
 
@@ -1561,7 +1570,7 @@
 </div>
 
 <script src="api.js?v=1782851858"></script>
-<script src="main.js?v=1782905406"></script>
+<script src="main.js?v=1782906872"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1644,5 +1653,17 @@
   }
 })();
 </script>
+
+<!-- ── Страница /payment/success ─────────────────────────────────────────── -->
+<div id="paymentSuccessOverlay" style="display:none;position:fixed;inset:0;background:#f0f2f5;z-index:99999;align-items:center;justify-content:center">
+ <div style="background:#fff;border-radius:20px;padding:40px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.15)">
+  <div id="paySuccessIcon" style="font-size:56px;margin-bottom:16px">⏳</div>
+  <div id="paySuccessTitle" style="font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Проверяем оплату...</div>
+  <div id="paySuccessText" style="font-size:14px;color:#888;margin-bottom:24px;line-height:1.5">Это займёт несколько секунд</div>
+  <div id="paySuccessActions" style="display:none">
+   <button onclick="window.location.href='/'" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:14px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">🏠 На главную</button>
+  </div>
+ </div>
+</div>
 </body>
 </html>
