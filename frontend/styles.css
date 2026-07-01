@@ -543,3 +543,54 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .adm-stat-lbl { font-size: 12px; color: #888; margin-top: 4px; }
 
 .adm-btn-sm { border: none; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+/* ── Admin Panel v2 ── */
+.adm-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer;
+  color: #888; font-size: 13px; transition: none; margin-bottom: 2px;
+}
+.adm-nav-item:hover { background: #f4f3ef; color: #1a1a2e; }
+.adm-nav-item.active { background: #f4f3ef; color: #1a1a2e; font-weight: 600; }
+
+.adm-kpi { background: #fff; border: 1px solid #e8e8e0; border-radius: 12px; padding: 12px 14px; }
+.adm-kpi-lbl { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+.adm-kpi-val { font-size: 22px; font-weight: 600; color: #1a1a2e; line-height: 1; margin-bottom: 3px; }
+.adm-kpi-sub { font-size: 11px; color: #aaa; }
+.adm-kpi-rev .adm-kpi-val { color: #f7b731; }
+
+.adm-th { display: grid; padding: 8px 14px; background: #f8f9fa; font-size: 11px; color: #aaa; font-weight: 600; border-bottom: 1px solid #e8e8e0; text-transform: uppercase; letter-spacing: .04em; }
+.adm-tr { display: grid; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; align-items: center; font-size: 12px; }
+.adm-tr:last-child { border-bottom: none; }
+.adm-tr:hover { background: #fafafa; }
+
+.adm-pill { padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.adm-pill-feed { background: #fff8e1; color: #b8860b; }
+.adm-pill-rates { background: #e8f5e9; color: #2e7d32; }
+.adm-pill-modal { background: #ede7f6; color: #5e35b1; }
+.adm-pill-plan { background: #e3f2fd; color: #1565c0; }
+
+.adm-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.adm-dot-green { background: #2ecc71; }
+.adm-dot-gray { background: #ccc; }
+
+.adm-ctr-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.adm-bar-bg { height: 4px; background: #f0f0f0; border-radius: 2px; flex: 1; overflow: hidden; min-width: 40px; }
+.adm-bar-fill { height: 100%; border-radius: 2px; background: #f7b731; }
+
+.adm-icon-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e0e0e0; background: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
+.adm-icon-btn:hover { background: #f4f3ef; color: #1a1a2e; }
+.adm-icon-btn.danger:hover { background: #fee; color: #e74c3c; border-color: #fcc; }
+
+.adm-filter { padding: 5px 12px; border-radius: 20px; border: 1px solid #e0e0e0; font-size: 12px; cursor: pointer; color: #888; background: transparent; }
+.adm-filter.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+
+.adm-s-pill { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.adm-s-paid { background: #e8f5e9; color: #2e7d32; }
+.adm-s-pending { background: #fff8e1; color: #b8860b; }
+.adm-s-failed { background: #fee; color: #e74c3c; }
+
+.adm-activate-btn { padding: 4px 10px; font-size: 11px; border-radius: 6px; background: #f7b731; color: #1a1a2e; border: none; cursor: pointer; font-weight: 600; }
+.adm-activate-btn:disabled { background: #e8f5e9; color: #2e7d32; }
+
+.adm-plan-select { border: 1px solid #e0e0e0; border-radius: 6px; padding: 3px 6px; font-size: 12px; background: #fff; color: #1a1a2e; cursor: pointer; }
