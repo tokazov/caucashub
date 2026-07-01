@@ -508,11 +508,12 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* ── Ad slot — feed/rates/modal inline blocks ── */
 .ad-slot-feed { padding: 4px 0; }
 
-/* На десктопе: padding-right совмещает кнопку CTA с колонкой "Отклик"
-   Разница по замерам: 61px → итоговый padding-right = 14px + 61px = 75px */
+/* На десктопе: padding-right выравнивает кнопку CTA с колонкой "Отклик"
+   right у Отклик = 1349px → отступ от края = 76px → задаём padding-right: 76px */
 @media(min-width:1024px) {
-  .ad-slot-feed > div {
-    padding-right: 75px;
+  .ad-slot-feed > div,
+  #adSlotRates > div {
+    padding-right: 76px !important;
   }
 }
 
