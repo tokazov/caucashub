@@ -5,7 +5,7 @@ from app.routers import (loads, trucks, auth, ai, users, deals, responses,
                          transport, transport_requests, transport_subscriptions,
                          payments)
 from app.database import engine
-from app.models import user, load, truck, response, deal, city, status_change  # noqa — регистрируем модели
+from app.models import user, load, truck, response, deal, city, status_change, payment  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
