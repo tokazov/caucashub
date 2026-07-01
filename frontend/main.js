@@ -6085,11 +6085,20 @@ window.openPromoteModal = function(loadId) {
     + '<label style="display:flex;align-items:center;justify-content:space-between;border:2px solid #e8eaf0;border-radius:10px;padding:12px;cursor:pointer">'
     + '<div><input type="radio" name="promoteHours" value="168"> <b>7 дней</b></div><div style="color:#f7b731;font-weight:700">₾25</div></label>'
     + '</div>'
-    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">✉️ Написать нам в Telegram @tokazov</button>'
+    + '<button id="promoteTgBtn" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:8px">💳 Купить</button>'
     + '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">Закрыть</button>'
     + '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  // Обновляем текст кнопки при смене срока
+  modal.querySelectorAll('input[name="promoteHours"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+      var p = PROMOTE_PRICES[this.value] || '5';
+      var btn = modal.querySelector('#promoteTgBtn');
+      if(btn) btn.textContent = '💳 Купить за ₾' + p;
+    });
+  });
 
   // Кнопка создаёт payment record, потом открывает Telegram
   modal.querySelector('#promoteTgBtn').addEventListener('click', async function() {
