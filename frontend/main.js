@@ -4327,7 +4327,7 @@ window.openAdminPanel = function() {
   if(_admToken()) {
     _showAdminCabinet();
   } else {
-    document.getElementById('adminLogin').style.display = 'flex';
+    document.getElementById('adminLoginBox').style.display = 'flex';
     document.getElementById('admDesktop').style.display = 'none';
     document.getElementById('admMobile').style.display = 'none';
     setTimeout(function(){ var p=document.getElementById('adminPassInput'); if(p) p.focus(); }, 100);
@@ -4358,7 +4358,7 @@ window.adminLogin = async function() {
 };
 
 function _showAdminCabinet() {
-  document.getElementById('adminLogin').style.display = 'none';
+  document.getElementById('adminLoginBox').style.display = 'none';
   // CSS media query управляет видимостью desktop/mobile
   switchAdminTab('ads', null);
 }
@@ -4458,7 +4458,7 @@ async function admLoadAds() {
   if(dList) dList.innerHTML = loading;
   try {
     var r = await fetch(ADMIN_API+'/api/ads/admin/list', {headers:{'X-Admin-Secret':_admToken()}});
-    if(r.status===403){ localStorage.removeItem(ADMIN_SECRET_KEY); var lg=document.getElementById('adminLogin'); if(lg) lg.style.display='flex'; return; }
+    if(r.status===403){ localStorage.removeItem(ADMIN_SECRET_KEY); var lg=document.getElementById('adminLoginBox'); if(lg) lg.style.display='flex'; return; }
     var d = await r.json();
     _admAdsCache = d.ads||[];
     _admUpdateKpi(_admAdsCache);
