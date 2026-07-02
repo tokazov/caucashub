@@ -220,7 +220,14 @@
   <button class="post-btn" onclick="openPostLoad()">+ <span data-i18n="btn_post">Разместить груз</span></button>
   <div id="fcount" style="display:none"></div>
 </div>
-<!-- STATS (admin-only, hidden from public) -->
+<!-- STATS -->
+<div class="stats-bar" id="statsBar">
+  <span><span class="dot"></span><strong id="statLoads">—</strong> <span data-i18n="stat_loads">грузов</span></span>
+  <span><strong id="statTrucks">—</strong> <span data-i18n="stat_trucks">машин онлайн</span></span>
+  <span><strong id="statCompanies">—</strong> <span data-i18n="stat_companies">компаний</span></span>
+  <span><strong id="statUsers">—</strong> <span data-i18n="stat_users">пользователей</span></span>
+  <span><span class="dot dot-green"></span><strong id="statOnlineUsers">—</strong> <span data-i18n="stat_online">онлайн</span></span>
+</div>
 
 <!-- MAP -->
 <div class="map-wrap" id="mapWrap">

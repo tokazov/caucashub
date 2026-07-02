@@ -4582,7 +4582,7 @@ window.admLoadPayments = async function(statusFilter) {
   if(mList) mList.innerHTML=loading;
   if(dList) dList.innerHTML=loading;
   try {
-    var url=ADMIN_API+'/api/payments/admin/list'+(statusFilter?'?status='+statusFilter:'');
+    var url=ADMIN_API+'/api/payments/admin/payments/list'+(statusFilter?'?status='+statusFilter:'');
     var r=await fetch(url,{headers:{'X-Admin-Secret':_admToken()}});
     var d=await r.json();
     var payments=d.payments||[];

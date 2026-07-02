@@ -304,7 +304,7 @@ async def create_payment(
         "currency": "GEL",
         "type": data.type,
         "pay_url": pay_url,
-        "telegram": "@tokazov",
+        "telegram": "@timurtokazov",
     }
 
 
