@@ -4456,7 +4456,7 @@ async function admLoadAds() {
   if(dList) dList.innerHTML = loading;
   try {
     var r = await fetch(ADMIN_API+'/api/ads/admin/list', {headers:{'X-Admin-Secret':_admToken()}});
-    if(r.status===403){ admLogoutBtn(); return; }
+    if(r.status===403){ localStorage.removeItem(ADMIN_SECRET_KEY); var lg=document.getElementById('adminLogin'); if(lg) lg.style.display='flex'; return; }
     var d = await r.json();
     _admAdsCache = d.ads||[];
     _admUpdateKpi(_admAdsCache);
