@@ -4327,9 +4327,7 @@ window.openAdminPanel = function() {
   if(_admToken()) {
     _showAdminCabinet();
   } else {
-    document.getElementById('adminLoginBox').style.display = 'flex';
-    document.getElementById('admDesktop').style.display = 'none';
-    document.getElementById('admMobile').style.display = 'none';
+    el.classList.remove('adm-logged-in');
     setTimeout(function(){ var p=document.getElementById('adminPassInput'); if(p) p.focus(); }, 100);
   }
 };
@@ -4358,18 +4356,16 @@ window.adminLogin = async function() {
 };
 
 function _showAdminCabinet() {
-  document.getElementById('adminLoginBox').style.display = 'none';
-  // CSS media query управляет видимостью desktop/mobile
+  var overlay = document.getElementById('adminOverlay');
+  if(overlay) overlay.classList.add('adm-logged-in');
   switchAdminTab('ads', null);
 }
 
 window.admLogoutBtn = function() {
   localStorage.removeItem(ADMIN_SECRET_KEY);
-  // CSS !important управляет desktop/mobile — скрываем через overlay
   var overlay = document.getElementById('adminOverlay');
-  if(overlay) overlay.style.display = 'none';
+  if(overlay) { overlay.classList.remove('adm-logged-in'); overlay.style.display = 'none'; }
   document.body.style.overflow = '';
-  // При следующем открытии покажет форму логина (токена нет)
 };
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────

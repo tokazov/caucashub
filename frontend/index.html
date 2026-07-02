@@ -121,7 +121,7 @@
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1783018296">
+<link rel="stylesheet" href="styles.css?v=1783018980">
 </head>
 <body>
 
@@ -1544,8 +1544,8 @@
   </div>
 </div>
 
-<script src="api.js?v=1783018296"></script>
-<script src="main.js?v=1783018296"></script>
+<script src="api.js?v=1783018980"></script>
+<script src="main.js?v=1783018980"></script>
 <script src="ai-dispatcher.js?v=1782737198"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -1764,15 +1764,21 @@
 <!-- ═══ ADMIN PANEL OVERLAY ═══ -->
 <style>
 #adminOverlay { font-family: system-ui, sans-serif; }
+/* Кабинет скрыт пока показывается форма логина */
+#adminOverlay.adm-logged-in #adminLoginBox { display:none !important; }
 /* Десктоп: показываем sidebar-версию, скрываем мобильную */
 @media(min-width:769px) {
-  #admDesktop { display:flex !important; }
-  #admMobile  { display:none !important; }
+  #adminOverlay.adm-logged-in #admDesktop { display:flex !important; }
+  #adminOverlay.adm-logged-in #admMobile  { display:none !important; }
+  #admDesktop { display:none; }
+  #admMobile  { display:none; }
 }
 /* Мобильный: скрываем десктоп, показываем мобильную */
 @media(max-width:768px) {
-  #admDesktop { display:none !important; }
-  #admMobile  { display:flex !important; flex-direction:column; }
+  #adminOverlay.adm-logged-in #admDesktop { display:none !important; }
+  #adminOverlay.adm-logged-in #admMobile  { display:flex !important; flex-direction:column; }
+  #admDesktop { display:none; }
+  #admMobile  { display:none; }
 }
 </style>
 <div id="adminOverlay" style="display:none;position:fixed;inset:0;z-index:99995">
