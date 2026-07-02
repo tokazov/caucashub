@@ -6328,22 +6328,48 @@ function renderTransportOffers() {
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Войти</button>';
 
-    return '<div class="card-load transport-card" style="border-left: 3px solid #2ecc71">' +
-      '<div class="card-main">' +
-        '<div class="card-route">' + esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city) + ' ' + urgBadge + '</div>' +
-        '<div class="card-meta">' +
-          '<span>' + esc(o.company_name || 'Перевозчик') + '</span>' +
-          '<span>★ ' + (o.rating || '5.0') + '</span>' +
+    var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city);
+    var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city);
+    var carrier  = esc(o.company_name || 'Перевозчик');
+    var rating   = '★ ' + (o.rating || '5.0');
+    var capLabel = cap ? cap + ' вмест.' : '—';
+
+    return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71">' +
+
+      // ── ДЕСКТОП: grid по колонкам заголовка ──
+      '<div class="row-desktop">' +
+        '<div>' +
+          '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + ' ' + urgBadge + '</div>' +
+          (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
         '</div>' +
-        (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
+        '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
+        '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
+        '<div><span class="tag">' + esc(o.truck_type || '—') + '</span></div>' +
+        '<div style="font-size:12px;font-weight:600;color:#555">' + dateFrom + dateTo + '</div>' +
+        '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
       '</div>' +
-      '<div class="card-right">' +
-        '<div class="card-info"><b>' + (cap || '—') + '</b> <span style="color:#888">вмест.</span></div>' +
-        '<div class="card-info">' + esc(o.truck_type || '') + '</div>' +
-        (price ? '<div class="card-price">' + price + '</div>' : '') +
-        '<div class="card-info" style="color:#888">' + dateFrom + dateTo + '</div>' +
-        '<div style="margin-top:6px">' + actionBtn + '</div>' +
+
+      // ── МОБИЛЬ: карточный вид ──
+      '<div class="row-mobile">' +
+        '<div class="card-main-row">' +
+          '<div class="card-left">' +
+            '<div class="card-route-new">' + fromCity + ' <span class="arr">→</span> ' + toCity + ' ' + urgBadge + '</div>' +
+            '<div class="card-meta-row">' +
+              '<span class="card-co-new">' + carrier + ' ' + rating + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-right-col">' +
+            (price ? '<div class="card-price-new">' + price + '</div>' : '') +
+            '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-footer-row">' +
+          '<span class="card-type-tag">' + esc(o.truck_type || '—') + '</span>' +
+          '<span>' + capLabel + '</span>' +
+          (dateFrom ? '<span>' + dateFrom + dateTo + '</span>' : '') +
+        '</div>' +
       '</div>' +
+
     '</div>';
   }).join('');
   list.innerHTML = html;

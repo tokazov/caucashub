@@ -205,6 +205,7 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
   .stats-bar > span { flex:0 0 auto; }
   .stats-bar .stat-hide-mobile { display:none !important; }
   .thead { display:none !important; }
+  .transport-thead { display:none !important; }
   .row,.truck-row { display:block; padding:12px 16px; margin-bottom:8px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); border-left-width:4px !important; }
   .row > div { margin-bottom:3px; line-height:1.4; }
   .row > div:last-child { margin-bottom:0; }
