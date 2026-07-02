@@ -4365,9 +4365,11 @@ function _showAdminCabinet() {
 
 window.admLogoutBtn = function() {
   localStorage.removeItem(ADMIN_SECRET_KEY);
-  document.getElementById('admDesktop').style.display = 'none';
-  document.getElementById('admMobile').style.display = 'none';
-  document.getElementById('adminLogin').style.display = 'flex';
+  // CSS !important управляет desktop/mobile — скрываем через overlay
+  var overlay = document.getElementById('adminOverlay');
+  if(overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  // При следующем открытии покажет форму логина (токена нет)
 };
 
 // ── TAB SWITCHING ─────────────────────────────────────────────────────────────
