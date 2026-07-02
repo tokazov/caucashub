@@ -360,25 +360,35 @@
     if(!fab) return;
 
     // Восстанавливаем позицию
-    try {
-      // На мобильном — всегда дефолтная позиция (не используем localStorage)
-      if(window.innerWidth > 600){
-        var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
-        if(saved && saved.bottom && saved.right){
-          var rightVal = parseInt(saved.right);
-          var bottomVal = parseInt(saved.bottom);
-          if(rightVal >= 8 && rightVal <= window.innerWidth - 60 && bottomVal >= 60){
-            fab.style.bottom = saved.bottom; fab.style.right = saved.right;
-          } else {
-            localStorage.removeItem('ch_fab_pos');
-          }
-        }
-      } else {
+    function clampFab(){
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      if(w <= 600){
+        // Мобиль — всегда дефолт, убираем localStorage
         localStorage.removeItem('ch_fab_pos');
         fab.style.bottom = '80px';
         fab.style.right = '16px';
+      } else {
+        try {
+          var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
+          if(saved && saved.bottom && saved.right){
+            var rightVal = parseInt(saved.right);
+            var bottomVal = parseInt(saved.bottom);
+            // Проверяем что кнопка в пределах экрана
+            if(rightVal >= 8 && rightVal <= w - 60 && bottomVal >= 60 && bottomVal <= h - 60){
+              fab.style.bottom = saved.bottom; fab.style.right = saved.right;
+            } else {
+              localStorage.removeItem('ch_fab_pos');
+              fab.style.bottom = '80px'; fab.style.right = '16px';
+            }
+          }
+        } catch(e){}
       }
-    } catch(e){}
+    }
+    clampFab();
+    // При изменении ориентации/размера — пересчитываем позицию
+    window.addEventListener('resize', clampFab);
+    window.addEventListener('orientationchange', function(){ setTimeout(clampFab, 300); });
 
     var dragging = false, moved = false, startX, startY, startBottom, startRight, dragTarget = null;
 
