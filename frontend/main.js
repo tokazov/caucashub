@@ -4324,6 +4324,7 @@ window.openAdminPanel = function() {
   if(!el) return;
   el.style.display = 'block';
   document.body.style.overflow = 'hidden';
+  if(window.location.hash !== '#admin') history.replaceState(null,'','#admin');
   if(_admToken()) {
     _showAdminCabinet();
   } else {
@@ -4336,6 +4337,7 @@ window.closeAdminPanel = function() {
   var el = document.getElementById('adminOverlay');
   if(el) el.style.display = 'none';
   document.body.style.overflow = '';
+  if(window.location.hash === '#admin') history.replaceState(null,'','/');
 };
 
 window.adminLogin = async function() {
