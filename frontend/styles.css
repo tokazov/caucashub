@@ -46,8 +46,9 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 .nav-tab.active { color:#f7b731; border-bottom-color:#f7b731; font-weight:600; }
 
 /* STATS */
-.stats-bar { background:#0d1526; padding:8px 16px; display:flex; gap:12px 20px; font-size:13px; color:#666; flex-wrap:wrap; overflow:hidden; max-width:100%; box-sizing:border-box; }
-@media(max-width:600px){ .stats-bar { display:none; } }
+.stats-bar { background:#0d1526; padding:8px 16px; display:flex; gap:20px; font-size:13px; color:#666; overflow-x:auto; overflow-y:hidden; white-space:nowrap; scrollbar-width:none; -ms-overflow-style:none; max-width:100%; box-sizing:border-box; }
+.stats-bar::-webkit-scrollbar { display:none; }
+.stats-bar span { flex-shrink:0; }
 .dot { width:6px; height:6px; border-radius:50%; background:#2ecc71; display:inline-block; margin-right:4px; animation:pulse 2s infinite; }
 .dot-green { background:#2ecc71; }
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
