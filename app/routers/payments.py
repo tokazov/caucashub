@@ -438,10 +438,12 @@ async def admin_payments_list(
             "id": p.id,
             "user_id": p.user_id,
             "type": p.type,
-            "amount_gel": p.amount_gel,
+            "payload": p.payload,
+            "amount_gel": float(p.amount_gel) if p.amount_gel else 0,
             "status": p.status,
-            "pay_url": p.pay_url,
-            "created_at": p.created_at,
+            "provider": p.provider,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "paid_at": p.paid_at.isoformat() if p.paid_at else None,
         }
         for p in payments
     ]}
