@@ -230,6 +230,38 @@ async def update_status(
         else:
             deal.status = DealStatus.delivered
 
+    elif new_status_str == "delivered":
+        # Прямой переход в delivered — засчитывается как подтверждение от текущего пользователя
+        if current_status != "in_transit":
+            raise HTTPException(400, f"Нельзя перейти в delivered из {current_status}")
+        if user_id == deal.carrier_id:
+            deal.carrier_confirmed = True
+            deal.delivered_at = now
+        elif user_id == deal.shipper_id:
+            deal.shipper_confirmed = True
+        else:
+            raise HTTPException(403, "Нет доступа")
+        if deal.carrier_confirmed and deal.shipper_confirmed:
+            deal.status = DealStatus.completed
+            deal.completed_at = now
+            if email_available:
+                _send_completed_emails(shipper, carrier, deal_num)
+            from sqlalchemy import text as sql_text
+            if deal.load_id:
+                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
+        else:
+            deal.status = DealStatus.delivered
+        await log_status_change(db, "deal", deal.id, current_status, "delivered", user_id)
+
+    elif new_status_str in ("completed", "canceled", "rated"):
+        try:
+            deal.status = DealStatus[new_status_str]
+        except KeyError:
+            raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
+        if new_status_str == "completed":
+            deal.completed_at = now
+        await log_status_change(db, "deal", deal.id, current_status, new_status_str, user_id)
+
     else:
         raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
 
