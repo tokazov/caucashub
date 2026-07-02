@@ -3421,9 +3421,13 @@ const TRANSLATIONS = {
     opt_any_body: 'Любой кузов',
     btn_find_transport: '🔍 Найти',
     btn_offer_transport: '+ Предложить транспорт',
+    th_route_transport: 'МАРШРУТ',
+    th_carrier: 'ПЕРЕВОЗЧИК',
     th_capacity: 'ВМЕСТИМОСТЬ',
     th_body: 'КУЗОВ',
     th_date_short: 'ДАТА',
+    transport_loading: '⏳ Загружаем предложения...',
+    unit_capacity: 'вмест.',
     cabinet_title: 'Личный кабинет',
     auth_tab_register: 'Регистрация',
     no_account_q: 'Нет аккаунта?',
@@ -4076,9 +4080,12 @@ const TRANSLATIONS = {
     opt_any_body: 'ნებისმიერი კუზოვი',
     btn_find_transport: '🔍 ძიება',
     btn_offer_transport: '+ ტრანსპორტის შეთავაზება',
+    th_route_transport: 'მარშრუტი',
+    th_carrier: 'გადამზიდველი',
     th_capacity: 'ტევადობა',
     th_body: 'კუზოვი',
     th_date_short: 'თარიღი',
+    unit_capacity: 'ტევ.',
     cabinet_title: 'კაბინეტი',
     auth_tab_register: 'რეგისტრაცია',
     no_account_q: 'ანგარიში არ გაქვთ?',
@@ -6326,13 +6333,13 @@ function renderTransportOffers() {
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
-    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Войти</button>';
+    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
     var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city);
     var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city);
     var carrier  = esc(o.company_name || 'Перевозчик');
     var rating   = '★ ' + (o.rating || '5.0');
-    var capLabel = cap ? cap + ' вмест.' : '—';
+    var capLabel = cap ? cap + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_capacity||'вмест.') : '—';
 
     return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71">' +
 
