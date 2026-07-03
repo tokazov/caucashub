@@ -16,12 +16,27 @@ const RU = {
   canonical: BASE + '/',
 };
 
+const GE_NOSCRIPT = `<noscript>
+<div style="max-width:900px;margin:0 auto;padding:20px;font-family:sans-serif">
+  <h1>CaucasHub.ge — კავკასიის სატვირთო ბირჟა</h1>
+  <p>კავკასიის პირველი ონლაინ სატვირთო ბირჟა. იპოვეთ გადამზიდველები და ტვირთები საქართველოში, რუსეთში, აზერბაიჯანში, სომხეთში და დსთ-ს ქვეყნებში. აქტუალური ტარიფები, სწრაფი გარიგებები. თბილისი, ბათუმი, ქუთაისი, რუსთავი და 120+ ქალაქი.</p>
+  <h2>ტვირთგადაზიდვები საქართველოში</h2>
+  <p>თბილისი — ბათუმი, თბილისი — ქუთაისი, თბილისი — ფოთი, თბილისი — ზუგდიდი. სასწრაფო და დაგეგმილი გადაზიდვები. ფურგონები, ფურები, რეფრიჯერატორები.</p>
+  <h2>საერთაშორისო მარშრუტები</h2>
+  <p>საქართველო — რუსეთი, საქართველო — აზერბაიჯანი, საქართველო — სომხეთი, საქართველო — თურქეთი. საბაჟო გაფორმება, კონსოლიდირებული ტვირთები, FTL/LTL.</p>
+  <p><a href="https://www.caucashub.ge/ka/">caucashub.ge</a></p>
+</div>
+</noscript>`;
+
 const GE = {
   title:    'CaucasHub.ge \u2014 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d8\u10e1 \u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0',
   desc:     'CaucasHub.ge \u2014 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d8\u10e1 \u10de\u10d8\u10e0\u10d5\u10d4\u10da\u10d8 \u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0. \u10d8\u10de\u10dd\u10d5\u10d4\u10d7 \u10d2\u10d0\u10d3\u10d0\u10db\u10d6\u10d8\u10d3\u10d5\u10d4\u10da\u10d4\u10d1\u10d8 \u10d3\u10d0 \u10e2\u10d5\u10d8\u10e0\u10d7\u10d4\u10d1\u10d8 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd\u10e8\u10d8, \u10e1\u10dd\u10db\u10ee\u10d4\u10d7\u10e1\u10d0, \u10d0\u10d6\u10d4\u10e0\u10d1\u10d0\u10d8\u10ef\u10d0\u10dc\u10e8\u10d8. 120+ \u10e5\u10d0\u10da\u10d0\u10e5\u10d8.',
   keywords: '\u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd, \u10d2\u10d0\u10d3\u10d0\u10db\u10d6\u10d8\u10d3\u10d5\u10d4\u10da\u10d4\u10d1\u10d8 \u10d7\u10d1\u10d8\u10da\u10d8\u10e1\u10d8, \u10e2\u10d5\u10d8\u10e0\u10d7\u10d4\u10d1\u10d8 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d0, \u10da\u10dd\u10ef\u10d8\u10e1\u10e2\u10d8\u10d9\u10d0 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd',
   canonical: BASE + '/ka/',
+  noscript: GE_NOSCRIPT,
 };
+
+
 
 // hreflang теги — одинаковые для обеих версий
 const HREFLANG = `
@@ -51,6 +66,10 @@ function injectSEO(html, meta) {
     /(\s*<link\s+rel="alternate"\s+hreflang[^>]+>\s*)+/g,
     HREFLANG + '\n'
   );
+  // noscript (если передан)
+  if (meta.noscript) {
+    html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, meta.noscript);
+  }
   return html;
 }
 
