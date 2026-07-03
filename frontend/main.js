@@ -2374,28 +2374,59 @@ async function confirmDelivery(dealId){
   if(!dealId){ showToastWarn('⚠️ ID сделки не найден'); return; }
   var tk = typeof getToken==='function' ? getToken() : null;
   if(!tk){ showToastWarn(_T.warn_login||'⚠️ Войдите в аккаунт'); return; }
+
+  // Дизейблим кнопку сразу чтобы не было двойных кликов
+  var _btn = document.querySelector('[onclick*="confirmDelivery('+dealId+')"]');
+  if(_btn){ _btn.disabled = true; _btn.style.opacity = '0.6'; }
+
   try{
     const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/'+dealId+'/confirm', {
       method:'POST',
       headers:{'Authorization':'Bearer '+tk}
     });
     let d = null; try{ d = await r.json(); }catch(e){}
-    if(r.ok){
+
+    if(r.ok && d){
+      // Обновляем сделку в локальном массиве
       const idx = _deals.findIndex(x=>x.id===dealId);
-      if(idx>-1 && d) Object.assign(_deals[idx], d);
-      if(typeof loadCabinetData==='function') loadCabinetData();
-      if(d && d.status==='completed'){
+      if(idx>-1) _deals[idx] = Object.assign({}, _deals[idx], d);
+
+      if(d.status==='completed'){
+        // Обе стороны подтвердили — сделка завершена
         pushNotif('🎉 ' + (_T.deal_completed||'Сделка завершена!'), _T.deal_completed_sub||'Акт выполненных работ доступен для скачивания', []);
         showToastWarn('🎉 ' + (_T.deal_completed||'Сделка завершена!'));
       } else {
+        // Только одна сторона подтвердила — ждём вторую
         pushNotif('✅ ' + (_T.deal_confirmed||'Подтверждено'), _T.deal_confirmed_sub||'Ожидаем подтверждения второй стороны', []);
         showToastWarn('✅ ' + (_T.deal_confirmed||'Подтверждено'));
       }
+
+      // Гарантированно перерисовываем карточки сделок
+      if(typeof renderCabDeals==='function') renderCabDeals();
+
+      // Также подгружаем свежие данные с сервера в фоне
+      setTimeout(function(){
+        var tk2 = typeof getToken==='function' ? getToken() : null;
+        if(!tk2) return;
+        fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk2}})
+          .then(function(rr){ return rr.ok ? rr.json() : null; })
+          .then(function(dd){
+            if(!dd) return;
+            _deals = dd.deals||[];
+            if(typeof renderCabDeals==='function') renderCabDeals();
+          }).catch(function(){});
+      }, 300);
+
     } else {
       var errMsg = (d && typeof d.detail==='string') ? d.detail : (_T.err_confirm_delivery||'Ошибка подтверждения');
       showToastWarn('⚠️ ' + errMsg);
+      // Восстанавливаем кнопку при ошибке
+      if(_btn){ _btn.disabled = false; _btn.style.opacity = ''; }
     }
-  }catch(e){ showToastWarn('⚠️ ' + (_T.warn_network||'Ошибка сети')); }
+  }catch(e){
+    showToastWarn('⚠️ ' + (_T.warn_network||'Ошибка сети'));
+    if(_btn){ _btn.disabled = false; _btn.style.opacity = ''; }
+  }
 }
 // Отклики на мои грузы: {loadId: [{id, name, truck, tonnage, rating, status}]}
 let _loadResponses = {};
@@ -2911,7 +2942,18 @@ function renderCabDeals(){
  + '<div class="cab-deal-actions">'
  + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>'
  + (d.status === 'confirmed' || d.status === 'in_transit'
- ? (d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ ' + (_tr.btn_confirm_delivery||'Подтвердить доставку') + '</button>' : '')
+ ? (function(){
+     // Определяем роль текущего пользователя в этой сделке
+     var myId = user && user.id;
+     var iAmShipper = myId && (d.shipper_id === myId || d.user_id === myId);
+     var iAmCarrier = myId && (d.carrier_id === myId);
+     // Уже подтвердил?
+     var alreadyConfirmed = (iAmShipper && d.shipper_confirmed) || (iAmCarrier && d.carrier_confirmed);
+     if(alreadyConfirmed){
+       return '<div style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#e8f8f0;border-radius:8px;font-size:12px;color:#2ecc71;font-weight:600">⏳ ' + (_tr.deal_waiting_confirm||'Ожидаем подтверждения второй стороны') + '</div>';
+     }
+     return d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ ' + (_tr.btn_confirm_delivery||'Подтвердить доставку') + '</button>' : '';
+   })()
  : '')
  + (d.status === 'completed'
  ? '<button onclick="rateDealPrompt(' + d.id + ',\'' + (d.act_number||d.id) + '\')" class="cab-btn" style="background:#f7b731;color:#1a1a2e;font-size:12px;padding:7px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-left:6px">⭐ ' + (_tr.btn_rate||'Оценить') + '</button>'
@@ -3348,6 +3390,7 @@ const TRANSLATIONS = {
     filter_up_to: 'до ', unit_t: ' т',
     deal_completed: 'Сделка завершена!', deal_completed_sub: 'Акт выполненных работ доступен для скачивания',
     deal_confirmed: 'Подтверждено', deal_confirmed_sub: 'Ожидаем подтверждения второй стороны',
+    deal_waiting_confirm: 'Ожидаем подтверждения второй стороны',
     err_confirm_delivery: 'Ошибка подтверждения доставки',
     post_transport_err_route: 'Укажите маршрут',
     post_transport_err_capacity: 'Укажите грузоподъёмность (мин. 100 кг)',
@@ -4180,6 +4223,7 @@ const TRANSLATIONS = {
     filter_up_to: 'მდე ', unit_t: ' ტ',
     deal_completed: 'გარიგება დასრულდა!', deal_completed_sub: 'შესრულებული სამუშაოების აქტი ხელმისაწვდომია',
     deal_confirmed: 'დადასტურდა', deal_confirmed_sub: 'ველოდებით მეორე მხარის დადასტურებას',
+    deal_waiting_confirm: 'ველოდებით მეორე მხარის დადასტურებას',
     err_confirm_delivery: 'მიტანის დადასტურების შეცდომა',
     post_transport_err_route: 'მიუთითეთ მარშრუტი',
     post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
