@@ -2370,25 +2370,32 @@ async function dealAction(dealId, status){
 }
 
 async function confirmDelivery(dealId){
-  if(!dealId) return;
-  if(!getToken()) return;
+  var _T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+  if(!dealId){ showToastWarn('⚠️ ID сделки не найден'); return; }
+  var tk = typeof getToken==='function' ? getToken() : null;
+  if(!tk){ showToastWarn(_T.warn_login||'⚠️ Войдите в аккаунт'); return; }
   try{
-    const r = await fetch(`https://api-production-f3ea.up.railway.app/api/deals/${dealId}/confirm`, {
+    const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/'+dealId+'/confirm', {
       method:'POST',
-      headers:{'Authorization':'Bearer '+getToken()}
+      headers:{'Authorization':'Bearer '+tk}
     });
+    let d = null; try{ d = await r.json(); }catch(e){}
     if(r.ok){
-      const d = await r.json();
       const idx = _deals.findIndex(x=>x.id===dealId);
-      if(idx>-1) Object.assign(_deals[idx], d);
-      _renderOrders();
-      if(d.status==='completed'){
-        pushNotif('🎉 Сделка завершена!', 'Акт выполненных работ доступен для скачивания', []);
+      if(idx>-1 && d) Object.assign(_deals[idx], d);
+      if(typeof loadCabinetData==='function') loadCabinetData();
+      if(d && d.status==='completed'){
+        pushNotif('🎉 ' + (_T.deal_completed||'Сделка завершена!'), _T.deal_completed_sub||'Акт выполненных работ доступен для скачивания', []);
+        showToastWarn('🎉 ' + (_T.deal_completed||'Сделка завершена!'));
       } else {
-        pushNotif('✅ Подтверждено', 'Ожидаем подтверждения второй стороны', []);
+        pushNotif('✅ ' + (_T.deal_confirmed||'Подтверждено'), _T.deal_confirmed_sub||'Ожидаем подтверждения второй стороны', []);
+        showToastWarn('✅ ' + (_T.deal_confirmed||'Подтверждено'));
       }
+    } else {
+      var errMsg = (d && typeof d.detail==='string') ? d.detail : (_T.err_confirm_delivery||'Ошибка подтверждения');
+      showToastWarn('⚠️ ' + errMsg);
     }
-  }catch(e){ alert('Ошибка: '+e.message); }
+  }catch(e){ showToastWarn('⚠️ ' + (_T.warn_network||'Ошибка сети')); }
 }
 // Отклики на мои грузы: {loadId: [{id, name, truck, tonnage, rating, status}]}
 let _loadResponses = {};
@@ -3339,6 +3346,9 @@ const TRANSLATIONS = {
     role_hint_private: 'Разовая отправка, без ИП',
     transport_offer_btn_remove: 'Снять',
     filter_up_to: 'до ', unit_t: ' т',
+    deal_completed: 'Сделка завершена!', deal_completed_sub: 'Акт выполненных работ доступен для скачивания',
+    deal_confirmed: 'Подтверждено', deal_confirmed_sub: 'Ожидаем подтверждения второй стороны',
+    err_confirm_delivery: 'Ошибка подтверждения доставки',
     post_transport_err_route: 'Укажите маршрут',
     post_transport_err_capacity: 'Укажите грузоподъёмность (мин. 100 кг)',
     post_transport_err_date: 'Укажите дату',
@@ -4168,6 +4178,9 @@ const TRANSLATIONS = {
     role_hint_private: 'ერთჯერადი გაგზავნა, ინდ. მეწარმის გარეშე',
     transport_offer_btn_remove: 'მოხსნა',
     filter_up_to: 'მდე ', unit_t: ' ტ',
+    deal_completed: 'გარიგება დასრულდა!', deal_completed_sub: 'შესრულებული სამუშაოების აქტი ხელმისაწვდომია',
+    deal_confirmed: 'დადასტურდა', deal_confirmed_sub: 'ველოდებით მეორე მხარის დადასტურებას',
+    err_confirm_delivery: 'მიტანის დადასტურების შეცდომა',
     post_transport_err_route: 'მიუთითეთ მარშრუტი',
     post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
     post_transport_err_date: 'მიუთითეთ თარიღი',
