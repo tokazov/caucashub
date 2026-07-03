@@ -6956,30 +6956,31 @@ window.showToastWarn = showToastWarn;
 function showLimitModal(errData) {
   // errData: {error, resource, plan, limit, current, upgrade_url}
   var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
-  var resourceMap = {loads:'грузов', responses:'откликов', subscriptions:'подписок'};
+  var isGe = lang === 'ge';
+  var resourceMap = isGe
+    ? {loads:'ტვირთი', responses:'გამოხმაურება', subscriptions:'გამოწერა'}
+    : {loads:'грузов', responses:'откликов', subscriptions:'подписок'};
   var resourceName = resourceMap[errData.resource] || errData.resource;
   var planName = (errData.plan||'free').toUpperCase();
 
+  var title = isGe
+    ? 'გეგმის ლიმიტი ' + planName
+    : 'Лимит плана ' + planName;
+  var body = isGe
+    ? 'თქვენ მიაღწიეთ ლიმიტს <b>' + errData.limit + ' ' + resourceName + '</b> ' + planName + ' გეგმაზე.<br>გადადით Pro ან Business-ზე ლიმიტების გასაფართოებლად.'
+    : 'Вы достигли лимита <b>' + errData.limit + ' ' + resourceName + '</b> на плане ' + planName + '.<br>Перейдите на Pro или Business для расширения лимитов.';
+  var btnPricing = isGe ? '💳 ტარიფების ნახვა' : '💳 Смотреть тарифы';
+  var btnClose   = isGe ? 'დახურვა' : 'Закрыть';
+
   var modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
-  modal.innerHTML = `
-    <div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-      <div style="font-size:36px;margin-bottom:12px">🔒</div>
-      <div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">Лимит плана ${planName}</div>
-      <div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.5">
-        Вы достигли лимита <b>${errData.limit} ${resourceName}</b> на плане ${planName}.<br>
-        Перейдите на Pro или Business для расширения лимитов.
-      </div>
-      <button onclick="this.closest('[style*=fixed]').remove();showSection('cabinet',document.querySelector('[onclick*=cabinet]'));setTimeout(function(){switchCabTab('pricing',document.querySelector('[onclick*=pricing]'));},100)"
-        style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
-        💳 Смотреть тарифы
-      </button>
-      <button onclick="this.closest('[style*=fixed]').remove()"
-        style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">
-        Закрыть
-      </button>
-    </div>
-  `;
+  modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
+    '<div style="font-size:36px;margin-bottom:12px">🔒</div>' +
+    '<div style="font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:8px">' + title + '</div>' +
+    '<div style="font-size:13px;color:#666;margin-bottom:20px;line-height:1.5">' + body + '</div>' +
+    '<button onclick="this.closest(\'[style*=fixed]\').remove();showSection(\'cabinet\',document.querySelector(\'[onclick*=cabinet]\')); setTimeout(function(){switchCabTab(\'pricing\',document.querySelector(\'[onclick*=pricing]\'));},100)" style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">' + btnPricing + '</button>' +
+    '<button onclick="this.closest(\'[style*=fixed]\').remove()" style="width:100%;background:#f0f2f5;color:#666;border:none;padding:10px;border-radius:10px;font-size:13px;cursor:pointer">' + btnClose + '</button>' +
+    '</div>';
   document.body.appendChild(modal);
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
 }
