@@ -3321,6 +3321,7 @@ const TRANSLATIONS = {
     post_transport_ph_price: '800',
     post_transport_ph_notes: 'Готов к загрузке сразу',
     post_transport_btn: '📤 Разместить',
+    tr_weight_exceeded: 'Вес превышает грузоподъёмность машины',
     post_transport_err_route: 'Укажите маршрут',
     post_transport_err_capacity: 'Укажите грузоподъёмность (мин. 100 кг)',
     post_transport_err_date: 'Укажите дату',
@@ -4142,6 +4143,7 @@ const TRANSLATIONS = {
     post_transport_ph_price: '800',
     post_transport_ph_notes: 'ჩატვირთვისთვის მზად ვარ',
     post_transport_btn: '📤 განთავსება',
+    tr_weight_exceeded: 'წონა აღემატება მანქანის ტვირთამწეობას',
     post_transport_err_route: 'მიუთითეთ მარშრუტი',
     post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
     post_transport_err_date: 'მიუთითეთ თარიღი',
@@ -6365,7 +6367,7 @@ function renderTransportOffers() {
     return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
 
       // ── ДЕСКТОП: grid по колонкам заголовка ──
-      '<div class="row-desktop">' +
+      '<div class="row-desktop" style="grid-template-columns:2fr 1.5fr 0.8fr 0.8fr 1fr 1fr 100px">' +
         '<div>' +
           '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + ' ' + urgBadge + '</div>' +
           (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
@@ -6373,6 +6375,7 @@ function renderTransportOffers() {
         '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
         '<div><span class="tag">' + esc(o.truck_type || '—') + '</span></div>' +
+        '<div style="font-size:13px;font-weight:700;color:#1a1a2e">' + (price || '—') + '</div>' +
         '<div style="font-size:12px;font-weight:600;color:#555">' + dateFrom + dateTo + '</div>' +
         '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
       '</div>' +
@@ -6405,10 +6408,29 @@ function renderTransportOffers() {
 
 // Открыть модалку отклика на транспортное предложение
 var _currentTransportOfferId = null;
+var _currentTransportMaxKg = null;
 window.openTransportRequest = function(offerId) {
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) { openAuth('register'); return; }
   _currentTransportOfferId = offerId;
+  // Найти оффер в массиве и запомнить максимальный вес
+  var offer = (_transportOffers || []).find(function(o){ return o.id === offerId; });
+  _currentTransportMaxKg = offer && offer.capacity_kg ? offer.capacity_kg : null;
+  // Обновить placeholder и max у поля веса
+  var wInput = document.getElementById('trWeight');
+  if(wInput) {
+    if(_currentTransportMaxKg) {
+      wInput.max = _currentTransportMaxKg;
+      wInput.placeholder = 'макс. ' + _currentTransportMaxKg.toLocaleString() + ' кг';
+    } else {
+      wInput.removeAttribute('max');
+      wInput.placeholder = '5000';
+    }
+    wInput.value = '';
+  }
+  // Сбросить ошибку
+  var errEl = document.getElementById('trError');
+  if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
   var overlay = document.getElementById('transportRequestOverlay');
   if(overlay) {
     overlay.classList.add('on');
@@ -6427,6 +6449,15 @@ window.submitTransportRequest = async function() {
   var weight = parseFloat((document.getElementById('trWeight') || {}).value) || null;
   var msg    = (document.getElementById('trMsg')    || {}).value || '';
   var errEl  = document.getElementById('trError');
+  // Валидация веса
+  if(weight && _currentTransportMaxKg && weight > _currentTransportMaxKg) {
+    var T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
+    if(errEl){
+      errEl.textContent = (T.tr_weight_exceeded || 'Вес превышает грузоподъёмность машины') + ': макс. ' + _currentTransportMaxKg.toLocaleString() + ' кг';
+      errEl.style.display='block';
+    }
+    return;
+  }
 
   try {
     var r = await fetch(API_BASE + '/api/transport/' + _currentTransportOfferId + '/request', {
