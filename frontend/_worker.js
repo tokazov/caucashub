@@ -66,6 +66,11 @@ function injectSEO(html, meta) {
     /(\s*<link\s+rel="alternate"\s+hreflang[^>]+>\s*)+/g,
     HREFLANG + '\n'
   );
+  // twitter:description
+  if (meta.desc) {
+    html = html.replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/i, `$1${meta.desc}$2`);
+    html = html.replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/i, `$1${meta.title}$2`);
+  }
   // noscript (если передан)
   if (meta.noscript) {
     html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, meta.noscript);
