@@ -101,9 +101,18 @@ export default {
         "window._initLang = 'ge'; _lang = 'ge';"
       );
       // Форсируем localStorage при загрузке
+      // Форсируем ge язык: пишем в localStorage И вызываем setLang после загрузки DOM
       html = html.replace(
         '</head>',
-        `<script>try{localStorage.setItem('ch_lang','ge');}catch(e){}</script></head>`
+        `<script>
+        try{localStorage.setItem('ch_lang','ge');}catch(e){}
+        document.addEventListener('DOMContentLoaded',function(){
+          if(typeof setLang==='function'){
+            var _btn=document.querySelector('.lang-btn[onclick*=\"ge\"]');
+            setLang('ge',_btn||null);
+          }
+        });
+        </script></head>`
       );
 
       html = injectSEO(html, GE);
