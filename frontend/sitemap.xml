@@ -2,38 +2,34 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
-  <!-- Главная страница -->
+  <!-- Главная страница (RU) -->
   <url>
-    <loc>https://caucashub.ge/</loc>
-    <lastmod>2026-04-24</lastmod>
-    <changefreq>daily</changefreq>
+    <loc>https://www.caucashub.ge/</loc>
+    <lastmod>2026-07-03</lastmod>
+    <changefreq>hourly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://caucashub.ge/"/>
-    <xhtml:link rel="alternate" hreflang="ka" href="https://caucashub.ge/?lang=ge"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.caucashub.ge/"/>
+    <xhtml:link rel="alternate" hreflang="ka" href="https://www.caucashub.ge/?lang=ge"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.caucashub.ge/"/>
   </url>
 
-  <!-- Грузы -->
+  <!-- Главная страница (GE) -->
   <url>
-    <loc>https://caucashub.ge/#loads</loc>
-    <lastmod>2026-04-24</lastmod>
+    <loc>https://www.caucashub.ge/?lang=ge</loc>
+    <lastmod>2026-07-03</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.caucashub.ge/"/>
+    <xhtml:link rel="alternate" hreflang="ka" href="https://www.caucashub.ge/?lang=ge"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.caucashub.ge/"/>
   </url>
 
-  <!-- Транспорт -->
+  <!-- Реклама на сайте -->
   <url>
-    <loc>https://caucashub.ge/#trucks</loc>
-    <lastmod>2026-04-24</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <!-- Ставки -->
-  <url>
-    <loc>https://caucashub.ge/#rates</loc>
-    <lastmod>2026-04-24</lastmod>
+    <loc>https://www.caucashub.ge/advertise</loc>
+    <lastmod>2026-07-03</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.6</priority>
   </url>
 
 </urlset>
