@@ -6970,7 +6970,7 @@ function showLimitModal(errData) {
         Вы достигли лимита <b>${errData.limit} ${resourceName}</b> на плане ${planName}.<br>
         Перейдите на Pro или Business для расширения лимитов.
       </div>
-      <button onclick="this.closest('[style*=fixed]').remove();showSection('loads',document.querySelector('.nav-tab'))"
+      <button onclick="this.closest('[style*=fixed]').remove();showSection('cabinet',document.querySelector('[onclick*=cabinet]'));setTimeout(function(){switchCabTab('pricing',document.querySelector('[onclick*=pricing]'));},100)"
         style="width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
         💳 Смотреть тарифы
       </button>
