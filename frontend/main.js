@@ -2703,7 +2703,8 @@ function showCabinet(){
  var subEl = document.getElementById('cabUserSub');
  var avatarEl = document.getElementById('cabAvatar');
  if(nameEl) nameEl.textContent = u.name || u.company_name || u.email || '';
- if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? TRANSLATIONS['ru'].role_carrier||'Перевозчик' : u.role === 'both' ? TRANSLATIONS['ru'].role_both||'Перевозчик и грузовладелец' : TRANSLATIONS['ru'].role_shipper||'Грузовладелец') : '');
+ var _TR = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+ if(subEl) subEl.textContent = (u.email || '') + (u.role ? ' · ' + (u.role === 'carrier' ? _TR.role_carrier||'Перевозчик' : u.role === 'both' ? _TR.role_both||'Перевозчик и грузовладелец' : _TR.role_shipper||'Грузовладелец') : '');
  if(avatarEl){
  var nm = u.name || u.company_name || u.email || '?';
  avatarEl.textContent = nm.charAt(0).toUpperCase();
@@ -3328,6 +3329,7 @@ const TRANSLATIONS = {
     btn_delete_account: '⚠️ Удалить аккаунт', btn_delete_account2: '🗑️ Удалить аккаунт',
     role_hint_private: 'Разовая отправка, без ИП',
     transport_offer_btn_remove: 'Снять',
+    filter_up_to: 'до ', unit_t: ' т',
     post_transport_err_route: 'Укажите маршрут',
     post_transport_err_capacity: 'Укажите грузоподъёмность (мин. 100 кг)',
     post_transport_err_date: 'Укажите дату',
@@ -4156,6 +4158,7 @@ const TRANSLATIONS = {
     btn_delete_account: '⚠️ ანგარიშის წაშლა', btn_delete_account2: '🗑️ ანგარიშის წაშლა',
     role_hint_private: 'ერთჯერადი გაგზავნა, ინდ. მეწარმის გარეშე',
     transport_offer_btn_remove: 'მოხსნა',
+    filter_up_to: 'მდე ', unit_t: ' ტ',
     post_transport_err_route: 'მიუთითეთ მარშრუტი',
     post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
     post_transport_err_date: 'მიუთითეთ თარიღი',
@@ -6195,7 +6198,7 @@ function renderSubscriptions() {
     if(s.notify_email) channels.push('Email');
     var filters = [];
     if(s.truck_type)   filters.push(s.truck_type);
-    if(s.max_weight_t) filters.push('до '+s.max_weight_t+' т');
+    if(s.max_weight_t) filters.push((_T2.filter_up_to||'до ')+s.max_weight_t+(_T2.unit_t||' т'));
     html += '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px;margin-bottom:10px;position:relative">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">';
     html += '<div style="font-size:15px;font-weight:700;color:#1a1a2e">'+(typeof translateCity==='function'?translateCity(s.from_city):esc(s.from_city))+' → '+(typeof translateCity==='function'?translateCity(s.to_city):esc(s.to_city))+'</div>';
