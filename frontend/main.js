@@ -1476,7 +1476,16 @@ async function acceptResponse(loadId, respId){
 
     // CONTRACT-3 б): navigate ONLY on success (2xx). On 4xx/5xx — stay, show error.
     if (!_accR.ok) {
-      const errDetail = typeof _ad?.detail === 'string' ? _ad.detail : 'Ошибка при принятии отклика';
+      const _T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
+      let errDetail = typeof _ad?.detail === 'string' ? _ad.detail : '';
+      // Переводим известные английские ошибки бэкенда
+      if (errDetail === 'Deal already exists for this load') {
+        errDetail = lang === 'ge'
+          ? 'ამ ტვირთზე გარიგება უკვე არსებობს'
+          : 'По этому грузу уже создана сделка';
+      } else if (!errDetail) {
+        errDetail = _T.err_accept_response || 'Ошибка при принятии отклика';
+      }
       showToastWarn('⚠️ ' + errDetail);
       return;
     }
