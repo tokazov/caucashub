@@ -3322,6 +3322,12 @@ const TRANSLATIONS = {
     post_transport_ph_notes: 'Готов к загрузке сразу',
     post_transport_btn: '📤 Разместить',
     tr_weight_exceeded: 'Вес превышает грузоподъёмность машины',
+    filter_period: '📆 Период...',
+    filter_ton_0_1: 'До 1 т', filter_ton_1_5: '1–5 т', filter_ton_5_10: '5–10 т', filter_ton_10_20: '10–20 т', filter_ton_20: '20+ т',
+    filter_price_0_300: 'До ₾300', filter_price_300_700: '₾300–700', filter_price_700_1500: '₾700–1500', filter_price_1500: '₾1500+',
+    btn_delete_account: '⚠️ Удалить аккаунт', btn_delete_account2: '🗑️ Удалить аккаунт',
+    role_hint_private: 'Разовая отправка, без ИП',
+    transport_offer_btn_remove: 'Снять',
     post_transport_err_route: 'Укажите маршрут',
     post_transport_err_capacity: 'Укажите грузоподъёмность (мин. 100 кг)',
     post_transport_err_date: 'Укажите дату',
@@ -4144,6 +4150,12 @@ const TRANSLATIONS = {
     post_transport_ph_notes: 'ჩატვირთვისთვის მზად ვარ',
     post_transport_btn: '📤 განთავსება',
     tr_weight_exceeded: 'წონა აღემატება მანქანის ტვირთამწეობას',
+    filter_period: '📆 პერიოდი...',
+    filter_ton_0_1: '1 ტ-მდე', filter_ton_1_5: '1–5 ტ', filter_ton_5_10: '5–10 ტ', filter_ton_10_20: '10–20 ტ', filter_ton_20: '20 ტ+',
+    filter_price_0_300: '₾300-მდე', filter_price_300_700: '₾300–700', filter_price_700_1500: '₾700–1500', filter_price_1500: '₾1500+',
+    btn_delete_account: '⚠️ ანგარიშის წაშლა', btn_delete_account2: '🗑️ ანგარიშის წაშლა',
+    role_hint_private: 'ერთჯერადი გაგზავნა, ინდ. მეწარმის გარეშე',
+    transport_offer_btn_remove: 'მოხსნა',
     post_transport_err_route: 'მიუთითეთ მარშრუტი',
     post_transport_err_capacity: 'მიუთითეთ ტვირთამწეობა (მინ. 100 კგ)',
     post_transport_err_date: 'მიუთითეთ თარიღი',
@@ -4218,7 +4230,7 @@ function applyLang(l) {
     var cur = sel.value;
     if(lang === 'ge') {
       sel.innerHTML = '<option value="">— აირჩიეთ —</option>'
-        + '<option value="შпს">შпს</option>'
+        + '<option value="შპს">შпს</option>'
         + '<option value="ს/ს">ს/ს</option>'
         + '<option value="ინდ. მეწარმე">ინდ. მეწარმე</option>'
         + '<option value="კერძო პირი">კერძო პირი</option>';
@@ -6607,7 +6619,7 @@ function renderMyTransportOffers(offers) {
     return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
         '<div><div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city) + '</div>' +
-          '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.truck_type||'') + (cap?' · '+cap:'') + (price?' · '+price:'') + (dateFrom?' · '+dateFrom:'') + '</div>' +
+          '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(typeof getTypeLabel==="function"?getTypeLabel(o.truck_type||''):o.truck_type||'') + (cap?' · '+cap:'') + (price?' · '+price:'') + (dateFrom?' · '+dateFrom:'') + '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
           '<span style="font-size:11px">' + status + '</span>' +
@@ -6663,15 +6675,15 @@ function renderIncomingTransportRequests(requests) {
     var actions = '';
     if(req.status === 'pending') {
       actions = '<div style="display:flex;gap:6px;margin-top:8px">' +
-        '<button onclick="acceptTransportReq(' + req.id + ')" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">✓ Принять</button>' +
-        '<button onclick="rejectTransportReq(' + req.id + ')" style="flex:1;background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">✕ Отклонить</button>' +
+        '<button onclick="acceptTransportReq(' + req.id + ')" style="flex:1;background:#2ecc71;color:#fff;border:none;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_btn_accept||'✓ Принять') + '</button>' +
+        '<button onclick="rejectTransportReq(' + req.id + ')" style="flex:1;background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:8px;padding:7px;font-size:12px;cursor:pointer">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_btn_reject||'✕ Отклонить') + '</button>' +
         '</div>';
     }
     return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #f7b731">' +
-      '<div style="font-size:12px;color:#888;margin-bottom:4px">По предложению: ' + esc(offer.from_city||'') + ' → ' + esc(offer.to_city||'') + '</div>' +
-      '<div style="font-weight:700">' + esc(req.shipper_name||'Грузовладелец') + ' <span style="font-size:11px;color:#888">' + (statusLabels[req.status]||req.status) + '</span></div>' +
-      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">Груз: ' + esc(req.cargo_description) + '</div>' : '') +
-      (req.weight_kg ? '<div style="font-size:12px;color:#888">Вес: ' + req.weight_kg + ' кг</div>' : '') +
+      '<div style="font-size:12px;color:#888;margin-bottom:4px">'+ ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_offer_label||'По предложению:') + ' ' + esc(offer.from_city||'') + ' → ' + esc(offer.to_city||'') + '</div>' +
+      '<div style="font-weight:700">' + esc(req.shipper_name||((TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_shipper||'Грузовладелец')) + ' <span style="font-size:11px;color:#888">' + (statusLabels[req.status]||req.status) + '</span></div>' +
+      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_cargo||'Груз:') + ' ' + esc(req.cargo_description) + '</div>' : '') +
+      (req.weight_kg ? '<div style="font-size:12px;color:#888">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_weight||'Вес:') + ' ' + req.weight_kg + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</div>' : '') +
       (req.message ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(req.message) + '</div>' : '') +
       (req.status === 'accepted' && req.shipper_phone ? '<a href="tel:' + req.shipper_phone + '" style="font-size:12px;color:#1a6ec0;display:block;margin-top:4px">📞 ' + req.shipper_phone + '</a>' : '') +
       actions +
@@ -6725,7 +6737,7 @@ function renderMyTransportRequestsOut(requests) {
     var cancelBtn = req.status === 'pending' ? '<button onclick="cancelMyTransportReq(' + req.id + ')" style="margin-top:6px;background:#fee;border:1px solid #fcc;color:#e74c3c;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer">Отозвать</button>' : '';
     return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #3498db">' +
       '<div style="font-weight:700">Предложение #' + req.transport_offer_id + ' <span style="font-size:11px;color:#888">' + (statusLabels[req.status]||req.status) + '</span></div>' +
-      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">Груз: ' + esc(req.cargo_description) + '</div>' : '') +
+      (req.cargo_description ? '<div style="font-size:12px;color:#888;margin-top:2px">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_cargo||'Груз:') + ' ' + esc(req.cargo_description) + '</div>' : '') +
       (req.message ? '<div style="font-size:12px;color:#888">' + esc(req.message) + '</div>' : '') +
       (req.status === 'accepted' ? '<div style="font-size:12px;color:#2ecc71;margin-top:4px">✅ Перевозчик принял — проверьте «Сделки»</div>' : '') +
       cancelBtn +

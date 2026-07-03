@@ -224,7 +224,7 @@
       <option value="today" data-i18n="opt_today">Сегодня</option>
       <option value="tomorrow" data-i18n="opt_tomorrow">Завтра</option>
       <option value="week" data-i18n="opt_week">На неделе</option>
-      <option value="pick">📆 Период...</option>
+      <option value="pick" data-i18n="filter_period">📆 Период...</option>
     </select>
     <div id="datePeriodPop" style="display:none;position:absolute;top:110%;left:0;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:14px;z-index:500;min-width:230px;border:1px solid #e0e0e0">
       <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:10px"><span data-i18n="None"><span data-i18n="pick_period">Выберите период</span></span></div>
@@ -244,18 +244,18 @@
   </select>
   <select class="fsel filter-sel" id="fWeight" onchange="filterLoads()">
     <option value="" data-i18n="opt_tonnage">⚖️ Тоннаж</option>
-    <option value="0-1000">До 1 т</option>
-    <option value="1000-5000">1–5 т</option>
-    <option value="5000-10000">5–10 т</option>
-    <option value="10000-20000">10–20 т</option>
-    <option value="20000-99999">20+ т</option>
+    <option value="0-1000" data-i18n="filter_ton_0_1">До 1 т</option>
+    <option value="1000-5000" data-i18n="filter_ton_1_5">1–5 т</option>
+    <option value="5000-10000" data-i18n="filter_ton_5_10">5–10 т</option>
+    <option value="10000-20000" data-i18n="filter_ton_10_20">10–20 т</option>
+    <option value="20000-99999" data-i18n="filter_ton_20">20+ т</option>
   </select>
   <select class="fsel filter-sel" id="fPrice" onchange="filterLoads()">
     <option value="" data-i18n="opt_price">💰 Цена</option>
-    <option value="0-300">До ₾300</option>
-    <option value="300-700">₾300–700</option>
-    <option value="700-1500">₾700–1500</option>
-    <option value="1500-99999">₾1500+</option>
+    <option value="0-300" data-i18n="filter_price_0_300">До ₾300</option>
+    <option value="300-700" data-i18n="filter_price_300_700">₾300–700</option>
+    <option value="700-1500" data-i18n="filter_price_700_1500">₾700–1500</option>
+    <option value="1500-99999" data-i18n="filter_price_1500">₾1500+</option>
   </select>
   <button class="post-btn" onclick="openPostLoad()">+ <span data-i18n="btn_post">Разместить груз</span></button>
   <div id="fcount" style="display:none"></div>
@@ -645,15 +645,15 @@
  <!-- Вкладка: МОИ ПРЕДЛОЖЕНИЯ ТРАНСПОРТА (carrier/both) -->
  <div id="cabTab-my-transport" class="cab-tab-content" style="display:none">
   <div style="padding:12px 16px 0;display:flex;justify-content:space-between;align-items:center">
-   <div style="font-size:13px;font-weight:700;color:#555">Мои транспортные предложения</div>
-   <button onclick="openPostTransportOffer()" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">+ Добавить</button>
+   <div style="font-size:13px;font-weight:700;color:#555" data-i18n="my_transport_title">Мои транспортные предложения</div>
+   <button onclick="openPostTransportOffer()" style="background:#2ecc71;color:#fff;border:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" data-i18n="my_transport_add">+ Добавить</button>
   </div>
   <div id="myTransportList"><div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">Нет предложений</div><div class="cab-empty-sub">Разместите транспортное предложение — грузовладельцы увидят вас</div></div></div>
  </div>
 
  <!-- Вкладка: ВХОДЯЩИЕ ЗАПРОСЫ НА МОЙ ТРАНСПОРТ (carrier/both) -->
  <div id="cabTab-transport-requests-in" class="cab-tab-content" style="display:none">
-  <div style="padding:12px 16px 0;font-size:13px;font-weight:700;color:#555">Запросы грузовладельцев на ваш транспорт</div>
+  <div style="padding:12px 16px 0;font-size:13px;font-weight:700;color:#555" data-i18n="transport_req_in_title">Запросы грузовладельцев на ваш транспорт</div>
   <div id="myTransportRequestsIn"><div class="cab-empty"><div class="cab-empty-icon">📥</div><div class="cab-empty-title">Нет запросов</div><div class="cab-empty-sub">Когда грузовладелец откликнется на ваше предложение — запрос появится здесь</div></div></div>
  </div>
 
@@ -872,7 +872,7 @@
             <span style="font-size:22px">👤</span>
             <div>
               <div style="font-weight:700;font-size:14px"><span data-i18n="None"><span data-i18n="reg_shipper_private"><span data-i18n="role_shipper_person">Грузовладелец — частное лицо</span></span></span></div>
-              <div style="font-size:12px;color:#888">Разовая отправка, без ИП</div>
+              <div style="font-size:12px;color:#888" data-i18n="role_hint_private">Разовая отправка, без ИП</div>
             </div>
           </button>
         </div>
@@ -1363,7 +1363,7 @@
 
   <!-- DANGER ZONE: Удаление аккаунта (ADR-010) — скрыта по умолчанию -->
   <div style="margin-top:24px">
-    <button onclick="this.style.display='none';document.getElementById('dangerZone').style.display='block'" style="background:none;border:none;color:#e74c3c;font-size:13px;cursor:pointer;padding:0;text-decoration:underline">⚠️ Удалить аккаунт</button>
+    <button onclick="this.style.display='none';document.getElementById('dangerZone').style.display='block'" style="background:none;border:none;color:#e74c3c;font-size:13px;cursor:pointer;padding:0;text-decoration:underline" data-i18n="btn_delete_account">⚠️ Удалить аккаунт</button>
     <div id="dangerZone" style="display:none;padding:16px;border:1.5px solid #e74c3c;border-radius:12px;background:#fff5f5;margin-top:8px">
       <h4 style="color:#e74c3c;margin:0 0 8px;font-size:15px">⚠️ Опасная зона</h4>
       <p style="font-size:13px;color:#666;margin:0 0 14px;line-height:1.5">Удаление необратимо. Активные грузы будут отменены. История сделок сохранится анонимно.</p>
@@ -1376,7 +1376,7 @@
 <div class="overlay" id="deleteAccountOverlay" onclick="closeOverlay('deleteAccountOverlay',event)">
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="deleteAccountTitle" style="max-width:420px">
     <button class="close-btn" onclick="closeModal('deleteAccountOverlay')">✕</button>
-    <h3 id="deleteAccountTitle" style="color:#e74c3c;margin:0 0 12px">🗑️ Удалить аккаунт</h3>
+    <h3 id="deleteAccountTitle" style="color:#e74c3c;margin:0 0 12px" data-i18n="btn_delete_account2">🗑️ Удалить аккаунт</h3>
     <div style="background:#fff5f5;border:1px solid #fcc;border-radius:8px;padding:14px;margin-bottom:18px;font-size:13px;color:#555;line-height:1.5">
       <b>Это действие необратимо.</b> После удаления:
       <ul style="margin:8px 0 0;padding-left:20px">
