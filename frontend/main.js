@@ -1564,7 +1564,7 @@ function updateRespondCount(){
   // Показываем в шапке профиля
   const pr = document.getElementById('profileRole');
   if(pr && user){
-    const _Tru = TRANSLATIONS['ru'];
+    const _Tru = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
     const role = user.role==='shipper' ? _Tru.role_shipper||'Грузовладелец' : user.role==='both' ? _Tru.role_both||'Перевозчик и грузовладелец' : _Tru.role_carrier||'Перевозчик';
     pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
   }
