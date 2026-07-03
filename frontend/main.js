@@ -6361,7 +6361,8 @@ function renderTransportOffers() {
     var rating   = '★ ' + (o.rating || '5.0');
     var capLabel = cap ? cap + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_capacity||'вмест.') : '—';
 
-    return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71">' +
+    var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'register\')"';
+    return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
 
       // ── ДЕСКТОП: grid по колонкам заголовка ──
       '<div class="row-desktop">' +
