@@ -5389,9 +5389,25 @@ if(_dateInput){
 // Применяем язык ДО рендера — чтобы renderLoads сразу взял правильный lang
 (function() {
   const _saved = localStorage.getItem('ch_lang');
-  if (_saved && _saved !== 'ru' && typeof setLang === 'function') {
-    const _btn = document.querySelector('.lang-btn[onclick*="' + _saved + '"]');
-    setLang(_saved, _btn || null);
+  if (_saved) {
+    // Уже выбирал язык вручную — применяем его
+    if (_saved !== 'ru' && typeof setLang === 'function') {
+      const _btn = document.querySelector('.lang-btn[onclick*="' + _saved + '"]');
+      setLang(_saved, _btn || null);
+    }
+  } else {
+    // Первый визит — определяем язык устройства
+    var _nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    var _autoLang = 'ru'; // по умолчанию
+    if (_nav.startsWith('ka')) {
+      _autoLang = 'ge'; // грузинский
+    } else if (_nav.startsWith('en')) {
+      _autoLang = 'en'; // английский
+    }
+    if (_autoLang !== 'ru' && typeof setLang === 'function') {
+      const _btn = document.querySelector('.lang-btn[onclick*="' + _autoLang + '"]');
+      setLang(_autoLang, _btn || null);
+    }
   }
 })();
 
