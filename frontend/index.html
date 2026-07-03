@@ -336,24 +336,24 @@
         <input class="form-input" type="date" id="ptDateFrom">
       </div>
       <div class="form-group" style="flex:1">
-        <label>Дата по (опц.)</label>
+        <label data-i18n="post_transport_lbl_date_to">Дата по (опц.)</label>
         <input class="form-input" type="date" id="ptDateTo">
       </div>
     </div>
     <div class="form-group" style="margin-bottom:12px">
-      <label>Цена (₾, опц.)</label>
-      <input class="form-input" type="number" id="ptPrice" placeholder="800" min="0">
+      <label data-i18n="post_transport_lbl_price">Цена (₾, опц.)</label>
+      <input class="form-input" type="number" id="ptPrice" placeholder="800" min="0" data-i18n-ph="post_transport_ph_price">
     </div>
     <div class="form-group" style="margin-bottom:16px">
-      <label>Примечание (опц.)</label>
-      <input class="form-input" id="ptNotes" placeholder="Готов к загрузке сразу">
+      <label data-i18n="post_transport_lbl_notes">Примечание (опц.)</label>
+      <input class="form-input" id="ptNotes" placeholder="Готов к загрузке сразу" data-i18n-ph="post_transport_ph_notes">
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
-        <input type="checkbox" id="ptUrgent"> ⚡ Срочно
+        <input type="checkbox" id="ptUrgent"> <span data-i18n="post_transport_lbl_urgent">⚡ Срочно</span>
       </label>
     </div>
-    <button class="btn-primary" onclick="submitTransportOffer()" style="width:100%">📤 Разместить</button>
+    <button class="btn-primary" onclick="submitTransportOffer()" style="width:100%" data-i18n="post_transport_btn">📤 Разместить</button>
     <div id="ptError" style="display:none;color:#e74c3c;font-size:12px;margin-top:8px"></div>
   </div>
 </div>
