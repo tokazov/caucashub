@@ -7071,10 +7071,13 @@ async function handleApiLimitError(response) {
 function _showPaymentsDisabledToast() {
   var existing = document.getElementById('_payDisabledToast');
   if(existing) { existing.remove(); }
+  var _isGe = (typeof lang !== 'undefined' && lang === 'ge');
   var t = document.createElement('div');
   t.id = '_payDisabledToast';
   t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:14px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:99999;text-align:center;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-  t.innerHTML = '💳 Оплата временно недоступна.<br><span style="font-weight:400;font-size:13px;">Мы скоро её включим — следите за обновлениями.</span>';
+  t.innerHTML = _isGe
+    ? '💳 გადახდა დროებით მიუწვდომელია.<br><span style="font-weight:400;font-size:13px;">მალე ჩართავთ — გამოიწერეთ განახლებები.</span>'
+    : '💳 Оплата временно недоступна.<br><span style="font-weight:400;font-size:13px;">Мы скоро её включим — следите за обновлениями.</span>';
   document.body.appendChild(t);
   setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 4000);
 }
