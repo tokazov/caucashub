@@ -7066,6 +7066,19 @@ async function handleApiLimitError(response) {
 }
 
 // ── Продвижение груза в топ ──────────────────────────────────────────────────
+
+// ── payments_disabled_toast ──────────────────────────────────────────────────
+function _showPaymentsDisabledToast() {
+  var existing = document.getElementById('_payDisabledToast');
+  if(existing) { existing.remove(); }
+  var t = document.createElement('div');
+  t.id = '_payDisabledToast';
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:14px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:99999;text-align:center;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+  t.innerHTML = '💳 Оплата временно недоступна.<br><span style="font-weight:400;font-size:13px;">Мы скоро её включим — следите за обновлениями.</span>';
+  document.body.appendChild(t);
+  setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 4000);
+}
+
 window.openPromoteModal = function(loadId) {
   var PROMOTE_PRICES = {'24':'5','72':'12','168':'25'};
   var _T = TRANSLATIONS[lang] || TRANSLATIONS['ru'];
@@ -7119,6 +7132,7 @@ window.openPromoteModal = function(loadId) {
           body: JSON.stringify({type: payType, payload: {load_id: parseInt(loadId)}})
         });
         var d = await r.json();
+        if(d.enabled === false) { _showPaymentsDisabledToast(); return; }
         paymentId = d.payment_id;
         if(paymentId) localStorage.setItem('pending_payment_' + paymentId, JSON.stringify({type:payType, load_id:loadId, created:Date.now()}));
         // Если TBC вернул pay_url — открываем его
@@ -7151,6 +7165,7 @@ window.openPlanPayment = async function(planType) {
       body: JSON.stringify({type: planType, payload: {}})
     });
     var d = await r.json();
+    if(d.enabled === false) { _showPaymentsDisabledToast(); return; }
     paymentId = d.payment_id;
     if(paymentId) localStorage.setItem('pending_payment_' + paymentId, JSON.stringify({type:planType, created:Date.now()}));
     if(d.pay_url) { window.open(d.pay_url, '_blank'); return; }
