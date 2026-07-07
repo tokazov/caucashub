@@ -28,6 +28,10 @@ from app.models.load import Load
 from app.models.user import User
 from app.routers.auth import require_user
 
+# ── Флаг включения оплат (PAYMENTS_ENABLED=false → временно отключено) ────────
+_PAYMENTS_ENABLED = os.getenv("PAYMENTS_ENABLED", "true").lower() not in ("false", "0", "no")
+
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
@@ -244,6 +248,14 @@ async def create_payment(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
+    # ── Проверка: оплаты временно отключены ─────────────────────────────────
+    if not _PAYMENTS_ENABLED:
+        return {
+            "ok": False,
+            "enabled": False,
+            "message": "Оплата временно недоступна. Функция скоро вернётся.",
+        }
+
     if data.type not in PRICES:
         raise HTTPException(400, detail=f"Unknown payment type. Valid: {list(PRICES)}")
 
