@@ -351,3 +351,29 @@ async def notify_response_withdrawn_by_carrier_deletion(
         load_id=load_id, from_city=from_city, to_city=to_city
     )
     await send_tg_message(chat_id, text)
+
+
+# -- Уведомление владельцу о новом пользователе --
+
+OWNER_CHAT_ID = 5309206282  # Тимур
+
+async def notify_owner_new_user(
+    user_id: int,
+    company_name: str,
+    role: str,
+    city=None,
+    lang: str = 'ru',
+) -> None:
+    """Уведомляет владельца платформы о регистрации нового пользователя."""
+    role_labels = {'carrier': 'Перевозчик', 'shipper': 'Грузовладелец', 'both': 'Оба'}
+    lang_labels = {'ru': 'RU', 'ge': 'GE'}
+    city_line = ('\n📍 ' + city) if city else ''
+    text = (
+        '🆕 <b>Новый пользователь CaucasHub</b>\n\n'
+        f'👤 <b>{company_name}</b>\n'
+        f'🏷 Роль: {role_labels.get(role, role)}{city_line}\n'
+        f'🌐 Язык: {lang_labels.get(lang, lang)}\n'
+        f'🆔 ID: {user_id}\n\n'
+        "<a href='https://caucashub.ge'>Открыть CaucasHub</a>"
+    )
+    await send_tg_message(OWNER_CHAT_ID, text)
