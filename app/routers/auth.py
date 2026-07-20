@@ -339,7 +339,7 @@ async def forgot_password(data: ForgotRequest, request: Request, db: AsyncSessio
         </div>"""
 
                 # Отправка через Resend API
-        RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+        RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
         try:
             import httpx
             async with httpx.AsyncClient() as client:
