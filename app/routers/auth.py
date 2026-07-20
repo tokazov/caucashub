@@ -228,6 +228,19 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
     # Инвалидируем кеш счётчиков (новый пользователь — Трек 11.2)
     from app.routers.stats import invalidate_counters_cache
     invalidate_counters_cache()
+    # Уведомление владельцу о новом пользователе
+    try:
+        from app.services.telegram_notify import notify_owner_new_user
+        import asyncio
+        asyncio.create_task(notify_owner_new_user(
+            user_id=user.id,
+            company_name=user.company_name or user.email,
+            role=str(user.role.value if hasattr(user.role, 'value') else user.role),
+            city=user.city,
+            lang=user.lang or 'ru',
+        ))
+    except Exception:
+        pass  # не ломаем регистрацию если уведомление не отправилось
     return {"token": create_token(user.id), "user_id": user.id}
 
 @router.post("/login")
