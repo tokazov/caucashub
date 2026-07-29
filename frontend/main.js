@@ -6431,18 +6431,31 @@ function renderTransportOffers() {
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
   var html = _transportOffers.map(function(o) {
-    var urgBadge = o.urgent ? '<span class="badge-urgent">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
+    var urgBadge = o.urgent ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
-    var actionBtn = tk ? '<button onclick="openTransportRequest(' + o.id + ')" style="background:#f7b731;color:#1a1a2e;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>' : '<button onclick="openAuth(\'register\')" style="background:#e8f0fe;color:#1a6ec0;border:none;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
+    var actionBtn = tk
+      ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
+      : '<button onclick="openAuth(\'register\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
     var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city);
     var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city);
-    var carrier  = esc(o.company_name || 'Перевозчик');
-    var rating   = '★ ' + (o.rating || '5.0');
+    var carrier  = esc(o.company_name || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).carrier_default||'Перевозчик'));
+    var rating   = '⭐' + (o.rating || '5.0');
     var capLabel = cap ? cap + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_capacity||'вмест.') : '—';
+
+    // Цвет тега типа кузова — как в грузах
+    var typeColors = {
+      tent:{bg:'#f3e5f5',t:'#6a1b9a'},ref:{bg:'#e3f2fd',t:'#1565c0'},
+      bort:{bg:'#e8f5e9',t:'#2e7d32'},termos:{bg:'#fff3e0',t:'#bf360c'},
+      gazel:{bg:'#fce4ec',t:'#880e4f'},container:{bg:'#f0f2f5',t:'#555'},
+      auto:{bg:'#e8eaf6',t:'#283593'},other:{bg:'#f0f2f5',t:'#555'}
+    };
+    var tt = o.truck_type ? o.truck_type.toLowerCase() : 'other';
+    var tc = typeColors[tt] || typeColors.other;
+    var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(o.truck_type || '—') + '</span>';
 
     var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'register\')"';
     return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
@@ -6450,13 +6463,14 @@ function renderTransportOffers() {
       // ── ДЕСКТОП: grid по колонкам заголовка ──
       '<div class="row-desktop" style="grid-template-columns:2fr 1.5fr 0.8fr 0.8fr 1fr 1fr 100px">' +
         '<div>' +
-          '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + ' ' + urgBadge + '</div>' +
+          '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + '</div>' +
+          '<div style="margin-top:3px">' + urgBadge + '</div>' +
           (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
         '</div>' +
         '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
-        '<div><span class="tag">' + esc(o.truck_type || '—') + '</span></div>' +
-        '<div style="font-size:13px;font-weight:700;color:#1a1a2e">' + (price || '—') + '</div>' +
+        '<div>' + typeTag + '</div>' +
+        '<div class="price">' + (price || '—') + '</div>' +
         '<div style="font-size:12px;font-weight:600;color:#555">' + dateFrom + dateTo + '</div>' +
         '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
       '</div>' +
@@ -6465,8 +6479,9 @@ function renderTransportOffers() {
       '<div class="row-mobile">' +
         '<div class="card-main-row">' +
           '<div class="card-left">' +
-            '<div class="card-route-new">' + fromCity + ' <span class="arr">→</span> ' + toCity + ' ' + urgBadge + '</div>' +
+            '<div class="card-route-new">' + fromCity + ' <span class="arr">→</span> ' + toCity + '</div>' +
             '<div class="card-meta-row">' +
+              urgBadge +
               '<span class="card-co-new">' + carrier + ' ' + rating + '</span>' +
             '</div>' +
           '</div>' +
@@ -6476,7 +6491,7 @@ function renderTransportOffers() {
           '</div>' +
         '</div>' +
         '<div class="card-footer-row">' +
-          '<span class="card-type-tag">' + esc(o.truck_type || '—') + '</span>' +
+          typeTag +
           '<span>' + capLabel + '</span>' +
           (dateFrom ? '<span>' + dateFrom + dateTo + '</span>' : '') +
         '</div>' +
