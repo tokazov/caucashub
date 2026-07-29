@@ -6431,7 +6431,7 @@ function renderTransportOffers() {
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
   var html = _transportOffers.map(function(o) {
-    var urgBadge = o.urgent ? '<span class="badge-urgent">⚡ СРОЧНО</span>' : '';
+    var urgBadge = o.urgent ? '<span class="badge-urgent">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
