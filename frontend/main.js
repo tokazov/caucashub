@@ -776,6 +776,7 @@ function userHasPlan(min){
 }
 
 let scope='local', lang='ru', user=null, cargoData=[...LOCAL];
+window._truckCache = {}; // кеш данных грузовиков для безопасного onclick (fix: JSON.stringify в атрибуте)
 window.__getLang = function() { return lang; };
 Object.defineProperty(window, 'scope', { get: ()=>scope });
 Object.defineProperty(window, 'currentUserId', { get: ()=>currentUserId, set: (v)=>{ currentUserId=v; } });
@@ -1039,15 +1040,19 @@ function renderTrucks(){
   const list=document.getElementById('truckList');
   if(!list) return;
   list.innerHTML='';
+  window._truckCache = {}; // сбрасываем кеш перед каждым рендером
   const allTrucks = [..._myTrucks, ...(window._serverTrucks||[]), ...((_myTrucks.length||(window._serverTrucks||[]).length)?[]:TRUCKS)];
   const countEl = document.getElementById('truckCount');
   if(countEl) countEl.textContent = allTrucks.length + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).trucks_free||'машин свободно');
-  allTrucks.forEach(t=>{
+  allTrucks.forEach((t, _ti)=>{
     const isOwn = t.isOwn;
     const row=document.createElement('div');
     row.className='truck-row';
     row.style.borderLeft = isOwn ? '3px solid #2ecc71' : '3px solid transparent';
     const phone = t.phone ? t.phone : '+995 555 *** ***';
+    // Кешируем данные грузовика — безопасный onclick без JSON.stringify в атрибуте (fix: XSS/HTML-injection)
+    const _tKey = _ti;
+    window._truckCache[_tKey] = {co: t.co, plate: t.plate||'—', phone: phone};
     row.innerHTML=`
       <div>
         <div class="route">${esc(typeof translateCity==="function"?translateCity(t.from):t.from)} <span class="arrow">→</span> ${esc(typeof translateCity==="function"?translateCity(t.to):t.to)}</div>
@@ -1063,7 +1068,7 @@ function renderTrucks(){
       <div style="display:flex;gap:4px">
         ${isOwn
           ? `<button class="btn-resp" style="background:#fce4ec;color:#c62828;border:none;padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer" onclick="deleteMyTruck('${t.id}')">🗑️</button>`
-          : `<button class="btn-resp" onclick="callTruck(${JSON.stringify(t.co)},${JSON.stringify(t.plate)},${JSON.stringify(phone)})">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
+          : `<button class="btn-resp" onclick="callTruckByKey(${_tKey})">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_contact||'Связаться'}</button>`
         }
       </div>
     `;
@@ -1078,6 +1083,12 @@ function callTruck(co, plate, phone){
   if(!user){ openAuth('login'); return; }
   alert(`📞 Связаться с перевозчиком\n\n🚛 ${co}\n📋 ${plate}\n📞 ${phone}`);
 }
+// Безопасный вызов через кеш — данные не передаются через HTML-атрибут (fix: JSON.stringify crash)
+window.callTruckByKey = function(key){
+  var d = window._truckCache && window._truckCache[key];
+  if(!d){ return; }
+  callTruck(d.co, d.plate, d.phone);
+};
 
 function openPostTruck(){
   if(!user){ openAuth('register'); return; }
