@@ -4270,18 +4270,10 @@ window.TRANSLATIONS = TRANSLATIONS;
 function applyLang(l) {
   const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
   // textContent по data-i18n
-  // fix: скрываем body перед batch DOM updates чтобы предотвратить 165+ reflow
-  // (каждый textContent update в visible DOM вызывает layout recalculation)
-  var _bodyVis = document.body ? document.body.style.visibility : '';
-  if(document.body) document.body.style.visibility = 'hidden';
-  try {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.dataset.i18n;
-      if (T[key]) el.textContent = T[key];
-    });
-  } finally {
-    if(document.body) document.body.style.visibility = _bodyVis;
-    }
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (T[key]) el.textContent = T[key];
+  });
   // placeholder по data-i18n-ph
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.dataset.i18nPh;
