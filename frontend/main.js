@@ -4347,10 +4347,8 @@ function applyLang(l) {
   };
   _setOrgOptions(document.getElementById('sOrgTypeAll'), l);
   _setOrgOptions(document.getElementById('regOrgType'), l);
-  // Перерисовываем карточки грузов если они уже загружены
-  if (typeof renderLoads === 'function' && window.allLoads && window.allLoads.length) renderLoads();
-  // Перерисовываем транспорт
-  if (typeof renderTrucks === 'function') renderTrucks();
+  // Рендер грузов и транспорта перенесён в setLang→setTimeout(0)
+  // чтобы не дублировать вызовы и не нагружать синхронный поток applyLang
 }
 
 function setLang(l, btn) {
