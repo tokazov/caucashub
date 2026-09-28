@@ -6461,7 +6461,20 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
   }
 
   try {
-    var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
+    // Таймаут 8 секунд + AbortController (fix: TronLink/proxy может вешать fetch бесконечно)
+    var _timeout = AbortSignal.timeout ? AbortSignal.timeout(8000) : null;
+    var fetchOpts = {};
+    if(_transportFetchCtrl && _timeout) {
+      // Объединяем два сигнала: наш AbortController + таймаут
+      try {
+        var _anySignal = AbortSignal.any ? AbortSignal.any([_transportFetchCtrl.signal, _timeout]) : _transportFetchCtrl.signal;
+        fetchOpts = { signal: _anySignal };
+      } catch(_se) { fetchOpts = { signal: _transportFetchCtrl.signal }; }
+    } else if(_transportFetchCtrl) {
+      fetchOpts = { signal: _transportFetchCtrl.signal };
+    } else if(_timeout) {
+      fetchOpts = { signal: _timeout };
+    }
     var r = await fetch(API_BASE + '/api/transport/?' + params.toString(), fetchOpts);
     if(r.status === 401){
       // fix: не оставляем спиннер — показываем сообщение + retry
@@ -6483,11 +6496,11 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
     if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
     renderTransportOffers();
   } catch(e) {
-    // AbortError: новый запрос уже в пути — очищаем спиннер тихо
-    // fix: раньше return оставлял вечный спиннер
-    if(e && e.name === 'AbortError') {
-      // Не показываем ошибку, но и не оставляем спиннер
-      // Новый fetch уже запущен — он сам поставит своё состояние
+    // AbortError: новый запрос уже в пути — новый fetch сам поставит своё состояние
+    if(e && e.name === 'AbortError') return;
+    // TimeoutError: запрос завис (8 секунд) → показываем retry
+    if(e && e.name === 'TimeoutError') {
+      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_timeout || 'Запрос занял слишком долго');
       return;
     }
     _showTransportError();
