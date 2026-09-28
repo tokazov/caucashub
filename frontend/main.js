@@ -4323,7 +4323,8 @@ function applyLang(l) {
     const m = fcount.textContent.match(/^(\d+)/);
     if (m) fcount.textContent = m[1] + ' ' + (T.fcount_suffix || 'грузов');
   }
-  document.documentElement.lang = l === 'ge' ? 'ka' : l;
+  // fix: убрана смена documentElement.lang — вызывала font reflow всего документа (8.5s freeze GE→RU)
+  // :lang(ka) CSS rule меняет font-family для всех элементов → massive layout recalculation
   // Локализация alert для paywall кнопок
   window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
   // БАГ-8: переключение опций формы организации по языку (полная замена innerHTML)
