@@ -6461,21 +6461,16 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
   }
 
   try {
-    // Таймаут 8 секунд + AbortController (fix: TronLink/proxy может вешать fetch бесконечно)
-    var _timeout = AbortSignal.timeout ? AbortSignal.timeout(8000) : null;
-    var fetchOpts = {};
-    if(_transportFetchCtrl && _timeout) {
-      // Объединяем два сигнала: наш AbortController + таймаут
-      try {
-        var _anySignal = AbortSignal.any ? AbortSignal.any([_transportFetchCtrl.signal, _timeout]) : _transportFetchCtrl.signal;
-        fetchOpts = { signal: _anySignal };
-      } catch(_se) { fetchOpts = { signal: _transportFetchCtrl.signal }; }
-    } else if(_transportFetchCtrl) {
-      fetchOpts = { signal: _transportFetchCtrl.signal };
-    } else if(_timeout) {
-      fetchOpts = { signal: _timeout };
-    }
-    var r = await fetch(API_BASE + '/api/transport/?' + params.toString(), fetchOpts);
+    // Promise.race timeout (8s) — работает даже если расширения (TronLink и др.)
+    // monkey-patch-ят fetch и игнорируют AbortSignal
+    var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
+    var _fetchUrl = API_BASE + '/api/transport/?' + params.toString();
+    var r = await Promise.race([
+      fetch(_fetchUrl, fetchOpts),
+      new Promise(function(_, reject) {
+        setTimeout(function() { reject(new DOMException('Transport fetch timeout', 'TimeoutError')); }, 8000);
+      })
+    ]);
     if(r.status === 401){
       // fix: не оставляем спиннер — показываем сообщение + retry
       _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login || 'Войдите в аккаунт');
