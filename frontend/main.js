@@ -4354,12 +4354,15 @@ function applyLang(l) {
 }
 
 function setLang(l, btn) {
+  var _t0 = performance.now();
   lang = l;
   window.__currentLang = l;
   localStorage.setItem('ch_lang', l);
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  console.log('[T] setLang start:', l);
   applyLang(l);
+  console.log('[T] applyLang done:', (performance.now()-_t0).toFixed(0)+'ms');
   // Перерендерим динамические блоки — откладываем через setTimeout
   // чтобы applyLang завершился до следующего рендера (fix: race condition STATUS_BREAKPOINT)
   setTimeout(function() {
@@ -4395,7 +4398,8 @@ function setLang(l, btn) {
   // AI чат placeholder и приветствие
   var aiInp = document.getElementById('aiInput');
   if(aiInp){ var phs={ru:'Напишите о грузе...',ge:'დაწერეთ ტვირთის შესახებ...',en:'Describe your cargo...'}; aiInp.placeholder=phs[l]||phs['ru']; }
-  if(typeof aiReset === 'function') aiReset();
+  var _t1=performance.now(); if(typeof aiReset === 'function') aiReset();
+  console.log('[T] aiReset done:', (performance.now()-_t0).toFixed(0)+'ms TOTAL');
 }
 
 
