@@ -6337,7 +6337,10 @@ function renderSubscriptions() {
     html += '</div>';
     html += '</div>';
   });
+  var _rtoT1 = performance.now();
+  console.log('[TIMING] renderTransportOffers map done:', (_rtoT1-_rtoT0).toFixed(1)+'ms, html length:', html.length);
   list.innerHTML = html;
+  console.log('[TIMING] renderTransportOffers innerHTML done:', (performance.now()-_rtoT0).toFixed(1)+'ms TOTAL');
 }
 
 // Нормализует название города: грузинский → русский (для хранения в БД)
