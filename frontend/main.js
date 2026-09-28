@@ -453,7 +453,7 @@ function getTypeLabel(type) {
   var key = 'type_' + (type||'tent');
   var tr = (typeof TRANSLATIONS !== 'undefined' && typeof lang !== 'undefined') ? (TRANSLATIONS[lang]||TRANSLATIONS['ru']) : (typeof TRANSLATIONS !== 'undefined' ? TRANSLATIONS['ru'] : null);
   if (tr && tr[key]) return tr[key];
-  var fallback = {tent:'Тент',ref:'Рефриж.',bort:'Борт',termos:'Термос',gazel:'Фургон',container:'Контейнер',auto:'Автовоз',other:'Другой'};
+  var fallback = {tent:'Тент',ref:'Рефриж.',bort:'Борт',termos:'Термос',gazel:'Фургон',container:'Контейнер',auto:'Автовоз',other:'Другой',dump:'Самосвал',evacuator:'Эвакуатор',cistern:'Цистерна',grain:'Зерновоз',reftent:'Рефтент',megatent:'Мегатент'};
   return fallback[type] || type || 'Тент';
 }
 
@@ -2976,9 +2976,13 @@ function renderCabDeals(){
 }
 function showSection(name, el){
   _userClickedTab = true;
+  window._tabRestored = true; // fix P1: предотвращаем повторный вызов из api.js finally
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const _secEl = document.getElementById('sec-'+name);
   if(_secEl) _secEl.classList.add('active');
+  // fix P1: скрываем/показываем фильтры грузов — они вне .section, видны всегда
+  var _filtersEl = document.querySelector('.filters');
+  if(_filtersEl) _filtersEl.style.display = (name === 'trucks' || name === 'rates' || name === 'orders' || name === 'cabinet') ? 'none' : '';
   if(name==='deals') setTimeout(loadDeals, 50);
   if(name==='trucks') { setTimeout(syncTrucksFromServer, 50); if(typeof loadTransportOffers==='function') loadTransportOffers(); }
   if(name==='rates') {
@@ -3133,6 +3137,12 @@ const TRANSLATIONS = {
     type_container: 'Контейнер',
     type_auto: 'Автовоз',
     type_other: 'Другой',
+    type_dump: 'Самосвал',
+    type_evacuator: 'Эвакуатор',
+    type_cistern: 'Цистерна',
+    type_grain: 'Зерновоз',
+    type_reftent: 'Рефтент',
+    type_megatent: 'Мегатент',
     modal_from: 'Откуда',
     modal_to: 'Куда',
     modal_date: 'Дата загрузки',
@@ -3708,6 +3718,12 @@ const TRANSLATIONS = {
     type_container: 'კონტეინერი',
     type_auto: 'ავტოვოზი',
     type_other: 'სხვა',
+    type_dump: 'თვითმცლელი',
+    type_evacuator: 'ევაკუატორი',
+    type_cistern: 'ცისტერნა',
+    type_grain: 'მარცვლეულის',
+    type_reftent: 'რეფ-ტენტი',
+    type_megatent: 'მეგა-ტენტი',
     modal_from: 'საიდან',
     modal_to: 'სად',
     modal_date: 'ჩატვირთვის თარიღი',
@@ -6473,8 +6489,9 @@ function renderTransportOffers() {
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
       : '<button onclick="openAuth(\'register\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
-    var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city);
-    var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city);
+    // null-guard: from_city/to_city/truck_type могут быть null
+    var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city||''):o.from_city||'—');
+    var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city||''):o.to_city||'—');
     var carrier  = esc(o.company_name || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).carrier_default||'Перевозчик'));
     var rating   = '⭐' + (o.rating || '5.0');
     var capLabel = cap ? cap + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_capacity||'вмест.') : '—';

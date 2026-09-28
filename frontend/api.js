@@ -211,7 +211,7 @@ async function syncLoadsFromServer(){
       // Обновляем fcount тоже
       const _fcEl = document.getElementById('fcount');
       if(_fcEl) _fcEl.textContent = serverLoads.length + ' грузов';
-      console.log('[API] Loaded', serverLoads.length, 'loads from server');
+      // removed console.log
     }
 
     // Загружаем свои грузы если залогинен
@@ -243,7 +243,9 @@ async function syncLoadsFromServer(){
   } finally {
     window._loadsLoading = false;
     // После загрузки грузов — восстанавливаем сохранённую вкладку
-    if(!window._tabRestored){
+    // fix P1: не вызываем если пользователь уже кликнул вкладку вручную (_userClickedTab)
+    //         это предотвращает abort активного loadTransportOffers fetch
+    if(!window._tabRestored && !window._userClickedTab){
       window._tabRestored = true;
       var savedTab = localStorage.getItem('ch_tab');
       if(savedTab && savedTab !== 'loads'){
