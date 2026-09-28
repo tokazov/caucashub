@@ -1022,7 +1022,6 @@ function renderLoads(data){
       _insertAdSlot(list, 'feed');
     }
   });
-  console.log('[TIMING] renderLoads done:', (performance.now()-_rlT0).toFixed(1)+'ms', 'items:', data?data.length:0);
   // Кнопка "Загрузить ещё"
   const _total = window._serverTotal || 0;
   if(_total > data.length){
@@ -1614,7 +1613,6 @@ function openPaywall(reason){
   // Обновляем тексты кнопок и описаний по языку
   _applyPaywallLang();
   document.getElementById('paywallOverlay').classList.add('on');
-  console.log('[TIMING] applyLang TOTAL:', (performance.now()-_applyT0).toFixed(1)+'ms');
 }
 
 function _applyPaywallLang() {
@@ -4283,8 +4281,7 @@ function applyLang(l) {
     });
   } finally {
     if(document.body) document.body.style.visibility = _bodyVis;
-    console.log('[TIMING] applyLang forEach done:', (performance.now()-_applyT0).toFixed(1)+'ms');
-  }
+    }
   // placeholder по data-i18n-ph
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.dataset.i18nPh;
@@ -6336,9 +6333,7 @@ function renderSubscriptions() {
     html += '</div>';
     html += '</div>';
   });
-  console.log('[TIMING] renderTransportOffers map done:', (_rtoT1-_rtoT0).toFixed(1)+'ms, html length:', html.length);
   list.innerHTML = html;
-  console.log('[TIMING] renderTransportOffers innerHTML done:', (performance.now()-_rtoT0).toFixed(1)+'ms TOTAL');
 }
 
 // Нормализует название города: грузинский → русский (для хранения в БД)
