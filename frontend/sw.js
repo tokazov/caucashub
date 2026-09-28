@@ -1,23 +1,24 @@
 /**
- * CaucasHub Service Worker v4
- * - HTML: network-first (не кэшируется)
- * - Статика (js/css): network-first (всегда свежая)
- * - API: network-only (passthrough — без respondWith)
+ * CaucasHub Service Worker v5 — minimal passthrough
  *
- * fix: TypeError "Failed to convert value to 'Response'" —
- *   caches.match() возвращает undefined если ресурса нет в кеше,
- *   SW не может передать undefined как Response → краш fetch.
- *   Решение: если сеть недоступна и кеша нет — возвращаем 503.
+ * Политика: SW НЕ перехватывает fetch запросы вообще.
+ * Его единственная задача — очистить старые кеши от v3/v4 которые
+ * возвращали 503 и вешали загрузку транспорта.
+ *
+ * История проблем:
+ * v3: caches.match() → undefined → TypeError: Failed to convert value to 'Response'
+ * v4: 503 fallback → ломал загрузку index.html/main.js при мигании сети
+ * v5: убираем respondWith полностью — браузер сам управляет кешем
  */
 
-const CACHE_NAME = 'caucashub-v4';
+const CACHE_NAME = 'caucashub-v5';
 
-// Установка
+// Установка — сразу активируемся
 self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
-// Активация — удаляем ВСЕ старые кэши
+// Активация — удаляем ВСЕ старые кэши (v3, v4, любые)
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
@@ -26,32 +27,5 @@ self.addEventListener('activate', function(e) {
   );
 });
 
-self.addEventListener('fetch', function(e) {
-  const url = new URL(e.request.url);
-
-  // API и внешние ресурсы — пропускаем без вмешательства
-  if (
-    url.hostname.includes('railway.app') ||
-    url.pathname.startsWith('/api/') ||
-    url.hostname !== self.location.hostname
-  ) {
-    return; // браузер обрабатывает сам
-  }
-
-  // Только GET для нашего домена — network-first
-  if (e.request.method === 'GET') {
-    e.respondWith(
-      fetch(e.request).catch(function() {
-        // Сеть недоступна — пробуем кеш
-        return caches.match(e.request).then(function(cached) {
-          // Если кеша нет — возвращаем 503 вместо undefined (fix: TypeError)
-          return cached || new Response('Offline', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: {'Content-Type': 'text/plain'}
-          });
-        });
-      })
-    );
-  }
-});
+// fetch — НЕ перехватываем, браузер управляет кешем самостоятельно
+// self.addEventListener('fetch', ...) — намеренно отсутствует
