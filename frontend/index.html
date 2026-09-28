@@ -138,26 +138,47 @@
   </script>
 
 <script>
-// Яндекс.Карты — грузим ЛЕНИВО только когда реально нужны (openRouteMap/showRouteMap)
-// fix: синхронная загрузка ymaps блокировала рендер страницы и fetch к API транспорта
+// Яндекс.Карты — lazy load с retry (макс 20 попыток / 6 сек) и фоллбеком
 window._ymapsLoaded = false;
 window._ymapsLoading = false;
-window.loadYmapsLazy = function(cb) {
+window._ymapsError = false;
+window.loadYmapsLazy = function(cb, onError) {
+  // Уже загружен
   if(window._ymapsLoaded) { if(cb) cb(); return; }
+  // Ошибка загрузки — не пытаемся снова
+  if(window._ymapsError) { if(onError) onError('Карты недоступны'); return; }
+  // Ждём завершения текущей загрузки (макс 20 попыток × 300ms = 6 сек)
   if(window._ymapsLoading) {
-    // ждём загрузки
-    var _t = setInterval(function(){ if(window._ymapsLoaded){ clearInterval(_t); if(cb) cb(); } }, 100);
+    var _attempts = 0;
+    var _t = setInterval(function() {
+      _attempts++;
+      if(window._ymapsLoaded) { clearInterval(_t); if(cb) cb(); return; }
+      if(window._ymapsError || _attempts >= 20) {
+        clearInterval(_t);
+        if(onError) onError('Карты недоступны');
+      }
+    }, 300);
     return;
   }
+  // Запускаем загрузку
   window._ymapsLoading = true;
   var _ymLang = localStorage.getItem('ch_lang') === 'ge' ? 'ka_GE' : 'ru_RU';
   var _s = document.createElement('script');
   _s.src = 'https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=' + _ymLang;
   _s.async = true;
-  _s.onload = function() { window._ymapsLoaded = true; if(cb) cb(); };
-  _s.onerror = function() { window._ymapsLoading = false; }; // тихий фейл
+  _s.onload = function() {
+    window._ymapsLoaded = true;
+    window._ymapsLoading = false;
+    if(cb) cb();
+  };
+  _s.onerror = function() {
+    window._ymapsLoading = false;
+    window._ymapsError = true; // не повторяем попытки — Яндекс недоступен
+    if(onError) onError('Карты недоступны');
+  };
   document.head.appendChild(_s);
 };
+
 </script>
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
@@ -1599,7 +1620,7 @@ window.loadYmapsLazy = function(cb) {
 </div>
 
 <script src="api.js?v=1790618085"></script>
-<script src="main.js?v=1790625727"></script>
+<script src="main.js?v=1790626596"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->

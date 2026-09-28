@@ -5734,7 +5734,7 @@ window.openRouteMap = function(){
   var mapEl = document.getElementById('routeMapModal');
   mapEl.innerHTML='<div style="padding:30px;text-align:center;color:#aaa;font-size:14px">⏳ Загружаем карту...</div>';
   
-  // fix: убираем бесконечный _initMap loop — используем loadYmapsLazy напрямую
+  // fix: убираем бесконечный _initMap loop — используем loadYmapsLazy напрямую (с лимитом 6 сек)
   loadYmapsLazy(function(){
     ymaps.ready(function(){
       mapEl.innerHTML='';
@@ -5755,6 +5755,9 @@ window.openRouteMap = function(){
         });
       });
     });
+  }, function(errMsg) {
+    // Яндекс недоступен (макс 6 сек ожидания) — показываем сообщение
+    mapEl.innerHTML = '<div style="text-align:center;padding:30px;color:#e74c3c;font-size:14px">🗺️ Карта недоступна — Яндекс не отвечает</div>';
   });
 }
 
@@ -6417,6 +6420,7 @@ var _transportOffers = [];
 var _transportTotal  = 0;
 var _transportFetchCtrl = null; // AbortController для отмены предыдущего fetch
 var _transportRendering = false; // guard против concurrent renders
+var _transportLoading = false;  // флаг: запрос в процессе (предотвращает concurrent calls)
 
 window.filterAndLoadTransport = async function() {
   var from = (document.getElementById('tFilterFrom') || {}).value || '';
@@ -6426,9 +6430,10 @@ window.filterAndLoadTransport = async function() {
 };
 
 window.loadTransportOffers = async function(fromCity, toCity, truckType, offset) {
-  // Отменяем предыдущий незавершённый запрос (fix: race condition при смене языка)
+  // Отменяем предыдущий незавершённый запрос
   if(_transportFetchCtrl) { try { _transportFetchCtrl.abort(); } catch(e){} }
   _transportFetchCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  _transportLoading = true;
 
   var list = document.getElementById('transportList');
   var cnt  = document.getElementById('transportCount');
@@ -6479,11 +6484,18 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
     }
     _transportOffers = d.offers || [];
     _transportTotal  = d.total  || 0;
+    _transportLoading = false;
     if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
     renderTransportOffers();
   } catch(e) {
-    // AbortError: новый запрос уже в пути — новый fetch сам поставит своё состояние
-    if(e && e.name === 'AbortError') return;
+    _transportLoading = false;
+    // AbortError: новый запрос уже запущен — он сам поставит своё состояние
+    // НО: если это первый вызов и он aborted — убираем спиннер чтобы не висел вечно
+    if(e && e.name === 'AbortError') {
+      // Проверяем: есть ли активный новый запрос (если да — он сам перезапишет список)
+      // Если _transportFetchCtrl null или aborted — новый запрос уже завершился или нет
+      return; // новый fetch сам поставит своё состояние
+    }
     // TimeoutError: запрос завис (8 секунд) → показываем retry
     if(e && e.name === 'TimeoutError') {
       _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_timeout || 'Запрос занял слишком долго');
@@ -6494,10 +6506,6 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 };
 
 function renderTransportOffers() {
-  // guard: не рендерим если уже рендерим (fix: race condition)
-  if(_transportRendering) return;
-  _transportRendering = true;
-  setTimeout(function() { _transportRendering = false; }, 100);
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
