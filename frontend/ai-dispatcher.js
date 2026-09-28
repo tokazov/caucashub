@@ -291,13 +291,13 @@
     var tpl = document.getElementById('aiTemplate');
     if(tpl && tpl.style.display !== 'none'){
       var parsedData = {
-        from:   (document.getElementById('tFrom') || {}).textContent || '',
-        to:     (document.getElementById('tTo') || {}).textContent || '',
+        from:   (document.getElementById('aiTFrom') || {}).textContent || '',
+        to:     (document.getElementById('aiTTo') || {}).textContent || '',
         desc:   (document.getElementById('tDesc') || {}).textContent || '',
         weight: (document.getElementById('tWeight') || {}).textContent || '',
         truck:  (document.getElementById('tTruck') || {}).textContent || '',
         price:  (document.getElementById('tPrice') || {}).textContent || '',
-        date:   (document.getElementById('tDate') || {}).textContent || '',
+        date:   (document.getElementById('aiTDate') || {}).textContent || '',
       };
       try { localStorage.setItem('ch_ai_parsed_load', JSON.stringify(parsedData)); } catch(e){}
     }

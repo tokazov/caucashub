@@ -1081,7 +1081,7 @@ function renderTrucks(){
 
 function callTruck(co, plate, phone){
   if(!user){ openAuth('login'); return; }
-  alert(`📞 Связаться с перевозчиком\n\n🚛 ${co}\n📋 ${plate}\n📞 ${phone}`);
+  showToast('📞 Связаться: ' + co + ' | ' + plate + ' | ' + phone, '#1a1a2e');
 }
 // Безопасный вызов через кеш — данные не передаются через HTML-атрибут (fix: JSON.stringify crash)
 window.callTruckByKey = function(key){
@@ -1342,7 +1342,7 @@ function doRespond(){
     const missingFields=[];
     if(!user.inn) missingFields.push('ИНН / ID код компании');
     if(missingFields.length){
-      alert('❌ Для отклика заполните профиль:\n\n• '+missingFields.join('\n• ')+'\n\nПрофиль → Настройки аккаунта');
+      showToastWarn('❌ Заполните профиль: ' + missingFields.join(', '));
       closeModal('cargoOverlay');
       if(typeof openSettings==='function') openSettings();
       return;
@@ -1408,7 +1408,7 @@ function doRespond(){
           if(typeof openAuth==='function') openAuth('login');
           return;
         } else {
-          alert('⚠️ ' + detail);
+          showToastWarn('⚠️ ' + detail);
         }
         return;
       }
@@ -1679,11 +1679,11 @@ function choosePlan(plan){
       closeModal('paywallOverlay');
       window.open(d.payment_url, '_blank');
     } else {
-      alert('Ошибка создания платежа: '+(d.detail||'попробуйте позже'));
+      showToastWarn('❌ Ошибка платежа: ' + (d.detail || 'попробуйте позже'));
       if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_connecting||'Подключить';btn.disabled=false;}
     }
   }).catch(()=>{
-    alert('Нет связи. Проверьте интернет и попробуйте снова.');
+    showToastWarn('⚠️ Нет связи. Проверьте интернет.');
     if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_connecting||'Подключить';btn.disabled=false;}
   });
 }
@@ -1946,7 +1946,7 @@ async function doRegister(){
   const agreeBox=document.getElementById('regAgree');
   if(agreeBox && !agreeBox.checked){
     const T=TRANSLATIONS[lang]||TRANSLATIONS['ru'];
-    alert(T['reg_agree_required']||'Необходимо согласиться с правилами использования');
+    showToastWarn(T['reg_agree_required']||'Необходимо согласиться с правилами');
     return;
   }
   const inn=document.getElementById('regInn')?.value||'';
@@ -2108,7 +2108,7 @@ function doPostLoad(){
   const priceRaw=parseInt(document.getElementById('pPrice').value);
   if(!priceRaw || priceRaw < 1){
     const _errLang=(TRANSLATIONS[lang]||TRANSLATIONS['ru']);
-    alert(_errLang.err_price_required||'⚠️ Укажите ставку (цену) груза');
+    showToastWarn(_errLang.err_price_required||'⚠️ Укажите ставку (цену) груза');
     if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=_errLang.btn_post_submit||'📦 Разместить груз';}
     return;
   }
@@ -2166,7 +2166,7 @@ function doPostLoad(){
         window._cabinetFetching = false;
         window._tabRestored = false;
         if(typeof _renderOrders==='function') _renderOrders();
-        console.log('[createLoad] Saved to server, id='+r.load.serverId);
+        // removed console.log
       } else {
         console.warn('[createLoad] Server rejected:', r.error);
         if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
@@ -2184,20 +2184,20 @@ function doPostLoad(){
           closeModal('postOverlay');
           if(typeof showLimitModal==='function') showLimitModal(r.limitData);
         } else {
-          alert('⚠️ Груз не удалось сохранить на сервере. Попробуйте ещё раз.');
+          showToastWarn('⚠️ Груз не удалось сохранить. Попробуйте ещё раз.');
         }
       }
     }).catch((err)=>{
       console.warn('[createLoad] Network error:', err);
       if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
-      alert('⚠️ Нет соединения. Груз не сохранён. Проверьте интернет и попробуйте снова.');
+      showToastWarn('⚠️ Нет соединения. Груз не сохранён.');
       const li=LOCAL.findIndex(l=>l.id===newLoad.id);
       if(li>-1) LOCAL.splice(li,1);
       renderLoads(scope==='local'?LOCAL:INTL);
     });
   } else {
     // Нет токена — не залогинен
-    alert('⚠️ Войдите в аккаунт чтобы добавить груз.');
+    showToastWarn('⚠️ Войдите в аккаунт чтобы добавить груз.');
     const li=LOCAL.findIndex(l=>l.id===newLoad.id);
     if(li>-1) LOCAL.splice(li,1);
     renderLoads(scope==='local'?LOCAL:INTL);
@@ -2333,7 +2333,7 @@ async function rateDealPrompt(dealId, num){
       }
     } else {
       const e = await r.json();
-      alert('Ошибка: ' + (e.detail || 'не удалось сохранить оценку'));
+      showToastWarn('❌ Ошибка: ' + (e.detail || 'не удалось сохранить оценку'));
     }
   }catch(e){ alert('Ошибка соединения'); }
 }
@@ -5618,7 +5618,7 @@ async function rateDealDialog(id,num){
   if(s&&!isNaN(s)&&s>=1&&s<=5){
     const tk=getToken?getToken():localStorage.getItem('ch_token');
     await fetch(API_BASE+'/api/deals/'+id+'/rate',{method:'POST',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},body:JSON.stringify({score:parseInt(s)})});
-    alert('Спасибо за оценку!');loadDeals();
+    showToast('✅ Спасибо за оценку!', '#2ecc71');loadDeals();
   }
 }
 async function exportDealsData(fmt){
@@ -5886,7 +5886,7 @@ async function connectTelegram(){
       }, 3000);
     } else {
       if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
-      alert('Ошибка. Попробуйте ещё раз.');
+      showToastWarn('❌ Ошибка. Попробуйте ещё раз.');
     }
   } catch(e) {
     if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
@@ -5980,10 +5980,11 @@ function _initAdBanner() {
     }
   });
 
-  // Автоматическая ротация каждые 5 секунд
+  // Автоматическая ротация каждые 5 секунд (fix: clearInterval при повторном вызове)
   if (topAds.length > 1) {
+    if (window._adBannerInterval) clearInterval(window._adBannerInterval);
     let current = 0;
-    setInterval(() => {
+    window._adBannerInterval = setInterval(() => {
       current = (current + 1) % topAds.length;
       _showAdSlide(current);
     }, 5000);
@@ -6057,7 +6058,7 @@ async function doDeleteAccount(){
   const val = (document.getElementById('deleteConfirmInput')?.value || '').trim();
   const pwd = (document.getElementById('deletePasswordInput')?.value || '').trim();
   if(val !== 'УДАЛИТЬ'){
-    alert('⚠️ Введите слово УДАЛИТЬ для подтверждения');
+    showToastWarn('⚠️ Введите слово УДАЛИТЬ для подтверждения');
     return;
   }
   if(!pwd){ alert('⚠️ Введите текущий пароль'); return; }
@@ -6088,7 +6089,7 @@ async function doDeleteAccount(){
     }
     if(r.status === 400 && data?.detail?.active_deal_ids){
       const ids = data.detail.active_deal_ids.join(', ');
-      alert(`❌ ${data.detail.message}\n\nАктивные сделки: #${ids}`);
+      showToastWarn('❌ ' + data.detail.message + ' Активные сделки: #' + ids);
       if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
       return;
     }
@@ -6101,7 +6102,7 @@ async function doDeleteAccount(){
     }
     if(!r.ok){
       const msg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
-      alert('❌ ' + msg);
+      showToastWarn('❌ ' + msg);
       if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
       return;
     }
@@ -6126,7 +6127,7 @@ async function doDeleteAccount(){
     setTimeout(()=>location.reload(), 3000);
 
   } catch(e) {
-    alert('❌ Ошибка сети. Попробуйте ещё раз.');
+    showToastWarn('❌ Ошибка сети. Попробуйте ещё раз.');
     if(btn){ btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_delete_confirm||'Подтвердить удаление'; btn.disabled=false; }
   }
 }
@@ -6257,7 +6258,7 @@ async function loadSubscriptions() {
   try {
     var r = await fetch(API_BASE + '/api/subscriptions/', {headers:{'Authorization':'Bearer '+tk}});
     var d = await r.json();
-    console.log('[SUB] API response:', JSON.stringify(d).slice(0,200));
+    // removed console.log
     _subscriptions = d.subscriptions || [];
     renderSubscriptions();
   } catch(e) {
@@ -6268,7 +6269,7 @@ async function loadSubscriptions() {
 function renderSubscriptions() {
   var list = document.getElementById('subscriptionsList');
   if(!list) { console.warn('[SUB] subscriptionsList not found in DOM'); return; }
-  console.log('[SUB] rendering', _subscriptions.length, 'subscriptions');
+  // removed console.log
   if(!_subscriptions.length) {
     list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🔔</div>' + '<div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_title||'Нет подписок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sub_empty_sub||'Подпишитесь на маршрут — получите уведомление когда появится новый груз') + '</div></div>';
     return;
@@ -7040,6 +7041,23 @@ function _fetchCitySuggestions(q, lang, callback) {
 
 // ── TOAST WARN ─────────────────────────────────────────────────────────────
 // Кастомный warning toast — заменяет нативный alert() для локализованных сообщений
+// Универсальный toast (нейтральный/синий) — вместо alert()
+function showToast(msg, color) {
+  color = color || '#1a1a2e';
+  var t = document.createElement('div');
+  t.style.cssText = [
+    'position:fixed','bottom:90px','left:50%','transform:translateX(-50%)',
+    'background:'+color,'color:#fff','padding:13px 22px','border-radius:12px',
+    'font-weight:700','font-size:14px','z-index:99999',
+    'box-shadow:0 4px 20px rgba(0,0,0,.25)',
+    'max-width:90vw','text-align:center','pointer-events:none','white-space:pre-line'
+  ].join(';');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 4000);
+}
+window.showToast = showToast;
+
 function showToastWarn(msg) {
   const t = document.createElement('div');
   t.textContent = msg;
