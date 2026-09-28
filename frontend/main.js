@@ -3143,6 +3143,9 @@ const TRANSLATIONS = {
     type_grain: 'Зерновоз',
     type_reftent: 'Рефтент',
     type_megatent: 'Мегатент',
+    transport_load_err: 'Не удалось загрузить транспорт',
+    transport_load_err_sub: 'Проверьте интернет и попробуйте снова',
+    btn_retry: 'Повторить',
     modal_from: 'Откуда',
     modal_to: 'Куда',
     modal_date: 'Дата загрузки',
@@ -3724,6 +3727,9 @@ const TRANSLATIONS = {
     type_grain: 'მარცვლეულის',
     type_reftent: 'რეფ-ტენტი',
     type_megatent: 'მეგა-ტენტი',
+    transport_load_err: 'ტრანსპორტის ჩატვირთვა ვერ მოხერხდა',
+    transport_load_err_sub: 'შეამოწმეთ ინტერნეტი და სცადეთ ისევ',
+    btn_retry: 'სცადეთ ისევ',
     modal_from: 'საიდან',
     modal_to: 'სად',
     modal_date: 'ჩატვირთვის თარიღი',
@@ -6442,28 +6448,49 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
   if(toCity)   params.set('to_city', toCity);
   if(truckType) params.set('truck_type', truckType);
 
+  // helper: показать ошибку с кнопкой retry — НИКОГДА не оставлять вечный спиннер
+  function _showTransportError(msg) {
+    if(!list) return;
+    var _T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
+    list.innerHTML = '<div class="cab-empty" style="padding:40px 20px">' +
+      '<div class="cab-empty-icon">⚠️</div>' +
+      '<div class="cab-empty-title">' + (msg || _T.transport_load_err || 'Не удалось загрузить транспорт') + '</div>' +
+      '<div class="cab-empty-sub" style="margin-bottom:16px">' + (_T.transport_load_err_sub || 'Проверьте интернет и попробуйте снова') + '</div>' +
+      '<button onclick="loadTransportOffers()" style="background:#1a1a2e;color:#f7b731;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 ' + (_T.btn_retry || 'Повторить') + '</button>' +
+    '</div>';
+  }
+
   try {
     var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
     var r = await fetch(API_BASE + '/api/transport/?' + params.toString(), fetchOpts);
-    // SILENT-3: handle specific HTTP error codes
     if(r.status === 401){
-      showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
+      // fix: не оставляем спиннер — показываем сообщение + retry
+      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login || 'Войдите в аккаунт');
       return;
     }
     if(!r.ok){
-      if(list) list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">⚠️</div><div class="cab-empty-title">Не удалось загрузить транспорт</div><div class="cab-empty-sub">Обновите страницу или попробуйте позже</div></div>';
+      _showTransportError();
       return;
     }
-    var d = await r.json();
+    var d;
+    try { d = await r.json(); } catch(_je) {
+      // r.json() упал (например, сервер вернул не JSON) — показываем ошибку
+      _showTransportError();
+      return;
+    }
     _transportOffers = d.offers || [];
     _transportTotal  = d.total  || 0;
     if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
-    // SILENT-3: 200 with empty [] is normal "not found", not an error
     renderTransportOffers();
   } catch(e) {
-    // AbortError — нормально, не показываем ошибку
-    if(e && e.name === 'AbortError') return;
-    if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
+    // AbortError: новый запрос уже в пути — очищаем спиннер тихо
+    // fix: раньше return оставлял вечный спиннер
+    if(e && e.name === 'AbortError') {
+      // Не показываем ошибку, но и не оставляем спиннер
+      // Новый fetch уже запущен — он сам поставит своё состояние
+      return;
+    }
+    _showTransportError();
   }
 };
 
