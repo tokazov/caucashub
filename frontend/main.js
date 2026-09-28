@@ -4327,9 +4327,17 @@ function setLang(l, btn) {
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   applyLang(l);
-  // Перерендерим динамические блоки
-  if(typeof renderLoads === 'function') renderLoads();
-  if(typeof renderTrucks === 'function') renderTrucks();
+  // Перерендерим динамические блоки — откладываем через setTimeout
+  // чтобы applyLang завершился до следующего рендера (fix: race condition STATUS_BREAKPOINT)
+  setTimeout(function() {
+    if(typeof renderLoads === 'function') renderLoads();
+    if(typeof renderTrucks === 'function') renderTrucks();
+    // Если активна вкладка транспорт — перерисовываем офферы с новым языком
+    var secTrucks = document.getElementById('sec-trucks');
+    if(secTrucks && secTrucks.classList.contains('active')) {
+      if(typeof renderTransportOffers === 'function') renderTransportOffers();
+    }
+  }, 0);
   // Перерисовываем все кабинетные вкладки при смене языка (с защитой от ошибок)
   try { if(typeof renderCabLoads === 'function' && document.getElementById('myLoadsList')) renderCabLoads(); } catch(e) {}
   try { if(typeof renderCabResponses === 'function' && document.getElementById('myResponsesList')) renderCabResponses(); } catch(e) {}
@@ -6382,6 +6390,8 @@ window.deleteSubscription = async function(subId) {
 
 var _transportOffers = [];
 var _transportTotal  = 0;
+var _transportFetchCtrl = null; // AbortController для отмены предыдущего fetch
+var _transportRendering = false; // guard против concurrent renders
 
 window.filterAndLoadTransport = async function() {
   var from = (document.getElementById('tFilterFrom') || {}).value || '';
@@ -6391,6 +6401,10 @@ window.filterAndLoadTransport = async function() {
 };
 
 window.loadTransportOffers = async function(fromCity, toCity, truckType, offset) {
+  // Отменяем предыдущий незавершённый запрос (fix: race condition при смене языка)
+  if(_transportFetchCtrl) { try { _transportFetchCtrl.abort(); } catch(e){} }
+  _transportFetchCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+
   var list = document.getElementById('transportList');
   var cnt  = document.getElementById('transportCount');
   if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
@@ -6401,7 +6415,8 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
   if(truckType) params.set('truck_type', truckType);
 
   try {
-    var r = await fetch(API_BASE + '/api/transport/?' + params.toString());
+    var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
+    var r = await fetch(API_BASE + '/api/transport/?' + params.toString(), fetchOpts);
     // SILENT-3: handle specific HTTP error codes
     if(r.status === 401){
       showToastWarn('⚠️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login||'Войдите в аккаунт'));
@@ -6418,11 +6433,17 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
     // SILENT-3: 200 with empty [] is normal "not found", not an error
     renderTransportOffers();
   } catch(e) {
+    // AbortError — нормально, не показываем ошибку
+    if(e && e.name === 'AbortError') return;
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#e74c3c">Ошибка загрузки</div>';
   }
 };
 
 function renderTransportOffers() {
+  // guard: не рендерим если уже рендерим (fix: race condition)
+  if(_transportRendering) return;
+  _transportRendering = true;
+  setTimeout(function() { _transportRendering = false; }, 100);
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
