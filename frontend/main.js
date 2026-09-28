@@ -5734,35 +5734,28 @@ window.openRouteMap = function(){
   var mapEl = document.getElementById('routeMapModal');
   mapEl.innerHTML='<div style="padding:30px;text-align:center;color:#aaa;font-size:14px">⏳ Загружаем карту...</div>';
   
-  function _initMap(){
-    if(typeof ymaps === 'undefined'){
-      // ymaps ещё не загрузился — ждём
-      setTimeout(_initMap, 300);
-      return;
-    }
-    mapEl.innerHTML='';
-  loadYmapsLazy(function(){ ymaps.ready(function(){
-    _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
-    ymaps.geocode(from+', Грузия',{results:1}).then(function(res){
-      const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
-      ymaps.geocode(to+', Грузия',{results:1}).then(function(res2){
-        const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
-        if(!fromCoords||!toCoords) return;
-        
-        const route = new ymaps.multiRouter.MultiRoute({
-          referencePoints: [fromCoords, toCoords],
-          params: {routingMode:'auto'}
-        },{wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
-        
-        _routeMap.geoObjects.add(route);
-        route.model.events.add('requestsuccess', function(){
-          _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
+  // fix: убираем бесконечный _initMap loop — используем loadYmapsLazy напрямую
+  loadYmapsLazy(function(){
+    ymaps.ready(function(){
+      mapEl.innerHTML='';
+      _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
+      ymaps.geocode(from+', Грузия',{results:1}).then(function(res){
+        const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
+        ymaps.geocode(to+', Грузия',{results:1}).then(function(res2){
+          const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
+          if(!fromCoords||!toCoords) return;
+          const route = new ymaps.multiRouter.MultiRoute({
+            referencePoints: [fromCoords, toCoords],
+            params: {routingMode:'auto'}
+          },{wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
+          _routeMap.geoObjects.add(route);
+          route.model.events.add('requestsuccess', function(){
+            _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
+          });
         });
       });
     });
-  }); }); // ymaps.ready + loadYmapsLazy
-  } // _initMap
-  _initMap();
+  });
 }
 
 
