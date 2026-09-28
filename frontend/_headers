@@ -1,21 +1,21 @@
-# HTML — никогда не кэшировать
+# HTML — никогда не кэшировать (ни браузером, ни CF edge)
 /
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
 
 /*.html
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-# SW — не кэшировать чтобы браузер видел обновления
+# SW — критично не кэшировать
 /sw.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-# Manifest — не кэшировать
 /manifest.json
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
-# JS/CSS — браузер перезапрашивает каждый раз
+# JS/CSS — версионированы через ?v=, не кэшируем
 /*.js
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
 
 /*.css
-  Cache-Control: no-cache, must-revalidate, max-age=0
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
