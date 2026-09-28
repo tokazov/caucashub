@@ -910,6 +910,7 @@ function _insertAdSlot(container, placement) {
 }
 
 function renderLoads(data){
+  var _rlT0 = performance.now();
   // Если data не передан — берём текущий список по scope
   if (!data) data = (scope === 'intl' ? INTL : LOCAL);
   if (!data) data = [];
@@ -1022,6 +1023,7 @@ function renderLoads(data){
       _insertAdSlot(list, 'feed');
     }
   });
+  console.log('[TIMING] renderLoads done:', (performance.now()-_rlT0).toFixed(1)+'ms', 'items:', data?data.length:0);
   // Кнопка "Загрузить ещё"
   const _total = window._serverTotal || 0;
   if(_total > data.length){
@@ -1037,6 +1039,7 @@ let _myTrucks = [];
 try { _myTrucks = JSON.parse(localStorage.getItem('ch_my_trucks')||'[]'); } catch(e){}
 
 function renderTrucks(){
+  var _rtT0 = performance.now();
   const list=document.getElementById('truckList');
   if(!list) return;
   list.innerHTML='';
@@ -1613,6 +1616,7 @@ function openPaywall(reason){
   // Обновляем тексты кнопок и описаний по языку
   _applyPaywallLang();
   document.getElementById('paywallOverlay').classList.add('on');
+  console.log('[TIMING] applyLang TOTAL:', (performance.now()-_applyT0).toFixed(1)+'ms');
 }
 
 function _applyPaywallLang() {
@@ -4268,6 +4272,7 @@ window.TRANSLATIONS = TRANSLATIONS;
  // expose for setLang/applyLang
 
 function applyLang(l) {
+  var _applyT0 = performance.now();
   const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
   // textContent по data-i18n
   // fix: скрываем body перед batch DOM updates чтобы предотвратить 165+ reflow
@@ -4281,6 +4286,7 @@ function applyLang(l) {
     });
   } finally {
     if(document.body) document.body.style.visibility = _bodyVis;
+    console.log('[TIMING] applyLang forEach done:', (performance.now()-_applyT0).toFixed(1)+'ms');
   }
   // placeholder по data-i18n-ph
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
@@ -4361,6 +4367,8 @@ function applyLang(l) {
 }
 
 function setLang(l, btn) {
+  var _setLangT0 = performance.now();
+  console.log('[TIMING] setLang start:', l);
   lang = l;
   window.__currentLang = l;
   localStorage.setItem('ch_lang', l);
@@ -6515,6 +6523,8 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 };
 
 function renderTransportOffers() {
+  var _rtoT0 = performance.now();
+  console.log('[TIMING] renderTransportOffers start, _transportOffers:', typeof _transportOffers !== 'undefined' ? _transportOffers.length : 'undef');
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
