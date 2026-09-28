@@ -79,7 +79,7 @@ function addrSearch(field, val){
   dropEl.innerHTML='<div class="addr-loading">🔍 Ищем адрес...</div>';
   dropEl.classList.add('open');
   addrTimers[field]=setTimeout(()=>{
-    ymaps.ready(()=>{
+    loadYmapsLazy(()=>{ ymaps.ready(()=>{
       ymaps.geocode(val+', Грузия',{results:6,lang:'ru_RU'}).then(res=>{
         const objs=res.geoObjects;
         if(!objs.getLength()){
@@ -103,7 +103,7 @@ function addrSearch(field, val){
       }).catch(()=>{
         dropEl.innerHTML='<div class="addr-loading">Ошибка геокодера</div>';
       });
-    });
+    }); }); // ymaps.ready + loadYmapsLazy
   },400);
 }
 
@@ -674,7 +674,7 @@ function showRouteMap(){
   document.getElementById('mapRouteLabel').textContent=`${f.name||f.addr} → ${t.name||t.addr}`;
   document.getElementById('mapDist').textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).map_building||'⏳ Строим маршрут...';
 
-  ymaps.ready(()=>{
+  loadYmapsLazy(()=>{ ymaps.ready(()=>{
     if(!ymap){
       ymap=new ymaps.Map('routeMap',{
         center:[f.lat,f.lng], zoom:7,
@@ -726,7 +726,7 @@ function showRouteMap(){
         const approxTime=Math.round(approxDist/70*10)/10;
         drawLine([[f.lat,f.lng],[t.lat,t.lng]],approxDist,approxTime);
       });
-  });
+  }); }); // ymaps.ready + loadYmapsLazy
 }
 
 function closeMap(){
@@ -5743,7 +5743,7 @@ window.openRouteMap = function(){
       return;
     }
     mapEl.innerHTML='';
-  ymaps.ready(function(){
+  loadYmapsLazy(function(){ ymaps.ready(function(){
     _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
     ymaps.geocode(from+', Грузия',{results:1}).then(function(res){
       const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
@@ -5762,7 +5762,7 @@ window.openRouteMap = function(){
         });
       });
     });
-  }); // ymaps.ready
+  }); }); // ymaps.ready + loadYmapsLazy
   } // _initMap
   _initMap();
 }

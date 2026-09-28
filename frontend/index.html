@@ -137,13 +137,26 @@
   </script>
 
 <script>
-(function(){
+// Яндекс.Карты — грузим ЛЕНИВО только когда реально нужны (openRouteMap/showRouteMap)
+// fix: синхронная загрузка ymaps блокировала рендер страницы и fetch к API транспорта
+window._ymapsLoaded = false;
+window._ymapsLoading = false;
+window.loadYmapsLazy = function(cb) {
+  if(window._ymapsLoaded) { if(cb) cb(); return; }
+  if(window._ymapsLoading) {
+    // ждём загрузки
+    var _t = setInterval(function(){ if(window._ymapsLoaded){ clearInterval(_t); if(cb) cb(); } }, 100);
+    return;
+  }
+  window._ymapsLoading = true;
   var _ymLang = localStorage.getItem('ch_lang') === 'ge' ? 'ka_GE' : 'ru_RU';
   var _s = document.createElement('script');
   _s.src = 'https://api-maps.yandex.ru/2.1/?apikey=aef19e33-8ea1-4039-8353-2f0df688664a&lang=' + _ymLang;
-  _s.defer = true;
+  _s.async = true;
+  _s.onload = function() { window._ymapsLoaded = true; if(cb) cb(); };
+  _s.onerror = function() { window._ymapsLoading = false; }; // тихий фейл
   document.head.appendChild(_s);
-})();
+};
 </script>
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
@@ -1585,7 +1598,7 @@
 </div>
 
 <script src="api.js?v=1790618085"></script>
-<script src="main.js?v=1790620162"></script>
+<script src="main.js?v=1790621111"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
