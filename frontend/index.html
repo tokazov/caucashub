@@ -12,8 +12,9 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Inter + Noto Sans Georgian — полная поддержка ₾ (U+20BE) и грузинского алфавита (11.4) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap&subset=latin,latin-ext,currency" rel="stylesheet">
+  <!-- Inter + Noto Sans Georgian — non-blocking load (fix: blocking страницы в loading state) -->
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap&subset=latin,latin-ext,currency" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap&subset=latin,latin-ext,currency" rel="stylesheet"></noscript>
 <style>
 :lang(ka){font-family:'Noto Sans Georgian',sans-serif;}
 
@@ -1598,7 +1599,7 @@ window.loadYmapsLazy = function(cb) {
 </div>
 
 <script src="api.js?v=1790618085"></script>
-<script src="main.js?v=1790625431"></script>
+<script src="main.js?v=1790625571"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
