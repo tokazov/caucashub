@@ -910,7 +910,6 @@ function _insertAdSlot(container, placement) {
 }
 
 function renderLoads(data){
-  var _rlT0 = performance.now();
   // Если data не передан — берём текущий список по scope
   if (!data) data = (scope === 'intl' ? INTL : LOCAL);
   if (!data) data = [];
@@ -1039,7 +1038,6 @@ let _myTrucks = [];
 try { _myTrucks = JSON.parse(localStorage.getItem('ch_my_trucks')||'[]'); } catch(e){}
 
 function renderTrucks(){
-  var _rtT0 = performance.now();
   const list=document.getElementById('truckList');
   if(!list) return;
   list.innerHTML='';
@@ -4272,7 +4270,6 @@ window.TRANSLATIONS = TRANSLATIONS;
  // expose for setLang/applyLang
 
 function applyLang(l) {
-  var _applyT0 = performance.now();
   const T = TRANSLATIONS[l] || TRANSLATIONS['ru'];
   // textContent по data-i18n
   // fix: скрываем body перед batch DOM updates чтобы предотвратить 165+ reflow
@@ -4367,8 +4364,6 @@ function applyLang(l) {
 }
 
 function setLang(l, btn) {
-  var _setLangT0 = performance.now();
-  console.log('[TIMING] setLang start:', l);
   lang = l;
   window.__currentLang = l;
   localStorage.setItem('ch_lang', l);
@@ -6341,7 +6336,6 @@ function renderSubscriptions() {
     html += '</div>';
     html += '</div>';
   });
-  var _rtoT1 = performance.now();
   console.log('[TIMING] renderTransportOffers map done:', (_rtoT1-_rtoT0).toFixed(1)+'ms, html length:', html.length);
   list.innerHTML = html;
   console.log('[TIMING] renderTransportOffers innerHTML done:', (performance.now()-_rtoT0).toFixed(1)+'ms TOTAL');
@@ -6530,8 +6524,6 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 };
 
 function renderTransportOffers() {
-  var _rtoT0 = performance.now();
-  console.log('[TIMING] renderTransportOffers start, _transportOffers:', typeof _transportOffers !== 'undefined' ? _transportOffers.length : 'undef');
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
@@ -6609,7 +6601,7 @@ function renderTransportOffers() {
 
     '</div>';
   }).join('');
-  list.innerHTML = html;
+  (window.requestAnimationFrame || function(cb){setTimeout(cb,16);})(function() { list.innerHTML = html; }); // fix: defer 26KB DOM insert to rAF — prevents 8.5s freeze on GE→RU→Machines
 }
 
 // Открыть модалку отклика на транспортное предложение
