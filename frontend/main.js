@@ -4380,10 +4380,14 @@ function setLang(l, btn) {
   setTimeout(function() {
     if(typeof renderLoads === 'function') renderLoads();
     if(typeof renderTrucks === 'function') renderTrucks();
-    // Если активна вкладка транспорт — перерисовываем офферы с новым языком
+    // fix: renderTransportOffers вызываем только если НЕТ активного fetch
+    // (иначе loadTransportOffers сам вызовет renderTransportOffers после завершения)
+    // Это предотвращает двойной рендер 26KB DOM при GE→RU→Machines = freeze
     var secTrucks = document.getElementById('sec-trucks');
     if(secTrucks && secTrucks.classList.contains('active')) {
-      if(typeof renderTransportOffers === 'function') renderTransportOffers();
+      if(!_transportLoading && typeof renderTransportOffers === 'function') {
+        renderTransportOffers();
+      }
     }
   }, 0);
   // Перерисовываем все кабинетные вкладки при смене языка (с защитой от ошибок)
