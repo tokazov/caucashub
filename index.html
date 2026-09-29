@@ -149,6 +149,34 @@
     <div>МАШИНА / МАРШРУТ</div><div>КОМПАНИЯ</div><div>ТОННАЖ</div><div>КУЗОВ</div><div>ДАТА</div><div></div>
   </div>
   <div id="truckList"></div>
+
+  <!-- ═══ ЛЕНТА ТРАНСПОРТНЫХ ПРЕДЛОЖЕНИЙ (ADR-016) ═══ -->
+  <div style="padding:10px 16px;background:#f7f9fc;border-top:2px solid #e8eaf0;border-bottom:1px solid #e8eaf0">
+    <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:8px">🚛 Предложения транспорта</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="tFilterFrom" class="form-input" type="search" autocomplete="off" placeholder="Откуда" data-i18n-ph="ph_from" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <input id="tFilterTo"   class="form-input" type="search" autocomplete="off" placeholder="Куда"   data-i18n-ph="ph_to"   style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+      <select id="tFilterType" class="form-input" style="flex:1;min-width:100px;font-size:13px;padding:7px 10px">
+        <option value="" data-i18n="opt_any_body">Любой кузов</option>
+        <option value="tent" data-i18n="truck_tent">Тент</option>
+        <option value="ref" data-i18n="truck_ref_full">Рефрижератор</option>
+        <option value="reftent" data-i18n="truck_reftent">Рефтент</option>
+        <option value="megatent" data-i18n="truck_megatent">Мегатент</option>
+        <option value="bort" data-i18n="truck_bort">Бортовой</option>
+        <option value="termos" data-i18n="truck_termos">Термос</option>
+        <option value="gazel" data-i18n="truck_gazel">Газель/Фургон</option>
+        <option value="container" data-i18n="truck_container">Контейнер</option>
+        <option value="auto" data-i18n="truck_auto">Автовоз</option>
+        <option value="dump" data-i18n="truck_dump">Самосвал</option>
+        <option value="other" data-i18n="truck_other">Другой</option>
+      </select>
+      <button onclick="filterAndLoadTransport()" style="background:#1a1a2e;color:#f7b731;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer" data-i18n="fBtn">Найти</button>
+    </div>
+    <div style="font-size:12px;color:#888;margin-top:6px" id="transportCount"></div>
+  </div>
+  <div id="transportList">
+    <div style="text-align:center;padding:40px;color:#aaa" data-i18n="transport_loading">⏳ Загружаем предложения...</div>
+  </div>
 </div>
 
 <!-- ═══ MODAL: POST TRUCK ═══ -->
