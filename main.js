@@ -5151,72 +5151,86 @@ function openSettings(){
   // Инициализируем статус TG-подключения
   _initTgStatus();
 }
-function saveSettings(){
+async function saveSettings(){
+  if(saveSettings.pending) return;
+  const token=getToken();
+  if(!token){ showToastWarn(lang==='ge'?'გთხოვთ, შეხვიდეთ ანგარიშში':'Войдите в аккаунт повторно'); return; }
   const name=document.getElementById('sName').value;
   const phone=document.getElementById('sPhone').value;
   const tg=(document.getElementById('sTelegram')?.value)||'';
   const role=document.getElementById('sRole').value;
-  const inn=document.getElementById('sInn').value || document.getElementById('sInnAll').value;
-  const orgType=document.getElementById('sOrgType').value || document.getElementById('sOrgTypeAll').value;
+  const visibleValue=ids=>{
+    const fields=ids.map(id=>document.getElementById(id)).filter(Boolean);
+    return (fields.find(el=>el.getClientRects().length>0)||fields[0])?.value||'';
+  };
+  const inn=visibleValue(['sInn','sInnAll']);
+  const orgType=visibleValue(['sOrgType','sOrgTypeAll']);
   const city=document.getElementById('sCityAll').value;
   const truckType=document.getElementById('sTruckType').value;
   const tonnage=document.getElementById('sTonnage').value;
 
-  if(!user){ user = {}; }
-  user.name=name||user.name||'Пользователь';
-  user.phone=phone; user.telegram=tg; user.role=role;
-  user.inn=inn; user.orgType=orgType; user.truckType=truckType; user.tonnage=tonnage; user.city=city;
-  _lsSet('ch_user',JSON.stringify(user));
-
-  // Обновляем UI
-  const av=document.getElementById('userAvatar');
-  if(av&&user.name) av.textContent=user.name.slice(0,2).toUpperCase();
-  const pn=document.getElementById('profileName');
-  if(pn&&user.name) pn.textContent=user.name;
-
-  // Сохраняем на сервер
-  if(getToken()){
-    fetch('https://api-production-f3ea.up.railway.app/api/users/me', {
+  saveSettings.pending=true;
+  try {
+    const r=await fetch('https://api-production-f3ea.up.railway.app/api/users/me', {
       method:'PUT',
-      headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
-      body: JSON.stringify({
-        company_name: name||null,
-        phone: phone||null,
-        inn: inn||null,
-        org_type: orgType||null,
-        city: city||null,
-        telegram: tg||null,
-        truck_type: truckType||null,
-        tonnage: tonnage||null,
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        company_name:name||null, phone:phone||null, inn:inn||null,
+        org_type:orgType||null, city:city||null, telegram:tg||null,
+        truck_type:truckType||null, tonnage:tonnage||null
       })
-    }).then(async r=>{
-      if(r.status === 422){
-        // CONTRACT-2 saveSettings: INN validation error from PUT /api/users/me
-        const data = await r.json().catch(()=>({}));
-        const first = data?.detail?.[0];
-        const fieldName = first?.loc ? first.loc[first.loc.length-1] : null;
-        const msg422 = first?.msg || 'Проверьте введённые данные';
-        const fieldMap = {inn:'sInnAll', org_type:'sOrgTypeAll', city:'sCityAll'};
-        const inputId = fieldMap[fieldName] || (fieldName ? 's'+fieldName.charAt(0).toUpperCase()+fieldName.slice(1) : null);
-        const inputEl = inputId ? document.getElementById(inputId) : null;
-        if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input',function(){ inputEl.classList.remove('input-error'); },{once:true}); }
-        showToastWarn('⚠️ ' + msg422);
-        return null;
+    });
+    const data=await r.json().catch(()=>null);
+    if(!r.ok){
+      if(r.status===422){
+        const first=Array.isArray(data?.detail)?data.detail[0]:null;
+        const field=first?.loc?.[first.loc.length-1];
+        const fieldMap={inn:['sInn','sInnAll'],org_type:['sOrgType','sOrgTypeAll'],city:['sCityAll'],company_name:['sName'],phone:['sPhone']};
+        const candidates=(fieldMap[field]||[]).map(id=>document.getElementById(id)).filter(Boolean);
+        const input=candidates.find(el=>el.getClientRects().length>0);
+        if(input){
+          input.classList.add('input-error');
+          input.addEventListener('input',()=>input.classList.remove('input-error'),{once:true});
+          input.focus();
+        }
+        showToastWarn('⚠️ '+(first?.msg||(typeof data?.detail==='string'?data.detail:(lang==='ge'?'შეამოწმეთ შეყვანილი მონაცემები':'Проверьте введённые данные'))));
+      } else {
+        showToastWarn(r.status===401
+          ?(lang==='ge'?'გთხოვთ, ხელახლა შეხვიდეთ ანგარიშში':'Войдите в аккаунт повторно')
+          :(lang==='ge'?'პროფილის შენახვა ვერ მოხერხდა. სცადეთ ხელახლა':'Не удалось сохранить профиль. Попробуйте ещё раз'));
       }
-      return r.ok ? r.json() : null;
-    }).then(d=>{
-      if(d) pushNotif('✅ Данные обновлены', 'Профиль сохранён на сервере', []);
-    }).catch(()=>{});
-  }
+      return;
+    }
+    if(!data||data.ok!==true||!data.id){
+      showToastWarn(lang==='ge'?'სერვერმა შენახვა ვერ დაადასტურა':'Сервер не подтвердил сохранение');
+      return;
+    }
+    if(getToken()!==token) return;
+    if(!user){ user = {}; }
+    user.name=data.company_name||user.name||'Пользователь';
+    user.phone=data.phone; user.telegram=tg; user.role=role;
+    user.inn=data.inn; user.orgType=data.org_type; user.truckType=truckType; user.tonnage=tonnage; user.city=data.city;
+    _lsSet('ch_user',JSON.stringify(user));
 
-  closeModal('settingsOverlay');
-  // Показываем подтверждение прямо на экране
-  const toast = document.createElement('div');
-  toast.textContent = '✅ Настройки сохранены';
-  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#2ecc71;color:#fff;padding:12px 24px;border-radius:30px;font-weight:700;font-size:15px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2)';
-  document.body.appendChild(toast);
-  setTimeout(()=>toast.remove(), 2500);
-  pushNotif('✅ Настройки сохранены', 'Профиль обновлён', []);
+    // Обновляем UI
+    const av=document.getElementById('userAvatar');
+    if(av&&user.name) av.textContent=user.name.slice(0,2).toUpperCase();
+    const pn=document.getElementById('profileName');
+    if(pn&&user.name) pn.textContent=user.name;
+
+    closeModal('settingsOverlay');
+    // Показываем подтверждение прямо на экране
+    const toast = document.createElement('div');
+    toast.textContent = lang==='ge'?'✅ პარამეტრები შენახულია':'✅ Настройки сохранены';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#2ecc71;color:#fff;padding:12px 24px;border-radius:30px;font-weight:700;font-size:15px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2)';
+    document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(), 2500);
+    pushNotif(toast.textContent, lang==='ge'?'პროფილი განახლებულია':'Профиль обновлён', []);
+  } catch(e) {
+    showToastWarn(lang==='ge'?'კავშირის შეცდომა. სცადეთ ხელახლა':'Ошибка соединения. Попробуйте ещё раз');
+  } finally {
+    saveSettings.pending=false;
+  }
 }
 
 function _refreshAnalytics(){
