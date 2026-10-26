@@ -489,7 +489,7 @@ function _capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; 
 function translateCity(name) {
   if (!name) return name;
   // Нормализуем: если всё lowercase (из БД) — капитализируем первую букву
-  if (name === name.toLowerCase()) name = _capitalize(name);
+  if (name === name.toLowerCase() && /^[a-zа-яё]/.test(name)) name = _capitalize(name);
   try {
   // На RU: если текст содержит грузинские символы — конвертируем обратно в RU
   if (lang !== 'ge') {
