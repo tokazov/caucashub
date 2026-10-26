@@ -154,7 +154,7 @@ async function journey(configuration, index) {
   page.setDefaultTimeout(15000);
   const pageLog = { viewport: configuration.name, pageErrors: [], dialogs: [] };
   diagnostics.pages.push(pageLog);
-  page.on('pageerror', error => pageLog.pageErrors.push(error.message));
+  page.on('pageerror', error => pageLog.pageErrors.push(error.stack || error.message));
   page.on('dialog', async dialog => {
     pageLog.dialogs.push({ type: dialog.type(), message: dialog.message() });
     await dialog.dismiss();

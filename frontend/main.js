@@ -5792,14 +5792,17 @@ let dealsData = [], exportDateFrom='', exportDateTo='';
 
 async function loadDeals(){
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk){document.getElementById('dealsLoading').style.display='none'; return;}
-  document.getElementById('dealsLoading').style.display='block';
-  document.getElementById('dealsList').innerHTML='';
+  // The current cabinet has #myDealsList; these legacy containers are optional.
+  const loading=document.getElementById('dealsLoading');
+  const list=document.getElementById('dealsList');
+  if(!tk){if(loading) loading.style.display='none'; return;}
+  if(loading) loading.style.display='block';
+  if(list) list.innerHTML='';
   try{
     const r = await fetch(API_BASE+'/api/deals/my',{headers:{'Authorization':'Bearer '+tk}});
     if(r.ok){const d=await r.json();dealsData=d.deals||d||[];renderDeals();}
   }catch(e){}
-  document.getElementById('dealsLoading').style.display='none';
+  if(loading) loading.style.display='none';
 }
 
 function renderDeals(){

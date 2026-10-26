@@ -218,7 +218,7 @@ async function contextPage(configuration,role){
  });
  const page=await context.newPage();page.setDefaultTimeout(15000);
  const log={viewport:configuration.name,role,pageErrors:[],dialogs:[]};diagnostics.pages.push(log);
- page.on('pageerror',error=>log.pageErrors.push(error.message));
+ page.on('pageerror',error=>log.pageErrors.push(error.stack||error.message));
  page.on('dialog',async dialog=>{log.dialogs.push({type:dialog.type(),message:dialog.message()});await dialog.dismiss();});
  return{context,page,log};
 }
@@ -234,6 +234,7 @@ async function run(configuration,index){
    assert.deepEqual(account.log.pageErrors,[]);assert.deepEqual(account.log.dialogs,[]);
   }
   const contactsComplete=[...cargo.contacts,...transport.contacts].every(result=>result.phoneVisible&&result.emailVisible);
+  console.log(configuration.name+': cargo and transport publication, response, acceptance and both participants contacts '+(contactsComplete?'passed':'incomplete'));
   results.push({viewport:configuration.name,status:contactsComplete?'passed':'core-passed-contact-gap',contactsComplete,cargo,transport});
  }catch(error){
   for(const account of[sh,ca])await account.page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-'+account.log.role+'-failure.png'),fullPage:true}).catch(()=>{});
