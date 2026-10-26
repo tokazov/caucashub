@@ -1,0 +1,14 @@
+name: Homepage design preview
+on:
+  push:
+    branches: ['design/homepage-mockup']
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish design preview
+        run: npx wrangler@4.80.0 pages deploy design-preview/ --project-name caucashub --branch homepage-design --commit-message "homepage-design-preview" --commit-hash "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
