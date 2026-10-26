@@ -10,3 +10,4 @@ from .transport_offer import TransportOffer as TransportOffer
 from .transport_request import TransportRequest as TransportRequest
 from .transport_subscription import TransportSubscription as TransportSubscription
 from .idempotency_key import IdempotencyKey as IdempotencyKey
+from .deal_review import DealReview as DealReview
