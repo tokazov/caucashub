@@ -2,14 +2,12 @@
 
 response_body хранится как JSONB на Postgres и JSON на SQLite (для тестов).
 """
-import os
-from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint, Index, JSON
+from sqlalchemy import Column, Integer, String, DateTime, UniqueConstraint, Index, JSON, func
 from sqlalchemy.dialects.postgresql import JSONB
 from app.database import Base
 
-# На Postgres используем JSONB (индексируемый), на SQLite — JSON (для тестов)
-_is_postgres = os.getenv("DATABASE_URL", "sqlite").startswith("postgresql")
-_JsonType = JSONB if _is_postgres else JSON
+# Select the type from the actual connection, including Railway's postgres:// URLs.
+_JsonType = JSON().with_variant(JSONB(), "postgresql")
 
 
 class IdempotencyKey(Base):
@@ -22,7 +20,7 @@ class IdempotencyKey(Base):
     request_hash    = Column(String(64), nullable=False)       # sha256 of request body
     response_status = Column(Integer, nullable=False)
     response_body   = Column(_JsonType, nullable=False)
-    created_at      = Column(DateTime(timezone=True), server_default="NOW()")
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
     expires_at      = Column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (

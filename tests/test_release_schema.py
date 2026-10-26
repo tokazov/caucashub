@@ -19,6 +19,20 @@ async def test_release_gate_repeated_and_preserves_existing_records():
         await release.prepare_schema(engine)
         async with engine.connect() as conn:
             assert (await conn.execute(text("SELECT id, load_date_end FROM loads"))).first() == (1, None)
+            assert (await conn.execute(text("SELECT COUNT(*) FROM idempotency_keys"))).scalar_one() == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_release_gate_rejects_store_without_unique_key():
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE idempotency_keys (id INTEGER PRIMARY KEY)"))
+        with pytest.raises(RuntimeError, match="unique key"):
+            await release.prepare_schema(engine)
     finally:
         await engine.dispose()
 

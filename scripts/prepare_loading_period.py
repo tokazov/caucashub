@@ -1,4 +1,4 @@
-"""Railpack pre-deploy gate for the additive loading-period migration.
+"""Railpack gate for loading periods and retry-safe load publication.
 
 Apply revision 020 alone using its existing idempotent DDL. The production
 database has a history of startup fallback migrations, so this release must
@@ -12,6 +12,7 @@ import sys
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import text
+from sqlalchemy import inspect
 
 
 def migrate_connection(connection):
@@ -23,6 +24,17 @@ def migrate_connection(connection):
     migration.upgrade()
 
 
+def prepare_idempotency(connection):
+    # Create just the missing store; do not replay or stamp migration history.
+    from app.models.idempotency_key import IdempotencyKey
+
+    IdempotencyKey.__table__.create(connection, checkfirst=True)
+    expected = {"scope", "user_id", "key"}
+    unique_constraints = inspect(connection).get_unique_constraints("idempotency_keys")
+    if not any(set(item["column_names"]) == expected for item in unique_constraints):
+        raise RuntimeError("Idempotency store is missing its unique key")
+
+
 async def prepare_schema(engine):
     async with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
@@ -31,6 +43,11 @@ async def prepare_schema(engine):
         await connection.run_sync(migrate_connection)
         # A no-op/failed migration must not allow the new application to start.
         await connection.execute(text("SELECT load_date, load_date_end FROM loads LIMIT 0"))
+        await connection.run_sync(prepare_idempotency)
+        await connection.execute(text(
+            "SELECT key, user_id, scope, request_hash, response_status, "
+            "response_body, created_at, expires_at FROM idempotency_keys LIMIT 0"
+        ))
 
 
 async def run():
@@ -50,6 +67,7 @@ def main():
         print(f"Loading-period pre-deploy failed ({type(error).__name__}); deployment stopped.", file=sys.stderr)
         return 1
     print("Loading-period schema ready; existing records preserved.")
+    print("Idempotency schema ready; retry-safe publication enabled.")
     return 0
 
 

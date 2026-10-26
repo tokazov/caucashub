@@ -78,9 +78,26 @@ async def check_idempotency(
     raw_key = _get_key_header(request)
     if not raw_key:
         return None, False
+    if len(raw_key) > 255:
+        raise HTTPException(status_code=422, detail="Idempotency-Key is too long")
+
+    # Keep concurrent retries of load publication in one transaction until the
+    # load AND its cached response have committed. A retry then sees the cache.
+    if scope == "create_load" and db.get_bind().dialect.name == "postgresql":
+        identity = f"{scope}:{user_id}:{raw_key}".encode()
+        lock_id = int.from_bytes(hashlib.sha256(identity).digest()[:8], "big", signed=True)
+        await db.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": lock_id})
 
     request_hash = await _hash_body(request)
     now = datetime.now(timezone.utc)
+    # The unique key also covers expired rows, so discard just this expired
+    # cache entry before allowing the key to be reused after its 24-hour TTL.
+    await db.execute(delete(IdempotencyKey).where(
+        IdempotencyKey.scope == scope,
+        IdempotencyKey.user_id == user_id,
+        IdempotencyKey.key == raw_key,
+        IdempotencyKey.expires_at <= now,
+    ))
 
     result = await db.execute(
         select(IdempotencyKey).where(
@@ -116,6 +133,8 @@ async def save_idempotency(
     user_id: int,
     response_status: int,
     response_body: Any,
+    *,
+    strict: bool = False,
 ) -> None:
     """
     Шаг 2 из 2: после успешного выполнения бизнес-логики сохраняем ответ.
@@ -166,6 +185,8 @@ async def save_idempotency(
     except Exception:
         # Гонка: два параллельных запроса с одним ключом — один выиграл, второй молча игнорирует
         await db.rollback()
+        if strict:
+            raise
 
 
 def make_idempotent_response(cached: dict) -> JSONResponse:
