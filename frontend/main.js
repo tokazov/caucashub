@@ -501,7 +501,7 @@ function translateCity(name) {
         }
       }
       for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
-        if (result.includes(ge)) result = result.split(ge).join(ru);
+        if (ge && result.includes(ge)) result = result.split(ge).join(ru);
       }
       return result;
     }
