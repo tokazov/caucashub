@@ -331,7 +331,11 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
         assert data["from_city"] == "Тбилиси" and data["to_city"] == "Батуми"
         assert data["cargo_desc"] == DESCRIPTION
         assert float(data["weight_kg"]) == 3000  # request weight, not offer capacity 10000
-        assert data["truck_type"] == ("Тент" if source == "cargo" else "Рефрижератор")
+        expected_truck_labels = {
+            "ru": {"cargo": "Тент", "transport": "Рефрижератор"},
+            "ge": {"cargo": "ტენტი", "transport": "რეფრიჟერატორი"},
+        }
+        assert data["truck_type"] == expected_truck_labels[lang][source]
         assert float(data["agreed_price"]) == 500
         assert data["shipper_name"] == "Test shipper" and data["carrier_name"] == "Test carrier"
     await review(journey, "shipper", deal_id)
