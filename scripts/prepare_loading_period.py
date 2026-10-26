@@ -84,12 +84,23 @@ def prepare_deal_reviews(connection):
     for name in ("id", "deal_id", "rater_id", "recipient_id", "score"):
         if not isinstance(columns[name]["type"], Integer) or columns[name]["nullable"]:
             raise RuntimeError("Deal review schema is incompatible: " + name)
+    primary = inspector.get_pk_constraint("deal_reviews").get("constrained_columns") or []
+    if primary != ["id"]:
+        raise RuntimeError("Deal review schema is missing its id primary key")
+    identifier = columns["id"]
+    if connection.dialect.name == "postgresql":
+        default = identifier.get("default") or ""
+        if not identifier.get("identity") and not default.lower().startswith("nextval("):
+            raise RuntimeError("Deal review schema is missing generated ids")
+    elif connection.dialect.name == "sqlite" and str(identifier["type"]).upper() != "INTEGER":
+        raise RuntimeError("Deal review schema requires SQLite INTEGER generated ids")
     comment = columns["comment"]
     if (not isinstance(comment["type"], String) or not comment["nullable"]
             or (comment["type"].length is not None and comment["type"].length < 2000)):
         raise RuntimeError("Deal review schema is incompatible: comment")
     created = columns["created_at"]
-    if not isinstance(created["type"], DateTime) or created["nullable"] or created["default"] is None:
+    if (not isinstance(created["type"], DateTime) or created["nullable"] or created["default"] is None
+            or (connection.dialect.name == "postgresql" and not created["type"].timezone)):
         raise RuntimeError("Deal review schema is incompatible: created_at")
     unique = inspector.get_unique_constraints("deal_reviews")
     if not any(set(item["column_names"]) == {"deal_id", "rater_id"} for item in unique):
@@ -98,6 +109,8 @@ def prepare_deal_reviews(connection):
               for item in inspector.get_check_constraints("deal_reviews")}
     if checks.get("ck_deal_reviews_score_range") != "score>=1andscore<=5":
         raise RuntimeError("Deal review schema is missing its score range check")
+    if checks.get("ck_deal_reviews_distinct_people") != "rater_id<>recipient_id":
+        raise RuntimeError("Deal review schema is missing its distinct participant check")
     expected_fks = {(("deal_id",), "deals", ("id",)), (("rater_id",), "users", ("id",)),
                     (("recipient_id",), "users", ("id",))}
     fks = {(tuple(item["constrained_columns"]), item["referred_table"], tuple(item["referred_columns"]))

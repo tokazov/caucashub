@@ -32,6 +32,15 @@ def _act_number(deal_id: int) -> str:
     return f"CH-{year}-{deal_id:04d}"
 
 
+
+def _iso_utc(value) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
+
 def deal_to_dict(d: Deal) -> dict:
     return {
         "id":                    d.id,
@@ -43,10 +52,10 @@ def deal_to_dict(d: Deal) -> dict:
         "status":                d.status.value if hasattr(d.status, "value") else str(d.status),
         "agreed_price":          d.agreed_price,
         "currency":              d.currency,
-        "created_at":            d.created_at.isoformat() if d.created_at else None,
-        "loading_at":            d.loading_at.isoformat() if d.loading_at else None,
-        "delivered_at":          d.delivered_at.isoformat() if d.delivered_at else None,
-        "completed_at":          d.completed_at.isoformat() if d.completed_at else None,
+        "created_at":            _iso_utc(d.created_at),
+        "loading_at":            _iso_utc(d.loading_at),
+        "delivered_at":          _iso_utc(d.delivered_at),
+        "completed_at":          _iso_utc(d.completed_at),
         "shipper_confirmed":     d.shipper_confirmed,
         "carrier_confirmed":     d.carrier_confirmed,
         "act_number":            d.act_number,
@@ -445,12 +454,12 @@ async def download_act(
         "completed_at": deal.completed_at,
         "shipper_name": display_name(shipper) if shipper else "—",
         "shipper_inn": shipper.inn if shipper and not shipper.is_deleted and shipper.inn else "—",
-        "shipper_phone": display_phone(shipper) if shipper else "—",
-        "shipper_email": display_email(shipper) if shipper else "—",
+        "shipper_phone": (display_phone(shipper) or "—") if shipper else "—",
+        "shipper_email": (display_email(shipper) or "—") if shipper else "—",
         "carrier_name": display_name(carrier) if carrier else "—",
         "carrier_inn": carrier.inn if carrier and not carrier.is_deleted and carrier.inn else "—",
-        "carrier_phone": display_phone(carrier) if carrier else "—",
-        "carrier_email": display_email(carrier) if carrier else "—",
+        "carrier_phone": (display_phone(carrier) or "—") if carrier else "—",
+        "carrier_email": (display_email(carrier) or "—") if carrier else "—",
         "from_city": route.from_city if route else "—",
         "to_city": route.to_city if route else "—",
         "cargo_desc": load.cargo_desc if load else (request.cargo_description if request else "—"),
