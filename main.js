@@ -3020,6 +3020,7 @@ function renderCabDeals(){
  }).join('');
 }
 function showSection(name, el){
+  if(name!=='trucks'&&typeof _cancelTransportRender==='function') _cancelTransportRender();
   var _ssT0 = performance.now();
   console.log('[T] showSection start:', name);
   _userClickedTab = true;
@@ -6493,6 +6494,7 @@ var _transportOffers = [];
 var _transportTotal  = 0;
 var _transportFetchCtrl = null; // AbortController для отмены предыдущего fetch
 var _transportRendering = false; // guard против concurrent renders
+var _transportRequestRevision = 0;
 var _transportLoading = false;  // флаг: запрос в процессе (предотвращает concurrent calls)
 
 window.filterAndLoadTransport = async function() {
@@ -6503,96 +6505,82 @@ window.filterAndLoadTransport = async function() {
 };
 
 window.loadTransportOffers = async function(fromCity, toCity, truckType, offset) {
-  var _ltT0 = performance.now();
-  console.log('[T] loadTransportOffers start, lang:', lang);
-  // Отменяем предыдущий незавершённый запрос
+  var request=++_transportRequestRevision;
   if(_transportFetchCtrl) { try { _transportFetchCtrl.abort(); } catch(e){} }
-  _transportFetchCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  _transportLoading = true;
-
-  var list = document.getElementById('transportList');
-  var cnt  = document.getElementById('transportCount');
-  if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
-
-  var params = new URLSearchParams({limit: 50, offset: offset || 0});
-  if(fromCity) params.set('from_city', fromCity);
-  if(toCity)   params.set('to_city', toCity);
-  if(truckType) params.set('truck_type', truckType);
-
-  // helper: показать ошибку с кнопкой retry — НИКОГДА не оставлять вечный спиннер
-  function _showTransportError(msg) {
-    if(!list) return;
-    var _T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
-    list.innerHTML = '<div class="cab-empty" style="padding:40px 20px">' +
-      '<div class="cab-empty-icon">⚠️</div>' +
-      '<div class="cab-empty-title">' + (msg || _T.transport_load_err || 'Не удалось загрузить транспорт') + '</div>' +
-      '<div class="cab-empty-sub" style="margin-bottom:16px">' + (_T.transport_load_err_sub || 'Проверьте интернет и попробуйте снова') + '</div>' +
-      '<button onclick="loadTransportOffers()" style="background:#1a1a2e;color:#f7b731;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 ' + (_T.btn_retry || 'Повторить') + '</button>' +
-    '</div>';
+  var controller=typeof AbortController!=='undefined'?new AbortController():null;
+  _transportFetchCtrl=controller;
+  _transportLoading=true;
+  _cancelTransportRender();
+  var section=document.getElementById('sec-trucks');
+  var isCurrent=function(){return request===_transportRequestRevision;};
+  var isVisible=function(){return !section||section.classList.contains('active');};
+  var list=document.getElementById('transportList');
+  var cnt=document.getElementById('transportCount');
+  if(list&&isVisible()) list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
+  var params=new URLSearchParams({limit:50,offset:offset||0});
+  if(fromCity) params.set('from_city',fromCity);
+  if(toCity) params.set('to_city',toCity);
+  if(truckType) params.set('truck_type',truckType);
+  var timer;
+  function showError(message){
+    if(!isCurrent()||!isVisible()||!list) return;
+    var T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+    list.innerHTML='<div class="cab-empty" style="padding:40px 20px"><div class="cab-empty-icon">⚠️</div>'+
+      '<div class="cab-empty-title">'+esc(message||T.transport_load_err||'Не удалось загрузить транспорт')+'</div>'+
+      '<div class="cab-empty-sub" style="margin-bottom:16px">'+esc(T.transport_load_err_sub||'Проверьте интернет и попробуйте снова')+'</div>'+
+      '<button onclick="filterAndLoadTransport()" style="background:#1a1a2e;color:#f7b731;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 '+esc(T.btn_retry||'Повторить')+'</button></div>';
+    if(cnt) cnt.textContent='';
   }
-
   try {
-    // Promise.race timeout (8s) — работает даже если расширения (TronLink и др.)
-    // monkey-patch-ят fetch и игнорируют AbortSignal
-    var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
-    var _fetchUrl = API_BASE + '/api/transport/?' + params.toString();
-    var r = await Promise.race([
-      fetch(_fetchUrl, fetchOpts),
-      new Promise(function(_, reject) {
-        setTimeout(function() { reject(new DOMException('Transport fetch timeout', 'TimeoutError')); }, 8000);
+    var result=await Promise.race([
+      (async function(){
+        var response=await fetch(API_BASE+'/api/transport/?'+params.toString(),controller?{signal:controller.signal}:{});
+        var data=response.ok?await response.json():null;
+        return {response:response,data:data};
+      })(),
+      new Promise(function(_,reject){
+        timer=setTimeout(function(){
+          var error=new Error('Transport request timed out');error.name='TimeoutError';
+          reject(error);
+          if(controller) controller.abort();
+        },8000);
       })
     ]);
-    if(r.status === 401){
-      // fix: не оставляем спиннер — показываем сообщение + retry
-      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login || 'Войдите в аккаунт');
-      return;
+    if(!isCurrent()) return;
+    var response=result.response,data=result.data;
+    if(response.status===401){showError((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_login||'Войдите в аккаунт');return;}
+    if(!response.ok){showError();return;}
+    if(!data||!Array.isArray(data.offers)||data.offers.some(function(o){return !o||typeof o!=='object'||Array.isArray(o);})){
+      showError();return;
     }
-    if(!r.ok){
-      _showTransportError();
-      return;
+    _transportOffers=data.offers;
+    _transportTotal=Number.isFinite(Number(data.total))?Math.max(0,Number(data.total)):data.offers.length;
+    if(isVisible()) renderTransportOffers();
+  } catch(error) {
+    if(!isCurrent()) return;
+    showError(error&&error.name==='TimeoutError'
+      ?((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_timeout||'Запрос занял слишком долго'):null);
+  } finally {
+    clearTimeout(timer);
+    if(isCurrent()){
+      _transportLoading=false;
+      _transportFetchCtrl=null;
     }
-    var d;
-    try { d = await r.json(); } catch(_je) {
-      // r.json() упал (например, сервер вернул не JSON) — показываем ошибку
-      _showTransportError();
-      return;
-    }
-    _transportOffers = d.offers || [];
-    _transportTotal  = d.total  || 0;
-    _transportLoading = false;
-    console.log('[T] loadTransportOffers fetch done:', (performance.now()-_ltT0).toFixed(0)+'ms, offers:'+_transportOffers.length);
-    if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
-    renderTransportOffers();
-    console.log('[T] loadTransportOffers total done:', (performance.now()-_ltT0).toFixed(0)+'ms');
-  } catch(e) {
-    _transportLoading = false;
-    console.log('[T] loadTransportOffers error:', e && e.name, e && e.message);
-    // AbortError: новый запрос уже запущен — он сам поставит своё состояние
-    // НО: если это первый вызов и он aborted — убираем спиннер чтобы не висел вечно
-    if(e && e.name === 'AbortError') {
-      // Проверяем: есть ли активный новый запрос (если да — он сам перезапишет список)
-      // Если _transportFetchCtrl null или aborted — новый запрос уже завершился или нет
-      return; // новый fetch сам поставит своё состояние
-    }
-    // TimeoutError: запрос завис (8 секунд) → показываем retry
-    if(e && e.name === 'TimeoutError') {
-      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_timeout || 'Запрос занял слишком долго');
-      return;
-    }
-    _showTransportError();
   }
 };
 
 function renderTransportOffers() {
+  var revision=_cancelTransportRender();
+  var section=document.getElementById('sec-trucks');
+  if(section&&!section.classList.contains('active')) return;
+  var formatter=renderTransportOffers._dateFormat||(renderTransportOffers._dateFormat=new Intl.DateTimeFormat('ru',{day:'2-digit',month:'2-digit'}));
+  var formatDate=function(value){var date=new Date(value);return Number.isNaN(date.getTime())?'':formatter.format(date);};
   var count = document.getElementById('transportCount');
   if(count) count.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix);
-  var _rtoT0 = performance.now();
-  console.log('[T] renderTransportOffers start, offers:', _transportOffers.length, 'lang:', lang);
   var list = document.getElementById('transportList');
-  if(!list) { console.log('[T] renderTransportOffers: no transportList element'); return; }
+  if(!list) return;
   if(!_transportOffers.length) {
     list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_title||'Нет предложений') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_sub||'Попробуйте изменить фильтры') + '</div></div>';
-    console.log('[T] renderTransportOffers done (empty):', (performance.now()-_rtoT0).toFixed(0)+'ms');
     return;
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
@@ -6602,8 +6590,8 @@ function renderTransportOffers() {
     var urgBadge = o.urgent && !datesExpired ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
-    var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
-    var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
+    var dateFrom = o.available_from ? formatDate(o.available_from) : '';
+    var dateTo   = o.available_to   ? ' – ' + formatDate(o.available_to) : '';
     var availability = datesExpired ? esc(availabilityText) : dateFrom + dateTo;
     var actionBtn = tk
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
@@ -6623,7 +6611,7 @@ function renderTransportOffers() {
       gazel:{bg:'#fce4ec',t:'#880e4f'},container:{bg:'#f0f2f5',t:'#555'},
       auto:{bg:'#e8eaf6',t:'#283593'},other:{bg:'#f0f2f5',t:'#555'}
     };
-    var tt = o.truck_type ? o.truck_type.toLowerCase() : 'other';
+    var tt = o.truck_type ? String(o.truck_type).toLowerCase() : 'other';
     var tc = typeColors[tt] || typeColors.other;
     var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(getTypeLabel(o.truck_type || 'other')) + '</span>';
 
@@ -6635,7 +6623,7 @@ function renderTransportOffers() {
         '<div>' +
           '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + '</div>' +
           '<div style="margin-top:3px">' + urgBadge + '</div>' +
-          (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
+          (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(String(o.notes).slice(0,60)) + '</div>' : '') +
         '</div>' +
         '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
@@ -6669,12 +6657,22 @@ function renderTransportOffers() {
 
     '</div>';
   }).join('');
-  console.log('[T] renderTransportOffers html built:', (performance.now()-_rtoT0).toFixed(0)+'ms, html size:', html.length);
-  (window.requestAnimationFrame || function(cb){setTimeout(cb,16);})(function() {
-    var _rafT = performance.now();
-    list.innerHTML = html;
-    console.log('[T] renderTransportOffers rAF innerHTML done:', (performance.now()-_rafT).toFixed(0)+'ms (total from start:', (performance.now()-_rtoT0).toFixed(0)+'ms)');
-  }); // fix: defer 26KB DOM insert to rAF — prevents 8.5s freeze on GE→RU→Machines
+  var commit=function(){
+    if(revision!==renderTransportOffers._revision||(section&&!section.classList.contains('active'))) return;
+    renderTransportOffers._frame=null;
+    list.innerHTML=html;
+  };
+  renderTransportOffers._frame=(window.requestAnimationFrame||function(cb){return setTimeout(cb,16);})(commit);
+}
+
+function _cancelTransportRender(){
+  renderTransportOffers._revision=(renderTransportOffers._revision||0)+1;
+  if(renderTransportOffers._frame!=null){
+    if(window.cancelAnimationFrame) window.cancelAnimationFrame(renderTransportOffers._frame);
+    else clearTimeout(renderTransportOffers._frame);
+    renderTransportOffers._frame=null;
+  }
+  return renderTransportOffers._revision;
 }
 
 // Открыть модалку отклика на транспортное предложение

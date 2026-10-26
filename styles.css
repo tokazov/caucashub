@@ -393,3 +393,19 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
   }
   .row-mobile { display: none; }
 }
+
+/* Transport has seven columns; cargo's six-column overrides must not resize it. */
+#sec-trucks .transport-thead,
+#sec-trucks .row-desktop {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 100px) !important;
+}
+#sec-trucks .transport-thead > div,
+#sec-trucks .row-desktop > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 769px) {
+  #sec-trucks .transport-thead {
+    display: grid !important;
+  }
+}

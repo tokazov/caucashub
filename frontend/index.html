@@ -21,7 +21,6 @@
 /* FORCE: cargo table full width — override cached styles.css */
 .thead {
   display: grid !important;
-  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 0.9fr 130px !important;
   padding: 8px 16px !important;
   width: 100% !important;
   column-gap: 8px;
@@ -34,6 +33,9 @@
   letter-spacing: .4px;
   border-bottom: 1px solid #d0d4df;
 }
+#sec-loads > .thead {
+  grid-template-columns: 2.5fr 1fr 1.2fr 1fr 0.9fr 130px !important;
+}
 @media(min-width: 769px) {
   #cargoList { width: 100% !important; padding: 0 !important; }
   .card-load { width: 100% !important; border-radius: 0 !important; border-left: none !important; margin-bottom: 0 !important; box-shadow: none !important; }
@@ -41,7 +43,7 @@
   .card-load.card-urgent { background: #fff8f8 !important; }
   .card-load.card-fresh  { background: #f8fff8 !important; }
   .card-load.card-intl   { background: #f0f7ff !important; }
-  .row-desktop {
+  #cargoList .row-desktop {
     display: grid !important;
     grid-template-columns: 2.5fr 1fr 1.2fr 1fr 0.9fr 130px !important;
     width: 100% !important;
@@ -183,7 +185,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=1783021949">
+<link rel="stylesheet" href="styles.css?v=20261026-transport-layout">
 </head>
 <body>
 
@@ -359,7 +361,7 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 
   <!-- Лента транспортных предложений -->
-  <div id="transportList">
+  <div id="transportList" class="transport-list">
     <div style="text-align:center;padding:40px;color:#aaa" data-i18n="transport_loading">⏳ Загружаем предложения...</div>
   </div>
 </div>
@@ -1620,7 +1622,7 @@ window.loadYmapsLazy = function(cb, onError) {
 </div>
 
 <script src="api.js?v=20261026-flow"></script>
-<script src="main.js?v=20261026-flow"></script>
+<script src="main.js?v=20261026-transport"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
