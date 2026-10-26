@@ -12,10 +12,12 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import re as _re
 
+from app.carrier_profile import CarrierProfileFields
+
 router = APIRouter()
 
 
-class UpdateProfileRequest(BaseModel):
+class UpdateProfileRequest(CarrierProfileFields):
     company_name: Optional[str] = None
     # phone убран из прямого обновления — используй /me/request-phone-change (Фикс 3)
     inn:          Optional[str] = None
@@ -88,6 +90,8 @@ async def get_me(
         "city":                  user.city,
         "lang":                  user.lang,
         "telegram_id":           user.telegram_id,
+        "truck_type":            user.truck_type,
+        "tonnage":               user.tonnage,
     }
 
 
@@ -116,6 +120,12 @@ async def update_me(
     if data.telegram_id is not None:
         user.telegram_id = data.telegram_id
 
+    # Absent defaults preserve prior values; explicit null clears them.
+    if "truck_type" in data.model_fields_set:
+        user.truck_type = data.truck_type.value if data.truck_type is not None else None
+    if "tonnage" in data.model_fields_set:
+        user.tonnage = data.tonnage
+
     await db.commit()
     await db.refresh(user)
 
@@ -127,6 +137,8 @@ async def update_me(
         "inn":          user.inn,
         "org_type":     user.org_type,
         "city":         user.city,
+        "truck_type":   user.truck_type,
+        "tonnage":      user.tonnage,
     }
 
 

@@ -1,6 +1,6 @@
 """Railpack gate for loading periods and retry-safe load publication.
 
-Apply revision 020 alone using its existing idempotent DDL. The production
+Apply revisions 020 and 021 directly using their idempotent additive DDL. The production
 database has a history of startup fallback migrations, so this release must
 not stamp or replay unrelated Alembic revisions without a schema audit.
 """
@@ -12,7 +12,7 @@ import sys
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import text
-from sqlalchemy import inspect
+from sqlalchemy import inspect, String, Numeric, Float
 
 
 def migrate_connection(connection):
@@ -22,6 +22,20 @@ def migrate_connection(connection):
     spec.loader.exec_module(migration)
     migration.op = Operations(MigrationContext.configure(connection))
     migration.upgrade()
+
+
+def prepare_carrier_defaults(connection):
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/021_carrier_profile_defaults.py"
+    spec = importlib.util.spec_from_file_location("carrier_defaults_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    columns = {column["name"]: column for column in inspect(connection).get_columns("users")}
+    for name, expected in (("truck_type", (String,)), ("tonnage", (Float, Numeric))):
+        column = columns.get(name)
+        if column is None or not isinstance(column["type"], expected) or not column["nullable"]:
+            raise RuntimeError("Carrier profile schema is missing or incompatible: " + name)
 
 
 def prepare_idempotency(connection):
@@ -43,6 +57,8 @@ async def prepare_schema(engine):
         await connection.run_sync(migrate_connection)
         # A no-op/failed migration must not allow the new application to start.
         await connection.execute(text("SELECT load_date, load_date_end FROM loads LIMIT 0"))
+        await connection.run_sync(prepare_carrier_defaults)
+        await connection.execute(text("SELECT truck_type, tonnage FROM users LIMIT 0"))
         await connection.run_sync(prepare_idempotency)
         await connection.execute(text(
             "SELECT key, user_id, scope, request_hash, response_status, "
@@ -68,6 +84,7 @@ def main():
         return 1
     print("Loading-period schema ready; existing records preserved.")
     print("Idempotency schema ready; retry-safe publication enabled.")
+    print("Carrier profile schema ready; optional defaults enabled.")
     return 0
 
 

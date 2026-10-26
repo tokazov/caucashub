@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -38,6 +38,9 @@ class User(Base):
     inn           = Column(String, nullable=True)   # ИНН / ID код Грузия
     org_type      = Column(String, nullable=True)   # ООО / ИП / АО
     city          = Column(String, nullable=True)   # Город работы
+    # Optional carrier defaults, independent of concrete vehicles/offers.
+    truck_type    = Column(String(32), nullable=True)
+    tonnage       = Column(Float, nullable=True)    # tonnes
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
     # Тарификация — счётчик откликов
     responses_this_month  = Column(Integer, default=0)
