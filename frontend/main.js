@@ -1737,11 +1737,15 @@ function getPlanBadge(){
 function showPhone(){
   if(!user){ closeModal('cargoOverlay'); openAuth('login'); return; }
   if(!canSeeContact()){ openPaywall('contact'); return; }
-  // реальный контакт — берётся из данных груза
-  const d=window.allLoads.find(x=>x.id===currentCargoId);
-  const phone=d?.phone||'+995 555 123 456';
-  const email=d?.email||'cargo@company.ge';
-  window.location.href = 'tel:' + phone;
+  const d=(window.allLoads||[]).find(x=>x.id===currentCargoId);
+  const phoneHref=dealPhoneHref(d?.owner_phone||d?.phone);
+  if(!phoneHref){
+    showToastWarn(lang==='ge'
+      ?'კონტაქტი მიუწვდომელია. გამოხმაურების მიღების შემდეგ გახსენით «გარიგებები».'
+      :'Контакт недоступен. После принятия отклика откройте «Сделки».');
+    return;
+  }
+  window.location.href=phoneHref;
 }
 
 // ── AUTH ──────────────────────────────────────────────
@@ -3065,6 +3069,34 @@ function renderCabResponses(){
  + '</div>';
  }).join('');
 }
+function dealPhoneHref(value){
+  if(typeof value!=='string'||!/^[+\d\s().-]+$/.test(value)) return '';
+  const phone=value.replace(/[^\d+]/g,'');
+  return /^\+?\d{5,20}$/.test(phone)?'tel:'+phone:'';
+}
+function renderDealCounterpartyContacts(deal){
+  if(!user) return '';
+  const viewerId=Number(user?.userId??user?.id??currentUserId);
+  if(!Number.isFinite(viewerId)||viewerId<=0) return '';
+  const shipper=deal.shipper||{},carrier=deal.carrier||{};
+  const shipperId=Number(shipper.id??deal.shipper_id);
+  const carrierId=Number(carrier.id??deal.carrier_id);
+  let other,label;
+  const T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+  if(viewerId===shipperId&&viewerId!==carrierId){
+    other=carrier;label=T.sig_carrier||'Перевозчик';
+  } else if(viewerId===carrierId&&viewerId!==shipperId){
+    other=shipper;label=T.sig_shipper||'Отправитель';
+  } else return '';
+  const links=[];
+  const phoneHref=dealPhoneHref(other.phone);
+  if(phoneHref) links.push('<a href="'+esc(phoneHref)+'">'+esc(other.phone)+'</a>');
+  const email=typeof other.email==='string'?other.email.trim():'';
+  if(/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email))
+    links.push('<a href="mailto:'+esc(encodeURIComponent(email).replace(/'/g,'%27'))+'">'+esc(email)+'</a>');
+  return links.length?'<span class="cab-deal-contact">'+esc(label)+': '+links.join(' · ')+'</span>':'';
+}
+
 function renderCabDeals(){
  var el = document.getElementById('myDealsList');
  if(!el) return;
@@ -3101,6 +3133,7 @@ function renderCabDeals(){
  + '<div class="cab-deal-meta">'
  + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' ' + (_tr.unit_kg||'кг') + '</span>' : '')
  + (carrier ? '<span>🚛 ' + esc(carrier) + '</span>' : '')
+ + renderDealCounterpartyContacts(d)
  + '</div>'
  + '<div class="cab-deal-actions">'
  + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>'
