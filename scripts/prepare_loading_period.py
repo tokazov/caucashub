@@ -31,11 +31,30 @@ def prepare_carrier_defaults(connection):
     spec.loader.exec_module(migration)
     migration.op = Operations(MigrationContext.configure(connection))
     migration.upgrade()
+    from app.models.load import TruckType
+
     columns = {column["name"]: column for column in inspect(connection).get_columns("users")}
-    for name, expected in (("truck_type", (String,)), ("tonnage", (Float, Numeric))):
-        column = columns.get(name)
-        if column is None or not isinstance(column["type"], expected) or not column["nullable"]:
-            raise RuntimeError("Carrier profile schema is missing or incompatible: " + name)
+    truck = columns.get("truck_type")
+    longest_code = max(len(member.value) for member in TruckType)
+    if (truck is None or not truck["nullable"]
+            or not isinstance(truck["type"], String)
+            or (truck["type"].length is not None and truck["type"].length < longest_code)):
+        raise RuntimeError("Carrier profile schema is missing or incompatible: truck_type")
+
+    tonnage = columns.get("tonnage")
+    capacity_type = tonnage["type"] if tonnage is not None else None
+    if isinstance(capacity_type, Float):
+        # SQLite REAL is binary64. PostgreSQL REAL/float4 is binary32 even when
+        # reflection leaves precision unset; it would round valid API values.
+        precision = capacity_type.precision
+        compatible = connection.dialect.name == "sqlite" or (
+            capacity_type.__visit_name__ != "REAL" and (precision is None or precision >= 53))
+    else:
+        # Constrained NUMERIC(p,s) may round fractional tonnes or overflow them.
+        compatible = (isinstance(capacity_type, Numeric)
+                      and capacity_type.precision is None and capacity_type.scale is None)
+    if tonnage is None or not tonnage["nullable"] or not compatible:
+        raise RuntimeError("Carrier profile schema is missing or incompatible: tonnage")
 
 
 def prepare_idempotency(connection):

@@ -489,7 +489,7 @@ function _capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; 
 function translateCity(name) {
   if (!name) return name;
   // Нормализуем: если всё lowercase (из БД) — капитализируем первую букву
-  if (name === name.toLowerCase()) name = _capitalize(name);
+  if (name === name.toLowerCase() && /^[a-zа-яё]/.test(name)) name = _capitalize(name);
   try {
   // На RU: если текст содержит грузинские символы — конвертируем обратно в RU
   if (lang !== 'ge') {
@@ -501,7 +501,8 @@ function translateCity(name) {
         }
       }
       for (const [ru, ge] of Object.entries(REGION_NAMES_GE)) {
-        if (result.includes(ge)) result = result.split(ge).join(ru);
+        // Empty values remove RU prefixes only in the forward direction.
+        if (ge && result.includes(ge)) result = result.split(ge).join(ru);
       }
       return result;
     }
@@ -913,6 +914,8 @@ function renderLoads(data){
   // Если data не передан — берём текущий список по scope
   if (!data) data = (scope === 'intl' ? INTL : LOCAL);
   if (!data) data = [];
+  // Apply the same search after refreshes and language changes.
+  if(typeof filterLoadData==='function') data=filterLoadData(data);
   // Фильтруем занятые грузы
   data = data.filter(d=>d.status!=='taken');
   const _l = (typeof lang !== 'undefined' && lang) || 'ru'; const T = (typeof TRANSLATIONS !== 'undefined' && (TRANSLATIONS[_l] || TRANSLATIONS['ru'])) || {};
@@ -923,7 +926,7 @@ function renderLoads(data){
     if(window._loadsLoading){
       list.innerHTML='<div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div>';
     } else {
-      list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Грузов не найдено</div>';
+      list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">'+(T.load_search_empty||'Грузов не найдено')+'</div>';
     }
     return;
   }
@@ -1890,10 +1893,31 @@ function backToStep1(){
     document.getElementById(id).classList.remove('selected');
   });
 }
-function applyCarrierProfileDefaults(profile, target){
+function applyCarrierProfileDefaults(profile,target){
   if(!profile||!target) return;
-  if(Object.prototype.hasOwnProperty.call(profile,'truck_type')) target.truckType=profile.truck_type??'';
-  if(Object.prototype.hasOwnProperty.call(profile,'tonnage')) target.tonnage=profile.tonnage??'';
+  if(Object.prototype.hasOwnProperty.call(profile,'truck_type')&&profile.truck_type!==undefined)
+    target.truckType=profile.truck_type??'';
+  if(Object.prototype.hasOwnProperty.call(profile,'tonnage')&&profile.tonnage!==undefined){
+    if(profile.tonnage===null) target.tonnage='';
+    else {
+      try{target.tonnage=carrierTonnageValue(profile.tonnage);}catch(error){}
+    }
+  }
+}
+function readCarrierTonnage(inputId){
+  const input=document.getElementById(inputId);
+  try{return carrierTonnageValue(input?.value??'');}
+  catch(error){
+    if(input){
+      input.classList.add('input-error');
+      input.addEventListener('input',()=>input.classList.remove('input-error'),{once:true});
+      input.focus();
+    }
+    showToastWarn(lang==='ge'
+      ?'ტვირთამწეობა უნდა იყოს 0-ზე მეტი და არაუმეტეს 100 ტონის'
+      :error.message);
+    return undefined;
+  }
 }
 
 async function doLogin(){
@@ -1935,15 +1959,17 @@ async function doLogin(){
   _lsSet('ch_user',JSON.stringify(user));
   document.getElementById('loginSuccess').style.display='block';
   setTimeout(()=>{
+    if(user!==userData||getToken()!==userData.token) return;
     closeModal('authOverlay');
     showUserState();
     if(typeof syncLoadsFromServer==='function') syncLoadsFromServer();
     if(typeof loadDeals==='function') loadDeals();
     // Подгружаем полный профиль с сервера
-    if(getToken()) fetch('https://api-production-f3ea.up.railway.app/api/users/me',{
-      headers:{'Authorization':'Bearer '+getToken()}
-    }).then(r=>r.json()).then(d=>{
-      if(d.id && user){
+    const profileToken=userData.token;
+    if(profileToken) fetch('https://api-production-f3ea.up.railway.app/api/users/me',{
+      headers:{'Authorization':'Bearer '+profileToken}
+    }).then(r=>r.ok?r.json():null).then(d=>{
+      if(d?.id&&user===userData&&getToken()===profileToken&&Number(d.id)===Number(userData.userId)){
         user.inn=d.inn||user.inn; user.orgType=d.org_type||user.orgType;
         user.city=d.city||user.city; user.phone=d.phone||user.phone;
         user.name=d.company_name||user.name;
@@ -1977,7 +2003,8 @@ async function doRegister(){
   const orgType=document.getElementById('regOrgType')?.value||'';
   const city=document.getElementById('regCity')?.value||'';
   const truckType=document.getElementById('regTruckType')?.value||'';
-  const tonnage=document.getElementById('regTonnage')?.value||'';
+  const tonnage=readCarrierTonnage('regTonnage');
+  if(tonnage===undefined) return;
 
   const btn=document.querySelector('#formRegister .btn-primary');
   if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_creating||'Создаём...';btn.disabled=true;}
@@ -2066,6 +2093,8 @@ function showUserState(){
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
 function doLogout(){
+  if(typeof setToken==='function') setToken(null);
+  currentUserId=null;
   user=null;
   _lsDel('ch_user');
   const od2=document.getElementById('onlineDot');
@@ -2635,53 +2664,127 @@ async function saveEditedLoad(){
 
 
 // ── FILTER ─────────────────────────────────────────────
-function filterLoads(){
-  const fromVal=document.getElementById('fFrom').value.toLowerCase();
-  const toVal=document.getElementById('fTo').value.toLowerCase();
-  const type=document.getElementById('fType').value;
-  const weightRange=document.getElementById('fWeight')?.value||'';
-  const priceRange=document.getElementById('fPrice')?.value||'';
-  let data=scope==='local'?[...LOCAL]:[...INTL];
+function clearLoadRouteSelection(direction){
+  if(direction==='from') selectedFrom=null;
+  if(direction==='to') selectedTo=null;
+  var wrap=document.getElementById('mapWrap');
+  if(wrap) wrap.classList.remove('open');
+  if(typeof ymap!=='undefined'&&ymap&&ymap.geoObjects) ymap.geoObjects.removeAll();
+}
 
-  // Откуда (страна для intl, город для local)
-  if(fromVal){
-    const fromQ=fromVal.split(',')[0].trim().toLowerCase();
-    if(scope==='intl'){
-      const fromCode=findCountryCode(fromQ);
-      if(fromCode) data=filterByCountryCode(data,fromCode,'from');
-      else data=data.filter(d=>d.from.toLowerCase().includes(fromQ)||d.to.toLowerCase().includes(fromQ));
-    } else {
-      data=data.filter(d=>d.from.toLowerCase().includes(fromQ));
-    }
+function resetLoadFilters(){
+  ['fFrom','fTo','fType','fWeight','fPrice','fDate','fDateFrom','fDateTo','fCountry'].forEach(function(id){
+    var field=document.getElementById(id);if(field)field.value='';
+  });
+  var dateSelect=document.getElementById('fDate');
+  var rangeOption=dateSelect&&dateSelect.querySelector('option[value="pick_range"]');
+  if(rangeOption)rangeOption.remove();
+  var pop=document.getElementById('datePeriodPop');if(pop)pop.style.display='none';
+  clearLoadRouteSelection('from');clearLoadRouteSelection('to');
+  if(typeof closeDrop==='function'){closeDrop('from');closeDrop('to');}
+  filterLoads();
+}
+
+function _loadFilterKey(value){
+  return String(value??'').normalize('NFC').toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
+}
+function _loadRouteText(value){
+  let text=_loadFilterKey(value);
+  const cities=typeof CITIES!=='undefined'?CITIES:[];
+  const regions=typeof REGION_NAMES_GE!=='undefined'?REGION_NAMES_GE:{};
+  // Only explicit, non-empty dictionary aliases can be reversed.
+  const aliases=cities.filter(c=>c.name&&c.nameGe).map(c=>[c.name,c.nameGe])
+    .concat(Object.entries(regions).filter(([ru,ge])=>ru&&ge))
+    .sort((a,b)=>b[1].length-a[1].length);
+  for(const [ru,ge] of aliases){
+    const source=_loadFilterKey(ge);
+    if(source) text=text.split(source).join(_loadFilterKey(ru));
   }
-  // Куда (страна для intl, город для local)
-  if(toVal){
-    const toQ=toVal.split(',')[0].trim().toLowerCase();
-    if(scope==='intl'){
-      const toCode=findCountryCode(toQ);
-      if(toCode) data=filterByCountryCode(data,toCode,'to');
-      else data=data.filter(d=>d.to.toLowerCase().includes(toQ)||d.from.toLowerCase().includes(toQ));
-    } else {
-      data=data.filter(d=>d.to.toLowerCase().includes(toQ));
-    }
+  for(const [ru,ge] of Object.entries(regions)){
+    const prefix=_loadFilterKey(ru);
+    if(ge===''&&prefix&&text.startsWith(prefix+' ')) text=text.slice(prefix.length).trim();
   }
-  // Тип кузова
-  if(type&&type!=='🚛 Кузов') data=data.filter(d=>d.typeLabel.includes(type.slice(0,4)));
-  // Тоннаж
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  for(const flag of Object.values(flags)) if(flag) text=text.split(flag).join('');
+  return _loadFilterKey(text);
+}
+function _loadCountryAliases(code){
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  if(!Object.prototype.hasOwnProperty.call(flags,code)) return [];
+  const names=typeof COUNTRY_NAMES!=='undefined'?COUNTRY_NAMES:{};
+  const namesGe=typeof COUNTRY_NAMES_GE!=='undefined'?COUNTRY_NAMES_GE:{};
+  const aliases=[code,flags[code],names[code],namesGe[code]].filter(Boolean);
+  // Country names already associated with a flag in the existing city dictionary.
+  for(const city of (typeof CITIES!=='undefined'?CITIES:[])){
+    if(flags[code]&&city.region?.includes(flags[code])) aliases.push(city.region.split(flags[code]).join('').trim());
+  }
+  for(const [ru,ge] of Object.entries(typeof REGION_NAMES_GE!=='undefined'?REGION_NAMES_GE:{})){
+    if(ge&&aliases.some(a=>_loadFilterKey(a)===_loadFilterKey(ru)||_loadFilterKey(a)===_loadFilterKey(ge))) aliases.push(ru,ge);
+  }
+  return [...new Set(aliases.map(_loadFilterKey).filter(Boolean))];
+}
+function findCountryCode(value){
+  const query=_loadFilterKey(value);
+  if(!query) return null;
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  return Object.keys(flags).find(code=>{
+    const aliases=_loadCountryAliases(code);
+    return aliases.includes(query)||aliases.includes(_loadFilterKey(query.split(flags[code]).join('')));
+  })||null;
+}
+function filterByCountryCode(data,code,field){
+  const aliases=_loadCountryAliases(String(code||'').toUpperCase());
+  if(!aliases.length) return [];
+  const matches=value=>{
+    const text=_loadFilterKey(value);
+    return aliases.some(alias=>alias.length===2&&/^[a-z]+$/.test(alias)
+      ?text.split(/[\s,;\/()]+/).includes(alias):text.includes(alias));
+  };
+  return data.filter(d=>field?matches(d[field]):matches(d.from)||matches(d.to));
+}
+function filterLoadData(data,countryCode){
+  const value=id=>document.getElementById(id)?.value||'';
+  const from=value('fFrom').split(',')[0].trim(),to=value('fTo').split(',')[0].trim();
+  const type=value('fType'),weightRange=value('fWeight'),priceRange=value('fPrice');
+  let result=(data||[]).filter(d=>d&&d.status!=='taken');
+  for(const [field,query] of [['from',from],['to',to]]){
+    if(!query) continue;
+    const code=scope==='intl'?findCountryCode(query):null;
+    const normalized=_loadRouteText(query);
+    result=code?filterByCountryCode(result,code,field)
+      :result.filter(d=>normalized&&_loadRouteText(d[field]).includes(normalized));
+  }
+  if(scope==='intl'){
+    const country=countryCode===undefined?value('fCountry'):countryCode;
+    if(country) result=filterByCountryCode(result,findCountryCode(country)||country);
+  }
+  if(type&&type!=='🚛 Кузов') result=result.filter(d=>(d.type||d.truck_type||'')===type);
   if(weightRange){
-    const [wMin,wMax]=weightRange.split('-').map(Number);
-    data=data.filter(d=>d.kg>=wMin&&d.kg<=wMax);
+    const [min,max]=weightRange.split('-').map(Number);
+    result=result.filter(d=>d.kg>=min&&d.kg<=max);
   }
-  // Стоимость
   if(priceRange){
-    const [pMin,pMax]=priceRange.split('-').map(Number);
-    data=data.filter(d=>d.price>=pMin&&d.price<=pMax);
+    const [min,max]=priceRange.split('-').map(Number);
+    result=result.filter(d=>d.price>=min&&d.price<=max);
   }
+  return filterLoadingDates(result,loadingDateRange());
+}
 
-  data=filterLoadingDates(data,loadingDateRange());
+function submitLoadSearch(){
+  if(document.getElementById('fDate')?.value==='pick') applyDatePeriod();
+  else filterLoads();
+}
+
+function filterLoads(){
+  const fromVal=document.getElementById('fFrom')?.value||'';
+  const toVal=document.getElementById('fTo')?.value||'';
+  const data=filterLoadData(scope==='local'?[...LOCAL]:[...INTL]);
   renderLoads(data);
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
+  document.getElementById('fcount').textContent=data.length+' '+((TRANSLATIONS[lang]||TRANSLATIONS.ru).fcount_suffix||'грузов');
 
+  const routeScope=scope;
+  const sameRoute=()=>scope===routeScope&&(document.getElementById('fFrom')?.value||'')===fromVal&&
+    (document.getElementById('fTo')?.value||'')===toVal;
   // Карта если оба города выбраны
   if(fromVal&&toVal){
     const fromCity=fromVal.split(',')[0].trim();
@@ -2692,8 +2795,10 @@ function filterLoads(){
     else if(fromCity&&toCity){
       // Город не в CITIES (например Натахтари) — геокодируем через LocationIQ
       _fetchCitySuggestions(fromCity,'ru',function(rf){
+        if(!sameRoute()) return;
         if(rf&&rf[0]){ selectedFrom={name:fromCity,lat:rf[0].lat,lng:rf[0].lon}; }
         _fetchCitySuggestions(toCity,'ru',function(rt){
+          if(!sameRoute()) return;
           if(rt&&rt[0]){ selectedTo={name:toCity,lat:rt[0].lat,lng:rt[0].lon}; }
           if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
         });
@@ -2701,6 +2806,7 @@ function filterLoads(){
     }
   }
 }
+
 
 // ═══ КАБИНЕТ — внутренние вкладки ═══
 var _currentCabTab = 'loads';
@@ -3021,6 +3127,7 @@ function renderCabDeals(){
  }).join('');
 }
 function showSection(name, el){
+  if(name!=='trucks'&&typeof _cancelTransportRender==='function') _cancelTransportRender();
   _userClickedTab = true;
   window._tabRestored = true; // fix P1: предотвращаем повторный вызов из api.js finally
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -3064,11 +3171,8 @@ function setScope(s, el){
   document.querySelectorAll('.scope-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   const data=s==='local'?LOCAL:INTL;
-  renderLoads(data);
-  syncLoadsFromServer(); // перезагружаем грузы при смене вкладки
   // statLoads updated by syncLoadsFromServer
   // statTrucks updated by syncLoadsFromServer
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
   // Показываем фильтр стран для международных
   const cf=document.getElementById('fCountry');
   if(cf) cf.style.display=s==='intl'?'block':'none';
@@ -3088,6 +3192,8 @@ function setScope(s, el){
   if(pto) pto.value='';
   selectedFrom=null; selectedTo=null;
   document.getElementById('mapWrap').classList.remove('open');
+  renderLoads(data);
+  syncLoadsFromServer(); // Reload after clearing the previous scope route.
 }
 
 // ── LANG / i18n ───────────────────────────────────────
@@ -3103,6 +3209,10 @@ const TRANSLATIONS = {
     hero_desc: 'Грузы по Грузии и СНГ — быстро и надёжно',
     btn_post: 'Разместить груз',
     btn_find: 'Найти машину',
+    btn_find_load: 'Найти груз',
+    load_search_found: 'Найдено:',
+    load_search_reset: 'Сбросить фильтры',
+    load_search_empty: 'Грузов не найдено',
     tab_local: 'Локальные',
     tab_intl: 'Международные',
     btn_respond: 'Откликнуться',
@@ -3705,6 +3815,10 @@ const TRANSLATIONS = {
     hero_desc: 'ტვირთები საქართველოს მასშტაბით — სწრაფად და საიმედოდ',
     btn_post: 'ტვირთის განთავსება',
     btn_find: 'მანქანის პოვნა',
+    btn_find_load: 'ტვირთის მოძებნა',
+    load_search_found: 'ნაპოვნია:',
+    load_search_reset: 'ფილტრების გასუფთავება',
+    load_search_empty: 'ტვირთები ვერ მოიძებნა',
     tab_local: 'ადგილობრივი',
     tab_intl: 'საერთაშორისო',
     btn_respond: 'გამოხმაურება',
@@ -5005,20 +5119,13 @@ const COUNTRY_NAMES_GE={'GE':'საქართველო','TR':'თურქ
 // setScope расширен в оригинале
 
 function filterByCountry(code){
-  let data=[...INTL];
-  if(code){
-    const flag=COUNTRY_FLAGS[code]||'';
-    const name=(COUNTRY_NAMES[code]||'').toLowerCase();
-    data=data.filter(d=>{
-      const toL=d.to.toLowerCase();
-      const fromL=d.from.toLowerCase();
-      return d.to.includes(flag)||d.from.includes(flag)||
-             toL.includes(name)||fromL.includes(name);
-    });
-  }
+  const field=document.getElementById('fCountry');
+  if(field) field.value=code||'';
+  const data=filterLoadData([...INTL],code||'');
   renderLoads(data);
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
+  document.getElementById('fcount').textContent=data.length+' '+((TRANSLATIONS[lang]||TRANSLATIONS.ru).fcount_suffix||'грузов');
 }
+
 
 function updateFormForIntl(){
   const isIntl=scope==='intl';
@@ -5108,7 +5215,7 @@ function openSettings(){
     const sotAll=document.getElementById('sOrgTypeAll'); if(sotAll) sotAll.value=user.orgType||'';
     _sfill('sCityAll', user.city);
     const sot=document.getElementById('sOrgType'); if(sot&&user.orgType) sot.value=user.orgType;
-    _sfill('sTruckType', user.truckType);
+    _sfill('sTruckType',user.truckType);
     _sfill('sTonnage', user.tonnage);
   }
   // Показываем поля перевозчика только для carrier/both
@@ -5166,12 +5273,15 @@ async function saveSettings(){
   const orgType=visibleValue(['sOrgType','sOrgTypeAll']);
   const city=document.getElementById('sCityAll').value;
   const truckType=document.getElementById('sTruckType').value;
-  const tonnage=document.getElementById('sTonnage').value;
+  const tonnage=readCarrierTonnage('sTonnage');
+  if(tonnage===undefined) return;
+  const profileOwner=user;
+  const profileOwnerId=profileOwner?.userId??currentUserId;
 
   const revision=openSettings.revision||0;
   const draftIds=['sName','sPhone','sTelegram','sRole','sInnAll','sOrgTypeAll','sCityAll','sTruckType','sTonnage'];
   const draft=draftIds.map(id=>document.getElementById(id)?.value||'');
-  const sameDraft=()=>getToken()===token && (openSettings.revision||0)===revision &&
+  const sameDraft=()=>getToken()===token && user===profileOwner && (openSettings.revision||0)===revision &&
     document.getElementById('settingsOverlay')?.classList.contains('on') &&
     draftIds.every((id,i)=>(document.getElementById(id)?.value||'')===draft[i]);
   saveSettings.pending=true;
@@ -5212,8 +5322,8 @@ async function saveSettings(){
       showToastWarn(lang==='ge'?'სერვერმა შენახვა ვერ დაადასტურა':'Сервер не подтвердил сохранение');
       return;
     }
-    if(getToken()!==token) return;
-    if(!user){ user = {}; }
+    if(getToken()!==token||!profileOwner||user!==profileOwner||
+      (profileOwnerId!=null&&Number(data.id)!==Number(profileOwnerId))) return;
     user.name=data.company_name||user.name||'Пользователь';
     user.phone=data.phone; user.telegram=tg; user.role=role;
     user.inn=data.inn; user.orgType=data.org_type; user.city=data.city;
@@ -5534,9 +5644,12 @@ try{
     if(_savedUser&&_savedUser.name){
       const _tok = (typeof getToken!=='undefined'&&getToken()) || _savedUser.token || localStorage.getItem('ch_token');
       if(_tok){
+        const _restoreOwner=user;
+        const _sameRestoreSession=()=>getToken()===_tok&&user===_restoreOwner;
         // Проверяем токен через API — если 401 очищаем сессию
         fetch(API_BASE+'/api/users/me',{headers:{'Authorization':'Bearer '+_tok},signal:AbortSignal.timeout(5000)})
           .then(r=>{
+            if(!_sameRestoreSession()) return null;
             if(r.status===401||r.status===403){
               // Токен невалиден — очищаем сессию
               _lsDel('ch_user'); localStorage.removeItem('ch_token');
@@ -5547,7 +5660,8 @@ try{
             return r.json();
           })
           .then(d=>{
-            if(!d) return;
+            if(!d?.id||!_sameRestoreSession()||
+              (_savedUser.userId!=null&&Number(d.id)!==Number(_savedUser.userId))) return;
             // Токен валиден — восстанавливаем сессию с актуальными данными с сервера
             user=_savedUser;
             user.name = d.company_name || _savedUser.name;
@@ -5562,6 +5676,7 @@ try{
             setTimeout(()=>{ if(typeof syncLoadsFromServer==='function') syncLoadsFromServer(); },300);
           })
           .catch(()=>{
+            if(!_sameRestoreSession()) return;
             // Нет сети — доверяем localStorage (оффлайн режим)
             user=_savedUser;
             if(_savedUser.userId) currentUserId=Number(_savedUser.userId);
@@ -6003,6 +6118,7 @@ function _renderTgStatus(linked){
 }
 
 async function _initTgStatus(){
+  const token=typeof getToken==='function'?getToken():null;
   if(!token) return;
   try {
     const st = await apiFetch('/api/tg/status');
@@ -6493,6 +6609,7 @@ var _transportOffers = [];
 var _transportTotal  = 0;
 var _transportFetchCtrl = null; // AbortController для отмены предыдущего fetch
 var _transportRendering = false; // guard против concurrent renders
+var _transportRequestRevision = 0;
 var _transportLoading = false;  // флаг: запрос в процессе (предотвращает concurrent calls)
 
 window.filterAndLoadTransport = async function() {
@@ -6503,82 +6620,76 @@ window.filterAndLoadTransport = async function() {
 };
 
 window.loadTransportOffers = async function(fromCity, toCity, truckType, offset) {
-  // Отменяем предыдущий незавершённый запрос
+  var request=++_transportRequestRevision;
   if(_transportFetchCtrl) { try { _transportFetchCtrl.abort(); } catch(e){} }
-  _transportFetchCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  _transportLoading = true;
-
-  var list = document.getElementById('transportList');
-  var cnt  = document.getElementById('transportCount');
-  if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
-
-  var params = new URLSearchParams({limit: 50, offset: offset || 0});
-  if(fromCity) params.set('from_city', fromCity);
-  if(toCity)   params.set('to_city', toCity);
-  if(truckType) params.set('truck_type', truckType);
-
-  // helper: показать ошибку с кнопкой retry — НИКОГДА не оставлять вечный спиннер
-  function _showTransportError(msg) {
-    if(!list) return;
-    var _T = (TRANSLATIONS[lang]||TRANSLATIONS['ru']);
-    list.innerHTML = '<div class="cab-empty" style="padding:40px 20px">' +
-      '<div class="cab-empty-icon">⚠️</div>' +
-      '<div class="cab-empty-title">' + (msg || _T.transport_load_err || 'Не удалось загрузить транспорт') + '</div>' +
-      '<div class="cab-empty-sub" style="margin-bottom:16px">' + (_T.transport_load_err_sub || 'Проверьте интернет и попробуйте снова') + '</div>' +
-      '<button onclick="loadTransportOffers()" style="background:#1a1a2e;color:#f7b731;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 ' + (_T.btn_retry || 'Повторить') + '</button>' +
-    '</div>';
+  var controller=typeof AbortController!=='undefined'?new AbortController():null;
+  _transportFetchCtrl=controller;
+  _transportLoading=true;
+  _cancelTransportRender();
+  var section=document.getElementById('sec-trucks');
+  var isCurrent=function(){return request===_transportRequestRevision;};
+  var isVisible=function(){return !section||section.classList.contains('active');};
+  var list=document.getElementById('transportList');
+  var cnt=document.getElementById('transportCount');
+  if(list&&isVisible()) list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
+  var params=new URLSearchParams({limit:50,offset:offset||0});
+  if(fromCity) params.set('from_city',fromCity);
+  if(toCity) params.set('to_city',toCity);
+  if(truckType) params.set('truck_type',truckType);
+  var timer;
+  function showError(message){
+    if(!isCurrent()||!isVisible()||!list) return;
+    var T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+    list.innerHTML='<div class="cab-empty" style="padding:40px 20px"><div class="cab-empty-icon">⚠️</div>'+
+      '<div class="cab-empty-title">'+esc(message||T.transport_load_err||'Не удалось загрузить транспорт')+'</div>'+
+      '<div class="cab-empty-sub" style="margin-bottom:16px">'+esc(T.transport_load_err_sub||'Проверьте интернет и попробуйте снова')+'</div>'+
+      '<button onclick="filterAndLoadTransport()" style="background:#1a1a2e;color:#f7b731;border:none;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">🔄 '+esc(T.btn_retry||'Повторить')+'</button></div>';
+    if(cnt) cnt.textContent='';
   }
-
   try {
-    // Promise.race timeout (8s) — работает даже если расширения (TronLink и др.)
-    // monkey-patch-ят fetch и игнорируют AbortSignal
-    var fetchOpts = _transportFetchCtrl ? { signal: _transportFetchCtrl.signal } : {};
-    var _fetchUrl = API_BASE + '/api/transport/?' + params.toString();
-    var r = await Promise.race([
-      fetch(_fetchUrl, fetchOpts),
-      new Promise(function(_, reject) {
-        setTimeout(function() { reject(new DOMException('Transport fetch timeout', 'TimeoutError')); }, 8000);
+    var result=await Promise.race([
+      (async function(){
+        var response=await fetch(API_BASE+'/api/transport/?'+params.toString(),controller?{signal:controller.signal}:{});
+        var data=response.ok?await response.json():null;
+        return {response:response,data:data};
+      })(),
+      new Promise(function(_,reject){
+        timer=setTimeout(function(){
+          var error=new Error('Transport request timed out');error.name='TimeoutError';
+          reject(error);
+          if(controller) controller.abort();
+        },8000);
       })
     ]);
-    if(r.status === 401){
-      // fix: не оставляем спиннер — показываем сообщение + retry
-      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).warn_login || 'Войдите в аккаунт');
-      return;
+    if(!isCurrent()) return;
+    var response=result.response,data=result.data;
+    if(response.status===401){showError((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_login||'Войдите в аккаунт');return;}
+    if(!response.ok){showError();return;}
+    if(!data||!Array.isArray(data.offers)||data.offers.some(function(o){return !o||typeof o!=='object'||Array.isArray(o);})){
+      showError();return;
     }
-    if(!r.ok){
-      _showTransportError();
-      return;
+    _transportOffers=data.offers;
+    _transportTotal=Number.isFinite(Number(data.total))?Math.max(0,Number(data.total)):data.offers.length;
+    if(isVisible()) renderTransportOffers();
+  } catch(error) {
+    if(!isCurrent()) return;
+    showError(error&&error.name==='TimeoutError'
+      ?((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_timeout||'Запрос занял слишком долго'):null);
+  } finally {
+    clearTimeout(timer);
+    if(isCurrent()){
+      _transportLoading=false;
+      _transportFetchCtrl=null;
     }
-    var d;
-    try { d = await r.json(); } catch(_je) {
-      // r.json() упал (например, сервер вернул не JSON) — показываем ошибку
-      _showTransportError();
-      return;
-    }
-    _transportOffers = d.offers || [];
-    _transportTotal  = d.total  || 0;
-    _transportLoading = false;
-    if(cnt) cnt.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_count_suffix||'предложений транспорта');
-    renderTransportOffers();
-  } catch(e) {
-    _transportLoading = false;
-    // AbortError: новый запрос уже запущен — он сам поставит своё состояние
-    // НО: если это первый вызов и он aborted — убираем спиннер чтобы не висел вечно
-    if(e && e.name === 'AbortError') {
-      // Проверяем: есть ли активный новый запрос (если да — он сам перезапишет список)
-      // Если _transportFetchCtrl null или aborted — новый запрос уже завершился или нет
-      return; // новый fetch сам поставит своё состояние
-    }
-    // TimeoutError: запрос завис (8 секунд) → показываем retry
-    if(e && e.name === 'TimeoutError') {
-      _showTransportError((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_timeout || 'Запрос занял слишком долго');
-      return;
-    }
-    _showTransportError();
   }
 };
 
 function renderTransportOffers() {
+  var revision=_cancelTransportRender();
+  var section=document.getElementById('sec-trucks');
+  if(section&&!section.classList.contains('active')) return;
+  var formatter=renderTransportOffers._dateFormat||(renderTransportOffers._dateFormat=new Intl.DateTimeFormat('ru',{day:'2-digit',month:'2-digit'}));
+  var formatDate=function(value){var date=new Date(value);return Number.isNaN(date.getTime())?'':formatter.format(date);};
   var count = document.getElementById('transportCount');
   if(count) count.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix);
   var list = document.getElementById('transportList');
@@ -6594,8 +6705,8 @@ function renderTransportOffers() {
     var urgBadge = o.urgent && !datesExpired ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
-    var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
-    var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
+    var dateFrom = o.available_from ? formatDate(o.available_from) : '';
+    var dateTo   = o.available_to   ? ' – ' + formatDate(o.available_to) : '';
     var availability = datesExpired ? esc(availabilityText) : dateFrom + dateTo;
     var actionBtn = tk
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
@@ -6615,7 +6726,7 @@ function renderTransportOffers() {
       gazel:{bg:'#fce4ec',t:'#880e4f'},container:{bg:'#f0f2f5',t:'#555'},
       auto:{bg:'#e8eaf6',t:'#283593'},other:{bg:'#f0f2f5',t:'#555'}
     };
-    var tt = o.truck_type ? o.truck_type.toLowerCase() : 'other';
+    var tt = o.truck_type ? String(o.truck_type).toLowerCase() : 'other';
     var tc = typeColors[tt] || typeColors.other;
     var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(getTypeLabel(o.truck_type || 'other')) + '</span>';
 
@@ -6627,7 +6738,7 @@ function renderTransportOffers() {
         '<div>' +
           '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + '</div>' +
           '<div style="margin-top:3px">' + urgBadge + '</div>' +
-          (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(o.notes.slice(0,60)) + '</div>' : '') +
+          (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(String(o.notes).slice(0,60)) + '</div>' : '') +
         '</div>' +
         '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
@@ -6661,7 +6772,22 @@ function renderTransportOffers() {
 
     '</div>';
   }).join('');
-  (window.requestAnimationFrame || function(cb){setTimeout(cb,16);})(function() { list.innerHTML = html; }); // fix: defer 26KB DOM insert to rAF — prevents 8.5s freeze on GE→RU→Machines
+  var commit=function(){
+    if(revision!==renderTransportOffers._revision||(section&&!section.classList.contains('active'))) return;
+    renderTransportOffers._frame=null;
+    list.innerHTML=html;
+  };
+  renderTransportOffers._frame=(window.requestAnimationFrame||function(cb){return setTimeout(cb,16);})(commit);
+}
+
+function _cancelTransportRender(){
+  renderTransportOffers._revision=(renderTransportOffers._revision||0)+1;
+  if(renderTransportOffers._frame!=null){
+    if(window.cancelAnimationFrame) window.cancelAnimationFrame(renderTransportOffers._frame);
+    else clearTimeout(renderTransportOffers._frame);
+    renderTransportOffers._frame=null;
+  }
+  return renderTransportOffers._revision;
 }
 
 // Открыть модалку отклика на транспортное предложение

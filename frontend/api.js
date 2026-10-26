@@ -7,6 +7,7 @@ const API_BASE = 'https://api-production-f3ea.up.railway.app';
 function getToken(){ return localStorage.getItem('ch_token') || null; }
 function setToken(t){ if(t) localStorage.setItem('ch_token',t); else localStorage.removeItem('ch_token'); }
 
+
 async function apiRequest(method, path, body=null, extraHeaders={}){
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   const token = getToken();
@@ -71,10 +72,25 @@ function loadingRequestError(detail) {
     ? detail.map(x=>x.msg||'').join('; ') : 'Не удалось сохранить груз';
 }
 
+// Profile capacities are tonnes. Reject invalid values before JSON can turn
+// NaN/Infinity into null (which would otherwise clear a saved default).
+function carrierTonnageValue(value){
+  if(value===null||value===undefined||(typeof value==='string'&&!value.trim())) return null;
+  if((typeof value!=='number'&&typeof value!=='string')||
+     !Number.isFinite(Number(value))||Number(value)<=0||Number(value)>100)
+    throw new Error('Грузоподъёмность должна быть больше 0 и не больше 100 тонн');
+  return Number(value);
+}
+function carrierCapacityError(error){
+  return {ok:false,status:422,error:[{loc:['body','tonnage'],msg:error.message}]};
+}
+
 // ── AUTH ──────────────────────────────────────────────
 const CaucasAPI = {
 
   async register({ email, password, name, phone, role, inn, orgType, city, truckType, tonnage }){
+    let capacity;
+    try{capacity=carrierTonnageValue(tonnage);}catch(error){return carrierCapacityError(error);}
     const r = await apiRequest('POST', '/api/auth/register', {
       email, password,
       company_name: name,
@@ -84,12 +100,13 @@ const CaucasAPI = {
       org_type: orgType  || null,
       city:     city     || null,
       truck_type: truckType || null,
-      tonnage: tonnage === '' ? null : (tonnage ?? null),
+      tonnage: capacity,
     });
     if(r.ok && r.data?.token){
       setToken(r.data.token);
       return { ok: true, token: r.data.token, user_id: r.data.user_id,
-        truck_type:r.data.truck_type, tonnage:r.data.tonnage };
+        ...(Object.prototype.hasOwnProperty.call(r.data,'truck_type')?{truck_type:r.data.truck_type}:{}),
+        ...(Object.prototype.hasOwnProperty.call(r.data,'tonnage')?{tonnage:r.data.tonnage}:{}) };
     }
     return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
@@ -185,19 +202,17 @@ const CaucasAPI = {
   },
 
   async updateProfile({ company_name, phone, inn, org_type, city, lang, truck_type, tonnage }){
-    const body = {
-      company_name: company_name || null,
-      phone:        phone        || null,
-      inn:          inn          || null,
-      org_type:     org_type     || null,
-      city:         city         || null,
-      lang:         lang         || null,
+    const body={
+      company_name:company_name||null,phone:phone||null,inn:inn||null,
+      org_type:org_type||null,city:city||null,lang:lang||null
     };
-    // Undefined preserves a default; explicit null clears it.
-    if(truck_type !== undefined) body.truck_type = truck_type || null;
-    if(tonnage !== undefined) body.tonnage = tonnage === '' ? null : tonnage;
-    const r = await apiRequest('PUT', '/api/users/me', body);
-    return r.ok ? r.data : { ok: false, error: r.data?.detail };
+    // Omitted defaults preserve prior values; explicit null clears them.
+    if(truck_type!==undefined) body.truck_type=truck_type||null;
+    if(tonnage!==undefined){
+      try{body.tonnage=carrierTonnageValue(tonnage);}catch(error){return carrierCapacityError(error);}
+    }
+    const r=await apiRequest('PUT','/api/users/me',body);
+    return r.ok?r.data:{ok:false,status:r.status,error:r.data?.detail};
   },
 
   async forgotPassword(email){
@@ -224,6 +239,7 @@ function decodeJwtUserId(token){
 
 // ── SYNC: загружаем грузы с сервера при старте ────────
 async function syncLoadsFromServer(){
+  var syncFailed=false;
   window._loadsLoading = true;
   try {
     // Определяем currentUserId из токена
@@ -257,9 +273,6 @@ async function syncLoadsFromServer(){
       // Обновляем счётчик реальными данными
       const _statEl = document.getElementById('statLoads');
       if(_statEl) _statEl.textContent = serverLoads.length;
-      // Обновляем fcount тоже
-      const _fcEl = document.getElementById('fcount');
-      if(_fcEl) _fcEl.textContent = serverLoads.length + ' грузов';
       // removed console.log
     }
 
@@ -285,12 +298,19 @@ async function syncLoadsFromServer(){
       }
     }
   } catch(e) {
+    syncFailed=true;
     console.warn('[syncLoads]', e);
     // БАГ-7: показываем сообщение вместо вечного спиннера
     var _errList = document.getElementById('cargoList');
     if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
     window._loadsLoading = false;
+    // A successful empty search must finish with an empty state, not a spinner.
+    var currentLoads=scope==='local'?LOCAL:INTL;
+    if(!syncFailed&&typeof renderLoads==='function'&&
+      (!currentLoads.length||(typeof filterLoadData==='function'&&!filterLoadData(currentLoads).length))){
+      renderLoads(currentLoads);
+    }
     // После загрузки грузов — восстанавливаем сохранённую вкладку
     // fix P1: не вызываем если пользователь уже кликнул вкладку вручную (_userClickedTab)
     //         это предотвращает abort активного loadTransportOffers fetch
