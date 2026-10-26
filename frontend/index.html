@@ -1631,6 +1631,16 @@ window.loadYmapsLazy = function(cb, onError) {
     var style=document.createElement('style');style.textContent='#sec-trucks,#sec-trucks *{font-family:Arial,"Segoe UI",sans-serif!important}';document.head.appendChild(style);
   }
   var original=renderTransportOffers;
+  if(mode==='compact') renderTransportOffers=function(){
+  var list=document.getElementById('transportList'),count=document.getElementById('transportCount');
+  if(count)count.textContent=_transportTotal+' '+((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix||'предложений');
+  list.innerHTML=_transportOffers.map(function(o){
+    var T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+    var action=getToken()?'<button class="card-btn-resp" onclick="openTransportRequest('+Number(o.id)+')">'+esc(T.transport_interested||'Заинтересован')+'</button>':'<button class="card-btn-resp" onclick="openAuth(\'login\')">'+esc(T.btn_login_short||'Войти')+'</button>';
+    return '<article class="qa-offer"><div class="qa-route"><b>'+esc(translateCity(o.from_city||''))+' → '+esc(translateCity(o.to_city||''))+'</b>'+(o.notes?'<p>'+esc(o.notes)+'</p>':'')+'</div><div class="qa-carrier">'+esc(o.company_name||'Перевозчик')+'<p>⭐'+esc(o.rating||5)+'</p></div><div class="qa-cap">'+esc(o.capacity_kg/1000)+' т</div><div class="qa-type">'+esc(getTypeLabel(o.truck_type))+'</div><div class="qa-price">'+(o.price?esc(o.price)+' ₾':'—')+'</div><div class="qa-date">'+esc(T.transport_confirm_availability||'Уточнить доступность')+'</div><div class="qa-action">'+action+'</div></article>';
+  }).join('');
+};
+  if(mode==='compact'){var compactStyle=document.createElement('style');compactStyle.textContent='.qa-offer{display:flex;flex-wrap:wrap;gap:12px;padding:16px;border-bottom:1px solid #ddd;background:#fff;align-items:center}.qa-offer>div{min-width:0;overflow-wrap:anywhere}.qa-route{flex:2}.qa-carrier{flex:1.5}.qa-cap,.qa-type{flex:.8}.qa-price,.qa-date{flex:1}.qa-action{flex:0 0 100px}.qa-offer p{font-size:12px;color:#777;margin:5px 0 0}@media(max-width:768px){.qa-route{flex:1 1 60%}.qa-carrier{flex:1 1 30%}.qa-offer>div{flex-basis:28%}}';document.head.appendChild(compactStyle);}
   if(mode==='empty') renderTransportOffers=function(){document.getElementById('transportList').textContent='API loaded '+_transportOffers.length+' offers';};
   if(mode==='plain') renderTransportOffers=function(){
     var list=document.getElementById('transportList');list.replaceChildren();
@@ -1639,7 +1649,7 @@ window.loadYmapsLazy = function(cb, onError) {
   if(mode==='names') renderTransportOffers=function(){_transportOffers=_transportOffers.map(function(o){return Object.assign({},o,{company_name:'Test carrier'});});original();};
   if(mode==='dates') renderTransportOffers=function(){_transportOffers=_transportOffers.map(function(o){return Object.assign({},o,{available_from:null,available_to:null});});original();};
   if(mode==='one') renderTransportOffers=function(){_transportOffers=_transportOffers.slice(0,1);original();};
-  var label=document.createElement('div');label.textContent='QA preview: '+mode+'; previous phase: '+sessionStorage.getItem('qa-transport-phase');label.style.cssText='position:fixed;bottom:0;left:0;z-index:99999;background:white;color:black;padding:4px';document.body.appendChild(label);
+  var label=document.createElement('div');label.textContent='QA preview: '+mode+'; previous phase: '+localStorage.getItem('qa-transport-phase');label.style.cssText='position:fixed;bottom:0;left:0;z-index:99999;background:white;color:black;padding:4px';document.body.appendChild(label);
 })();
 </script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
