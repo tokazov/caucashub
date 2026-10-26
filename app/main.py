@@ -25,6 +25,8 @@ async def lifespan(app: FastAPI):
     # ALTER TYPE строки здесь — дубли из 011_enum_additions.py, нужны только если
     # alembic_version таблица ещё не существует (холодный старт без миграций).
     _emergency_migrations = [
+        # Also in: 020_load_date_end.py (ADR-019 fallback)
+        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS load_date_end TIMESTAMP WITH TIME ZONE",
         "ALTER TABLE loads ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",

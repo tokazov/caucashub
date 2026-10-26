@@ -1222,7 +1222,7 @@ function openCargo(d){
 
   document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
-  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
+  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен') + ' —';
   const _scope = (d.scope||'local').toUpperCase();
   const _co = d.co || d.company || '—';
   document.getElementById('mSub').textContent=`#${_scope}-${String(d.id).padStart(5,'0')} · ${_co} · ${_addedStr}`;
@@ -2081,13 +2081,27 @@ function _genUUID(){
   });
 }
 
+
+function readPostLoadingDates() {
+  const dates=loadingDatesPayload({
+    load_date:document.getElementById('pDate').value,
+    load_date_end:document.getElementById('pDate2').value || null
+  });
+  if((dates.load_date_end || dates.load_date)<loadingDayToday())
+    throw new Error('Период загрузки уже закончился');
+  return dates;
+}
+
 function openPostLoad(){
   if(!user){openAuth('register');return;}
   // Новый ключ идемпотентности для каждого открытия формы
   _postLoadIdempotencyKey = _genUUID();
   document.getElementById('postSuccess').style.display='none';
-  const d=new Date(); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0');
-  document.getElementById('pDate').value=`${d.getFullYear()}-${mm}-${dd}`;
+  _editingLoadId=null;
+  const postButton=document.querySelector('#postOverlay .btn-primary');
+  if(postButton) { postButton.disabled=false;postButton.onclick=doPostLoad; }
+  document.getElementById('pDate').value=loadingDayToday();
+  document.getElementById('pDate').min=loadingDayToday();
   document.getElementById('pDate2').value='';
   // БАГ-FORM-2 fix: дефолтная цена 350 (совпадает с placeholder)
   const _priceEl=document.getElementById('pPrice'); if(_priceEl&&!_priceEl.value) _priceEl.value='350';
@@ -2134,7 +2148,10 @@ function doPostLoad(){
   const rawDate=document.getElementById('pDate').value;
   const rawDate2=document.getElementById('pDate2').value;
   function toDisplay(s){if(!s)return null;const[y,m,d]=s.split('-');return `${d}.${m}.${y.slice(2)}`;}
-  const loadDate=toDisplay(rawDate)||'28.03.26';
+  let loadingDates;
+  try { loadingDates=readPostLoadingDates(); }
+  catch(e) { showToastWarn(e.message);if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS.ru).btn_post_submit||'Разместить груз';}return; }
+  const loadDate=toDisplay(rawDate);
   const loadDate2=rawDate2?toDisplay(rawDate2):null;
   const cur = scope==='intl' ? '$' : '₾';
   // БАГ-FORM-3 fix: считаем расстояние по прямой если есть координаты обоих городов
@@ -2146,7 +2163,7 @@ function doPostLoad(){
     const _dist=Math.round(6371*2*Math.atan2(Math.sqrt(_a),Math.sqrt(1-_a)));
     kmVal = '~' + _dist + ' км';
   }
-  const newLoad={id:Date.now(),from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,urgent,scope:scope==='intl'?'intl':'local',desc,co:user.name,rat:'5.0',trips:0,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:currentUserId};
+  const newLoad={id:Date.now(),from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:scope==='intl'?'intl':'local',desc,co:user.name,rat:'5.0',trips:0,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:currentUserId};
 
   LOCAL.unshift(newLoad);
   window.allLoads=[...LOCAL,...INTL];
@@ -2513,13 +2530,14 @@ let _editingLoadId = null;
 function editMyLoad(id){
   const load = _myLoads.find(l=>l.id===id) || LOCAL.find(l=>l.id===id);
   if(!load) return;
-  _editingLoadId = id;
+
 
   // Закрываем модал груза перед открытием формы редактирования
   if(typeof closeModal === 'function') closeModal('cargoOverlay');
 
   // Открываем форму размещения с данными груза
   if(typeof openPostLoad === 'function') openPostLoad();
+  _editingLoadId=id;
 
   setTimeout(()=>{
     const fill = (elId, val) => { const el=document.getElementById(elId); if(el&&val!=null) el.value=val; };
@@ -2529,7 +2547,13 @@ function editMyLoad(id){
     fill('pPrice',    load.price);
     fill('pDesc',     load.desc);
     fill('pPay',      load.pay);
-    if(load.urgent) document.getElementById('pUrgent').checked=true;
+    fill('pTruck',    load.type);
+    fill('pDate',     load.load_date || loadDateISO(load.date));
+    fill('pDate2',    load.load_date_end || loadDateISO(load.date2) || '');
+    document.getElementById('pDate').min=load.load_date || loadDateISO(load.date) || loadingDayToday();
+    addrSelected.pFrom={city:load.from};
+    addrSelected.pTo={city:load.to};
+    document.getElementById('pUrgent').checked=!!load.urgent;
 
     // Меняем заголовок и кнопку
     const title = document.querySelector('#postOverlay .modal-title');
@@ -2540,60 +2564,59 @@ function editMyLoad(id){
   }, 300);
 }
 
-function saveEditedLoad(){
+
+async function saveEditedLoad(){
   if(!_editingLoadId) return doPostLoad();
-
-  const fromAddr=document.getElementById('pFromAddr').value||'Адрес не указан';
-  const toAddr=document.getElementById('pToAddr').value||'Адрес не указан';
-  const from=addrSelected.pFrom?.city||fromAddr.split(',')[0]||'Тбилиси';
-  const to=addrSelected.pTo?.city||toAddr.split(',')[0]||'Батуми';
-  const kg=parseInt(document.getElementById('pWeight').value)||5000;
-  const price=parseInt(document.getElementById('pPrice').value)||350;
-  // БАГ-FORM-1 fix в saveEditedLoad: берём value напрямую (уже API enum)
-  const truckTypeEdit = document.getElementById('pTruck').value || 'tent';
-  const _pTruckEdEl = document.getElementById('pTruck');
-  const truckLabelEdit = _pTruckEdEl.options[_pTruckEdEl.selectedIndex]?.text || 'Тент';
-  const desc=document.getElementById('pDesc').value||'';
-  const pay=document.getElementById('pPay').value;
-  const urgent=document.getElementById('pUrgent').checked;
-  const rawDate=document.getElementById('pDate').value;
-  const rawDate2=document.getElementById('pDate2').value;
-  function toDisplay(s){if(!s)return null;const[y,m,d]=s.split('-');return`${d}.${m}.${y.slice(2)}`;}
-
-  // Обновляем в LOCAL
-  const lidx=LOCAL.findIndex(l=>l.id===_editingLoadId);
-  if(lidx>-1){
-    LOCAL[lidx]={...LOCAL[lidx],from,to,kg,price,type:truckTypeEdit,typeLabel:truckLabelEdit,desc,pay,urgent,
-      date:toDisplay(rawDate)||LOCAL[lidx].date,
-      date2:rawDate2?toDisplay(rawDate2):null,
-      from2:fromAddr,to2:toAddr};
+  const original=_myLoads.find(l=>l.id===_editingLoadId)
+    || LOCAL.find(l=>l.id===_editingLoadId) || INTL.find(l=>l.id===_editingLoadId);
+  const serverId=original && (original.serverId || (original.fromServer ? original.id : null));
+  if(!serverId || !getToken()){
+    showToastWarn('Войдите в аккаунт и загрузите объявление перед редактированием');
+    return;
   }
-  // Обновляем в _myLoads
-  const midx=_myLoads.findIndex(l=>l.id===_editingLoadId);
-  if(midx>-1){
-    _myLoads[midx]={..._myLoads[midx],from,to,kg,price,type:truckTypeEdit,typeLabel:truckLabelEdit,desc,pay,
-      date:toDisplay(rawDate)||_myLoads[midx].date,
-      date2:rawDate2?toDisplay(rawDate2):null};
-  }
-
-  window.allLoads=[...LOCAL,...INTL];
-  persistMyLoads();
-  _editingLoadId=null;
-
-  // Восстанавливаем форму
-  const title=document.querySelector('#postOverlay .modal-title');
-  if(title) title.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_post_title||'📦 Разместить груз';
   const btn=document.querySelector('#postOverlay .btn-primary');
-  if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';btn.onclick=doPostLoad;}
-
-  document.getElementById('postSuccess').style.display='block';
-  setTimeout(()=>{
+  if(btn && btn.disabled) return;
+  let dates;
+  try { dates=readPostLoadingDates(); }
+  catch(e) { showToastWarn(e.message); return; }
+  const fromAddr=document.getElementById('pFromAddr').value.trim();
+  const toAddr=document.getElementById('pToAddr').value.trim();
+  const updates={
+    from:addrSelected.pFrom?.city || fromAddr.split(',')[0].trim(),
+    to:addrSelected.pTo?.city || toAddr.split(',')[0].trim(),
+    from2:fromAddr,to2:toAddr,
+    kg:Number(document.getElementById('pWeight').value),
+    price:Number(document.getElementById('pPrice').value),cur:original.cur || '₾',
+    type:document.getElementById('pTruck').value || 'tent',
+    desc:document.getElementById('pDesc').value,
+    pay:document.getElementById('pPay').value,
+    urgent:document.getElementById('pUrgent').checked,...dates
+  };
+  if(!updates.from || !updates.to || !Number.isFinite(updates.kg) || updates.kg<=0
+      || !Number.isFinite(updates.price) || updates.price<=0){
+    showToastWarn('Проверьте маршрут, вес и цену');return;
+  }
+  if(btn) btn.disabled=true;
+  try {
+    const result=await CaucasAPI.updateLoad(serverId,updates);
+    if(!result.ok) { showToastWarn(result.error || 'Не удалось сохранить изменения'); return; }
+    const changed={...original,...result.load};
+    for(const list of [LOCAL,INTL,_myLoads]){
+      const i=list.findIndex(l=>l.id===_editingLoadId || l.serverId===serverId);
+      if(i!==-1) list[i]={...changed,id:list[i].id,serverId};
+    }
+    window.allLoads=[...LOCAL,...INTL];
+    persistMyLoads();
+    _editingLoadId=null;
     closeModal('postOverlay');
     renderLoads(scope==='local'?LOCAL:INTL);
-    _renderOrders();
-  },1000);
+    if(typeof _renderOrders==='function') _renderOrders();
+  } catch(e) {
+    showToastWarn('Нет соединения. Изменения не сохранены');
+  } finally {
+    if(btn) btn.disabled=false;
+  }
 }
-
 
 
 // ── FILTER ─────────────────────────────────────────────
@@ -2640,6 +2663,7 @@ function filterLoads(){
     data=data.filter(d=>d.price>=pMin&&d.price<=pMax);
   }
 
+  data=filterLoadingDates(data,loadingDateRange());
   renderLoads(data);
   document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
 
@@ -4979,78 +5003,53 @@ function updateFormForIntl(){
 }
 
 // ── DATE FILTER ────────────────────────────────────────
-function filterByDate(val){
-  var pop = document.getElementById('datePeriodPop');
-  if(val === 'pick'){
-    // Показываем попап периода
-    if(pop){ pop.style.display = pop.style.display==='none' ? 'block' : 'none'; }
-    return;
-  }
-  // Закрываем попап если открыт
-  if(pop) pop.style.display='none';
-  if(!val){ filterLoads(); return; }
-  var data = scope==='local' ? [...LOCAL] : [...INTL];
-  if(val==='today') data = data.filter(function(d){ return d.date==='today'; });
-  else if(val==='tomorrow') data = data.filter(function(d){ return d.date==='tomorrow'; });
-  else if(val==='week') data = data.filter(function(d){ return d.date; });
-  renderLoads(data);
-  document.getElementById('fcount').textContent = data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
+
+function loadingDateRange(){
+  const value=document.getElementById('fDate')?.value || '';
+  const today=loadingDayToday();
+  if(value==='today') return [today,today];
+  if(value==='tomorrow') { const day=shiftLoadingDay(today,1); return [day,day]; }
+  if(value==='week') return [today,shiftLoadingDay(today,6)];
+  if(value==='pick_range') return [
+    document.getElementById('fDateFrom')?.value || null,
+    document.getElementById('fDateTo')?.value || null
+  ];
+  return null;
 }
-
-function applyDatePeriod(){
-  var fromStr = document.getElementById('fDateFrom').value;
-  var toStr   = document.getElementById('fDateTo').value;
-  document.getElementById('datePeriodPop').style.display = 'none';
-
-  if(!fromStr && !toStr){ filterLoads(); return; }
-
-  var fromDate = fromStr ? new Date(fromStr) : null;
-  var toDate   = toStr   ? new Date(toStr)   : null;
-  if(toDate) toDate.setHours(23,59,59);
-
-  // Форматируем метку в select
-  var label = '📅 ';
-  if(fromStr && toStr) label += fromStr.split('-').reverse().join('.') + ' – ' + toStr.split('-').reverse().join('.');
-  else if(fromStr) label += 'с ' + fromStr.split('-').reverse().join('.');
-  else label += 'по ' + toStr.split('-').reverse().join('.');
-  var sel = document.getElementById('fDate');
-  var opt = sel.querySelector('option[value="pick_range"]');
-  if(!opt){ opt = document.createElement('option'); opt.value='pick_range'; sel.appendChild(opt); }
-  opt.textContent = label;
-  sel.value = 'pick_range';
-
-  var data = scope==='local' ? [...LOCAL] : [...INTL];
-  data = data.filter(function(d){
-    if(!d.date) return false;
-    // Конвертируем d.date в Date
-    var today = new Date(); today.setHours(0,0,0,0);
-    var tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-    var loadDate;
-    if(d.date==='today') loadDate = today;
-    else if(d.date==='tomorrow') loadDate = tomorrow;
-    else {
-      // dd.mm.yy или dd.mm.yyyy
-      var parts = d.date.split('.');
-      if(parts.length===3){
-        var y = parts[2].length===2 ? '20'+parts[2] : parts[2];
-        loadDate = new Date(y+'-'+parts[1]+'-'+parts[0]);
-      }
-    }
-    if(!loadDate) return false;
-    if(fromDate && loadDate < fromDate) return false;
-    if(toDate   && loadDate > toDate)   return false;
-    return true;
+function filterLoadingDates(data,range){
+  if(!range) return data;
+  return data.filter(function(d){
+    try {
+      const start=loadDateISO(d.load_date || d.date);
+      const end=loadDateISO(d.load_date_end || d.date2) || start;
+      return start && (!range[0] || end>=range[0]) && (!range[1] || start<=range[1]);
+    } catch(e) { return false; }
   });
-  renderLoads(data);
-  document.getElementById('fcount').textContent = data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
 }
-
+function filterByDate(val){
+  const pop=document.getElementById('datePeriodPop');
+  if(val==='pick') { if(pop) pop.style.display=pop.style.display==='none'?'block':'none'; return; }
+  if(pop) pop.style.display='none';
+  filterLoads();
+}
+function applyDatePeriod(){
+  const fromStr=document.getElementById('fDateFrom').value;
+  const toStr=document.getElementById('fDateTo').value;
+  if(fromStr && toStr && toStr<fromStr) { showToastWarn('Дата окончания не может быть раньше даты начала'); return; }
+  document.getElementById('datePeriodPop').style.display='none';
+  const sel=document.getElementById('fDate');
+  if(!fromStr && !toStr) { sel.value=''; filterLoads(); return; }
+  let opt=sel.querySelector('option[value="pick_range"]');
+  if(!opt) { opt=document.createElement('option');opt.value='pick_range';sel.appendChild(opt); }
+  opt.textContent=(fromStr?displayLoadingDay(fromStr):'…')+' — '+(toStr?displayLoadingDay(toStr):'…');
+  sel.value='pick_range';
+  filterLoads();
+}
 function clearDatePeriod(){
-  document.getElementById('fDateFrom').value = '';
-  document.getElementById('fDateTo').value   = '';
-  document.getElementById('datePeriodPop').style.display = 'none';
-  var sel = document.getElementById('fDate');
-  sel.value = '';
+  document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';
+  document.getElementById('datePeriodPop').style.display='none';
+  document.getElementById('fDate').value='';
   filterLoads();
 }
 
@@ -6531,6 +6530,8 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 };
 
 function renderTransportOffers() {
+  var count = document.getElementById('transportCount');
+  if(count) count.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix);
   var _rtoT0 = performance.now();
   console.log('[T] renderTransportOffers start, offers:', _transportOffers.length, 'lang:', lang);
   var list = document.getElementById('transportList');
@@ -6549,7 +6550,7 @@ function renderTransportOffers() {
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var actionBtn = tk
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
-      : '<button onclick="openAuth(\'register\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
+      : '<button onclick="openAuth(\'login\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
     // null-guard: from_city/to_city/truck_type могут быть null
     var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city||''):o.from_city||'—');
@@ -6567,9 +6568,9 @@ function renderTransportOffers() {
     };
     var tt = o.truck_type ? o.truck_type.toLowerCase() : 'other';
     var tc = typeColors[tt] || typeColors.other;
-    var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(o.truck_type || '—') + '</span>';
+    var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(getTypeLabel(o.truck_type || 'other')) + '</span>';
 
-    var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'register\')"';
+    var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'login\')"';
     return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
 
       // ── ДЕСКТОП: grid по колонкам заголовка ──

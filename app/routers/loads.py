@@ -4,11 +4,15 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.models.user import User
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 # ADR-010: require_user из auth — проверяет is_deleted, is_active, password_changed_at
 from app.routers.auth import require_user
+
+from app.services.listing_freshness import (
+    current_load_conditions, date_is_current, loading_day, parse_loading_day,
+)
 
 router = APIRouter()
 
@@ -26,9 +30,22 @@ class LoadCreate(BaseModel):
     price_gel: Optional[float] = None
     payment_type: Optional[str] = None
     load_date: Optional[datetime] = None
-    load_date_end: Optional[str] = None   # дата конца интервала (строка dd.mm.yy)
+    load_date_end: Optional[datetime] = None
     is_urgent: bool = False
     company_name: Optional[str] = None   # название компании для отображения
+
+    @field_validator("load_date", "load_date_end", mode="before")
+    @classmethod
+    def validate_loading_day(cls, value):
+        return parse_loading_day(value)
+
+    @field_validator("from_city", "to_city")
+    @classmethod
+    def validate_city(cls, value):
+        value = value.strip()
+        if not value or len(value) > 100:
+            raise ValueError("Укажите город длиной от 1 до 100 символов")
+        return value
 
 class LoadUpdate(BaseModel):
     from_city: Optional[str] = None
@@ -42,8 +59,29 @@ class LoadUpdate(BaseModel):
     price_gel: Optional[float] = None
     payment_type: Optional[str] = None
     load_date: Optional[datetime] = None
-    load_date_end: Optional[str] = None
+    load_date_end: Optional[datetime] = None
     is_urgent: Optional[bool] = None
+
+    @field_validator("load_date", "load_date_end", mode="before")
+    @classmethod
+    def validate_loading_day(cls, value):
+        return parse_loading_day(value)
+
+    @field_validator("from_city", "to_city")
+    @classmethod
+    def validate_city(cls, value):
+        if value is None:
+            return value
+        return LoadCreate.validate_city(value)
+
+def validate_loading_period(start, end):
+    if start is None:
+        raise HTTPException(status_code=422, detail="Укажите дату загрузки")
+    if end is not None and loading_day(end) < loading_day(start):
+        raise HTTPException(status_code=422, detail="Дата окончания не может быть раньше даты начала")
+    if not date_is_current(end or start):
+        raise HTTPException(status_code=400, detail="load_date cannot be in the past")
+
 
 def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:  # noqa: E741
     """Конвертируем Load в dict для фронтенда."""
@@ -84,7 +122,10 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "urgent": load.is_urgent,
         "status": load.status.value if hasattr(load.status, 'value') else str(load.status),
         "badge": "urgent" if load.is_urgent else None,
-        "date": load.load_date.strftime("%d.%m.%y") if load.load_date else None,
+        "date": loading_day(load.load_date).strftime("%d.%m.%y") if load.load_date else None,
+        "date2": loading_day(load.load_date_end).strftime("%d.%m.%y") if load.load_date_end else None,
+        "load_date": loading_day(load.load_date).isoformat() if load.load_date else None,
+        "load_date_end": loading_day(load.load_date_end).isoformat() if load.load_date_end else None,
         "co": co,
         "rat": rat,
         "trips": trips,
@@ -112,7 +153,7 @@ async def get_loads(
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db)
 ):
-    q = select(Load).where(Load.status == LoadStatus.active)
+    q = select(Load).where(*current_load_conditions())
 
     if scope:
         q = q.where(Load.scope == scope)
@@ -155,14 +196,14 @@ async def create_load(data: LoadCreate, request: Request,
 
     # Проверяем лимит активных грузов по тарифу
     active_count_res = await db.execute(
-        select(func.count()).where(Load.user_id == user_id, Load.status == LoadStatus.active)
+        select(func.count()).where(Load.user_id == user_id, *current_load_conditions())
     )
     active_count = active_count_res.scalar_one()
     ok, limit_err = check_loads_limit(current_user, active_count)
     if not ok:
         raise HTTPException(status_code=403, detail=limit_err)
 
-    load_data = data.model_dump(exclude={"company_name", "load_date_end"})
+    load_data = data.model_dump(exclude={"company_name"})
 
     # Фикс 1: Серверная валидация веса и цены (P1 Cat4)
     w = load_data.get("weight_kg")
@@ -174,14 +215,8 @@ async def create_load(data: LoadCreate, request: Request,
         raise HTTPException(status_code=422, detail="Укажите цену груза (price_gel или price_usd > 0)")
 
     if not load_data.get("load_date"):
-        load_data["load_date"] = datetime.utcnow()
-    else:
-        # Трек 9: дата загрузки не может быть в прошлом (> 1 день назад)
-        ld = load_data["load_date"]
-        if hasattr(ld, 'replace'):
-            ld_naive = ld.replace(tzinfo=None) if ld.tzinfo else ld
-            if ld_naive < datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0):
-                raise HTTPException(status_code=400, detail="load_date cannot be in the past")
+        load_data["load_date"] = parse_loading_day(datetime.now(timezone.utc))
+    validate_loading_period(load_data["load_date"], load_data["load_date_end"])
 
     # Трек 9: нормализуем payment_type
     if load_data.get("payment_type"):
@@ -200,27 +235,6 @@ async def create_load(data: LoadCreate, request: Request,
         load_data["from_address"] = sanitize_text(load_data["from_address"], max_length=200)
     if load_data.get("to_address"):
         load_data["to_address"] = sanitize_text(load_data["to_address"], max_length=200)
-
-    # Фикс 2: Валидация date_end >= date_start (P1 Cat4)
-    if data.load_date_end:
-        try:
-            # Парсим dd.mm.yy или dd.mm.yyyy
-            parts = data.load_date_end.split(".")
-            if len(parts) == 3:
-                y = int(parts[2]) + 2000 if len(parts[2]) == 2 else int(parts[2])
-                from datetime import date as _date
-                date_end = _date(y, int(parts[1]), int(parts[0]))
-                date_start = load_data["load_date"]
-                if hasattr(date_start, 'date'):
-                    date_start = date_start.date()
-                elif hasattr(date_start, 'replace'):
-                    date_start = date_start.date() if hasattr(date_start, 'date') else date_start
-                if date_end < date_start:
-                    raise HTTPException(status_code=422, detail="Дата окончания не может быть раньше даты начала")
-        except HTTPException:
-            raise
-        except Exception:
-            pass  # невалидный формат — пропускаем
 
     # ADR-006: получаем курс NBG и заполняем обе валюты
     rate = await get_usd_gel_rate()
@@ -262,6 +276,23 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
     if current_status in ("canceled", "completed"):
         raise HTTPException(status_code=400, detail=f"Нельзя редактировать груз со статусом {current_status}")
     updates = data.model_dump(exclude_none=True)
+    date_fields = data.model_fields_set & {"load_date", "load_date_end"}
+    if date_fields:
+        if "load_date_end" in date_fields:
+            updates["load_date_end"] = data.load_date_end  # explicit null clears the period
+        start = data.load_date if "load_date" in date_fields else load.load_date
+        end = updates.get("load_date_end", load.load_date_end)
+        validate_loading_period(start, end)
+        # Renewing a hidden listing consumes a tariff slot just like creation.
+        was_current = date_is_current(load.load_date_end or load.load_date)
+        if not was_current and load.status == LoadStatus.active:
+            from app.services.plan_check import check_loads_limit
+            count = (await db.execute(select(func.count()).select_from(Load).where(
+                Load.user_id == user_id, Load.id != load_id, *current_load_conditions()
+            ))).scalar_one()
+            ok, limit_err = check_loads_limit(current_user, count)
+            if not ok:
+                raise HTTPException(status_code=403, detail=limit_err)
     # Фикс 1: Валидация при обновлении
     if "weight_kg" in updates:
         w = updates["weight_kg"]
@@ -273,7 +304,7 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
         if (new_gel or 0) <= 0 and (new_usd or 0) <= 0:
             raise HTTPException(status_code=422, detail="Укажите цену груза > 0")
     for k, v in updates.items():
-        if hasattr(load, k) and k != "load_date_end":
+        if hasattr(load, k):
             setattr(load, k, v)
     await db.commit()
     await db.refresh(load)
