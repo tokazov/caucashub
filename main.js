@@ -1897,6 +1897,12 @@ function backToStep1(){
     document.getElementById(id).classList.remove('selected');
   });
 }
+function applyCarrierProfileDefaults(profile, target){
+  if(!profile||!target) return;
+  if(Object.prototype.hasOwnProperty.call(profile,'truck_type')) target.truckType=profile.truck_type??'';
+  if(Object.prototype.hasOwnProperty.call(profile,'tonnage')) target.tonnage=profile.tonnage??'';
+}
+
 async function doLogin(){
   if(typeof CaucasAPI==='undefined'){
     showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_network||'Нет связи с сервером');return;
@@ -1948,6 +1954,7 @@ async function doLogin(){
         user.inn=d.inn||user.inn; user.orgType=d.org_type||user.orgType;
         user.city=d.city||user.city; user.phone=d.phone||user.phone;
         user.name=d.company_name||user.name;
+        applyCarrierProfileDefaults(d,user);
         _lsSet('ch_user',JSON.stringify(user));
       }
     }).catch(()=>{});
@@ -1985,9 +1992,10 @@ async function doRegister(){
   let userData={name,email,phone,role,inn,orgType,city,truckType,tonnage};
 
   if(typeof CaucasAPI!=='undefined'){
-    const r=await CaucasAPI.register({email,password:pass,name,phone,role,inn,orgType,city});
+    const r=await CaucasAPI.register({email,password:pass,name,phone,role,inn,orgType,city,truckType,tonnage});
     if(r.ok){
       userData={...userData,userId:r.user_id,token:r.token};
+      applyCarrierProfileDefaults(r,userData);
       currentUserId=r.user_id; // обновляем сразу
     } else {
       if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_register_submit||'Создать аккаунт';btn.disabled=false;}
@@ -2004,7 +2012,7 @@ async function doRegister(){
         const fieldName = first?.loc ? first.loc[first.loc.length - 1] : null;
         const msg422 = first?.msg || (typeof r.error==='string'?r.error:'Проверьте введённые данные');
         // Map backend field name → form element id
-        const fieldMap = { inn:'regInn',email:'regEmail',password:'regPass',name:'regName',company_name:'regName',phone:'regPhone' };
+        const fieldMap = { inn:'regInn',email:'regEmail',password:'regPass',name:'regName',company_name:'regName',phone:'regPhone',truck_type:'regTruckType',tonnage:'regTonnage' };
         const inputId = fieldMap[fieldName] || ('reg' + (fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : ''));
         const inputEl = document.getElementById(inputId);
         if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input', function(){ inputEl.classList.remove('input-error'); }, {once: true}); }
@@ -5110,7 +5118,7 @@ function openSettings(){
     const sotAll=document.getElementById('sOrgTypeAll'); if(sotAll) sotAll.value=user.orgType||'';
     _sfill('sCityAll', user.city);
     const sot=document.getElementById('sOrgType'); if(sot&&user.orgType) sot.value=user.orgType;
-    const stt=document.getElementById('sTruckType'); if(stt&&user.truckType) stt.value=user.truckType;
+    _sfill('sTruckType', user.truckType);
     _sfill('sTonnage', user.tonnage);
   }
   // Показываем поля перевозчика только для carrier/both
@@ -5193,7 +5201,7 @@ async function saveSettings(){
       if(r.status===422){
         const first=Array.isArray(data?.detail)?data.detail[0]:null;
         const field=first?.loc?.[first.loc.length-1];
-        const fieldMap={inn:['sInn','sInnAll'],org_type:['sOrgType','sOrgTypeAll'],city:['sCityAll'],company_name:['sName'],phone:['sPhone']};
+        const fieldMap={inn:['sInn','sInnAll'],org_type:['sOrgType','sOrgTypeAll'],city:['sCityAll'],company_name:['sName'],phone:['sPhone'],truck_type:['sTruckType'],tonnage:['sTonnage']};
         const candidates=(fieldMap[field]||[]).map(id=>document.getElementById(id)).filter(Boolean);
         const input=candidates.find(el=>el.getClientRects().length>0);
         if(input){
@@ -5218,7 +5226,8 @@ async function saveSettings(){
     if(!user){ user = {}; }
     user.name=data.company_name||user.name||'Пользователь';
     user.phone=data.phone; user.telegram=tg; user.role=role;
-    user.inn=data.inn; user.orgType=data.org_type; user.truckType=truckType; user.tonnage=tonnage; user.city=data.city;
+    user.inn=data.inn; user.orgType=data.org_type; user.city=data.city;
+    applyCarrierProfileDefaults(data,user);
     _lsSet('ch_user',JSON.stringify(user));
 
     // Обновляем UI
@@ -5556,6 +5565,7 @@ try{
             user.inn = d.inn || _savedUser.inn;
             user.plan = d.plan || _savedUser.plan;
             user.userId = d.id || _savedUser.userId;
+            applyCarrierProfileDefaults(d,user);
             currentUserId = Number(d.id || _savedUser.userId);
             _lsSet('ch_user',JSON.stringify(user));
             showUserState();

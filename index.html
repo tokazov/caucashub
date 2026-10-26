@@ -515,7 +515,7 @@
             </div>
             <div class="form-group">
               <label>Грузоподъёмность (т)</label>
-              <input class="form-input" type="number" id="regTonnage" placeholder="20">
+              <input class="form-input" type="number" id="regTonnage" min="0.001" max="100" step="0.001" placeholder="20">
             </div>
           </div>
         </div>
@@ -877,7 +877,7 @@
         </div>
         <div class="form-group">
           <label>Грузоподъёмность (т)</label>
-          <input class="form-input" type="number" id="sTonnage" placeholder="20">
+          <input class="form-input" type="number" id="sTonnage" min="0.001" max="100" step="0.001" placeholder="20">
         </div>
       </div>
     </div>
@@ -1002,8 +1002,8 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=20261026-flow"></script>
-<script src="main.js?v=20261026-flow"></script>
+<script src="api.js?v=carrier-defaults-1"></script>
+<script src="main.js?v=carrier-defaults-1"></script>
 <script src="ai-dispatcher.js?v=1775415853"></script>
 
 <div id="notifPanel" style="display:none;position:fixed;top:54px;right:8px;width:320px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);z-index:500;max-height:400px;overflow-y:auto">

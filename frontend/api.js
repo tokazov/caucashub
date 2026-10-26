@@ -83,10 +83,13 @@ const CaucasAPI = {
       inn:      inn      || null,
       org_type: orgType  || null,
       city:     city     || null,
+      truck_type: truckType || null,
+      tonnage: tonnage === '' ? null : (tonnage ?? null),
     });
     if(r.ok && r.data?.token){
       setToken(r.data.token);
-      return { ok: true, token: r.data.token, user_id: r.data.user_id };
+      return { ok: true, token: r.data.token, user_id: r.data.user_id,
+        truck_type:r.data.truck_type, tonnage:r.data.tonnage };
     }
     return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
@@ -182,10 +185,6 @@ const CaucasAPI = {
   },
 
   async updateProfile({ company_name, phone, inn, org_type, city, lang, truck_type, tonnage }){
-    // CONTRACT-4: truck_type and tonnage sent to API for future backend support.
-    // NOTE: UpdateProfileRequest in users.py does NOT include these fields yet —
-    // they belong to Truck model, not User. Backend task required to support them.
-    // Fields are included here so saveSettings() can call updateProfile consistently.
     const body = {
       company_name: company_name || null,
       phone:        phone        || null,
@@ -194,9 +193,9 @@ const CaucasAPI = {
       city:         city         || null,
       lang:         lang         || null,
     };
-    // Include only if provided — backend ignores unknown fields via Pydantic extra='ignore'
-    if(truck_type !== undefined && truck_type !== null) body.truck_type = truck_type;
-    if(tonnage !== undefined && tonnage !== null) body.tonnage = tonnage;
+    // Undefined preserves a default; explicit null clears it.
+    if(truck_type !== undefined) body.truck_type = truck_type || null;
+    if(tonnage !== undefined) body.tonnage = tonnage === '' ? null : tonnage;
     const r = await apiRequest('PUT', '/api/users/me', body);
     return r.ok ? r.data : { ok: false, error: r.data?.detail };
   },

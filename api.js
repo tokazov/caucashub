@@ -83,10 +83,13 @@ const CaucasAPI = {
       inn:      inn      || null,
       org_type: orgType  || null,
       city:     city     || null,
+      truck_type: truckType || null,
+      tonnage: tonnage === '' ? null : (tonnage ?? null),
     });
     if(r.ok && r.data?.token){
       setToken(r.data.token);
-      return { ok: true, token: r.data.token, user_id: r.data.user_id };
+      return { ok: true, token: r.data.token, user_id: r.data.user_id,
+        truck_type:r.data.truck_type, tonnage:r.data.tonnage };
     }
     return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
@@ -181,15 +184,19 @@ const CaucasAPI = {
     return r.ok ? r.data : null;
   },
 
-  async updateProfile({ company_name, phone, inn, org_type, city, lang }){
-    const r = await apiRequest('PUT', '/api/users/me', {
+  async updateProfile({ company_name, phone, inn, org_type, city, lang, truck_type, tonnage }){
+    const body = {
       company_name: company_name || null,
       phone:        phone        || null,
       inn:          inn          || null,
       org_type:     org_type     || null,
       city:         city         || null,
       lang:         lang         || null,
-    });
+    };
+    // Undefined preserves a default; explicit null clears it.
+    if(truck_type !== undefined) body.truck_type = truck_type || null;
+    if(tonnage !== undefined) body.tonnage = tonnage === '' ? null : tonnage;
+    const r = await apiRequest('PUT', '/api/users/me', body);
     return r.ok ? r.data : { ok: false, error: r.data?.detail };
   },
 

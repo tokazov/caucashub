@@ -14,6 +14,8 @@ function form(path,reply){
  showToastWarn:m=>c.warnings.push(m),closeModal:id=>c.closed.push(id),_lsSet:(k,v)=>c.saved.push(v),pushNotif:(...x)=>c.notifs.push(x),setTimeout:()=>{}};
  vm.createContext(ctx);
  const src=readFileSync(new URL('../../../'+path,import.meta.url),'utf8'),a=src.indexOf('async function saveSettings(){');
+ const helper=src.indexOf('function applyCarrierProfileDefaults(');
+ vm.runInContext(src.slice(helper,src.indexOf('async function doLogin()',helper)),ctx);
  vm.runInContext(src.slice(a,src.indexOf('\nfunction _refreshAnalytics',a)),ctx);
  return {ctx,c,fields};
 }
@@ -23,8 +25,18 @@ for(const path of ['main.js','frontend/main.js']){
  let resolve;const {ctx,c}=form(path,()=>new Promise(r=>resolve=r));
  const p=ctx.saveSettings();await ctx.saveSettings();
  assert.equal(c.requests,1);assert.equal(c.closed.length,0);assert.equal(c.saved.length,0);assert.equal(ctx.user.name,'Before');
- resolve(response(200,{ok:true,id:7,company_name:'Server name',phone:'confirmed',inn:'123456789',org_type:'LLC',city:'Tbilisi'}));await p;
+ resolve(response(200,{ok:true,id:7,company_name:'Server name',phone:'confirmed',inn:'123456789',org_type:'LLC',city:'Tbilisi',truck_type:'ref',tonnage:3.5}));await p;
+ assert.equal(ctx.user.truckType,'ref');assert.equal(ctx.user.tonnage,3.5);
  assert.equal(ctx.user.name,'Server name');assert.equal(ctx.user.phone,'confirmed');assert.equal(c.closed.length,1);assert.equal(c.saved.length,1);assert.equal(c.notifs.length,1);
+ });
+ test(path+': confirmed clearing removes local carrier defaults',async()=>{
+ const {ctx,c}=form(path,response(200,{ok:true,id:7,truck_type:null,tonnage:null}));
+ ctx.user.truckType='tent';ctx.user.tonnage=20;await ctx.saveSettings();
+ assert.equal(ctx.user.truckType,'');assert.equal(ctx.user.tonnage,'');assert.equal(c.saved.length,1);
+ });
+ for(const field of ['truck_type','tonnage'])test(path+': highlights invalid '+field,async()=>{
+ const {ctx,c}=form(path,response(422,{detail:[{loc:['body',field],msg:'Invalid default'}]}));
+ await ctx.saveSettings();assert.equal(c.highlight,field==='truck_type'?'sTruckType':'sTonnage');assert.equal(c.closed.length,0);
  });
  for(const mode of ['edit','reopen','closed'])test(path+': late success preserves '+mode+' form',async()=>{
  let resolve;const {ctx,c,fields}=form(path,()=>new Promise(r=>resolve=r));const p=ctx.saveSettings();

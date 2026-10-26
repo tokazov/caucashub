@@ -964,7 +964,7 @@ window.loadYmapsLazy = function(cb, onError) {
             </div>
             <div class="form-group">
               <label data-i18n="reg_capacity_t">Грузоподъёмность (т)</label>
-              <input class="form-input" type="number" id="regTonnage" placeholder="20">
+              <input class="form-input" type="number" id="regTonnage" min="0.001" max="100" step="0.001" placeholder="20">
             </div>
           </div>
         </div>
@@ -1355,7 +1355,7 @@ window.loadYmapsLazy = function(cb, onError) {
         </div>
         <div class="form-group">
           <label><span data-i18n="None"><span data-i18n="reg_capacity_t"><span data-i18n="lbl_capacity">Грузоподъёмность (т)</span></span></span></label>
-          <input class="form-input" type="number" id="sTonnage" placeholder="20">
+          <input class="form-input" type="number" id="sTonnage" min="0.001" max="100" step="0.001" placeholder="20">
         </div>
       </div>
     </div>
@@ -1619,8 +1619,8 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261026-flow"></script>
-<script src="main.js?v=20261026-flow"></script>
+<script src="api.js?v=carrier-defaults-1"></script>
+<script src="main.js?v=carrier-defaults-1"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
