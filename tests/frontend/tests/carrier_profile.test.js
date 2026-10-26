@@ -286,3 +286,47 @@ for(const path of ['main.js','frontend/main.js']){
   assert.equal(h.calls.requests.length,1);assert.equal(h.calls.reads,2);
  });
 }
+
+
+for(const path of ['main.js','frontend/main.js']){
+ test(path+': a late login profile read preserves an explicitly cleared settings draft and null PUT',async()=>{
+  const {context,calls,fields,code}=app(path);
+  let resolveProfile;
+  const pendingProfile=new Promise(resolve=>{resolveProfile=resolve;});
+  const puts=[];
+  context.fetch=async(url,options={})=>{
+   if(options.method==='PUT'){
+    puts.push(JSON.parse(options.body));
+    return{ok:true,status:200,json:async()=>({ok:true,id:7,truck_type:null,tonnage:null})};
+   }
+   return pendingProfile;
+  };
+  let settingsOpen=false;
+  for(const id of ['sName','sEmail','sPhone','sTelegram','sRole','sInn','sInnAll','sOrgType','sOrgTypeAll','sCityAll','sTruckType','sTonnage']){
+   fields[id]={value:'',style:{},getClientRects:()=>[{}],
+    classList:{add(){},remove(){}},addEventListener(){},focus(){}};
+  }
+  fields.settingsOverlay={classList:{add:()=>{settingsOpen=true;},contains:()=>settingsOpen},
+   style:{},querySelector:()=>null};
+  Object.assign(context,{window:{innerWidth:1000},_setupCityAutocomplete(){},_initTgStatus(){},pushNotif(){},
+   closeModal:id=>{if(id==='settingsOverlay')settingsOpen=false;}});
+  context.document.createElement=()=>({style:{},remove(){}});
+  context.document.body={appendChild(){}};
+  const loginStart=code.indexOf('async function doLogin()');
+  vm.runInContext(code.slice(loginStart,code.indexOf('async function doRegister()',loginStart)),context);
+  const settingsStart=code.indexOf('function openSettings()');
+  vm.runInContext(code.slice(settingsStart,code.indexOf('function _refreshAnalytics()',settingsStart)),context);
+  await context.doLogin();calls.timers[0]();
+  // A pending server read may coexist with already known cached defaults.
+  context.user.truckType='tent';context.user.tonnage=12.5;
+  context.openSettings();assert.equal(fields.sTonnage.value,12.5);
+  fields.sTruckType.value='';fields.sTonnage.value='';
+  resolveProfile({ok:true,status:200,json:async()=>({id:7,truck_type:'tent',tonnage:12.5})});
+  await tick();
+  assert.equal(context.user.tonnage,12.5,'The profile read still hydrates its canonical cache');
+  assert.equal(fields.sTruckType.value,'');assert.equal(fields.sTonnage.value,'','Hydration must not overwrite an edited input');
+  await context.saveSettings();
+  assert.equal(puts.length,1);assert.equal(puts[0].truck_type,null);assert.equal(puts[0].tonnage,null);
+  assert.equal(context.user.truckType,'');assert.equal(context.user.tonnage,'');
+ });
+}

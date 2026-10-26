@@ -5155,7 +5155,10 @@ function trapFocus(modalEl) {
   };
   modalEl.addEventListener('keydown', modalEl._trapFocusHandler);
   // Move focus to the first focusable element
-  setTimeout(function() { first.focus(); }, 50);
+  setTimeout(function() {
+    if(!modalEl.isConnected || !modalEl.getClientRects().length || modalEl.contains(document.activeElement)) return;
+    first.focus();
+  }, 50);
 }
 window.trapFocus = trapFocus;
 
