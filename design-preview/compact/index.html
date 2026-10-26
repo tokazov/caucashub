@@ -1,0 +1,2663 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CaucasHub — компактный образец</title><style>:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 16px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans:
+    -apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI",
+    Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 8px);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 17 17'%3E%3Cpath d='M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z'/%3E%3C/svg%3E");
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html > body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-weight: var(--font-weight-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+  text-underline-offset: 2px;
+  font-weight: inherit;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+.table {
+  font-family: var(--font-sans);
+}
+
+h1 {
+  font-size: calc(var(--font-size-base) * 1.5);
+  line-height: 1.3333333333;
+}
+
+h2 {
+  font-size: calc(var(--font-size-base) * 1.25);
+  line-height: 1.4;
+}
+h3 {
+  font-size: calc(var(--font-size-base) * 1.125);
+  line-height: 1.5555555556;
+}
+h4 {
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+h5,
+h6 {
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+b,
+strong,
+th {
+  font-weight: 600;
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+pre,
+pre code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: calc(var(--font-size-base) * 0.875);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-family: var(--font-sans);
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.table :is(th, td):not(:last-child) {
+  padding-inline-end: calc(var(--font-size-base) * 1.5);
+}
+
+.table-responsive > .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead :is(th, td) {
+  border-bottom-color: var(--border-strong, var(--input));
+  padding-block: calc(var(--font-size-base) / 2);
+  line-height: var(--font-size-base);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+.table tbody :is(th, td) {
+  padding-block: calc(var(--font-size-base) * 0.625);
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 8px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align="right"]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align="center"]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget > :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  border: 1px solid var(--border);
+  corner-shape: var(--corner-shape);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-sans);
+  padding: 5px 12px;
+  border-color: color-mix(
+    in oklab,
+    light-dark(var(--primary-foreground), var(--foreground)) 5%,
+    transparent
+  );
+  border-radius: var(--radius-2xl);
+  color: light-dark(var(--primary-foreground), var(--foreground));
+  background: light-dark(var(--foreground), var(--popover));
+  box-shadow: 0 8px 18px rgb(15 23 42 / 20%);
+  letter-spacing: -0.15px;
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: color-mix(in srgb, var(--foreground) 40%, var(--muted-foreground));
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-family: var(--font-sans);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
+}
+
+small,
+.text-small {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls > .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls > .form-label > :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+/* Match inline alignment without overriding a containing flex or grid layout. */
+.btn,
+.nav-link,
+.form-control,
+.form-select,
+.form-range,
+.form-check {
+  vertical-align: middle;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: inherit;
+  font-family: var(--font-sans);
+  height: fit-content;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding-inline: var(--control-spacing, 12px);
+  border-color: transparent;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.btn {
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-link:not(:disabled):not([aria-disabled="true"]):hover {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.btn-primary {
+  border-color: var(--border);
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: border-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: border-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--muted-foreground);
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(> .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel > [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel > [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host's design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+/* Keep authored mockup button styles out of the shared carousel chrome. */
+.viz-carousel-controls button,
+.viz-carousel-picker > summary {
+  display: flex !important;
+  height: auto !important;
+  min-height: 30px;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px;
+  padding: 0 6px !important;
+  -webkit-app-region: no-drag;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: inherit !important;
+  background: transparent !important;
+  font: inherit !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls > button,
+.viz-carousel-picker > summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls > button {
+  --icon-size: 16px;
+  width: 30px !important;
+  padding: 0 !important;
+}
+
+.viz-carousel-picker > summary {
+  padding-inline: 12px !important;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls > button > svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls > button::before,
+.viz-carousel-picker > summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: "";
+  pointer-events: none;
+}
+
+.viz-carousel-controls > button:hover::before,
+.viz-carousel-picker > summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls > button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker > summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker > summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options > button {
+  border-radius: max(0px, calc(var(--radius-lg) - 5px)) !important;
+  width: 100% !important;
+  min-height: 28px;
+  justify-content: flex-start !important;
+  padding: 4px 8px !important;
+  font-size: var(--font-size-small) !important;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options > [aria-current="true"],
+.viz-carousel-options > button:hover {
+  background: var(--viz-carousel-hover) !important;
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding-inline: calc(4px + var(--control-spacing, 12px) / 2);
+  border-color: var(--input);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--popover) 96%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.4285714286;
+}
+.form-control:is(
+  [type="file"],
+  [type="date"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="week"],
+  [type="color"]
+) {
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  line-height: 18px;
+}
+.form-control:is(
+  [type="date"],
+  [type="datetime-local"],
+  [type="month"],
+  [type="week"]
+) {
+  padding-inline: var(--control-spacing, 12px);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type="file"] {
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+  padding: 0;
+}
+
+.form-control[type="file"]::file-selector-button {
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+  min-height: calc(10px + 2 * var(--control-spacing, 12px));
+  padding-inline: var(--control-spacing, 12px);
+  margin-inline-end: var(--control-spacing, 12px);
+}
+
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type="color"] {
+  width: 40px;
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  resize: vertical;
+  min-height: 96px;
+  padding: 8px 10px;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: none;
+}
+.form-control:disabled {
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  opacity: 1;
+}
+.form-control[aria-invalid="true"] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 20%, transparent);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: fit-content;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  margin: 0;
+  /* The secondary icon role is 14px at compact density and 16px at web density. */
+  --icon-size: calc(10px + var(--control-spacing, 12px) / 2);
+  /* Settings dropdowns retain a 12px inset and a 4px text-to-chevron gap. */
+  padding: 0 calc(16px + var(--icon-size)) 0 12px;
+  outline: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    );
+  background-position:
+    calc(100% - 12px - var(--icon-size) / 2) 50%,
+    calc(100% - 12px - var(--icon-size) * 0.18) 50%;
+  background-repeat: no-repeat;
+  background-size: calc(var(--icon-size) * 0.32) calc(var(--icon-size) * 0.32);
+  cursor: var(--cursor-interaction, default);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.form-select option {
+  color: var(--popover-foreground);
+  background-color: var(--popover);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.form-select:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.form-select:disabled {
+  opacity: 0.4;
+}
+
+.form-check {
+  display: flex;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+  corner-shape: round;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  width: calc(10px + var(--control-spacing, 12px) / 2);
+  height: calc(10px + var(--control-spacing, 12px) / 2);
+  border-color: var(--border-strong, var(--input));
+  border-radius: calc(var(--radius-sm) / 2);
+  background-color: transparent;
+  color: var(--foreground);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:is(:checked, :indeterminate) {
+  border-color: var(--border-strong, var(--input));
+  background-color: color-mix(in srgb, var(--popover) 96%, transparent);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: "";
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+  background-color: var(--foreground);
+}
+.form-check:not(.form-switch)
+  .form-check-input[type="checkbox"]:indeterminate::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 65%;
+  height: 6.65%;
+  margin: auto;
+  border-radius: var(--radius-full);
+  background: var(--foreground);
+  mask: none;
+  content: "";
+}
+
+.form-check-input[type="radio"] {
+  border-radius: var(--radius-full);
+  width: 16px;
+  height: 16px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--input);
+}
+
+.form-check-input[type="radio"]:checked {
+  border: 0;
+  background: radial-gradient(
+    circle,
+    var(--primary-foreground) 0 3px,
+    var(--foreground) 3px
+  );
+  box-shadow: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:focus-visible {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+.form-check:not(.form-switch) .form-check-input[type="radio"]:disabled,
+.form-check:not(.form-switch)
+  .form-check-input[type="radio"]:disabled
+  + .form-check-label {
+  opacity: 0.5;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  content: "";
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+  border-color: #fff;
+  background: #fff;
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--blue);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+  outline: none;
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--primary);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  outline: none;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: transparent;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  margin-top: -9px;
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Outline the native track and thumb, preserving the larger input hit area. */
+.form-range:focus-visible::-webkit-slider-runnable-track {
+  outline: 2px auto Highlight;
+  outline-color: -webkit-focus-ring-color;
+}
+
+.form-range::-moz-range-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid Highlight;
+  outline-offset: 2px;
+}
+
+.form-range:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed="true"],
+  [aria-selected="true"],
+  .is-selected
+) {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--blue);
+}
+
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Web recipes are the default, including on renderers without inline style queries. */
+@supports (border-radius: if(style(--corner-shape: round): 1px; else: 2px)) {
+  /* Match the host's proportional text-sm scale at every text preference. */
+  .tooltip,
+  .viz-badge,
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    font-size: if(
+      style(--corner-shape: round): round(
+          nearest,
+          calc(var(--font-size-base) * 14 / 16),
+          1px
+        );
+        else: round(nearest, calc(var(--font-size-base) * 13 / 14), 1px)
+    );
+  }
+
+  .btn,
+  .nav-link,
+  .form-select {
+    border-radius: if(
+      style(--corner-shape: round): var(--radius-full); else: var(--radius-lg)
+    );
+  }
+
+  .form-check:not(.form-switch) .form-check-input[type="checkbox"] {
+    border-radius: if(
+      style(--corner-shape: round): calc(var(--radius-sm) / 2);
+        else: calc(var(--radius-lg) * 0.4)
+    );
+  }
+
+  .tooltip {
+    font-weight: if(
+      style(--corner-shape: round): 600; else: var(--font-weight-normal)
+    );
+  }
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(> .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker > summary,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+  .form-control:is(
+    [type="file"],
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="week"],
+    [type="time"],
+    [type="color"]
+  ) {
+    height: 44px;
+    min-height: 44px;
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+
+  .form-control[type="file"]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type="color"] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type="date"],
+    [type="datetime-local"],
+    [type="month"],
+    [type="time"],
+    [type="week"]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: "";
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget > svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+ body{margin:0;padding:16px} #ch-compact-root{max-width:736px;margin:0 auto}</style></head><body><script>(() => {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia("(prefers-color-scheme: dark)");
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    "codex-visualization-widget-state",
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? "{}");
+  initialStateElement?.remove();
+  /** @type {Record<string, unknown> | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? "none";
+  let nextStateRequestId = 0;
+  /** @type {Map<number, { resolve: () => void; reject: (error: Error) => void; timeout: ReturnType<typeof globalThis.setTimeout>; serializedState: string }>} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =>
+    Object.assign(
+      new Error("The host could not persist the widget state update"),
+      {
+        code: -32000,
+        data: { code: "widget_state_persistence_failed", retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) => {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, "data");
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, "ports");
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, "source");
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) => {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) => {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost("open-external", { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) => {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost("follow-up", { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record<string, unknown> | ((previous: Record<string, unknown> | null) => Record<string, unknown>)} next
+   * @returns {Promise<void>}
+   */
+  const setWidgetState = async (next) => {
+    const nextState = typeof next === "function" ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== "object" ||
+      isArray(nextState)
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) => {
+        if (
+          typeof value === "undefined" ||
+          typeof value === "function" ||
+          typeof value === "symbol" ||
+          (typeof value === "number" && !Number.isFinite(value))
+        ) {
+          throw new TypeError("Widget state must be a JSON object");
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== "object" ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    if (
+      hasOwn(storedState, "imageIds") &&
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) => typeof id !== "string",
+        ))
+    ) {
+      throw new TypeError("Widget state imageIds must be an array of strings");
+    }
+    if (storedState.imageIds?.length > 0) {
+      throw Object.assign(
+        new TypeError("Visualization state does not support image attachments"),
+        { code: -32602, data: { code: "images_unsupported" } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent("openai:set_globals", {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === "none") {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) => {
+      const timeout = globalThis.setTimeout(() => {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost("widget-state-write", { id, state: serializedState });
+    });
+  };
+  const syncTheme = () => {
+    const theme = mediaQuery.matches ? "dark" : "light";
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: "none",
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent("openai:set_globals", {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () => {
+    postToHost("height", {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    "message",
+    (event) => {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== "object" ||
+        data?.type !== "codex-visualization-initialize" ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          "message",
+          (event) => {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === "object" && data?.type === "measure") {
+              sendHeight();
+            } else if (
+              typeof data === "object" &&
+              data?.type === "widget-state-result"
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== "number") {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost("widget-state-write", { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener("change", syncTheme);
+  globalThis.addEventListener("click", (event) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest("a[href]");
+    const href = link?.getAttribute("href");
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith("#")) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost("scroll-to", {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+</script><div id="ch-compact-root">
+<div class="ch-preview-note">Фирменный образец · демонстрационные объявления</div>
+<div class="viz-dotted-background ch-stage" data-design="cards" aria-label="Фирменный образец"></div>
+<template id="ch-compact-template">
+<div class="ch-app" aria-label="Компактная мобильная главная CaucasHub">
+<header class="ch-header"><a class="ch-logo" href="#">Caucas<span>Hub</span><small>.ge</small></a><nav class="ch-top-nav" aria-label="Разделы"><button class="ch-current" data-nav="Грузы">Грузы</button><button data-nav="Транспорт">Транспорт</button><button data-nav="Ставки">Ставки</button><button data-nav="Кабинет">Кабинет</button></nav><div class="ch-account"><button class="ch-language">RU <i data-lucide="chevron-down" aria-hidden="true"></i></button><button class="ch-login">Войти <i data-lucide="arrow-up-right" aria-hidden="true"></i></button></div></header>
+<main class="ch-main">
+<div class="ch-scope" role="group" aria-label="Направления"><button data-scope="local" aria-pressed="true">🇬🇪 По Грузии</button><button data-scope="intl" aria-pressed="false"><i data-lucide="globe-2" aria-hidden="true"></i> Международные</button></div>
+<div class="ch-title-row"><div><h1>Биржа грузов</h1><p>Подберите груз для своего транспорта</p></div><button class="ch-post"><i data-lucide="plus" aria-hidden="true"></i> Разместить груз</button></div>
+<form class="ch-search" aria-label="Поиск грузов">
+<div class="ch-search-grid">
+<label class="ch-field ch-from"><span>Откуда</span><div><i data-lucide="map-pin" aria-hidden="true"></i><input name="from" placeholder="Город отправления" autocomplete="off"></div></label>
+<button type="button" class="ch-swap" aria-label="Поменять маршрут местами"><i data-lucide="arrow-left-right" aria-hidden="true"></i></button>
+<label class="ch-field ch-to"><span>Куда</span><div><i data-lucide="map-pin" aria-hidden="true"></i><input name="to" placeholder="Город назначения" autocomplete="off"></div></label>
+<label class="ch-field"><span>Кузов</span><select name="body"><option value="">Любой кузов</option><option value="tent">Тент</option><option value="ref">Рефрижератор</option><option value="bort">Бортовой</option></select></label>
+<label class="ch-field"><span>Дата загрузки</span><select name="day"><option value="">Любая дата</option><option value="28">28 октября</option><option value="29">29 октября</option><option value="30">30 октября</option></select></label>
+<button class="ch-find" type="submit"><i data-lucide="search" aria-hidden="true"></i> Найти груз</button>
+</div>
+<div class="ch-search-bottom"><button type="button" class="ch-more" aria-expanded="false"><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Ещё фильтры <span class="ch-filter-dot" hidden></span></button><span class="ch-search-hint">Маршрут, дата и подходящий кузов</span><button type="button" class="ch-reset">Сбросить</button></div>
+<div class="ch-extra" hidden><label class="ch-field"><span>Грузоподъёмность</span><select name="weight"><option value="">Любой вес</option><option value="10">До 10 т</option><option value="20">До 20 т</option></select></label><label class="ch-field"><span>Стоимость перевозки</span><select name="price"><option value="">Любая стоимость</option><option value="1500">До 1 500 ₾</option><option value="2000">До 2 000 ₾</option></select></label></div>
+</form>
+<div class="ch-results-head"><div><h2>Доступные грузы</h2><span class="ch-count" role="status" aria-live="polite"></span></div><button class="ch-sort"><i data-lucide="arrow-down-wide-narrow" aria-hidden="true"></i> По дате загрузки</button></div>
+<div class="ch-demo-caption">Примеры объявлений для оценки дизайна</div><div class="ch-results"></div>
+<div class="ch-help"><span><i data-lucide="sparkles" aria-hidden="true"></i> Нужна помощь с поиском?</span><button class="ch-assistant">AI диспетчер <i data-lucide="arrow-right" aria-hidden="true"></i></button></div>
+<footer class="ch-footer"><span>CaucasHub.ge</span><div><button>Правила</button><button>Поддержка</button></div><span>© 2026</span></footer>
+</main>
+<nav class="ch-bottom-nav" aria-label="Мобильное меню"><button class="ch-current" data-nav="Грузы"><i data-lucide="package" aria-hidden="true"></i><span>Грузы</span></button><button data-nav="Транспорт"><i data-lucide="truck" aria-hidden="true"></i><span>Машины</span></button><button class="ch-bottom-post"><span class="ch-plus"><i data-lucide="plus" aria-hidden="true"></i></span><span>Разместить</span></button><button data-nav="Ставки"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Ставки</span></button><button data-nav="Кабинет"><i data-lucide="user-round" aria-hidden="true"></i><span>Кабинет</span></button></nav>
+<dialog class="ch-dialog"><div><h2></h2><button aria-label="Закрыть"><i data-lucide="x" aria-hidden="true"></i></button></div><p></p></dialog>
+</div>
+</template>
+</div>
+<style>
+#ch-compact-root{--ch-navy:#1b1f33;--ch-yellow:#f2bd3b;--ch-paper:#fff;--ch-bg:#f4f5f7;--ch-text:#22283a;--ch-muted:#697386;--ch-line:#e3e6ed;--ch-soft:#f0f2f6;color:var(--ch-text);font:14px/1.45 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#ch-compact-root *{box-sizing:border-box}#ch-compact-root [hidden]{display:none!important}
+#ch-compact-root .ch-preview-note{font-size:12px;color:light-dark(#626979,#b7bdcc);margin:0 0 12px}
+#ch-compact-root .ch-stage{min-height:1000px}
+#ch-compact-root .ch-app{background:var(--ch-bg);color:var(--ch-text);width:100%;overflow:clip;border-radius:14px;border:1px solid var(--ch-line);container-type:inline-size;box-shadow:0 12px 32px #151c3210}
+#ch-compact-root .ch-app.ch-phone{max-width:390px;margin:0 auto}
+#ch-compact-root button,#ch-compact-root input,#ch-compact-root select{font:inherit}
+#ch-compact-root button,#ch-compact-root a{cursor:var(--cursor-interaction,pointer)}
+#ch-compact-root button{border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:8px}
+#ch-compact-root svg{width:17px;height:17px;flex-shrink:0;stroke-width:1.7}
+#ch-compact-root .ch-header{min-height:70px;display:flex;align-items:center;gap:26px;padding:0 28px;background:var(--ch-navy);color:#e8eaf2}
+#ch-compact-root .ch-logo{color:#fff;white-space:nowrap;font-size:23px;font-weight:750;letter-spacing:-1.1px;text-decoration:none;line-height:1}
+#ch-compact-root .ch-logo span{color:var(--ch-yellow)}
+#ch-compact-root .ch-logo small{font-size:12px;letter-spacing:-.2px;color:#a6adbf;margin-left:2px;font-weight:500}
+#ch-compact-root .ch-top-nav{display:flex;gap:5px;align-self:stretch}
+#ch-compact-root .ch-top-nav button{border-radius:0;padding:0 10px;color:#b7bdce;font-size:13px;position:relative}
+#ch-compact-root .ch-top-nav .ch-current{color:#fff}
+#ch-compact-root .ch-top-nav .ch-current:after{content:"";height:3px;background:var(--ch-yellow);border-radius:4px 4px 0 0;position:absolute;bottom:0;left:10px;right:10px}
+#ch-compact-root .ch-account{margin-left:auto;display:flex;align-items:center;gap:18px}
+#ch-compact-root .ch-account button{min-height:40px;font-size:13px;padding:5px 0}
+#ch-compact-root .ch-language{color:#c4cad9}#ch-compact-root .ch-language svg{width:13px}
+#ch-compact-root .ch-login{font-weight:600;color:#fff!important}
+#ch-compact-root .ch-main{padding:22px 28px 0}
+#ch-compact-root .ch-scope{display:flex;align-items:center;gap:8px;margin-bottom:25px}
+#ch-compact-root .ch-scope button{font-size:13px;min-height:36px;padding:7px 14px;color:var(--ch-muted)}
+#ch-compact-root .ch-scope button[aria-pressed="true"]{background:var(--ch-paper);color:var(--ch-text);box-shadow:0 1px 4px #19233c12;font-weight:600}
+#ch-compact-root .ch-scope svg{width:15px;height:15px}
+#ch-compact-root .ch-title-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+#ch-compact-root h1,#ch-compact-root h2,#ch-compact-root p{margin:0}
+#ch-compact-root h1{font-size:26px;font-weight:650;line-height:1.25;letter-spacing:-.7px}
+#ch-compact-root .ch-title-row p{font-size:13px;color:var(--ch-muted);margin-top:5px}
+#ch-compact-root .ch-post{height:42px;border:1px solid #b4bac7;background:var(--ch-paper);padding:0 15px;font-size:13px;font-weight:600;white-space:nowrap}
+#ch-compact-root .ch-search{padding:18px;background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:12px}
+#ch-compact-root .ch-search-grid{display:grid;grid-template-columns:minmax(110px,1.2fr) 28px minmax(110px,1.2fr) minmax(115px,.9fr) minmax(115px,.9fr) 134px;gap:8px;align-items:end}
+#ch-compact-root .ch-field{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:12px;color:var(--ch-muted)}
+#ch-compact-root .ch-field>span{font-weight:500;padding-left:1px}
+#ch-compact-root .ch-field>div{display:flex;align-items:center;border:1px solid #d7dce6;background:var(--ch-paper);border-radius:7px;padding:0 10px;gap:6px;min-width:0;height:42px}
+#ch-compact-root .ch-field>div:focus-within{border-color:#727d99}
+#ch-compact-root .ch-field input{background:transparent;border:0;border-radius:3px;width:100%;min-width:0;padding:8px 0;color:var(--ch-text);font-size:13px;line-height:1.4}
+#ch-compact-root input::placeholder{color:#8a90a0;opacity:1}
+#ch-compact-root .ch-field select{border:1px solid #d7dce6;border-radius:7px;background:var(--ch-paper);height:42px;width:100%;min-width:0;padding:0 24px 0 10px;color:var(--ch-text);font-size:13px}
+#ch-compact-root .ch-swap{height:42px;color:#7e879a}#ch-compact-root .ch-swap:hover{background:var(--ch-soft)}
+#ch-compact-root .ch-find{height:42px;background:var(--ch-yellow);color:var(--ch-navy);font-size:13px;font-weight:650;border-radius:7px;white-space:nowrap;padding:0 12px}
+#ch-compact-root .ch-find:hover{background:#efb32b}
+#ch-compact-root .ch-search-bottom{display:flex;align-items:center;gap:16px;margin-top:15px}
+#ch-compact-root .ch-more{padding:0;min-height:28px;font-size:12px;font-weight:500}
+#ch-compact-root .ch-more svg{width:14px;height:14px}
+#ch-compact-root .ch-filter-dot{width:5px;height:5px;border-radius:50%;background:#b87800}
+#ch-compact-root .ch-search-hint{font-size:11px;color:#8a90a0}
+#ch-compact-root .ch-reset{font-size:12px;color:var(--ch-muted);margin-left:auto;min-height:28px;padding:0;text-decoration:underline;text-decoration-color:#c6cbd4;text-underline-offset:3px}
+#ch-compact-root .ch-extra{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:16px;margin-top:12px;border-top:1px solid var(--ch-line)}
+#ch-compact-root .ch-results-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:28px 0 8px}
+#ch-compact-root .ch-results-head>div{display:flex;align-items:center;gap:10px}
+#ch-compact-root h2{font-size:17px;font-weight:600;line-height:1.3;letter-spacing:-.25px}
+#ch-compact-root .ch-count{background:#e9ecf2;color:#596174;font-size:12px;min-width:25px;padding:2px 7px;border-radius:6px;text-align:center}
+#ch-compact-root .ch-sort{font-size:12px;min-height:32px;color:var(--ch-muted);padding:0}
+#ch-compact-root .ch-sort svg{width:14px;height:14px}
+#ch-compact-root .ch-demo-caption{font-size:11px;color:var(--ch-muted);margin-bottom:14px}
+#ch-compact-root .ch-list{background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:10px;overflow:clip}
+#ch-compact-root .ch-table-labels,#ch-compact-root .ch-item-body{display:grid;grid-template-columns:minmax(175px,1.6fr) minmax(100px,1fr) minmax(100px,.9fr) minmax(100px,.9fr) 97px;gap:12px;align-items:center;padding:16px 18px}
+#ch-compact-root .ch-table-labels{font-size:11px;color:#7d8597;letter-spacing:.3px;background:#fafbfc;padding-top:11px;padding-bottom:11px}
+#ch-compact-root .ch-table-labels span:nth-child(4){text-align:right}
+#ch-compact-root .ch-item+.ch-item{border-top:1px solid var(--ch-line)}
+#ch-compact-root .ch-route{min-width:0}
+#ch-compact-root .ch-route>div{font-size:14px;font-weight:600;display:flex;gap:7px;align-items:center;flex-wrap:wrap;line-height:1.4;overflow-wrap:anywhere}
+#ch-compact-root .ch-route svg{width:14px;color:#8891a4}
+#ch-compact-root .ch-route>span{display:block;font-size:11px;color:var(--ch-muted);margin-top:5px}
+#ch-compact-root .ch-spec strong,#ch-compact-root .ch-date-value strong{font-size:12px;font-weight:500;display:block}
+#ch-compact-root .ch-spec span,#ch-compact-root .ch-date-value span{font-size:11px;color:var(--ch-muted);display:block;margin-top:3px}
+#ch-compact-root .ch-price{text-align:right;font-size:16px;font-weight:650;letter-spacing:-.3px;font-variant-numeric:tabular-nums;line-height:1.2}
+#ch-compact-root .ch-price.ch-agreed{font-size:12px;font-weight:500;letter-spacing:0;line-height:1.4}
+#ch-compact-root .ch-price small{display:block;font-weight:400;color:var(--ch-muted);font-size:11px;letter-spacing:0;margin-top:4px}
+#ch-compact-root .ch-open{border:1px solid #d7dce6;font-size:11px;height:36px;padding:0 9px;background:var(--ch-paper);width:100%}
+#ch-compact-root .ch-open:hover{background:var(--ch-soft)}
+#ch-compact-root .ch-open svg{width:13px;height:13px}
+#ch-compact-root .ch-item-detail{display:flex;gap:24px;flex-wrap:wrap;padding:14px 18px;background:#fafbfc;border-top:1px dashed var(--ch-line);font-size:12px}
+#ch-compact-root .ch-item-detail span{color:var(--ch-muted);display:block;font-size:11px;margin-bottom:4px}
+#ch-compact-root .ch-item-detail strong{font-weight:500}
+#ch-compact-root .ch-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:transparent;border:0;overflow:visible}
+#ch-compact-root .ch-cards .ch-table-labels{display:none}
+#ch-compact-root .ch-cards .ch-item{background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:10px;overflow:clip}
+#ch-compact-root .ch-cards .ch-item-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:18px}
+#ch-compact-root .ch-cards .ch-route{grid-column:1/-1}
+#ch-compact-root .ch-cards .ch-route>div{font-size:16px}
+#ch-compact-root .ch-cards .ch-spec{grid-column:1}
+#ch-compact-root .ch-cards .ch-date-value{grid-column:2}
+#ch-compact-root .ch-cards .ch-price{grid-column:1;text-align:left;align-self:center}
+#ch-compact-root .ch-cards .ch-open{grid-column:2;justify-self:end;max-width:120px;height:36px}
+#ch-compact-root .ch-empty{padding:44px 20px;text-align:center;background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:10px}
+#ch-compact-root .ch-empty>svg{width:30px;height:30px;color:#8993a7;margin-bottom:12px}
+#ch-compact-root .ch-empty h3{font-size:17px;font-weight:600;margin:0 0 7px}
+#ch-compact-root .ch-empty p{color:var(--ch-muted);font-size:13px;max-width:330px;margin:0 auto 16px}
+#ch-compact-root .ch-empty button{font-size:13px;text-decoration:underline;text-underline-offset:3px}
+#ch-compact-root .ch-help{display:flex;align-items:center;justify-content:center;gap:14px;margin:24px 0;color:var(--ch-muted);font-size:12px}
+#ch-compact-root .ch-help>span{display:flex;align-items:center;gap:7px}
+#ch-compact-root .ch-help svg{width:14px;height:14px}
+#ch-compact-root .ch-assistant{color:#3c4764;padding:0;font-size:12px}
+#ch-compact-root .ch-footer{border-top:1px solid var(--ch-line);padding:18px 0;display:flex;align-items:center;gap:22px;color:#82899b;font-size:11px}
+#ch-compact-root .ch-footer>span:first-child{font-weight:600;color:#5b6479}
+#ch-compact-root .ch-footer>div{display:flex;gap:18px}
+#ch-compact-root .ch-footer>span:last-child{margin-left:auto}
+#ch-compact-root .ch-footer button{padding:0;font-size:11px;color:var(--ch-muted)}
+#ch-compact-root .ch-bottom-nav{display:none}
+#ch-compact-root .ch-dialog{background:var(--ch-paper);color:var(--ch-text);border:1px solid var(--ch-line);border-radius:14px;padding:22px;width:420px;max-width:calc(100% - 32px);box-shadow:0 20px 80px #151c3240}
+#ch-compact-root .ch-dialog::backdrop{background:#13182770}
+#ch-compact-root .ch-dialog>div{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
+#ch-compact-root .ch-dialog>div button{width:36px;height:36px;background:var(--ch-soft)}
+#ch-compact-root .ch-dialog p{font-size:14px;color:var(--ch-muted)}
+@container (max-width:760px){
+#ch-compact-root .ch-header{gap:14px;min-height:62px;padding:0 16px}
+#ch-compact-root .ch-logo{font-size:22px}
+#ch-compact-root .ch-top-nav{display:none}
+#ch-compact-root .ch-account{gap:14px}
+#ch-compact-root .ch-account button{min-height:44px;font-size:12px}
+#ch-compact-root .ch-login svg{display:none}
+#ch-compact-root .ch-main{padding:16px 16px 0}
+#ch-compact-root .ch-scope{gap:5px;margin-bottom:22px}
+#ch-compact-root .ch-scope button{flex:1;font-size:12px;padding:8px 6px;min-height:40px;white-space:nowrap}
+#ch-compact-root h1{font-size:24px}
+#ch-compact-root .ch-title-row{margin-bottom:18px}
+#ch-compact-root .ch-title-row p{font-size:12px}
+#ch-compact-root .ch-post{display:none}
+#ch-compact-root .ch-search{padding:14px;border-radius:10px}
+#ch-compact-root .ch-search-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 10px;position:relative}
+#ch-compact-root .ch-from,#ch-compact-root .ch-to{grid-column:1/-1}
+#ch-compact-root .ch-field{gap:6px}
+#ch-compact-root .ch-field>div{height:46px;padding:0 11px}
+#ch-compact-root .ch-field input{font-size:16px;padding:10px 0}
+#ch-compact-root .ch-field select{height:44px;font-size:14px;padding-left:9px}
+#ch-compact-root .ch-swap{position:absolute;right:5px;top:54px;z-index:1;width:44px;height:44px;background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:7px;transform:none}
+#ch-compact-root .ch-swap svg{transform:rotate(90deg)}
+#ch-compact-root .ch-from>div,#ch-compact-root .ch-to>div{padding-right:48px}
+#ch-compact-root .ch-find{grid-column:1/-1;width:100%;height:46px;font-size:15px}
+#ch-compact-root .ch-search-bottom{gap:8px;margin-top:10px;min-height:40px}
+#ch-compact-root .ch-more,#ch-compact-root .ch-reset{font-size:12px;min-height:40px}
+#ch-compact-root .ch-search-hint{display:none}
+#ch-compact-root .ch-extra{grid-template-columns:1fr;gap:14px}
+#ch-compact-root .ch-results-head{margin-top:24px;gap:10px}
+#ch-compact-root h2{font-size:17px}
+#ch-compact-root .ch-sort{font-size:11px;min-height:44px;max-width:110px;gap:4px;text-align:left;line-height:1.35}
+#ch-compact-root .ch-count{font-size:11px}
+#ch-compact-root .ch-list,#ch-compact-root .ch-cards{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;border:0;background:transparent;overflow:visible}
+#ch-compact-root .ch-table-labels{display:none}
+#ch-compact-root .ch-list .ch-item{background:var(--ch-paper);border:1px solid var(--ch-line);border-radius:10px;overflow:clip}
+#ch-compact-root .ch-list .ch-item-body{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px}
+#ch-compact-root .ch-list .ch-route{grid-column:1/-1}
+#ch-compact-root .ch-list .ch-route>div{font-size:16px;gap:7px}
+#ch-compact-root .ch-list .ch-route>span{font-size:11px;margin-top:6px}
+#ch-compact-root .ch-list .ch-spec{grid-column:1}
+#ch-compact-root .ch-list .ch-date-value{grid-column:2}
+#ch-compact-root .ch-list .ch-spec strong,#ch-compact-root .ch-list .ch-date-value strong{font-size:13px}
+#ch-compact-root .ch-list .ch-price{grid-column:1;text-align:left;font-size:18px;align-self:center}
+#ch-compact-root .ch-list .ch-price.ch-agreed{font-size:13px}
+#ch-compact-root .ch-list .ch-open{grid-column:2;justify-self:end;max-width:130px;min-height:44px;font-size:12px}
+#ch-compact-root .ch-item-detail{gap:16px;padding:14px 16px}
+#ch-compact-root .ch-help{flex-direction:column;gap:3px;margin:22px 0 16px;font-size:12px}
+#ch-compact-root .ch-assistant{min-height:44px;font-size:13px}
+#ch-compact-root .ch-footer{font-size:11px;gap:10px;flex-wrap:wrap;padding:16px 0 20px}
+#ch-compact-root .ch-footer>div{gap:12px}
+#ch-compact-root .ch-footer button{min-height:36px;font-size:11px}
+#ch-compact-root .ch-bottom-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--ch-navy);color:#b5bdcf;min-height:76px;padding:9px 4px 10px;gap:0;border-top:1px solid #30364a}
+#ch-compact-root .ch-bottom-nav>button{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:11px;min-height:52px;padding:0;border-radius:4px}
+#ch-compact-root .ch-bottom-nav svg{width:20px;height:20px}
+#ch-compact-root .ch-bottom-nav .ch-current{color:var(--ch-yellow)}
+#ch-compact-root .ch-bottom-post{color:#fff}
+#ch-compact-root .ch-plus{display:flex;align-items:center;justify-content:center;width:32px;height:27px;border-radius:7px;background:var(--ch-yellow);color:var(--ch-navy)}
+#ch-compact-root .ch-plus svg{width:21px;height:21px}
+}
+@container (max-width:350px){
+#ch-compact-root .ch-header{padding:0 12px;gap:10px}
+#ch-compact-root .ch-logo{font-size:20px}
+#ch-compact-root .ch-account{gap:9px}
+#ch-compact-root .ch-main{padding:14px 12px 0}
+#ch-compact-root .ch-search{padding:11px}
+#ch-compact-root .ch-results-head{flex-wrap:wrap}
+#ch-compact-root .ch-sort{max-width:none}
+#ch-compact-root .ch-footer>span:last-child{display:none}
+}
+#ch-compact-root .ch-stage{min-height:0;padding:12px 0}
+#ch-compact-root .ch-app{max-width:390px;margin:0 auto;color-scheme:light;--ch-card-gap:6px;--ch-corner:8px;box-shadow:0 8px 26px #1118270e}
+#ch-compact-root .ch-header{min-height:58px}
+#ch-compact-root .ch-main{padding:12px 12px 0}
+#ch-compact-root .ch-scope{margin-bottom:16px}
+#ch-compact-root .ch-scope button{min-height:44px;border-radius:var(--ch-corner)}
+#ch-compact-root .ch-scope button[aria-pressed="true"]{background:var(--ch-navy);color:#fff;box-shadow:none}
+#ch-compact-root .ch-title-row{margin-bottom:14px}
+#ch-compact-root h1{font-size:23px}
+#ch-compact-root .ch-title-row p{margin-top:3px}
+#ch-compact-root .ch-search{padding:12px;border-radius:10px;border-color:#dce2eb}
+#ch-compact-root .ch-search-grid{gap:8px 10px}
+#ch-compact-root .ch-field{gap:4px;color:#59657a}
+#ch-compact-root .ch-field>div,#ch-compact-root .ch-field select{min-height:44px;height:44px;border-color:#cdd5e2;border-radius:var(--ch-corner);background:#fff}
+#ch-compact-root .ch-field>div:focus-within{border-color:#6f7c96;box-shadow:0 0 0 2px #1b1f330a}
+#ch-compact-root input::placeholder{color:#7b8597}
+#ch-compact-root .ch-field select{font-size:14px}
+#ch-compact-root .ch-find{height:44px;min-height:44px;border:1px solid #e4ac26;border-radius:var(--ch-corner);font-weight:650;color:#1b1f33;box-shadow:0 1px 2px #1b1f330a}
+#ch-compact-root .ch-swap{border-color:#cdd5e2;border-radius:var(--ch-corner)}
+#ch-compact-root .ch-search-bottom{margin-top:6px;min-height:44px}
+#ch-compact-root .ch-more,#ch-compact-root .ch-reset{min-height:44px;color:#44506a}
+#ch-compact-root .ch-results-head{margin:20px 0 6px}
+#ch-compact-root .ch-sort{min-height:44px}
+#ch-compact-root .ch-demo-caption{margin-bottom:8px}
+#ch-compact-root .ch-list{gap:8px}
+#ch-compact-root .ch-list .ch-item{border-color:#dce2eb;border-radius:var(--ch-corner)}
+#ch-compact-root .ch-list .ch-item-body{padding:10px 12px;gap:var(--ch-card-gap) 10px}
+#ch-compact-root .ch-list .ch-route>div{font-size:15px;line-height:1.3;gap:6px}
+#ch-compact-root .ch-list .ch-route>span{font-size:12px;line-height:1.25;margin-top:2px}
+#ch-compact-root .ch-list .ch-spec strong,#ch-compact-root .ch-list .ch-date-value strong{font-size:13px;line-height:1.25}
+#ch-compact-root .ch-list .ch-spec span,#ch-compact-root .ch-list .ch-date-value span{font-size:12px;line-height:1.25;margin-top:1px}
+#ch-compact-root .ch-list .ch-price{font-size:16px;line-height:1.2;letter-spacing:-.2px}
+#ch-compact-root .ch-list .ch-price.ch-agreed{font-size:13px;line-height:1.25}
+#ch-compact-root .ch-list .ch-price small{font-size:11px;line-height:1.25;margin-top:2px}
+#ch-compact-root .ch-list .ch-open{min-height:44px;height:44px;width:112px;min-width:110px;max-width:none;padding:0 9px;border-color:#c4cedf;border-radius:var(--ch-corner);color:#24304b;font-size:12px;font-weight:500;background:#fff;gap:5px}
+#ch-compact-root .ch-list .ch-open:hover{background:#f2f4f8;border-color:#8d9ab3}
+#ch-compact-root .ch-item-detail{padding:10px 12px;gap:12px}
+#ch-compact-root .ch-help{margin:14px 0 10px}
+#ch-compact-root .ch-footer{padding:12px 0 14px}
+#ch-compact-root .ch-bottom-nav{min-height:68px;padding:7px 4px 9px}
+#ch-compact-root .ch-bottom-nav>button{min-height:44px}
+</style>
+<script>
+(function(){
+const root=document.getElementById('ch-compact-root'),template=document.getElementById('ch-compact-template');
+const saved=window.openai?.widgetState?.modelContent||{};
+const data={local:[
+{id:'1048',from:'Тбилиси',to:'Батуми',type:'tent',body:'Тент',weight:20,day:'28',price:1600,cargo:'Паллетированный груз',loading:'Задняя загрузка',payment:'Безналичный расчёт'},
+{id:'1047',from:'Кутаиси',to:'Телави',type:'ref',body:'Рефрижератор',weight:7.5,day:'29',price:null,cargo:'Продукты питания',loading:'Задняя загрузка',payment:'Условия обсуждаются'},
+{id:'1046',from:'ფოთი',to:'რუსთავი',type:'bort',body:'Бортовой',weight:12,day:'30',price:1200,cargo:'Строительные материалы',loading:'Верхняя загрузка',payment:'Безналичный расчёт'}
+],intl:[
+{id:'2048',from:'Тбилиси',to:'Владикавказ',type:'tent',body:'Тент',weight:20,day:'28',price:3000,cargo:'Паллетированный груз',loading:'Задняя загрузка',payment:'Условия обсуждаются'},
+{id:'2047',from:'Батуми',to:'Ереван',type:'bort',body:'Бортовой',weight:10,day:'29',price:1800,cargo:'Строительные материалы',loading:'Верхняя загрузка',payment:'Безналичный расчёт'}
+]};
+const controllers=[];
+const icon=name=>'<i data-lucide="'+name+'" aria-hidden="true"></i>';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const normalize=s=>s.toLowerCase().trim().replace(/ё/g,'е').replace('ფოთი','поти').replace('რუსთავი','рустави').replace('თბილისი','тбилиси').replace('ბათუმი','батуми').replace('ქუთაისი','кутаиси').replace('თელავი','телави');
+function icons(){if(globalThis.lucide)lucide.createIcons({attrs:{width:17,height:17}});}
+function persist(){if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{designs:controllers.map(c=>({variant:c.variant,view:c.state.view,empty:c.state.empty,gap:c.state.gap,radius:c.state.radius,scope:c.scope()}))}}).catch(()=>{});}
+root.querySelectorAll('.ch-stage').forEach((stage,index)=>{
+ stage.appendChild(template.content.cloneNode(true));
+ const app=stage.querySelector('.ch-app'),form=app.querySelector('form'),results=app.querySelector('.ch-results'),dialog=app.querySelector('dialog');
+ const state={view:'phone',empty:!!saved.designs?.[index]?.empty,gap:Math.max(4,Math.min(10,Number(saved.designs?.[index]?.gap)||6)),radius:Math.max(6,Math.min(12,Number(saved.designs?.[index]?.radius)||8))};
+ let scope=saved.designs?.[index]?.scope==='intl'?'intl':'local',reverse=false;
+ const fields=name=>form.elements.namedItem(name);
+ function openDialog(title,text){dialog.querySelector('h2').textContent=title;dialog.querySelector('p').textContent=text;dialog.showModal();icons();}
+ function reset(){form.reset();state.empty=false;render();persist();}
+ function render(){
+  app.classList.add('ch-phone');
+  app.style.setProperty('--ch-card-gap',state.gap+'px');app.style.setProperty('--ch-corner',state.radius+'px');
+  app.querySelectorAll('[data-scope]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scope===scope)));
+  fields('from').placeholder=scope==='local'?'Город отправления':'Город или страна';
+  fields('to').placeholder=scope==='local'?'Город назначения':'Город или страна';
+  let rows=data[scope].filter(d=>(!fields('from').value||normalize(d.from).includes(normalize(fields('from').value)))&&(!fields('to').value||normalize(d.to).includes(normalize(fields('to').value)))&&(!fields('body').value||d.type===fields('body').value)&&(!fields('day').value||d.day===fields('day').value)&&(!fields('weight').value||d.weight<=Number(fields('weight').value))&&(!fields('price').value||d.price!==null&&d.price<=Number(fields('price').value)));
+  if(state.empty)rows=[];if(reverse)rows=rows.slice().reverse();
+  const count=app.querySelector('.ch-count');count.textContent=String(rows.length);count.setAttribute('aria-label','Найдено грузов: '+rows.length);
+  app.querySelector('.ch-filter-dot').hidden=!fields('weight').value&&!fields('price').value;
+  if(!rows.length){results.innerHTML='<div class="ch-empty">'+icon('search-x')+'<h3>Грузов не найдено</h3><p>Попробуйте другой маршрут или измените условия поиска.</p><button type="button">Сбросить фильтры</button></div>';results.querySelector('button').onclick=reset;icons();return;}
+  results.innerHTML='<div class="ch-list '+(stage.dataset.design==='cards'?'ch-cards':'')+'"><div class="ch-table-labels"><span>Маршрут</span><span>Кузов и вес</span><span>Загрузка</span><span>Стоимость</span><span></span></div>'+rows.map(d=>'<article class="ch-item" aria-label="'+esc(d.from+' — '+d.to)+'"><div class="ch-item-body"><div class="ch-route"><div><span>'+esc(d.from)+'</span>'+icon('arrow-right')+'<span>'+esc(d.to)+'</span></div><span>'+esc(d.cargo)+' · № '+d.id+'</span></div><div class="ch-spec"><strong>'+esc(d.body)+'</strong><span>'+String(d.weight).replace('.',',')+' т</span></div><div class="ch-date-value"><strong>'+d.day+' октября</strong><span>Дата загрузки</span></div><div class="ch-price '+(d.price===null?'ch-agreed':'')+'">'+(d.price===null?'По договорённости':d.price.toLocaleString('ru-RU')+' ₾')+'<small>за перевозку</small></div><button type="button" class="ch-open" aria-expanded="false" aria-controls="ch-detail-'+index+'-'+d.id+'">Подробнее '+icon('chevron-down')+'</button></div><div class="ch-item-detail" id="ch-detail-'+index+'-'+d.id+'" hidden><div><span>Загрузка</span><strong>'+esc(d.loading)+'</strong></div><div><span>Оплата</span><strong>'+esc(d.payment)+'</strong></div><div><span>Отправитель</span><strong>Пример компании</strong></div></div></article>').join('')+'</div>';
+  results.querySelectorAll('.ch-open').forEach(b=>b.onclick=()=>{const panel=b.closest('article').querySelector('.ch-item-detail');panel.hidden=!panel.hidden;b.setAttribute('aria-expanded',String(!panel.hidden));});icons();
+ }
+ form.onsubmit=e=>{e.preventDefault();render();persist();};
+ app.querySelector('.ch-reset').onclick=reset;
+ app.querySelector('.ch-swap').onclick=()=>{const value=fields('from').value;fields('from').value=fields('to').value;fields('to').value=value;render();};
+ app.querySelector('.ch-more').onclick=e=>{const panel=app.querySelector('.ch-extra');panel.hidden=!panel.hidden;e.currentTarget.setAttribute('aria-expanded',String(!panel.hidden));};
+ app.querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{scope=b.dataset.scope;fields('from').value='';fields('to').value='';render();persist();});
+ app.querySelector('.ch-sort').onclick=()=>{reverse=!reverse;app.querySelector('.ch-sort').innerHTML=icon('arrow-down-wide-narrow')+(reverse?'Сначала поздние':'По дате загрузки');render();};
+ const post=()=>openDialog('Разместить груз','Укажите маршрут, характеристики груза, дату загрузки и стоимость перевозки.');
+ app.querySelector('.ch-post').onclick=post;app.querySelector('.ch-bottom-post').onclick=post;
+ app.querySelector('.ch-login').onclick=()=>openDialog('Вход в CaucasHub','Личный кабинет отправителя и перевозчика.');
+ app.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{if(b.dataset.nav==='Грузы')return;const text={'Транспорт':'Предложения перевозчиков, типы кузовов и направления.','Ставки':'Стоимость перевозок по направлениям.','Кабинет':'Ваши объявления, отклики и настройки профиля.'};openDialog(b.dataset.nav,text[b.dataset.nav]);});
+ app.querySelector('.ch-language').onclick=()=>openDialog('Язык интерфейса','Русский · ქართული');
+ app.querySelector('.ch-assistant').onclick=()=>openDialog('AI диспетчер','Какой груз вы ищете? Укажите направление и характеристики транспорта.');
+ app.querySelectorAll('.ch-footer button').forEach(b=>b.onclick=()=>openDialog(b.textContent,b.textContent==='Правила'?'Согласуйте маршрут, стоимость и условия перевозки с контрагентом.':'Поможем с поиском и размещением объявления.'));
+ app.querySelector('.ch-logo').onclick=e=>{e.preventDefault();reset();};
+ dialog.querySelector('button').onclick=()=>dialog.close();
+ controllers.push({variant:stage.dataset.design,state,scope:()=>scope,render});render();
+ if(globalThis.Tweak){const tweak=new Tweak({container:app,onChange:()=>{render();persist();}});tweak.addSlider(state,'gap',{label:'Интервал строк карточки',min:4,max:10,unit:'px'});tweak.addSlider(state,'radius',{label:'Скругление форм и кнопок',min:6,max:12,unit:'px'});}
+});
+window.addEventListener('openai:set_globals',event=>{const incoming=event.detail?.globals?.widgetState?.modelContent;if(!incoming?.designs)return;controllers.forEach((c,i)=>{const s=incoming.designs[i];if(!s)return;c.state.gap=Math.max(4,Math.min(10,Number(s.gap)||6));c.state.radius=Math.max(6,Math.min(12,Number(s.radius)||8));c.state.empty=!!s.empty;c.render();});});
+icons();
+})();
+</script>
+
+
+<script src="https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js"></script>
+<script src="https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js"></script>
+<script>
+(() => {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) => {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest("[data-tooltip]");
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =>
+    target?.nodeType != null && trigger.contains(target);
+  const getContent = (trigger) =>
+    trigger.getAttribute("data-tooltip")?.trim() ?? "";
+  const getPlacement = (trigger) => {
+    const placement = trigger.getAttribute("data-tooltip-placement");
+    return tooltipPlacements.has(placement) ? placement : "top";
+  };
+  const getTooltip = () => {
+    if (tooltip == null) {
+      tooltip = document.createElement("div");
+      tooltip.id = tooltipId;
+      tooltip.className = "tooltip";
+      tooltip.setAttribute("role", "tooltip");
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) => {
+    const ids = new Set(
+      (trigger.getAttribute("aria-describedby") ?? "")
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute("aria-describedby");
+    } else {
+      trigger.setAttribute("aria-describedby", [...ids].join(" "));
+    }
+  };
+  const clearOpenTimeout = () => {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) => {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) => {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              "--tooltip-available-width",
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              "--tooltip-available-height",
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: "fixed",
+    })
+      .then(({ x, y }) => {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = "visible";
+      })
+      .catch(() => {
+        if (activeTrigger === trigger && request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) => {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = "hidden";
+    floating.style.transform = "translate(0, 0)";
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () => {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) => {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() < skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() => {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) => {
+    lastPointerWasTouch =
+      event.type === "pointerdown" && event.pointerType === "touch";
+  };
+  const handleTouchClick = (event) => {
+    const isTouch = event.pointerType === "touch" || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch && activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() => {
+      if (activeTrigger === trigger && !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) => {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) => {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(":focus-visible")) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) => {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) => {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) => {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll("*")) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) => {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) => {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host && !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger && !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () => {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () => {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener("pagehide", destroy, { once: true });
+})();
+</script>
+<script id="codex-visualization-tabs">
+(() => {
+  const selector = '.nav[role="tablist"] [role="tab"]';
+  const disabled = ':disabled,[aria-disabled="true"]';
+  const selectTab = (selected) => {
+    const panelId = selected.getAttribute("aria-controls");
+    for (const tab of selected.closest('[role="tablist"]').querySelectorAll('[role="tab"]')) {
+      const active = tab === selected;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", String(active));
+      const id = tab.getAttribute("aria-controls");
+      const panel = id && document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden && selected.id) {
+          panel.setAttribute("aria-labelledby", selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) => {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === "click") {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]'),
+    ).filter((candidate) => !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll('.nav[role="tablist"]')) {
+    const selected =
+      list.querySelector('[role="tab"][aria-selected="true"]') ??
+      list.querySelector('[role="tab"].active') ??
+      list.querySelector('[role="tab"]');
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener("click", interact);
+  document.addEventListener("keydown", interact);
+  window.addEventListener("pagehide", () => {
+    document.removeEventListener("click", interact);
+    document.removeEventListener("keydown", interact);
+  }, { once: true });
+})();
+</script>
+<script id="codex-visualization-carousel">
+  (() => {
+    for (const root of document.querySelectorAll(".viz-carousel")) {
+      const panels = Array.from(
+        root.querySelectorAll(":scope > [data-variant]"),
+      );
+      if (panels.length === 0) {
+        continue;
+      }
+      root.setAttribute("role", "group");
+      panels.forEach((panel, index) => {
+        panel.hidden = index !== 0;
+        panel.setAttribute("role", "group");
+        if (!panel.hasAttribute("aria-label")) {
+          panel.setAttribute("aria-label", panel.dataset.variant);
+        }
+      });
+      root.dataset.activeVariant = panels[0].dataset.variant;
+      if (panels.length === 1) {
+        continue;
+      }
+
+      const controls = document.createElement("div");
+      controls.className = "viz-carousel-controls";
+      // Portable copy of the settings dropdown's legacy glyph; no 14px icon-package preset matches it.
+      // https://github.com/openai/openai/blob/master/codex/codex-apps/webview/src/icons/chevron.svg
+      controls.innerHTML = `
+      <button type="button" class="viz-carousel-previous cursor-interaction"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+      <details class="viz-carousel-picker">
+        <summary class="cursor-interaction">
+          <span class="viz-carousel-count tabular-nums"></span>
+          <span class="viz-carousel-name"></span>
+          <svg class="viz-carousel-caret" width="14" height="14" viewBox="0 0 20 21" fill="none" aria-hidden="true" focusable="false">
+            <path d="M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z" fill="currentColor" stroke="currentColor" stroke-width="0.6" />
+          </svg>
+        </summary>
+        <div class="viz-carousel-options"></div>
+      </details>
+      <button type="button" class="viz-carousel-next cursor-interaction"><i data-lucide="chevron-right" aria-hidden="true"></i></button>`;
+      const previous = controls.querySelector(".viz-carousel-previous");
+      const next = controls.querySelector(".viz-carousel-next");
+      const picker = controls.querySelector(".viz-carousel-picker");
+      const summary = picker.querySelector("summary");
+      const count = controls.querySelector(".viz-carousel-count");
+      const name = controls.querySelector(".viz-carousel-name");
+      const options = controls.querySelector(".viz-carousel-options");
+      const status = document.createElement("span");
+      status.className = "sr-only";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      status.setAttribute("aria-atomic", "true");
+      previous.setAttribute(
+        "aria-label",
+        root.dataset.previousLabel ?? "Previous variant",
+      );
+      next.setAttribute("aria-label", root.dataset.nextLabel ?? "Next variant");
+
+      let active = 0;
+      let mousePointerId = null;
+      let summaryPointerHandled = false;
+      summary.addEventListener("pointerdown", (event) => {
+        summaryPointerHandled =
+          event.pointerType === "mouse" && event.button === 0 && !event.ctrlKey;
+        if (!summaryPointerHandled) {
+          return;
+        }
+        event.preventDefault();
+        summary.focus({ preventScroll: true });
+        picker.open = !picker.open;
+        mousePointerId = picker.open ? event.pointerId : null;
+      });
+      summary.addEventListener("click", (event) => {
+        if (summaryPointerHandled && event.detail > 0) {
+          event.preventDefault();
+        }
+      });
+      const choices = panels.map((panel, index) => {
+        const choice = document.createElement("button");
+        choice.type = "button";
+        choice.className = "cursor-interaction";
+        choice.textContent = panel.dataset.variant;
+        choice.addEventListener("click", () => {
+          select(index);
+          summary.focus();
+        });
+        choice.addEventListener("pointerup", (event) => {
+          if (
+            picker.open &&
+            event.pointerType === "mouse" &&
+            event.button === 0 &&
+            event.pointerId === mousePointerId
+          ) {
+            choice.click();
+          }
+        });
+        options.appendChild(choice);
+        return choice;
+      });
+      const select = (index) => {
+        const changed = active !== index;
+        active = index;
+        panels.forEach((panel, position) => {
+          panel.hidden = position !== active;
+          choices[position].setAttribute(
+            "aria-current",
+            String(position === active),
+          );
+        });
+        root.dataset.activeVariant = panels[active].dataset.variant;
+        count.textContent = `${active + 1} / ${panels.length}`;
+        name.textContent = panels[active].dataset.variant;
+        picker.open = false;
+        mousePointerId = null;
+        if (changed) {
+          status.textContent = `${count.textContent}: ${name.textContent}`;
+        }
+      };
+      previous.addEventListener("click", () =>
+        select((active + panels.length - 1) % panels.length),
+      );
+      next.addEventListener("click", () =>
+        select((active + 1) % panels.length),
+      );
+      picker.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && picker.open) {
+          event.preventDefault();
+          picker.open = false;
+          mousePointerId = null;
+          summary.focus();
+          return;
+        }
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+        const index = choices.indexOf(document.activeElement);
+        let nextIndex;
+        if (event.key === "ArrowDown") {
+          nextIndex = index < 0 ? active : (index + 1) % choices.length;
+        } else if (event.key === "ArrowUp") {
+          nextIndex = index < 0 ? active : (index + choices.length - 1) % choices.length;
+        } else if (picker.open && event.key === "Home") {
+          nextIndex = 0;
+        } else if (picker.open && event.key === "End") {
+          nextIndex = choices.length - 1;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        picker.open = true;
+        choices[nextIndex].focus();
+      });
+      picker.addEventListener("focusout", (event) => {
+        if (!picker.contains(event.relatedTarget)) {
+          picker.open = false;
+          mousePointerId = null;
+        }
+      });
+      const dismiss = (event) => {
+        if (!summary.contains(event.target)) {
+          mousePointerId = null;
+        }
+        if (!picker.contains(event.target)) {
+          picker.open = false;
+        }
+      };
+      const endPointerSelection = () => {
+        mousePointerId = null;
+      };
+      const sizePicker = () => {
+        root.style.setProperty(
+          "--viz-carousel-picker-height",
+          `${picker.open ? options.offsetHeight : 0}px`,
+        );
+      };
+      picker.addEventListener("toggle", sizePicker);
+      window.addEventListener("resize", sizePicker);
+      document.addEventListener("pointerdown", dismiss);
+      document.addEventListener("pointerup", endPointerSelection);
+      document.addEventListener("pointercancel", endPointerSelection);
+      window.addEventListener("blur", endPointerSelection);
+      window.addEventListener(
+        "pagehide",
+        () => {
+          document.removeEventListener("pointerdown", dismiss);
+          document.removeEventListener("pointerup", endPointerSelection);
+          document.removeEventListener("pointercancel", endPointerSelection);
+          window.removeEventListener("blur", endPointerSelection);
+          window.removeEventListener("resize", sizePicker);
+        },
+        { once: true },
+      );
+      root.append(controls, status);
+      select(0);
+    }
+  })();
+</script>
+<script id="codex-visualization-lucide" async src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"></script>
+<script>
+(() => {
+  const initialize = () => {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById("codex-visualization-lucide")
+    ?.addEventListener("load", initialize, { once: true });
+})();
+</script>
+</body></html>
