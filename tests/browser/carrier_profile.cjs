@@ -249,7 +249,7 @@ async function journey(configuration, index) {
     await waitForFixture();
     browser = await chromium.launch({
       headless: true,
-      args: ['--disable-background-networking', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost']
+      args: ['--disable-background-networking', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']
     });
     const configurations = [
       { name: 'desktop', width: 1280, height: 900, mobile: false },
