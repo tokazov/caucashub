@@ -21,6 +21,24 @@ syntax checks and browser-logic tests in UTC and Pacific/Kiritimati.
 It uses test-only credentials and never connects to production databases.
 Existing publication-timestamp and transport-render regressions are included.
 
+## Hosting verified on 26 October 2026
+
+- Railway project: caucashub, environment production, service api.
+- Source: tokazov/caucashub, branch master, builder RAILPACK (not Nixpacks).
+- Current start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT.
+- Current pre-deploy command: empty. nixpacks.toml is not the active migration mechanism.
+- Production PostgreSQL image: postgres-ssl:18; CI now also uses PostgreSQL 18.
+- Current API health check returned HTTP 200 with database, loads, geocoder and dictionaries OK.
+- Current rollback deployment: bd246f7c-b92e-4fb1-aded-6f8530349079 (commit 1d5de50).
+- The API service has no mounted volume, so a local pg_dump in an API build container
+  must not be treated as a confirmed durable backup.
+
+For this release, stage `python -m scripts.prepare_loading_period` as the Railway
+pre-deploy command (120-second timeout) and `/health` as the healthcheck path.
+The gate applies revision 020 alone with bounded PostgreSQL lock/statement timeouts
+and verifies the column before the deployment may proceed. It does not stamp or
+replay the historical Alembic chain. Normalizing that chain needs a separate audit.
+
 ## Deployment order
 
 1. Confirm the actual Railway service/branch and Cloudflare project/output path.
