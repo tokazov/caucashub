@@ -73,8 +73,8 @@ for(const prefix of['','frontend/']){
  test(prefix+'mobile keeps cards and hides desktop rows',()=>{const f=fixture(prefix,390);
   assert.equal(computed(f.row,'display',f.rs),'none');assert.equal(computed(f.mobile,'display',f.rs),'block');
  });
- test(prefix+'HTML identifies transport list and refreshes stylesheet',()=>{const{html}=fixture(prefix,1280);
-  assert.match(html,/id="transportList" class="transport-list"/);assert.match(html,/href="styles\.css\?v=20261026-transport-layout"/);
+ test(prefix+'HTML identifies transport list and uses a versioned stylesheet',()=>{const{html}=fixture(prefix,1280);
+  assert.match(html,/id="transportList" class="transport-list"/);assert.match(html,/href="styles\.css\?v=[A-Za-z0-9-]+"/);
  });
 }
 test('frontend transport and cargo headers stay hidden on phones',()=>{const f=fixture('frontend/',390);

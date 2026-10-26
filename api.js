@@ -217,6 +217,7 @@ function decodeJwtUserId(token){
 
 // ── SYNC: загружаем грузы с сервера при старте ────────
 async function syncLoadsFromServer(){
+  var syncFailed=false;
   window._loadsLoading = true;
   try {
     // Определяем currentUserId из токена
@@ -275,9 +276,16 @@ async function syncLoadsFromServer(){
       }
     }
   } catch(e) {
+    syncFailed=true;
     console.warn('[syncLoads]', e);
   } finally {
     window._loadsLoading = false;
+    // A successful empty search must finish with an empty state, not a spinner.
+    var currentLoads=scope==='local'?LOCAL:INTL;
+    if(!syncFailed&&typeof renderLoads==='function'&&
+      (!currentLoads.length||(typeof filterLoadData==='function'&&!filterLoadData(currentLoads).length))){
+      renderLoads(currentLoads);
+    }
     // После загрузки грузов — восстанавливаем сохранённую вкладку
     if(!window._tabRestored){
       window._tabRestored = true;

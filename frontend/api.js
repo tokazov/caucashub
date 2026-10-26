@@ -225,6 +225,7 @@ function decodeJwtUserId(token){
 
 // ── SYNC: загружаем грузы с сервера при старте ────────
 async function syncLoadsFromServer(){
+  var syncFailed=false;
   window._loadsLoading = true;
   try {
     // Определяем currentUserId из токена
@@ -283,12 +284,19 @@ async function syncLoadsFromServer(){
       }
     }
   } catch(e) {
+    syncFailed=true;
     console.warn('[syncLoads]', e);
     // БАГ-7: показываем сообщение вместо вечного спиннера
     var _errList = document.getElementById('cargoList');
     if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
     window._loadsLoading = false;
+    // A successful empty search must finish with an empty state, not a spinner.
+    var currentLoads=scope==='local'?LOCAL:INTL;
+    if(!syncFailed&&typeof renderLoads==='function'&&
+      (!currentLoads.length||(typeof filterLoadData==='function'&&!filterLoadData(currentLoads).length))){
+      renderLoads(currentLoads);
+    }
     // После загрузки грузов — восстанавливаем сохранённую вкладку
     // fix P1: не вызываем если пользователь уже кликнул вкладку вручную (_userClickedTab)
     //         это предотвращает abort активного loadTransportOffers fetch
