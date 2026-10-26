@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -131,7 +131,33 @@ async def test_review_gate_rejects_missing_required_constraints(review_database,
         clauses += ["FOREIGN KEY (deal_id) REFERENCES deals(id)", "FOREIGN KEY (rater_id) REFERENCES users(id)",
                     "FOREIGN KEY (recipient_id) REFERENCES users(id)"]
     async with review_database.begin() as connection:
-        await connection.execute(text("CREATE TABLE deal_reviews (" + ", ".join(clauses) + ")"))
+        await connection.execute(text("CREATE TABLE deal_reviews (\n" + ",\n".join(clauses) + "\n)"))
+    # Prove this fixture omits only its target. SQLite's inspector parses CHECK
+    # expressions greedily if every constraint is on a single SQL line; real
+    # Alembic DDL separates clauses with newlines, as this fixture now does.
+    async with review_database.connect() as connection:
+        reflected = await connection.run_sync(lambda sync: {
+            "checks": inspect(sync).get_check_constraints("deal_reviews"),
+            "unique": inspect(sync).get_unique_constraints("deal_reviews"),
+            "foreign_keys": inspect(sync).get_foreign_keys("deal_reviews"),
+        })
+    expressions = {item["name"]: "".join(item["sqltext"].split()).replace("(", "").replace(")", "").lower()
+                   for item in reflected["checks"]}
+    expected_checks = {
+        "ck_deal_reviews_score_range": "score>=1andscore<=5",
+        "ck_deal_reviews_distinct_people": "rater_id<>recipient_id",
+    }
+    if missing == "score":
+        del expected_checks["ck_deal_reviews_score_range"]
+    if missing == "distinct":
+        del expected_checks["ck_deal_reviews_distinct_people"]
+    assert expressions == expected_checks
+    unique = {tuple(item["column_names"]) for item in reflected["unique"]}
+    assert unique == (set() if missing == "unique" else {("deal_id", "rater_id")})
+    foreign_keys = {(tuple(item["constrained_columns"]), item["referred_table"])
+                    for item in reflected["foreign_keys"]}
+    expected_fks = {(("deal_id",), "deals"), (("rater_id",), "users"), (("recipient_id",), "users")}
+    assert foreign_keys == (set() if missing == "foreign_keys" else expected_fks)
     expected = {"unique": "unique key", "score": "score range", "distinct": "distinct participant", "foreign_keys": "foreign keys"}[missing]
     with pytest.raises(RuntimeError, match=expected):
         await release.prepare_schema(review_database)
@@ -161,7 +187,7 @@ async def test_review_gate_rejects_incompatible_identity_or_timestamp(review_dat
         "FOREIGN KEY (recipient_id) REFERENCES users(id)",
     ]
     async with review_database.begin() as connection:
-        await connection.execute(text("CREATE TABLE deal_reviews (" + ", ".join(clauses) + ")"))
+        await connection.execute(text("CREATE TABLE deal_reviews (\n" + ",\n".join(clauses) + "\n)"))
     expected = {"primary_key": "primary key", "generated_id": "generated ids",
                 "created_timezone": "created_at"}[drift]
     with pytest.raises(RuntimeError, match=expected):
