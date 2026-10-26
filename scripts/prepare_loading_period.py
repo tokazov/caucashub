@@ -1,6 +1,6 @@
 """Railpack gate for loading periods and retry-safe load publication.
 
-Apply revisions 020 and 021 directly using their idempotent additive DDL. The production
+Apply revisions 020, 021 and 022 directly using their idempotent additive DDL. The production
 database has a history of startup fallback migrations, so this release must
 not stamp or replay unrelated Alembic revisions without a schema audit.
 """
@@ -12,7 +12,7 @@ import sys
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from sqlalchemy import text
-from sqlalchemy import inspect, String, Numeric, Float
+from sqlalchemy import inspect, String, Numeric, Float, Integer, DateTime
 
 
 def migrate_connection(connection):
@@ -68,6 +68,44 @@ def prepare_idempotency(connection):
         raise RuntimeError("Idempotency store is missing its unique key")
 
 
+def prepare_deal_reviews(connection):
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/022_deal_reviews.py"
+    spec = importlib.util.spec_from_file_location("deal_reviews_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+
+    inspector = inspect(connection)
+    columns = {column["name"]: column for column in inspector.get_columns("deal_reviews")}
+    required = {"id", "deal_id", "rater_id", "recipient_id", "score", "comment", "created_at"}
+    if not required.issubset(columns):
+        raise RuntimeError("Deal review schema is missing columns")
+    for name in ("id", "deal_id", "rater_id", "recipient_id", "score"):
+        if not isinstance(columns[name]["type"], Integer) or columns[name]["nullable"]:
+            raise RuntimeError("Deal review schema is incompatible: " + name)
+    comment = columns["comment"]
+    if (not isinstance(comment["type"], String) or not comment["nullable"]
+            or (comment["type"].length is not None and comment["type"].length < 2000)):
+        raise RuntimeError("Deal review schema is incompatible: comment")
+    created = columns["created_at"]
+    if not isinstance(created["type"], DateTime) or created["nullable"] or created["default"] is None:
+        raise RuntimeError("Deal review schema is incompatible: created_at")
+    unique = inspector.get_unique_constraints("deal_reviews")
+    if not any(set(item["column_names"]) == {"deal_id", "rater_id"} for item in unique):
+        raise RuntimeError("Deal review schema is missing its per-participant unique key")
+    checks = {item["name"]: "".join(item["sqltext"].lower().split()).replace("(", "").replace(")", "")
+              for item in inspector.get_check_constraints("deal_reviews")}
+    if checks.get("ck_deal_reviews_score_range") != "score>=1andscore<=5":
+        raise RuntimeError("Deal review schema is missing its score range check")
+    expected_fks = {(("deal_id",), "deals", ("id",)), (("rater_id",), "users", ("id",)),
+                    (("recipient_id",), "users", ("id",))}
+    fks = {(tuple(item["constrained_columns"]), item["referred_table"], tuple(item["referred_columns"]))
+           for item in inspector.get_foreign_keys("deal_reviews")}
+    if not expected_fks.issubset(fks):
+        raise RuntimeError("Deal review schema is missing participant/deal foreign keys")
+
+
 async def prepare_schema(engine):
     async with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
@@ -78,6 +116,8 @@ async def prepare_schema(engine):
         await connection.execute(text("SELECT load_date, load_date_end FROM loads LIMIT 0"))
         await connection.run_sync(prepare_carrier_defaults)
         await connection.execute(text("SELECT truck_type, tonnage FROM users LIMIT 0"))
+        await connection.run_sync(prepare_deal_reviews)
+        await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at FROM deal_reviews LIMIT 0"))
         await connection.run_sync(prepare_idempotency)
         await connection.execute(text(
             "SELECT key, user_id, scope, request_hash, response_status, "
@@ -104,6 +144,7 @@ def main():
     print("Loading-period schema ready; existing records preserved.")
     print("Idempotency schema ready; retry-safe publication enabled.")
     print("Carrier profile schema ready; optional defaults enabled.")
+    print("Deal review schema ready; per-participant reviews enabled.")
     return 0
 
 

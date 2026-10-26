@@ -14,6 +14,7 @@ async def test_release_gate_repeated_and_preserves_existing_records():
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("INSERT INTO loads VALUES (1, '2026-01-01')"))
             await conn.execute(text("INSERT INTO users VALUES (1)"))
@@ -33,6 +34,7 @@ async def test_release_gate_rejects_store_without_unique_key():
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TABLE idempotency_keys (id INTEGER PRIMARY KEY)"))
         with pytest.raises(RuntimeError, match="unique key"):
@@ -47,6 +49,7 @@ async def test_release_gate_rejects_missing_column(monkeypatch):
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
         monkeypatch.setattr(release, "migrate_connection", lambda conn: None)
         with pytest.raises(Exception, match="load_date_end"):
@@ -64,6 +67,7 @@ async def test_release_gate_postgresql():
         # A temporary table shadows any public table and cannot touch production data.
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TEMPORARY TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TEMPORARY TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("INSERT INTO loads VALUES (1, '2026-01-01')"))
             await conn.execute(text("INSERT INTO users VALUES (1)"))
@@ -90,6 +94,7 @@ async def test_release_gate_rejects_incompatible_carrier_defaults(definition, fi
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
         with pytest.raises(RuntimeError, match=field):
             await release.prepare_schema(engine)
@@ -104,6 +109,7 @@ async def test_release_gate_completes_partial_carrier_schema(existing_column):
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {existing_column})"))
             await conn.execute(text("INSERT INTO users (id) VALUES (1)"))
         await release.prepare_schema(engine)
@@ -120,6 +126,7 @@ async def test_release_gate_cannot_pass_with_noop_carrier_migration(monkeypatch)
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, truck_type VARCHAR(32))"))
         monkeypatch.setattr(release, "prepare_carrier_defaults", lambda conn: None)
         with pytest.raises(Exception, match="tonnage"):
@@ -138,6 +145,7 @@ async def test_release_gate_accepts_compatible_drift_without_rounding(definition
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
             await conn.execute(text("INSERT INTO users (id) VALUES (1)"))
         await release.prepare_schema(engine)
@@ -175,6 +183,7 @@ async def test_release_gate_checks_postgresql_carrier_drift(definition, compatib
         engine = create_async_engine(url, connect_args={"server_settings": {"search_path": schema}})
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
             await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
             await conn.execute(text("INSERT INTO users (id) VALUES (1)"))
         if not compatible:

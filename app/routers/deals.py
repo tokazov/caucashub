@@ -3,20 +3,24 @@
 """
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from fastapi.responses import Response as FastAPIResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
 from app.models.deal import Deal, DealStatus
+from app.models.deal_review import DealReview
 from app.models.load import Load, LoadStatus
 from app.models.transport_offer import TransportOffer
 from app.models.transport_request import TransportRequest
 from app.models.response import Response as LoadResponse, ResponseStatus
 from app.models.user import User
 from app.routers.loads import require_user
+from app.routers.auth import require_user as require_authenticated_user
+from fastapi.security import HTTPAuthorizationCredentials
+from sqlalchemy.exc import IntegrityError
 from app.pdf_utils import generate_act_pdf
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -48,6 +52,99 @@ def deal_to_dict(d: Deal) -> dict:
         "act_number":            d.act_number,
         "notes":                 d.notes,
     }
+
+
+
+def _status_value(deal: Deal) -> str:
+    return deal.status.value if hasattr(deal.status, "value") else str(deal.status)
+
+
+def _review_to_dict(review: DealReview | None) -> dict | None:
+    if review is None:
+        return None
+    created = review.created_at
+    if created is not None and created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return {"score": review.score, "comment": review.comment,
+            "created_at": created.isoformat() if created is not None else None}
+
+
+def _review_fields(deal: Deal, viewer_id: int, reviews: list[DealReview]) -> dict:
+    own = next((review for review in reviews if review.rater_id == viewer_id), None)
+    peer = next((review for review in reviews if review.rater_id != viewer_id), None)
+    # Old rated rows contain no attributable rater/score/comment. Do not guess.
+    legacy = _status_value(deal) == "rated" and not reviews
+    return {
+        "viewer_has_rated": own is not None,
+        "viewer_can_rate": (viewer_id in (deal.shipper_id, deal.carrier_id)
+                            and _status_value(deal) in ("completed", "rated")
+                            and own is None and not legacy),
+        "legacy_rating": legacy,
+        "my_review": _review_to_dict(own),
+        "counterparty_review": _review_to_dict(peer),
+    }
+
+
+async def _deal_reviews(db: AsyncSession, deal_id: int) -> list[DealReview]:
+    result = await db.execute(select(DealReview).where(DealReview.deal_id == deal_id)
+                              .order_by(DealReview.id))
+    return list(result.scalars().all())
+
+
+async def _locked_deal(db: AsyncSession, deal_id: int, user_id: int) -> Deal:
+    result = await db.execute(select(Deal).where(Deal.id == deal_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    deal = result.scalar_one_or_none()
+    if deal is None:
+        raise HTTPException(404, "Сделка не найдена")
+    if user_id not in (deal.shipper_id, deal.carrier_id):
+        raise HTTPException(403, "Нет доступа к этой сделке")
+    return deal
+
+
+async def _locked_users(db: AsyncSession, ids: list[int]) -> list[User]:
+    # Refresh rows already loaded through Deal's selectin relationships after locking.
+    result = await db.execute(select(User).where(User.id.in_(sorted(set(ids))))
+                              .order_by(User.id).with_for_update()
+                              .execution_options(populate_existing=True))
+    return list(result.scalars().all())
+
+
+async def _confirm_deal(db: AsyncSession, deal: Deal, user_id: int) -> bool:
+    from app.services.audit_log import log_status_change
+
+    previous = _status_value(deal)
+    if previous in ("completed", "rated"):
+        return False
+    if previous not in ("confirmed", "loading", "in_transit", "delivered"):
+        raise HTTPException(400, "Нельзя подтвердить доставку из статуса " + previous)
+    now = datetime.now(timezone.utc)
+    if user_id == deal.shipper_id:
+        deal.shipper_confirmed = True
+    else:
+        deal.carrier_confirmed = True
+    if deal.delivered_at is None:
+        deal.delivered_at = now
+    completed = bool(deal.shipper_confirmed and deal.carrier_confirmed)
+    target = "completed" if completed else "delivered"
+    deal.status = DealStatus(target)
+    if completed:
+        deal.completed_at = now
+        if not deal.act_number:
+            deal.act_number = _act_number(deal.id)
+        for participant in await _locked_users(db, [deal.shipper_id, deal.carrier_id]):
+            participant.completed_deals_count = (participant.completed_deals_count or 0) + 1
+            participant.trips_count = (participant.trips_count or 0) + 1
+    if target != previous:
+        await log_status_change(db, "deal", deal.id, previous, target, user_id,
+                                reason="delivery_confirmed")
+    return completed
+
+
+async def _mutation_dict(db: AsyncSession, deal: Deal, user_id: int) -> dict:
+    result = deal_to_dict(deal)
+    result.update(_review_fields(deal, user_id, await _deal_reviews(db, deal.id)))
+    return result
 
 
 # ── Создать сделку (грузовладелец принимает отклик) ──────────────────
@@ -127,152 +224,56 @@ async def update_status(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    user_id = current_user.id
-    result = await db.execute(select(Deal).where(Deal.id == deal_id))
-    deal = result.scalar_one_or_none()
-    if not deal:
-        raise HTTPException(404, "Сделка не найдена")
-    if deal.shipper_id != user_id and deal.carrier_id != user_id:
-        raise HTTPException(403, "Нет доступа к этой сделке")
-
     from app.services.state_machine import validate_transition
     from app.services.audit_log import log_status_change
 
-    current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
-    new_status_str = data.status
-    now = datetime.now(timezone.utc)
-
-    # Трек 8: Валидация перехода через state machine
-    # delivered_carrier / delivered_shipper — составные команды (→ delivered или → completed)
-    # они не статусы Deal, поэтому валидируем отдельно
-    if new_status_str in ("delivered_carrier", "delivered_shipper"):
-        if current_status not in ("in_transit", "delivered"):
-            raise HTTPException(400, f"Нельзя подтвердить доставку из статуса '{current_status}'")
-    else:
-        validate_transition("deal", current_status, new_status_str)
-
-    # Загружаем участников для email
-    shipper_res = await db.execute(select(User).where(User.id == deal.shipper_id))
-    shipper = shipper_res.scalar_one_or_none()
-    carrier_res = await db.execute(select(User).where(User.id == deal.carrier_id))
-    carrier = carrier_res.scalar_one_or_none()
-    deal_num = deal.act_number or f"#{deal.id}"
-
-    try:
-        from app.email_utils import send_deal_status_email, _deal_email_html
-        email_available = True
-    except Exception:
-        email_available = False
-
-    if new_status_str == "loading":
-        if user_id != deal.carrier_id:
-            raise HTTPException(403, "Только перевозчик может изменить статус на загрузку")
-        deal.status = DealStatus.loading
-        deal.loading_at = now
-        await log_status_change(db, "deal", deal.id, current_status, "loading", user_id)
-        if email_available and shipper and shipper.email:
-            import asyncio
-            asyncio.create_task(send_deal_status_email(
-                shipper.email,
-                f"CaucasHub: Перевозчик приступил к загрузке — {deal_num}",
-                _deal_email_html("🔄 Перевозчик приступил к загрузке",
-                    f"Перевозчик начал загрузку груза по сделке <strong>{deal_num}</strong>.", deal_num)
-            ))
-
-    elif new_status_str == "in_transit":
-        if user_id != deal.carrier_id:
-            raise HTTPException(403, "Только перевозчик может изменить статус")
-        deal.status = DealStatus.in_transit
-        await log_status_change(db, "deal", deal.id, current_status, "in_transit", user_id)
-        if email_available and shipper and shipper.email:
-            import asyncio
-            asyncio.create_task(send_deal_status_email(
-                shipper.email,
-                f"CaucasHub: Груз в пути — {deal_num}",
-                _deal_email_html("🚛 Груз отправлен и в пути",
-                    f"Перевозчик отправил груз по сделке <strong>{deal_num}</strong>. Ожидайте доставку.", deal_num)
-            ))
-
-    elif new_status_str == "delivered_carrier":
-        if user_id != deal.carrier_id:
-            raise HTTPException(403, "Только перевозчик может подтвердить доставку")
-        if current_status not in ("in_transit", "delivered"):
-            raise HTTPException(400, f"Нельзя подтвердить доставку из {current_status}")
-        deal.carrier_confirmed = True
-        deal.delivered_at = now
-        if deal.shipper_confirmed:
-            deal.status = DealStatus.completed
-            deal.completed_at = now
-            if email_available:
-                _send_completed_emails(shipper, carrier, deal_num)
-            # Симметрия Load/TransportOffer: оба остаются в 'taken' до rate_deal
-            # (completed выставляется только в rate_deal — симметрично с Load)
-            from sqlalchemy import text as sql_text
-            if deal.load_id:
-                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
-            # transport_offer остаётся 'taken' — переход в 'completed' в rate_deal
-        else:
-            deal.status = DealStatus.delivered
-
-    elif new_status_str == "delivered_shipper":
-        if user_id != deal.shipper_id:
+    user_id = current_user.id
+    deal = await _locked_deal(db, deal_id, user_id)
+    previous, target = _status_value(deal), data.status
+    completed_now = False
+    status_email = None
+    if target in ("completed", "rated"):
+        raise HTTPException(400, "Используйте подтверждение доставки или оценку сделки")
+    if target in ("delivered", "delivered_shipper", "delivered_carrier"):
+        if target == "delivered_shipper" and user_id != deal.shipper_id:
             raise HTTPException(403, "Только грузовладелец может подтвердить получение")
-        if current_status not in ("in_transit", "delivered"):
-            raise HTTPException(400, f"Нельзя подтвердить получение из {current_status}")
-        deal.shipper_confirmed = True
-        if deal.carrier_confirmed:
-            deal.status = DealStatus.completed
-            deal.completed_at = now
-            if email_available:
-                _send_completed_emails(shipper, carrier, deal_num)
-            # Симметрия: transport_offer остаётся 'taken' до rate_deal
-            from sqlalchemy import text as sql_text
-            if deal.load_id:
-                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
-        else:
-            deal.status = DealStatus.delivered
-
-    elif new_status_str == "delivered":
-        # Прямой переход в delivered — засчитывается как подтверждение от текущего пользователя
-        if current_status != "in_transit":
-            raise HTTPException(400, f"Нельзя перейти в delivered из {current_status}")
-        if user_id == deal.carrier_id:
-            deal.carrier_confirmed = True
-            deal.delivered_at = now
-        elif user_id == deal.shipper_id:
-            deal.shipper_confirmed = True
-        else:
-            raise HTTPException(403, "Нет доступа")
-        if deal.carrier_confirmed and deal.shipper_confirmed:
-            deal.status = DealStatus.completed
-            deal.completed_at = now
-            if email_available:
-                _send_completed_emails(shipper, carrier, deal_num)
-            from sqlalchemy import text as sql_text
-            if deal.load_id:
-                await db.execute(sql_text("UPDATE loads SET status = 'taken' WHERE id = :id"), {"id": deal.load_id})
-        else:
-            deal.status = DealStatus.delivered
-        await log_status_change(db, "deal", deal.id, current_status, "delivered", user_id)
-
-    elif new_status_str in ("completed", "canceled", "rated"):
-        try:
-            deal.status = DealStatus[new_status_str]
-        except KeyError:
-            raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
-        if new_status_str == "completed":
-            deal.completed_at = now
-        await log_status_change(db, "deal", deal.id, current_status, new_status_str, user_id)
-
+        if target == "delivered_carrier" and user_id != deal.carrier_id:
+            raise HTTPException(403, "Только перевозчик может подтвердить доставку")
+        completed_now = await _confirm_deal(db, deal, user_id)
     else:
-        raise HTTPException(400, f"Неизвестный статус: {new_status_str}")
-
+        validate_transition("deal", previous, target)
+        if target in ("loading", "in_transit"):
+            if user_id != deal.carrier_id:
+                raise HTTPException(403, "Только перевозчик может изменить статус")
+            deal.status = DealStatus(target)
+            if target == "loading":
+                deal.loading_at = datetime.now(timezone.utc)
+            status_email = target
+        elif target == "canceled":
+            deal.status = DealStatus.canceled
+        else:
+            raise HTTPException(400, "Неизвестный статус: " + target)
+        await log_status_change(db, "deal", deal.id, previous, target, user_id)
     if data.notes:
         deal.notes = data.notes
-
+    await db.flush()
+    payload = await _mutation_dict(db, deal, user_id)
     await db.commit()
-    await db.refresh(deal)
-    return deal_to_dict(deal)
+    # Notifications describe committed state and are never sent for rolled-back work.
+    number = deal.act_number or f"#{deal.id}"
+    if completed_now:
+        _send_completed_emails(deal.shipper, deal.carrier, number)
+    elif status_email and deal.shipper and deal.shipper.email:
+        try:
+            import asyncio
+            from app.email_utils import send_deal_status_email, _deal_email_html
+            title = "Перевозчик приступил к загрузке" if status_email == "loading" else "Груз отправлен и в пути"
+            asyncio.create_task(send_deal_status_email(
+                deal.shipper.email, f"CaucasHub: {title} — {number}",
+                _deal_email_html(title, f"Статус сделки <strong>{number}</strong> обновлён.", number)))
+        except Exception:
+            pass
+    return payload
 
 
 def _send_completed_emails(shipper, carrier, deal_num: str):
@@ -296,27 +297,14 @@ async def confirm_delivery(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    user_id = current_user.id
-    result = await db.execute(select(Deal).where(Deal.id == deal_id))
-    deal = result.scalar_one_or_none()
-    if not deal:
-        raise HTTPException(404, "Сделка не найдена")
-
-    if user_id == deal.shipper_id:
-        deal.shipper_confirmed = True
-    elif user_id == deal.carrier_id:
-        deal.carrier_confirmed = True
-    else:
-        raise HTTPException(403, "Нет доступа")
-
-    # Если обе стороны подтвердили → завершаем
-    if deal.shipper_confirmed and deal.carrier_confirmed:
-        deal.status = DealStatus.completed
-        deal.completed_at = datetime.now(timezone.utc)
-
+    deal = await _locked_deal(db, deal_id, current_user.id)
+    completed_now = await _confirm_deal(db, deal, current_user.id)
+    await db.flush()
+    payload = await _mutation_dict(db, deal, current_user.id)
     await db.commit()
-    await db.refresh(deal)
-    return deal_to_dict(deal)
+    if completed_now:
+        _send_completed_emails(deal.shipper, deal.carrier, deal.act_number or f"#{deal.id}")
+    return payload
 
 
 # ── Получить мои сделки ──────────────────────────────────────────────
@@ -342,9 +330,15 @@ async def get_my_deals(
         ).order_by(Deal.created_at.desc()).limit(limit).offset(offset)
     )
     deals = result.scalars().all()
+    grouped_reviews = {}
+    if deals:
+        review_result = await db.execute(select(DealReview).where(DealReview.deal_id.in_([d.id for d in deals])))
+        for review in review_result.scalars().all():
+            grouped_reviews.setdefault(review.deal_id, []).append(review)
     enriched = []
     for d in deals:
         base = deal_to_dict(d)
+        base.update(_review_fields(d, user_id, grouped_reviews.get(d.id, [])))
         # Загружаем груз
         load_r = await db.execute(select(Load).where(Load.id == d.load_id))
         load = load_r.scalar_one_or_none()
@@ -383,92 +377,102 @@ async def get_my_deals(
 
 
 # ── Скачать PDF акт ──────────────────────────────────────────────────
+
+async def _act_current_user(
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    # The normal verifier also enforces account deletion/blocking/password revocation.
+    raw = None
+    if authorization:
+        scheme, _, credentials = authorization.partition(" ")
+        if scheme.lower() == "bearer" and credentials.strip():
+            raw = credentials.strip()
+    if not raw:
+        raw = token
+    if not raw:
+        raise HTTPException(401, "Authorization required")
+    return await require_authenticated_user(
+        credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials=raw), db=db)
+
+
+def _act_truck_label(value, language: str) -> str:
+    from app.services.dictionaries import TRUCK_TYPES
+
+    code = str(getattr(value, "value", value) or "").lower()
+    code = {"open": "bort", "autovoz": "auto", "tanker": "cistern"}.get(code, code)
+    labels = {item["id"]: item["label_ge" if language == "ge" else "label_ru"]
+              for item in TRUCK_TYPES}
+    extra = {
+        "reftent": ("Рефтент", "რეფტენტი"), "megatent": ("Мегатент", "მეგატენტი"),
+        "evacuator": ("Эвакуатор", "ევაკუატორი"), "cistern": ("Цистерна", "ცისტერნა"),
+        "grain": ("Зерновоз", "მარცვლეულის გადამზიდი"), "dump": ("Самосвал", "თვითმცლელი"),
+    }
+    if code in extra:
+        return extra[code][1 if language == "ge" else 0]
+    return labels.get(code, code or "—")
+
+
 @router.get("/{deal_id}/act.pdf")
 async def download_act(
     deal_id: int,
-    token: Optional[str] = Query(None),
     lang: Optional[str] = Query("ru"),
     db: AsyncSession = Depends(get_db),
-    authorization: Optional[str] = None,
+    current_user: User = Depends(_act_current_user),
 ):
-    from app.config import settings
-    from jose import jwt, JWTError
-    # Принимаем токен из query param или из header
-    raw_token = token
-    if not raw_token and authorization and authorization.startswith("Bearer "):
-        raw_token = authorization.split(" ")[1]
-    if not raw_token:
-        raise HTTPException(401, "Authorization required")
-    try:
-        payload = jwt.decode(raw_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id = int(payload.get("sub"))
-    except (JWTError, ValueError):
-        raise HTTPException(401, "Invalid token")
     result = await db.execute(select(Deal).where(Deal.id == deal_id))
     deal = result.scalar_one_or_none()
-    if not deal:
+    if deal is None:
         raise HTTPException(404, "Сделка не найдена")
-    if deal.shipper_id != user_id and deal.carrier_id != user_id:
+    if current_user.id not in (deal.shipper_id, deal.carrier_id):
         raise HTTPException(403, "Нет доступа")
+    if _status_value(deal) not in ("completed", "rated"):
+        raise HTTPException(400, "Акт доступен после подтверждения доставки обеими сторонами")
 
-    # Загружаем связанные данные
-    load_res = await db.execute(select(Load).where(Load.id == deal.load_id))
-    load = load_res.scalar_one_or_none()
-
-    shipper_res = await db.execute(select(User).where(User.id == deal.shipper_id))
-    shipper = shipper_res.scalar_one_or_none()
-
-    carrier_res = await db.execute(select(User).where(User.id == deal.carrier_id))
-    carrier = carrier_res.scalar_one_or_none()
-
-    from app.services.user_display import display_name, display_phone, display_email  # ADR-010
-
-    truck_labels = {
-        "tent": "Тент", "ref": "Рефрижератор", "bort": "Борт",
-        "termos": "Термос", "gazel": "Фургон", "container": "Контейнер",
-        "auto": "Автовоз", "other": "Другой",
-    }
+    load = await db.get(Load, deal.load_id) if deal.load_id else None
+    offer = await db.get(TransportOffer, deal.transport_offer_id) if deal.transport_offer_id else None
+    request = await db.get(TransportRequest, deal.transport_request_id) if deal.transport_request_id else None
+    shipper = await db.get(User, deal.shipper_id)
+    carrier = await db.get(User, deal.carrier_id)
+    route = load or offer
+    language = lang if lang in ("ru", "ge") else "ru"
+    from app.services.user_display import display_name, display_phone, display_email
 
     deal_data = {
-        "act_number":      deal.act_number or _act_number(deal.id),
-        "deal_id":         deal.id,
-        "completed_at":    deal.completed_at or deal.delivered_at or deal.created_at,
-        # Грузовладелец
-        "shipper_name":    display_name(shipper) if shipper else "—",
-        "shipper_inn":     shipper.inn if shipper and shipper.inn else "—",
-        "shipper_phone":   display_phone(shipper) if shipper else "—",
-        "shipper_email":   display_email(shipper) if shipper else "—",
-        # Перевозчик
-        "carrier_name":    display_name(carrier) if carrier else "—",
-        "carrier_inn":     carrier.inn if carrier and carrier.inn else "—",
-        "carrier_phone":   display_phone(carrier) if carrier else "—",
-        "carrier_email":   display_email(carrier) if carrier else "—",
-        # Груз
-        "from_city":       load.from_city if load else "—",
-        "to_city":         load.to_city if load else "—",
-        "cargo_desc":      load.cargo_desc if load else "—",
-        "weight_kg":       load.weight_kg if load else "—",
-        "truck_type":      truck_labels.get(load.truck_type.value if load else "", "—"),
-        # Финансы
-        "agreed_price":    deal.agreed_price or 0,
-        "currency":        deal.currency or "GEL",
-        # Даты
-        "loading_at":      deal.loading_at,
-        "delivered_at":    deal.delivered_at,
-        # Язык PDF
-        "lang":            lang if lang in ("ru", "ge") else "ru",
+        "act_number": deal.act_number or _act_number(deal.id),
+        "deal_id": deal.id,
+        "completed_at": deal.completed_at,
+        "shipper_name": display_name(shipper) if shipper else "—",
+        "shipper_inn": shipper.inn if shipper and not shipper.is_deleted and shipper.inn else "—",
+        "shipper_phone": display_phone(shipper) if shipper else "—",
+        "shipper_email": display_email(shipper) if shipper else "—",
+        "carrier_name": display_name(carrier) if carrier else "—",
+        "carrier_inn": carrier.inn if carrier and not carrier.is_deleted and carrier.inn else "—",
+        "carrier_phone": display_phone(carrier) if carrier else "—",
+        "carrier_email": display_email(carrier) if carrier else "—",
+        "from_city": route.from_city if route else "—",
+        "to_city": route.to_city if route else "—",
+        "cargo_desc": load.cargo_desc if load else (request.cargo_description if request else "—"),
+        "weight_kg": load.weight_kg if load else (request.weight_kg if request and request.weight_kg is not None else "—"),
+        "truck_type": _act_truck_label(route.truck_type if route else None, language),
+        "agreed_price": deal.agreed_price if deal.agreed_price is not None else 0,
+        "currency": deal.currency or "GEL",
+        "loading_at": deal.loading_at,
+        "delivered_at": deal.delivered_at,
+        "lang": language,
     }
-
     try:
         pdf_bytes = generate_act_pdf(deal_data)
-        filename = f"act_{deal.act_number or deal.id}.pdf"
-        return FastAPIResponse(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Ошибка генерации PDF: {e}")
+    except Exception as error:
+        raise HTTPException(500, "Не удалось сформировать PDF акт") from error
+    filename = f"act_{deal.act_number or deal.id}.pdf"
+    return FastAPIResponse(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"',
+                 "Cache-Control": "private, no-store", "Pragma": "no-cache"},
+    )
 
 
 # ── Экспорт сделок для rs.ge ─────────────────────────────────────────
@@ -630,8 +634,21 @@ async def export_deals(
 
 
 class RatingRequest(BaseModel):
-    score: int
-    comment: Optional[str] = None
+    score: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def reject_boolean_score(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Оценка должна быть целым числом от 1 до 5")
+        return value
+
+    @field_validator("comment", mode="before")
+    @classmethod
+    def trim_comment(cls, value):
+        return (value.strip() or None) if isinstance(value, str) else value
+
 
 @router.post("/{deal_id}/rate")
 async def rate_deal(
@@ -640,45 +657,56 @@ async def rate_deal(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Оценить сделку (только после completed)"""
-    user_id = current_user.id
-    if data.score < 1 or data.score > 5:
-        raise HTTPException(400, "Оценка должна быть от 1 до 5")
-    result = await db.execute(select(Deal).where(Deal.id == deal_id))
-    deal = result.scalar_one_or_none()
-    if not deal:
-        raise HTTPException(404, "Сделка не найдена")
-    current_status = deal.status.value if hasattr(deal.status, "value") else str(deal.status)
-    if current_status != "completed":
-        raise HTTPException(400, f"Оценить можно только завершённую сделку (текущий статус: {current_status})")
-    if user_id not in [deal.shipper_id, deal.carrier_id]:
-        raise HTTPException(403, "Это не ваша сделка")
-    rated_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
-    rater_id = user_id  # тот кто ставит оценку
-
-    rated = await db.get(User, rated_id)
-    rater = await db.get(User, rater_id)
-    if rated:
-        old_r = rated.rating or 50
-        old_t = rated.trips_count or 0
-        rated.rating = min(50, max(0, round((old_r * old_t + data.score * 10) / (old_t + 1))))
-        rated.trips_count = old_t + 1
-        # 3.1: ratings_received_count — у того кого оценивают
-        rated.ratings_received_count = (rated.ratings_received_count or 0) + 1
-    if rater:
-        # 3.1: completed_deals_count — у того кто оценивает (завершил сделку)
-        rater.completed_deals_count = (rater.completed_deals_count or 0) + 1
-
-    # Обновляем статус через raw SQL чтобы обойти ограничение enum в SQLite
     from sqlalchemy import text
-    await db.execute(text("UPDATE deals SET status = 'rated' WHERE id = :id"), {"id": deal_id})
-    # Случай B (решение 05.05.2026): Load и TransportOffer симметричны —
-    # оба переходят в 'completed' при rate_deal.
-    # Переразмещение грузов (taken→active) не реализовано, taken≡completed поведенчески.
-    if deal.load_id:
-        await db.execute(text("UPDATE loads SET status = 'completed' WHERE id = :id"), {"id": deal.load_id})
-    elif deal.transport_offer_id:
-        await db.execute(text("UPDATE transport_offers SET status = 'completed' WHERE id = :id"),
-                         {"id": deal.transport_offer_id})
-    await db.commit()
-    return {"ok": True, "score": data.score, "deal_id": deal_id}
+    from app.services.audit_log import log_status_change
+
+    user_id = current_user.id
+    deal = await _locked_deal(db, deal_id, user_id)
+    previous = _status_value(deal)
+    if previous not in ("completed", "rated"):
+        raise HTTPException(400, "Оценить можно только завершённую сделку")
+    reviews = await _deal_reviews(db, deal.id)
+    fields = _review_fields(deal, user_id, reviews)
+    if fields["legacy_rating"]:
+        raise HTTPException(409, "По этой сделке уже есть историческая оценка без данных автора")
+    if fields["viewer_has_rated"]:
+        raise HTTPException(409, "Вы уже оценили эту сделку")
+    recipient_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
+    if recipient_id == user_id:
+        raise HTTPException(400, "Нельзя оценивать самого себя")
+    people = await _locked_users(db, [recipient_id])
+    if not people:
+        raise HTTPException(404, "Участник сделки не найден")
+    recipient = people[0]
+    review = DealReview(deal_id=deal.id, rater_id=user_id, recipient_id=recipient_id,
+                        score=data.score, comment=data.comment)
+    db.add(review)
+    try:
+        # The DB unique key is a final guard, including on SQLite without row locks.
+        await db.flush()
+        await db.refresh(review)
+        count = recipient.ratings_received_count or 0
+        old_rating = recipient.rating if recipient.rating is not None else 50
+        recipient.rating = min(50, max(0, round((old_rating * count + data.score * 10) / (count + 1))))
+        recipient.ratings_received_count = count + 1
+        if previous == "completed":
+            deal.status = DealStatus.rated
+            await log_status_change(db, "deal", deal.id, previous, "rated", user_id,
+                                    reason="review_created")
+            # Preserve the established source lifecycle: completion at first review.
+            if deal.load_id:
+                await db.execute(text("UPDATE loads SET status = 'completed' WHERE id = :id AND status = 'taken'"),
+                                 {"id": deal.load_id})
+            elif deal.transport_offer_id:
+                await db.execute(text("UPDATE transport_offers SET status = 'completed' WHERE id = :id AND status = 'taken'"),
+                                 {"id": deal.transport_offer_id})
+        reviews.append(review)
+        await db.flush()
+        payload = deal_to_dict(deal)
+        payload.update(_review_fields(deal, user_id, reviews))
+        payload.update({"ok": True, "score": review.score, "deal_id": deal.id})
+        await db.commit()
+    except IntegrityError as error:
+        await db.rollback()
+        raise HTTPException(409, "Вы уже оценили эту сделку") from error
+    return payload
