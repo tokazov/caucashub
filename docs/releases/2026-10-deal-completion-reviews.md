@@ -51,8 +51,9 @@ unknown rather than being replaced with a fabricated completion date.
 2. Deploy backend/schema first through the existing blocking Railpack command
    python -m scripts.prepare_loading_period.
 3. The gate applies additive revision 022 directly, creates only a missing
-   deal_reviews table, verifies columns/types/nullability, unique key, score
-   constraint and foreign keys, and performs a SELECT of all required columns.
+   deal_reviews table, verifies columns/types/nullability, generated id primary
+   key, unique key, score/distinct-participant checks, UTC-capable PostgreSQL
+   timestamps and foreign keys, and SELECTs all required columns.
    No historical Alembic replay/stamp, review backfill or data rewrites occur.
 4. Require the log 'Deal review schema ready; per-participant reviews enabled.'
    and a successful Railway deployment. /health alone does not prove readiness.

@@ -4,12 +4,11 @@ No accounts, publications, notifications or PDF requests target production.
 The imported fixture runs each test against SQLite and CI's isolated PostgreSQL.
 """
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import select, update
 
-from app import email_utils
 from app.models.deal import Deal, DealStatus
 from app.models.user import User
 from app.routers import deals
@@ -23,8 +22,8 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(autouse=True)
 def no_completion_email(monkeypatch):
-    """The production helper schedules this global callable in a background task."""
-    monkeypatch.setattr(email_utils, "send_deal_status_email", AsyncMock(return_value=True))
+    """Stop external notifications at the router notification boundary."""
+    monkeypatch.setattr(deals, "_send_completed_emails", Mock(return_value=None))
 
 
 async def accepted_deal(context, source):

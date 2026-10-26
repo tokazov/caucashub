@@ -116,9 +116,8 @@ if os.environ.get("CARRIER_BROWSER_PUBLICATION") == "1":
     transport_matcher.notify_transport_subscribers = no_delivery
     telegram_notify.send_tg_message = successful_no_delivery
     responses.send_email = successful_no_delivery
-    # Completion tests exercise real state changes without external email delivery.
-    from app import email_utils
-    email_utils.send_deal_status_email = successful_no_delivery
+    # Completion tests exercise real state changes without external delivery.
+    deals._send_completed_emails = lambda *args, **kwargs: None
     for router, prefix in [
         (loads.router, "/api/loads"), (trucks.router, "/api/trucks"),
         (deals.router, "/api/deals"), (responses.router, ""),
