@@ -2349,65 +2349,79 @@ function renderDealCard(d){
 }
 
 async function rateDealPrompt(dealId, num){
-  // Красивый попап с звёздочками вместо prompt
-  const stars = await new Promise(resolve => {
-    // Удаляем старый если есть
-    const old = document.getElementById('ratePopup');
-    if(old) old.remove();
-
-    const popup = document.createElement('div');
-    popup.id = 'ratePopup';
-    popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    popup.innerHTML = `
+  const tk=typeof getToken==='function'?getToken():null;
+  if(!user||!tk){ showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_login||'Войдите в аккаунт'); return; }
+  const owner=user;
+  const current=()=>user===owner&&getToken()===tk;
+  const deal=_deals.find(d=>d.id===dealId);
+  if(!deal||!dealCanRate(deal)) return;
+  const ge=lang==='ge';
+  const title=dealViewerRole(deal)==='carrier'
+    ?(ge?'შეაფასეთ გამგზავნი':'Оцените отправителя')
+    :(ge?'შეაფასეთ გადამზიდველი':'Оцените перевозчика');
+  const review=await new Promise(resolve=>{
+    const old=document.getElementById('ratePopup');
+    if(old){ if(typeof window._rateResolve==='function') window._rateResolve(null); old.remove(); }
+    const popup=document.createElement('div');
+    popup.id='ratePopup';
+    popup.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    popup.innerHTML=`
       <div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2)">
-        <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:6px">Оцените перевозчика</div>
-        <div style="font-size:13px;color:#888;margin-bottom:20px">Сделка № ${num}</div>
+        <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:6px">${esc(title)}</div>
+        <div style="font-size:13px;color:#888;margin-bottom:20px">${ge?'გარიგება №':'Сделка №'} ${esc(num)}</div>
         <div id="starRow" style="display:flex;justify-content:center;gap:8px;margin-bottom:24px">
           ${[1,2,3,4,5].map(i=>`<span data-v="${i}" style="font-size:36px;cursor:pointer;filter:grayscale(1);transition:.15s" onclick="[...document.querySelectorAll('#starRow span')].forEach((s,j)=>{s.style.filter=j<${i}?'none':'grayscale(1)';s.style.transform=j<${i}?'scale(1.1)':'scale(1)'});document.getElementById('rateVal').value='${i}'">⭐</span>`).join('')}
         </div>
         <input type="hidden" id="rateVal" value="5">
+        <label for="rateComment" style="display:block;text-align:left;font-size:13px;color:#888;margin-bottom:6px">${ge?'გამოხმაურება (არასავალდებულო)':'Отзыв (необязательно)'}</label>
+        <textarea id="rateComment" maxlength="2000" rows="3" style="width:100%;box-sizing:border-box;border:1.5px solid #ddd;border-radius:10px;padding:10px;font:inherit;resize:vertical;margin-bottom:14px"></textarea>
         <div style="display:flex;gap:10px">
-          <button onclick="document.getElementById('ratePopup').remove();window._rateResolve(null)" style="flex:1;padding:12px;border:1.5px solid #ddd;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;font-weight:600;color:#888">Отмена</button>
-          <button onclick="const v=parseInt(document.getElementById('rateVal').value);document.getElementById('ratePopup').remove();window._rateResolve(v)" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f7b731;color:#1a1a2e;font-size:14px;font-weight:800;cursor:pointer">Оценить ⭐</button>
+          <button id="rateCancel" onclick="window._rateResolve(null)" style="flex:1;padding:12px;border:1.5px solid #ddd;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;font-weight:600;color:#888">${ge?'გაუქმება':'Отмена'}</button>
+          <button id="rateSubmit" onclick="window._rateResolve(parseInt(document.getElementById('rateVal').value,10))" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f7b731;color:#1a1a2e;font-size:14px;font-weight:800;cursor:pointer">${ge?'შეფასება ⭐':'Оценить ⭐'}</button>
         </div>
       </div>`;
-    // По умолчанию 5 звёзд подсвечены
-    window._rateResolve = resolve;
+    const finish=score=>{
+      const comment=document.getElementById('rateComment')?.value||'';
+      popup.remove();
+      if(window._rateResolve===finish) delete window._rateResolve;
+      resolve(score===null?null:{score,comment});
+    };
+    window._rateResolve=finish;
     document.body.appendChild(popup);
     setTimeout(()=>{
-      [...document.querySelectorAll('#starRow span')].forEach((s,i)=>{
-        s.style.filter='none'; s.style.transform='scale(1.1)';
-      });
-    }, 50);
+      if(document.getElementById('ratePopup')!==popup) return;
+      [...document.querySelectorAll('#starRow span')].forEach(s=>{s.style.filter='none';s.style.transform='scale(1.1)';});
+    },50);
   });
-  if(!stars || stars < 1 || stars > 5) return;
-  const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  if(!review||!current()) return;
+  if(!Number.isInteger(review.score)||review.score<1||review.score>5||review.comment.length>2000){
+    showToastWarn(ge?'შეამოწმეთ შეფასება და გამოხმაურება (მაქსიმუმ 2000 სიმბოლო)':'Проверьте оценку и отзыв (не более 2000 символов)'); return;
+  }
   try{
-    const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/' + dealId + '/rate', {
-      method: 'POST',
-      headers: {'Authorization': 'Bearer ' + tk, 'Content-Type': 'application/json'},
-      body: JSON.stringify({score: parseInt(stars)})
+    const r=await fetch('https://api-production-f3ea.up.railway.app/api/deals/'+dealId+'/rate',{
+      method:'POST',headers:{'Authorization':'Bearer '+tk,'Content-Type':'application/json'},
+      body:JSON.stringify({score:review.score,comment:review.comment.trim()||null})
     });
-    if(r.ok){
-      // Toast уведомление
-      const toast = document.createElement('div');
-      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2ecc71;color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
-      toast.textContent = '⭐ Спасибо за оценку!';
-      document.body.appendChild(toast);
-      setTimeout(()=>toast.remove(), 3000);
-      // Перезагружаем сделки и перерисовываем кабинет
-      const tk2 = getToken ? getToken() : null;
-      if(tk2){
-        fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk2}})
-          .then(r2=>r2.ok?r2.json():null).then(d=>{
-            if(d){ _deals = d.deals||[]; renderCabDeals(); }
-          }).catch(()=>{});
-      }
-    } else {
-      const e = await r.json();
-      showToastWarn('❌ Ошибка: ' + (e.detail || 'не удалось сохранить оценку'));
+    let data=null;try{data=await r.json();}catch(e){}
+    if(!current()) return;
+    if(!r.ok){
+      showToastWarn('❌ '+(typeof data?.detail==='string'?data.detail:(ge?'შეფასება ვერ შეინახა':'Не удалось сохранить оценку'))); return;
     }
-  }catch(e){ alert('Ошибка соединения'); }
+    if(data){
+      const idx=_deals.findIndex(d=>d.id===dealId);
+      if(idx>-1) _deals[idx]=Object.assign({},_deals[idx],data);
+      renderCabDeals();
+    }
+    const toast=document.createElement('div');
+    toast.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2ecc71;color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    toast.textContent=ge?'⭐ გმადლობთ შეფასებისთვის!':'⭐ Спасибо за оценку!';
+    document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);
+    try{
+      const refreshed=await fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}});
+      const payload=refreshed.ok?await refreshed.json():null;
+      if(current()&&Array.isArray(payload?.deals)){_deals=payload.deals;renderCabDeals();}
+    }catch(e){}
+  }catch(e){if(current()) showToastWarn(ge?'კავშირის შეცდომა':'Ошибка соединения');}
 }
 async function loadDeals(){
   if(!user || !getToken()) return;
@@ -2456,59 +2470,47 @@ async function confirmDelivery(dealId){
   var _T = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
   if(!dealId){ showToastWarn('⚠️ ID сделки не найден'); return; }
   var tk = typeof getToken==='function' ? getToken() : null;
-  if(!tk){ showToastWarn(_T.warn_login||'⚠️ Войдите в аккаунт'); return; }
-
-  // Дизейблим кнопку сразу чтобы не было двойных кликов
+  if(!user||!tk){ showToastWarn(_T.warn_login||'⚠️ Войдите в аккаунт'); return; }
+  const owner=user;
+  const current=()=>user===owner&&getToken()===tk;
   var _btn = document.querySelector('[onclick*="confirmDelivery('+dealId+')"]');
+  if(_btn&&_btn.disabled) return;
   if(_btn){ _btn.disabled = true; _btn.style.opacity = '0.6'; }
-
   try{
     const r = await fetch('https://api-production-f3ea.up.railway.app/api/deals/'+dealId+'/confirm', {
-      method:'POST',
-      headers:{'Authorization':'Bearer '+tk}
+      method:'POST', headers:{'Authorization':'Bearer '+tk}
     });
     let d = null; try{ d = await r.json(); }catch(e){}
-
+    if(!current()) return;
     if(r.ok && d){
-      // Обновляем сделку в локальном массиве
       const idx = _deals.findIndex(x=>x.id===dealId);
       if(idx>-1) _deals[idx] = Object.assign({}, _deals[idx], d);
-
-      if(d.status==='completed'){
-        // Обе стороны подтвердили — сделка завершена
+      if(d.status==='completed'||d.status==='rated'){
         pushNotif('🎉 ' + (_T.deal_completed||'Сделка завершена!'), _T.deal_completed_sub||'Акт выполненных работ доступен для скачивания', []);
         showToastWarn('🎉 ' + (_T.deal_completed||'Сделка завершена!'));
       } else {
-        // Только одна сторона подтвердила — ждём вторую
         pushNotif('✅ ' + (_T.deal_confirmed||'Подтверждено'), _T.deal_confirmed_sub||'Ожидаем подтверждения второй стороны', []);
         showToastWarn('✅ ' + (_T.deal_confirmed||'Подтверждено'));
       }
-
-      // Гарантированно перерисовываем карточки сделок
       if(typeof renderCabDeals==='function') renderCabDeals();
-
-      // Также подгружаем свежие данные с сервера в фоне
       setTimeout(function(){
-        var tk2 = typeof getToken==='function' ? getToken() : null;
-        if(!tk2) return;
-        fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk2}})
+        if(!current()) return;
+        fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk}})
           .then(function(rr){ return rr.ok ? rr.json() : null; })
           .then(function(dd){
-            if(!dd) return;
-            _deals = dd.deals||[];
+            if(!current()||!dd||!Array.isArray(dd.deals)) return;
+            _deals = dd.deals;
             if(typeof renderCabDeals==='function') renderCabDeals();
           }).catch(function(){});
       }, 300);
-
     } else {
       var errMsg = (d && typeof d.detail==='string') ? d.detail : (_T.err_confirm_delivery||'Ошибка подтверждения');
       showToastWarn('⚠️ ' + errMsg);
-      // Восстанавливаем кнопку при ошибке
-      if(_btn){ _btn.disabled = false; _btn.style.opacity = ''; }
     }
   }catch(e){
-    showToastWarn('⚠️ ' + (_T.warn_network||'Ошибка сети'));
-    if(_btn){ _btn.disabled = false; _btn.style.opacity = ''; }
+    if(current()) showToastWarn('⚠️ ' + (_T.warn_network||'Ошибка сети'));
+  }finally{
+    if(current()&&_btn){ _btn.disabled = false; _btn.style.opacity = ''; }
   }
 }
 // Отклики на мои грузы: {loadId: [{id, name, truck, tonnage, rating, status}]}
@@ -3074,6 +3076,31 @@ function dealPhoneHref(value){
   const phone=value.replace(/[^\d+]/g,'');
   return /^\+?\d{5,20}$/.test(phone)?'tel:'+phone:'';
 }
+function dealViewerRole(deal){
+  if(!user) return '';
+  const viewerId=Number(user.userId??user.id??currentUserId);
+  if(!Number.isFinite(viewerId)||viewerId<=0) return '';
+  const shipperId=Number(deal.shipper_id??deal.shipper?.id);
+  const carrierId=Number(deal.carrier_id??deal.carrier?.id);
+  if(viewerId===shipperId&&viewerId!==carrierId) return 'shipper';
+  if(viewerId===carrierId&&viewerId!==shipperId) return 'carrier';
+  return '';
+}
+function dealCanRate(deal){
+  if(!dealViewerRole(deal)||!['completed','rated'].includes(deal.status)) return false;
+  if(Object.prototype.hasOwnProperty.call(deal,'viewer_can_rate')) return deal.viewer_can_rate===true;
+  return deal.status==='completed'&&!deal.viewer_has_rated;
+}
+function renderDealReviews(deal){
+  if(!dealViewerRole(deal)) return '';
+  const labels=lang==='ge'?['თქვენი შეფასება','მეორე მხარის შეფასება']:['Ваша оценка','Оценка второй стороны'];
+  return [['mine',deal.my_review],['counterparty',deal.counterparty_review]].map(([kind,review],i)=>{
+    if(!review||!Number.isInteger(review.score)||review.score<1||review.score>5) return '';
+    const comment=typeof review.comment==='string'?review.comment.trim():'';
+    return '<span class="cab-deal-review" data-review="'+kind+'">'+esc(labels[i])+': '+review.score+'/5'+(comment?' · '+esc(comment):'')+'</span>';
+  }).join('');
+}
+
 function renderDealCounterpartyContacts(deal){
   if(!user) return '';
   const viewerId=Number(user?.userId??user?.id??currentUserId);
@@ -3117,7 +3144,9 @@ function renderCabDeals(){
  delivered:{l:'📍 ' + (_tr.deal_delivered||'Доставлено'),cls:'accepted'},
  completed:{l:'🏆 ' + (_tr.deal_completed||'Завершена'),cls:'accepted'},
  rated:{l:'⭐ ' + (_tr.deal_rated||'Оценено'),cls:'accepted'},
- cancelled:{l:'❌ ' + (_tr.deal_cancelled||'Отменена'),cls:'rejected'}
+ canceled:{l:'❌ ' + (_tr.deal_cancelled||(lang==='ge'?'გაუქმებულია':'Отменена')),cls:'rejected'},
+ cancelled:{l:'❌ ' + (_tr.deal_cancelled||(lang==='ge'?'გაუქმებულია':'Отменена')),cls:'rejected'},
+ disputed:{l:'⚠️ ' + (_tr.deal_disputed||(lang==='ge'?'დავა':'Спор')),cls:'rejected'}
  };
  var tk = getToken ? getToken() : localStorage.getItem('ch_token');
  el.innerHTML = _deals.map(function(d){
@@ -3134,15 +3163,16 @@ function renderCabDeals(){
  + (d.load_kg ? '<span>⚖️ ' + d.load_kg.toLocaleString() + ' ' + (_tr.unit_kg||'кг') + '</span>' : '')
  + (carrier ? '<span>🚛 ' + esc(carrier) + '</span>' : '')
  + renderDealCounterpartyContacts(d)
+ + renderDealReviews(d)
  + '</div>'
  + '<div class="cab-deal-actions">'
- + '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>'
- + (d.status === 'confirmed' || d.status === 'in_transit'
+ + (dealViewerRole(d) ? ((d.status==='completed'||d.status==='rated') ? '<a href="https://api-production-f3ea.up.railway.app/api/deals/' + d.id + '/act.pdf?token=' + tk + '&lang=' + lang + '" target="_blank" class="cab-btn pdf" style="text-decoration:none;display:inline-block;padding:7px 14px;font-size:12px">📄 ' + (_tr.btn_download_act||'Скачать акт PDF') + '</a>' : '<span style="font-size:12px;color:#888">'+(lang==='ge'?'აქტი ხელმისაწვდომი იქნება ორივე მხარის დადასტურების შემდეგ':'Акт доступен после подтверждения обеих сторон')+'</span>') : '')
+ + ((d.status === 'confirmed' || d.status === 'loading' || d.status === 'in_transit' || d.status === 'delivered') && dealViewerRole(d)
  ? (function(){
      // Определяем роль текущего пользователя в этой сделке
-     var myId = user && user.id;
-     var iAmShipper = myId && (d.shipper_id === myId || d.user_id === myId);
-     var iAmCarrier = myId && (d.carrier_id === myId);
+     var role = dealViewerRole(d);
+     var iAmShipper = role === 'shipper';
+     var iAmCarrier = role === 'carrier';
      // Уже подтвердил?
      var alreadyConfirmed = (iAmShipper && d.shipper_confirmed) || (iAmCarrier && d.carrier_confirmed);
      if(alreadyConfirmed){
@@ -3151,10 +3181,10 @@ function renderCabDeals(){
      return d.id ? '<button onclick="confirmDelivery(' + d.id + ')" class="cab-btn primary" style="font-size:12px;padding:7px 14px">✅ ' + (_tr.btn_confirm_delivery||'Подтвердить доставку') + '</button>' : '';
    })()
  : '')
- + (d.status === 'completed'
+ + (dealCanRate(d)
  ? '<button onclick="rateDealPrompt(' + d.id + ',\'' + (d.act_number||d.id) + '\')" class="cab-btn" style="background:#f7b731;color:#1a1a2e;font-size:12px;padding:7px 14px;border:none;border-radius:8px;cursor:pointer;font-weight:700;margin-left:6px">⭐ ' + (_tr.btn_rate||'Оценить') + '</button>'
  : '')
- + (d.status === 'rated' ? '<span style="font-size:12px;color:#2ecc71;font-weight:700;margin-left:6px">⭐ ' + (_tr.deal_rated||'Оценено') + '</span>' : '')
+ + ((d.viewer_has_rated || (d.status === 'rated' && !dealCanRate(d))) ? '<span style="font-size:12px;color:#2ecc71;font-weight:700;margin-left:6px">⭐ ' + (_tr.deal_rated||'Оценено') + '</span>' : '')
  + '</div>'
  + '</div>';
  }).join('');

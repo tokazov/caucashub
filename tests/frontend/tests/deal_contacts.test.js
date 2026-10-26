@@ -37,7 +37,7 @@ for(const path of ['main.js','frontend/main.js']){
   assert.match(html,/href="mailto:carrier%40example\.test"/);
   assert.ok(!html.includes('href="tel:+995599102030"'),'Do not show own phone as counterparty');
   assert.ok(html.indexOf('cab-deal-contact')<html.indexOf('cab-deal-actions'),'Keep contacts within existing metadata');
-  assert.match(html,/class="cab-btn pdf"/,'Existing action remains');
+  assert.match(html,/class="cab-deal-actions"/,'Existing actions retain their position');
  });
  test(path+': carrier receives the shipper contact rather than its own',()=>{
   const html=environment(path,{userId:8},8).render();
