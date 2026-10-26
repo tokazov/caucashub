@@ -53,7 +53,7 @@
 </div>
 
 <!-- FILTERS -->
-<form class="filters load-filters" aria-labelledby="loadSearchLabel" onsubmit="event.preventDefault();filterLoads()">
+<form class="filters load-filters" aria-labelledby="loadSearchLabel" onsubmit="event.preventDefault();submitLoadSearch()">
   <div class="city-input-wrap">
     <input class="city-input" id="fFrom" placeholder="📍 Откуда" autocomplete="off" oninput="clearLoadRouteSelection('from');filterCity('from',this.value)" onsearch="if(!this.value){clearLoadRouteSelection('from');filterLoads();}" onfocus="openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
     <div class="city-dropdown" id="dropFrom"></div>
@@ -1007,7 +1007,7 @@
   <div id="notifList"><div class="notif-empty">Нет уведомлений</div></div>
 </div>
 
-<script src="api.js?v=20261027-load-search"></script>
+<script src="api.js?v=20261026-flow"></script>
 <script src="main.js?v=20261027-load-search"></script>
 <script src="ai-dispatcher.js?v=1775415853"></script>
 

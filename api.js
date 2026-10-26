@@ -278,6 +278,8 @@ async function syncLoadsFromServer(){
   } catch(e) {
     syncFailed=true;
     console.warn('[syncLoads]', e);
+    var _errList = document.getElementById('cargoList');
+    if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
     window._loadsLoading = false;
     // A successful empty search must finish with an empty state, not a spinner.

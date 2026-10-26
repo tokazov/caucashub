@@ -242,7 +242,7 @@ window.loadYmapsLazy = function(cb, onError) {
 </div>
 
 <!-- FILTERS -->
-<form class="filters load-filters" aria-labelledby="loadSearchLabel" onsubmit="event.preventDefault();filterLoads()">
+<form class="filters load-filters" aria-labelledby="loadSearchLabel" onsubmit="event.preventDefault();submitLoadSearch()">
   <div class="city-input-wrap">
     <input class="city-input" id="fFrom" type="search" placeholder="📍 Откуда" data-i18n-ph="ph_from"
       autocomplete="new-password" name="search-from-xx" readonly onfocus="this.removeAttribute('readonly')"
@@ -1626,7 +1626,7 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261027-load-search"></script>
+<script src="api.js?v=20261026-flow"></script>
 <script src="main.js?v=20261027-load-search"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 

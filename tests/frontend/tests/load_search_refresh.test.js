@@ -8,7 +8,7 @@ function sync(path,server,initial=[]){
  getToken:()=>null,mapServerLoad:x=>({...x,fromServer:true}),
  CaucasAPI:{getLoads:async()=>{if(server instanceof Error)throw server;return server;}},
  document:{getElementById:id=>nodes[id],querySelector:()=>null},
- console:{warn:()=>{}},localStorage:{getItem:()=>null},filterLoadData:rows=>rows.filter(x=>x.matches),
+ console:{warn:()=>{},log:()=>{}},localStorage:{getItem:()=>null},filterLoadData:rows=>rows.filter(x=>x.matches),
  renderLoads:rows=>{const filtered=ctx.filterLoadData(rows);renders.push({loading:ctx._loadsLoading,ids:filtered.map(x=>x.id)});
  nodes.fcount.textContent=String(filtered.length);nodes.cargoList.innerHTML=ctx._loadsLoading&&!filtered.length?'loading':filtered.length?'results':'empty';}};
  ctx.window=ctx;ctx._tabRestored=true;vm.createContext(ctx);

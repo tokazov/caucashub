@@ -2743,6 +2743,11 @@ function filterLoadData(data,countryCode){
   return filterLoadingDates(result,loadingDateRange());
 }
 
+function submitLoadSearch(){
+  if(document.getElementById('fDate')?.value==='pick') applyDatePeriod();
+  else filterLoads();
+}
+
 function filterLoads(){
   const fromVal=document.getElementById('fFrom')?.value||'';
   const toVal=document.getElementById('fTo')?.value||'';
@@ -3142,11 +3147,8 @@ function setScope(s, el){
   document.querySelectorAll('.scope-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   const data=s==='local'?LOCAL:INTL;
-  renderLoads(data);
-  syncLoadsFromServer(); // перезагружаем грузы при смене вкладки
   // statLoads updated by syncLoadsFromServer
   // statTrucks updated by syncLoadsFromServer
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
   // Показываем фильтр стран для международных
   const cf=document.getElementById('fCountry');
   if(cf) cf.style.display=s==='intl'?'block':'none';
@@ -3166,6 +3168,8 @@ function setScope(s, el){
   if(pto) pto.value='';
   selectedFrom=null; selectedTo=null;
   document.getElementById('mapWrap').classList.remove('open');
+  renderLoads(data);
+  syncLoadsFromServer(); // Reload after clearing the previous scope route.
 }
 
 // ── LANG / i18n ───────────────────────────────────────
