@@ -88,7 +88,10 @@ def _reset_brute_force(ip: str) -> None:
     with _login_lock:
         _login_attempts.pop(ip, None)
 
-class RegisterRequest(BaseModel):
+from app.carrier_profile import CarrierProfileFields
+
+
+class RegisterRequest(CarrierProfileFields):
     email: str
     password: str
     company_name: str
@@ -221,6 +224,8 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
         inn=normalized.get("inn", data.inn),
         org_type=normalize_org_type(data.org_type or ""),
         city=data.city,
+        truck_type=data.truck_type.value if data.truck_type is not None else None,
+        tonnage=data.tonnage,
     )
     db.add(user)
     await db.commit()
@@ -241,7 +246,8 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
         ))
     except Exception:
         pass  # не ломаем регистрацию если уведомление не отправилось
-    return {"token": create_token(user.id), "user_id": user.id}
+    return {"token": create_token(user.id), "user_id": user.id,
+            "truck_type": user.truck_type, "tonnage": user.tonnage}
 
 @router.post("/login")
 async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
