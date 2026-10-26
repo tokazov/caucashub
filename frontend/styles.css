@@ -615,3 +615,19 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 #adminOverlay .badge-dot{position:absolute;top:-2px;right:-5px;width:8px;height:8px;background:#f0b537;border-radius:50%;border:1.5px solid #fff}
 #adminOverlay .adm-filter{padding:5px 12px;border-radius:20px;border:0.5px solid #e0ddd6;font-size:12px;cursor:pointer;color:#8a9bb0;background:transparent}
 #adminOverlay .adm-filter.active{background:#0f1923;color:#fff;border-color:#0f1923}
+
+/* Transport has seven columns; cargo's six-column overrides must not resize it. */
+#sec-trucks .transport-thead,
+#sec-trucks .row-desktop {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 100px) !important;
+}
+#sec-trucks .transport-thead > div,
+#sec-trucks .row-desktop > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 769px) {
+  #sec-trucks .transport-thead {
+    display: grid !important;
+  }
+}
