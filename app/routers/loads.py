@@ -246,8 +246,14 @@ async def create_load(data: LoadCreate, request: Request,
 
     load = Load(**load_data, user_id=user_id)
     db.add(load)
-    await db.commit()
+    # Commit the listing and its replayable response together. A cache failure
+    # must not leave a saved listing behind an error shown to the user.
+    await db.flush()
     await db.refresh(load)
+    response_dict = load_to_dict(load, data.company_name)
+    await save_idempotency(request, db, scope="create_load", user_id=user_id,
+                           response_status=200, response_body=response_dict, strict=True)
+    await db.commit()
     # Инвалидируем кеш счётчиков (Трек 11.2)
     from app.routers.stats import invalidate_counters_cache
     invalidate_counters_cache()
@@ -256,9 +262,6 @@ async def create_load(data: LoadCreate, request: Request,
     from app.services.subscription_matcher import notify_subscribers
     background_tasks.add_task(notify_subscribers, load, db)
 
-    response_dict = load_to_dict(load, data.company_name)
-    await save_idempotency(request, db, scope="create_load", user_id=user_id,
-                           response_status=200, response_body=response_dict)
     return response_dict
 
 @router.put("/{load_id}")

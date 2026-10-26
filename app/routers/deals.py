@@ -10,6 +10,8 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.deal import Deal, DealStatus
 from app.models.load import Load, LoadStatus
+from app.models.transport_offer import TransportOffer
+from app.models.transport_request import TransportRequest
 from app.models.response import Response as LoadResponse, ResponseStatus
 from app.models.user import User
 from app.routers.loads import require_user
@@ -352,10 +354,13 @@ async def get_my_deals(
         ca_r = await db.execute(select(User).where(User.id == d.carrier_id))
         ca = ca_r.scalar_one_or_none()
         base["deal_number"] = d.act_number or _act_number(d.id)
-        base["load_from"]   = load.from_city if load else "—"
-        base["load_to"]     = load.to_city if load else "—"
-        base["load_desc"]   = load.cargo_desc if load else ""
-        base["load_kg"]     = load.weight_kg if load else 0
+        offer = await db.get(TransportOffer, d.transport_offer_id) if not load and d.transport_offer_id else None
+        transport_request = await db.get(TransportRequest, d.transport_request_id) if offer and d.transport_request_id else None
+        route = load or offer
+        base["load_from"]   = route.from_city if route else "—"
+        base["load_to"]     = route.to_city if route else "—"
+        base["load_desc"]   = load.cargo_desc if load else (transport_request.cargo_description if transport_request else "")
+        base["load_kg"]     = load.weight_kg if load else ((transport_request.weight_kg or 0) if transport_request else 0)
         base["price"]       = d.agreed_price
         from app.services.user_display import display_name, display_phone
         # ADR-013 B: контакты видны участнику сделки (viewer = shipper или carrier)
