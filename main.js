@@ -914,6 +914,8 @@ function renderLoads(data){
   // Если data не передан — берём текущий список по scope
   if (!data) data = (scope === 'intl' ? INTL : LOCAL);
   if (!data) data = [];
+  // Apply the same search after refreshes and language changes.
+  if(typeof filterLoadData==='function') data=filterLoadData(data);
   // Фильтруем занятые грузы
   data = data.filter(d=>d.status!=='taken');
   const _l = (typeof lang !== 'undefined' && lang) || 'ru'; const T = (typeof TRANSLATIONS !== 'undefined' && (TRANSLATIONS[_l] || TRANSLATIONS['ru'])) || {};
@@ -924,7 +926,7 @@ function renderLoads(data){
     if(window._loadsLoading){
       list.innerHTML='<div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div>';
     } else {
-      list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Грузов не найдено</div>';
+      list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">'+(T.load_search_empty||'Грузов не найдено')+'</div>';
     }
     return;
   }
@@ -2635,53 +2637,122 @@ async function saveEditedLoad(){
 
 
 // ── FILTER ─────────────────────────────────────────────
-function filterLoads(){
-  const fromVal=document.getElementById('fFrom').value.toLowerCase();
-  const toVal=document.getElementById('fTo').value.toLowerCase();
-  const type=document.getElementById('fType').value;
-  const weightRange=document.getElementById('fWeight')?.value||'';
-  const priceRange=document.getElementById('fPrice')?.value||'';
-  let data=scope==='local'?[...LOCAL]:[...INTL];
+function clearLoadRouteSelection(direction){
+  if(direction==='from') selectedFrom=null;
+  if(direction==='to') selectedTo=null;
+  var wrap=document.getElementById('mapWrap');
+  if(wrap) wrap.classList.remove('open');
+  if(typeof ymap!=='undefined'&&ymap&&ymap.geoObjects) ymap.geoObjects.removeAll();
+}
 
-  // Откуда (страна для intl, город для local)
-  if(fromVal){
-    const fromQ=fromVal.split(',')[0].trim().toLowerCase();
-    if(scope==='intl'){
-      const fromCode=findCountryCode(fromQ);
-      if(fromCode) data=filterByCountryCode(data,fromCode,'from');
-      else data=data.filter(d=>d.from.toLowerCase().includes(fromQ)||d.to.toLowerCase().includes(fromQ));
-    } else {
-      data=data.filter(d=>d.from.toLowerCase().includes(fromQ));
-    }
+function resetLoadFilters(){
+  ['fFrom','fTo','fType','fWeight','fPrice','fDate','fDateFrom','fDateTo','fCountry'].forEach(function(id){
+    var field=document.getElementById(id);if(field)field.value='';
+  });
+  var dateSelect=document.getElementById('fDate');
+  var rangeOption=dateSelect&&dateSelect.querySelector('option[value="pick_range"]');
+  if(rangeOption)rangeOption.remove();
+  var pop=document.getElementById('datePeriodPop');if(pop)pop.style.display='none';
+  clearLoadRouteSelection('from');clearLoadRouteSelection('to');
+  if(typeof closeDrop==='function'){closeDrop('from');closeDrop('to');}
+  filterLoads();
+}
+
+function _loadFilterKey(value){
+  return String(value??'').normalize('NFC').toLowerCase().replace(/ё/g,'е').replace(/\s+/g,' ').trim();
+}
+function _loadRouteText(value){
+  let text=_loadFilterKey(value);
+  const cities=typeof CITIES!=='undefined'?CITIES:[];
+  const regions=typeof REGION_NAMES_GE!=='undefined'?REGION_NAMES_GE:{};
+  // Only explicit, non-empty dictionary aliases can be reversed.
+  const aliases=cities.filter(c=>c.name&&c.nameGe).map(c=>[c.name,c.nameGe])
+    .concat(Object.entries(regions).filter(([ru,ge])=>ru&&ge))
+    .sort((a,b)=>b[1].length-a[1].length);
+  for(const [ru,ge] of aliases){
+    const source=_loadFilterKey(ge);
+    if(source) text=text.split(source).join(_loadFilterKey(ru));
   }
-  // Куда (страна для intl, город для local)
-  if(toVal){
-    const toQ=toVal.split(',')[0].trim().toLowerCase();
-    if(scope==='intl'){
-      const toCode=findCountryCode(toQ);
-      if(toCode) data=filterByCountryCode(data,toCode,'to');
-      else data=data.filter(d=>d.to.toLowerCase().includes(toQ)||d.from.toLowerCase().includes(toQ));
-    } else {
-      data=data.filter(d=>d.to.toLowerCase().includes(toQ));
-    }
+  for(const [ru,ge] of Object.entries(regions)){
+    const prefix=_loadFilterKey(ru);
+    if(ge===''&&prefix&&text.startsWith(prefix+' ')) text=text.slice(prefix.length).trim();
   }
-  // Тип кузова
-  if(type&&type!=='🚛 Кузов') data=data.filter(d=>d.typeLabel.includes(type.slice(0,4)));
-  // Тоннаж
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  for(const flag of Object.values(flags)) if(flag) text=text.split(flag).join('');
+  return _loadFilterKey(text);
+}
+function _loadCountryAliases(code){
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  if(!Object.prototype.hasOwnProperty.call(flags,code)) return [];
+  const names=typeof COUNTRY_NAMES!=='undefined'?COUNTRY_NAMES:{};
+  const namesGe=typeof COUNTRY_NAMES_GE!=='undefined'?COUNTRY_NAMES_GE:{};
+  const aliases=[code,flags[code],names[code],namesGe[code]].filter(Boolean);
+  // Country names already associated with a flag in the existing city dictionary.
+  for(const city of (typeof CITIES!=='undefined'?CITIES:[])){
+    if(flags[code]&&city.region?.includes(flags[code])) aliases.push(city.region.split(flags[code]).join('').trim());
+  }
+  for(const [ru,ge] of Object.entries(typeof REGION_NAMES_GE!=='undefined'?REGION_NAMES_GE:{})){
+    if(ge&&aliases.some(a=>_loadFilterKey(a)===_loadFilterKey(ru)||_loadFilterKey(a)===_loadFilterKey(ge))) aliases.push(ru,ge);
+  }
+  return [...new Set(aliases.map(_loadFilterKey).filter(Boolean))];
+}
+function findCountryCode(value){
+  const query=_loadFilterKey(value);
+  if(!query) return null;
+  const flags=typeof COUNTRY_FLAGS!=='undefined'?COUNTRY_FLAGS:{};
+  return Object.keys(flags).find(code=>{
+    const aliases=_loadCountryAliases(code);
+    return aliases.includes(query)||aliases.includes(_loadFilterKey(query.split(flags[code]).join('')));
+  })||null;
+}
+function filterByCountryCode(data,code,field){
+  const aliases=_loadCountryAliases(String(code||'').toUpperCase());
+  if(!aliases.length) return [];
+  const matches=value=>{
+    const text=_loadFilterKey(value);
+    return aliases.some(alias=>alias.length===2&&/^[a-z]+$/.test(alias)
+      ?text.split(/[\s,;\/()]+/).includes(alias):text.includes(alias));
+  };
+  return data.filter(d=>field?matches(d[field]):matches(d.from)||matches(d.to));
+}
+function filterLoadData(data,countryCode){
+  const value=id=>document.getElementById(id)?.value||'';
+  const from=value('fFrom').split(',')[0].trim(),to=value('fTo').split(',')[0].trim();
+  const type=value('fType'),weightRange=value('fWeight'),priceRange=value('fPrice');
+  let result=(data||[]).filter(d=>d&&d.status!=='taken');
+  for(const [field,query] of [['from',from],['to',to]]){
+    if(!query) continue;
+    const code=scope==='intl'?findCountryCode(query):null;
+    const normalized=_loadRouteText(query);
+    result=code?filterByCountryCode(result,code,field)
+      :result.filter(d=>normalized&&_loadRouteText(d[field]).includes(normalized));
+  }
+  if(scope==='intl'){
+    const country=countryCode===undefined?value('fCountry'):countryCode;
+    if(country) result=filterByCountryCode(result,findCountryCode(country)||country);
+  }
+  if(type&&type!=='🚛 Кузов') result=result.filter(d=>(d.type||d.truck_type||'')===type);
   if(weightRange){
-    const [wMin,wMax]=weightRange.split('-').map(Number);
-    data=data.filter(d=>d.kg>=wMin&&d.kg<=wMax);
+    const [min,max]=weightRange.split('-').map(Number);
+    result=result.filter(d=>d.kg>=min&&d.kg<=max);
   }
-  // Стоимость
   if(priceRange){
-    const [pMin,pMax]=priceRange.split('-').map(Number);
-    data=data.filter(d=>d.price>=pMin&&d.price<=pMax);
+    const [min,max]=priceRange.split('-').map(Number);
+    result=result.filter(d=>d.price>=min&&d.price<=max);
   }
+  return filterLoadingDates(result,loadingDateRange());
+}
 
-  data=filterLoadingDates(data,loadingDateRange());
+function filterLoads(){
+  const fromVal=document.getElementById('fFrom')?.value||'';
+  const toVal=document.getElementById('fTo')?.value||'';
+  const data=filterLoadData(scope==='local'?[...LOCAL]:[...INTL]);
   renderLoads(data);
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
+  document.getElementById('fcount').textContent=data.length+' '+((TRANSLATIONS[lang]||TRANSLATIONS.ru).fcount_suffix||'грузов');
 
+  const routeScope=scope;
+  const sameRoute=()=>scope===routeScope&&(document.getElementById('fFrom')?.value||'')===fromVal&&
+    (document.getElementById('fTo')?.value||'')===toVal;
   // Карта если оба города выбраны
   if(fromVal&&toVal){
     const fromCity=fromVal.split(',')[0].trim();
@@ -2692,8 +2763,10 @@ function filterLoads(){
     else if(fromCity&&toCity){
       // Город не в CITIES (например Натахтари) — геокодируем через LocationIQ
       _fetchCitySuggestions(fromCity,'ru',function(rf){
+        if(!sameRoute()) return;
         if(rf&&rf[0]){ selectedFrom={name:fromCity,lat:rf[0].lat,lng:rf[0].lon}; }
         _fetchCitySuggestions(toCity,'ru',function(rt){
+          if(!sameRoute()) return;
           if(rt&&rt[0]){ selectedTo={name:toCity,lat:rt[0].lat,lng:rt[0].lon}; }
           if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
         });
@@ -2701,6 +2774,7 @@ function filterLoads(){
     }
   }
 }
+
 
 // ═══ КАБИНЕТ — внутренние вкладки ═══
 var _currentCabTab = 'loads';
@@ -3107,6 +3181,10 @@ const TRANSLATIONS = {
     hero_desc: 'Грузы по Грузии и СНГ — быстро и надёжно',
     btn_post: 'Разместить груз',
     btn_find: 'Найти машину',
+    btn_find_load: 'Найти груз',
+    load_search_found: 'Найдено:',
+    load_search_reset: 'Сбросить фильтры',
+    load_search_empty: 'Грузов не найдено',
     tab_local: 'Локальные',
     tab_intl: 'Международные',
     btn_respond: 'Откликнуться',
@@ -3709,6 +3787,10 @@ const TRANSLATIONS = {
     hero_desc: 'ტვირთები საქართველოს მასშტაბით — სწრაფად და საიმედოდ',
     btn_post: 'ტვირთის განთავსება',
     btn_find: 'მანქანის პოვნა',
+    btn_find_load: 'ტვირთის მოძებნა',
+    load_search_found: 'ნაპოვნია:',
+    load_search_reset: 'ფილტრების გასუფთავება',
+    load_search_empty: 'ტვირთები ვერ მოიძებნა',
     tab_local: 'ადგილობრივი',
     tab_intl: 'საერთაშორისო',
     btn_respond: 'გამოხმაურება',
@@ -5009,20 +5091,13 @@ const COUNTRY_NAMES_GE={'GE':'საქართველო','TR':'თურქ
 // setScope расширен в оригинале
 
 function filterByCountry(code){
-  let data=[...INTL];
-  if(code){
-    const flag=COUNTRY_FLAGS[code]||'';
-    const name=(COUNTRY_NAMES[code]||'').toLowerCase();
-    data=data.filter(d=>{
-      const toL=d.to.toLowerCase();
-      const fromL=d.from.toLowerCase();
-      return d.to.includes(flag)||d.from.includes(flag)||
-             toL.includes(name)||fromL.includes(name);
-    });
-  }
+  const field=document.getElementById('fCountry');
+  if(field) field.value=code||'';
+  const data=filterLoadData([...INTL],code||'');
   renderLoads(data);
-  document.getElementById('fcount').textContent=data.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
+  document.getElementById('fcount').textContent=data.length+' '+((TRANSLATIONS[lang]||TRANSLATIONS.ru).fcount_suffix||'грузов');
 }
+
 
 function updateFormForIntl(){
   const isIntl=scope==='intl';

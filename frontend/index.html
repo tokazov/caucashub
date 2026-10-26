@@ -185,7 +185,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=20261026-transport-layout">
+<link rel="stylesheet" href="styles.css?v=20261027-load-search">
 </head>
 <body>
 
@@ -242,17 +242,17 @@ window.loadYmapsLazy = function(cb, onError) {
 </div>
 
 <!-- FILTERS -->
-<div class="filters">
+<form class="filters load-filters" aria-labelledby="loadSearchLabel" onsubmit="event.preventDefault();filterLoads()">
   <div class="city-input-wrap">
     <input class="city-input" id="fFrom" type="search" placeholder="📍 Откуда" data-i18n-ph="ph_from"
       autocomplete="new-password" name="search-from-xx" readonly onfocus="this.removeAttribute('readonly')"
-      oninput="filterCity('from',this.value)" onfocus="this.removeAttribute('readonly');openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
+      oninput="clearLoadRouteSelection('from');filterCity('from',this.value)" onsearch="if(!this.value){clearLoadRouteSelection('from');filterLoads();}" onfocus="this.removeAttribute('readonly');openDrop('from')" onblur="setTimeout(()=>closeDrop('from'),200)">
     <div class="city-dropdown" id="dropFrom"></div>
   </div>
   <div class="city-input-wrap">
     <input class="city-input" id="fTo" type="search" placeholder="🏁 Куда" data-i18n-ph="ph_to"
       autocomplete="new-password" name="search-to-xx" readonly onfocus="this.removeAttribute('readonly')"
-      oninput="filterCity('to',this.value)" onfocus="this.removeAttribute('readonly');openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
+      oninput="clearLoadRouteSelection('to');filterCity('to',this.value)" onsearch="if(!this.value){clearLoadRouteSelection('to');filterLoads();}" onfocus="this.removeAttribute('readonly');openDrop('to')" onblur="setTimeout(()=>closeDrop('to'),200)">
     <div class="city-dropdown" id="dropTo"></div>
   </div>
   <div class="filter-date-wrap" style="position:relative">
@@ -270,8 +270,8 @@ window.loadYmapsLazy = function(cb, onError) {
         <div><div style="font-size:11px;color:#aaa;margin-bottom:3px">По</div><input type="date" id="fDateTo" style="width:100%;border:1.5px solid #e0e0e0;border-radius:7px;padding:7px 10px;font-size:13px;outline:none;box-sizing:border-box"/></div>
       </div>
       <div style="display:flex;gap:6px">
-        <button onclick="applyDatePeriod()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:9px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">Найти</button>
-        <button onclick="clearDatePeriod()" style="background:#f0f0f0;color:#666;border:none;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer">✕</button>
+        <button type="button" onclick="applyDatePeriod()" style="flex:1;background:#f7b731;color:#1a1a2e;border:none;padding:9px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer">Найти</button>
+        <button type="button" onclick="clearDatePeriod()" style="background:#f0f0f0;color:#666;border:none;padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer">✕</button>
       </div>
     </div>
   </div>
@@ -294,9 +294,14 @@ window.loadYmapsLazy = function(cb, onError) {
     <option value="700-1500" data-i18n="filter_price_700_1500">₾700–1500</option>
     <option value="1500-99999" data-i18n="filter_price_1500">₾1500+</option>
   </select>
-  <button class="post-btn" onclick="openPostLoad()">+ <span data-i18n="btn_post">Разместить груз</span></button>
-  <div id="fcount" style="display:none"></div>
-</div>
+  <button type="submit" class="load-find-btn" id="loadSearchBtn"><span aria-hidden="true">🔍</span> <span id="loadSearchLabel" data-i18n="btn_find_load">Найти груз</span></button>
+  <button type="button" class="post-btn load-post-btn" onclick="openPostLoad()">＋ <span data-i18n="btn_post">Разместить груз</span></button>
+  <div class="load-search-summary">
+    <span class="load-search-result" role="status" aria-live="polite"><span data-i18n="load_search_found">Найдено:</span> <span id="fcount">—</span></span>
+    <button type="button" class="load-search-reset" onclick="resetLoadFilters()" data-i18n="load_search_reset">Сбросить фильтры</button>
+  </div>
+</form>
+
 <!-- STATS -->
 <div style="width:100%;max-width:100vw;overflow:hidden;box-sizing:border-box">
   <div class="stats-bar" id="statsBar">
@@ -1621,8 +1626,8 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261026-flow"></script>
-<script src="main.js?v=20261026-city-memory"></script>
+<script src="api.js?v=20261027-load-search"></script>
+<script src="main.js?v=20261027-load-search"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->

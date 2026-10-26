@@ -1,0 +1,14 @@
+name: Load search responsive preview
+on:
+  push:
+    branches: ['feature/load-search-actions']
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish isolated preview
+        run: npx wrangler@4.80.0 pages deploy frontend/ --project-name caucashub --branch load-search --commit-message "load-search-preview" --commit-hash "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

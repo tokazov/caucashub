@@ -258,9 +258,6 @@ async function syncLoadsFromServer(){
       // Обновляем счётчик реальными данными
       const _statEl = document.getElementById('statLoads');
       if(_statEl) _statEl.textContent = serverLoads.length;
-      // Обновляем fcount тоже
-      const _fcEl = document.getElementById('fcount');
-      if(_fcEl) _fcEl.textContent = serverLoads.length + ' грузов';
       // removed console.log
     }
 
