@@ -1358,6 +1358,7 @@ function doRespond(){
 
   if(!canRespond()){ openPaywall('respond'); return; }
   const btn=document.getElementById('btnRespond');
+  if(!btn || btn.disabled) return;
   btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_sending||'Отправляем...'; btn.disabled=true;
 
   // Реальный запрос к API
@@ -1371,23 +1372,29 @@ function doRespond(){
       headers:{'Authorization':'Bearer '+getToken(),'Content-Type':'application/json'},
       body:JSON.stringify({price: _priceVal})
     }).then(async r=>{
-      // 403 — тарифное ограничение → показываем paywall
-      if(r.status === 403){
-        btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_back||'Откликнуться'; btn.disabled=false;
-        closeModal('cargoOverlay');
-        var _pwOvr = document.getElementById('paywallOverlay'); _pwOvr.classList.add('on'); var _pwMdl = _pwOvr.querySelector('.modal'); if(_pwMdl) trapFocus(_pwMdl);
-        return;
+      const data=await r.json().catch(()=>null);
+      if(r.status===403){
+        btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS.ru).btn_respond_back||'Откликнуться';btn.disabled=false;
+        const detail=data?.detail;
+        if(detail?.error==='limit_exceeded'||(typeof detail==='string'&&detail.startsWith('respond_limit|'))){
+          closeModal('cargoOverlay');openPaywall('respond');return;
+        }
+        return data?.detail?data:{detail:(TRANSLATIONS[lang]||TRANSLATIONS.ru).err_response_save||'Не удалось отправить отклик'};
       }
       // 401 — токен истёк, открываем логин
       if(r.status === 401){
-        const err = await r.json().catch(()=>({}));
         setToken(null); localStorage.removeItem('ch_user');
         btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_respond_back||'Откликнуться'; btn.disabled=false;
         closeModal('cargoOverlay');
         if(typeof openAuth==='function') openAuth('login');
         return;
       }
-      return r.json();
+      if(!data || (!r.ok&&!data.detail) || (r.ok&&!data.detail&&(!data.ok||!data.response_id))){
+        btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS.ru).btn_respond_back||'Откликнуться';btn.disabled=false;
+        showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).err_response_save||'Не удалось отправить отклик. Попробуйте ещё раз.');
+        return;
+      }
+      return data;
     }).then(r=>{
       if(!r) return;
       // Обрабатываем ошибки от сервера
@@ -1420,9 +1427,11 @@ function doRespond(){
         return;
       }
       const serverResponseId = r?.response_id || null;
-      document.getElementById('respondSuccess').style.display='block';
-      btn.textContent='✅ Заявка отправлена';
-      addToOrders(serverResponseId);
+      const visibleId=window.currentCargoData?.serverId||window.currentCargoData?.id||currentCargoId;
+      if(visibleId==_loadServerId){
+        document.getElementById('respondSuccess').style.display='block';btn.textContent='✅ Заявка отправлена';
+      }
+      addToOrders(serverResponseId,_d);
       if(typeof renderLoads === 'function') renderLoads();
     }).catch(()=>{
       // Сетевая ошибка — не показываем "успех", честно сообщаем об ошибке
@@ -1436,9 +1445,9 @@ function doRespond(){
     if(typeof openAuth==='function') openAuth('login');
   }
 }
-function addToOrders(serverResponseId){
+function addToOrders(serverResponseId,cargoData=null){
   // Берём данные текущего груза
-  const d = window.currentCargoData || 
+  const d = cargoData || window.currentCargoData || 
             window.allLoads?.find(l=>l.id===currentCargoId) ||
             window.allLoads?.find(l=>l.id==currentCargoId); // нестрогое сравнение на случай строка/число
   if(!d){ console.warn('[addToOrders] cargo not found, id:', currentCargoId); return; }
@@ -1889,6 +1898,10 @@ function backToStep1(){
   });
 }
 async function doLogin(){
+  if(typeof CaucasAPI==='undefined'){
+    showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_network||'Нет связи с сервером');return;
+  }
+  if(document.querySelector('#formLogin .btn-primary')?.disabled) return;
   const email=document.getElementById('loginEmail').value;
   const pass=document.getElementById('loginPass').value;
   if(!email||!pass){alert('Заполните email и пароль');return;}
@@ -1943,6 +1956,10 @@ async function doLogin(){
 }
 
 async function doRegister(){
+  if(typeof CaucasAPI==='undefined'){
+    showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_network||'Нет связи с сервером');return;
+  }
+  if(document.querySelector('#formRegister .btn-primary')?.disabled) return;
   const role=document.getElementById('regRole').value;
   if(!role){alert('Выберите тип аккаунта');return;}
   const name=document.getElementById('regName').value;
@@ -1985,9 +2002,9 @@ async function doRegister(){
         const det = Array.isArray(r.error) ? r.error : (r.data?.detail || []);
         const first = Array.isArray(det) ? det[0] : null;
         const fieldName = first?.loc ? first.loc[first.loc.length - 1] : null;
-        const msg422 = first?.msg || 'Проверьте введённые данные';
+        const msg422 = first?.msg || (typeof r.error==='string'?r.error:'Проверьте введённые данные');
         // Map backend field name → form element id
-        const fieldMap = { inn: 'regInn', email: 'regEmail', password: 'regPass', name: 'regName', phone: 'regPhone' };
+        const fieldMap = { inn:'regInn',email:'regEmail',password:'regPass',name:'regName',company_name:'regName',phone:'regPhone' };
         const inputId = fieldMap[fieldName] || ('reg' + (fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : ''));
         const inputEl = document.getElementById(inputId);
         if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input', function(){ inputEl.classList.remove('input-error'); }, {once: true}); }
@@ -2073,6 +2090,7 @@ function openProfile(){
 // Генерируется один раз при openPostLoad, сбрасывается после успешного создания.
 // Повторные submit (retry) используют тот же ключ — сервер вернёт тот же id.
 let _postLoadIdempotencyKey = null;
+let _postLoadSubmitting = false;
 function _genUUID(){
   // RFC4122 v4 UUID (crypto.randomUUID если есть, иначе Math.random fallback)
   if(typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -2093,6 +2111,7 @@ function readPostLoadingDates() {
 }
 
 function openPostLoad(){
+  if(_postLoadSubmitting) return;
   if(!user){openAuth('register');return;}
   // Новый ключ идемпотентности для каждого открытия формы
   _postLoadIdempotencyKey = _genUUID();
@@ -2112,22 +2131,33 @@ function openPostLoad(){
   var _postOvr = document.getElementById('postOverlay'); _postOvr.classList.add('on'); var _postMdl = _postOvr.querySelector('.modal'); if(_postMdl) trapFocus(_postMdl);
   // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete здесь не нужен
 }
-function doPostLoad(){
+async function doPostLoad(){
+  if(_postLoadSubmitting) return;
+  const T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+  if(!user || !getToken()){
+    showToastWarn(T.warn_login||'Войдите в аккаунт');openAuth('login');return;
+  }
+  if(typeof CaucasAPI==='undefined'){
+    showToastWarn(T.warn_network||'Нет связи с сервером');return;
+  }
   // Anti-double-submit: блокируем кнопку сразу
   const _submitBtn = document.querySelector('#postOverlay .btn-primary');
   if(_submitBtn){
     if(_submitBtn.disabled) return; // уже отправляем — игнорируем второй клик
-    _submitBtn.disabled = true;
-    _submitBtn.textContent = (TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_sending||'⏳ Отправляем...';
   }
-  const fromAddr=document.getElementById('pFromAddr').value||'Адрес не указан';
-  const toAddr=document.getElementById('pToAddr').value||'Адрес не указан';
+  const fromAddr=document.getElementById('pFromAddr').value.trim();
+  const toAddr=document.getElementById('pToAddr').value.trim();
+  if(!fromAddr || !toAddr){showToastWarn(T.err_load_route||'Укажите маршрут груза');return;}
   // Город — первое слово из адреса
-  const from=addrSelected.pFrom?.city||fromAddr.split(',')[0]||'Тбилиси';
-  const to=addrSelected.pTo?.city||toAddr.split(',')[0]||'Батуми';
-  const kg=parseInt(document.getElementById('pWeight').value)||5000;
-  const priceRaw=parseInt(document.getElementById('pPrice').value);
-  if(!priceRaw || priceRaw < 1){
+  const from=(addrSelected.pFrom?.city||fromAddr.split(',')[0]).trim();
+  const to=(addrSelected.pTo?.city||toAddr.split(',')[0]).trim();
+  if(!from || !to){showToastWarn(T.err_load_route||'Укажите маршрут груза');return;}
+  const kg=Number(document.getElementById('pWeight').value);
+  if(!Number.isFinite(kg) || kg<1 || kg>50000){
+    showToastWarn(T.err_load_weight||'Укажите вес от 1 до 50 000 кг');return;
+  }
+  const priceRaw=Number(document.getElementById('pPrice').value);
+  if(!Number.isFinite(priceRaw) || priceRaw < 1){
     const _errLang=(TRANSLATIONS[lang]||TRANSLATIONS['ru']);
     showToastWarn(_errLang.err_price_required||'⚠️ Укажите ставку (цену) груза');
     if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=_errLang.btn_post_submit||'📦 Разместить груз';}
@@ -2163,75 +2193,59 @@ function doPostLoad(){
     const _dist=Math.round(6371*2*Math.atan2(Math.sqrt(_a),Math.sqrt(1-_a)));
     kmVal = '~' + _dist + ' км';
   }
-  const newLoad={id:Date.now(),from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:scope==='intl'?'intl':'local',desc,co:user.name,rat:'5.0',trips:0,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:currentUserId};
-
-  LOCAL.unshift(newLoad);
-  window.allLoads=[...LOCAL,...INTL];
-  addMyLoad(newLoad);
-  document.getElementById('postSuccess').style.display='block';
-
-  // Сохраняем на сервере — ОБЯЗАТЕЛЬНО, груз без serverId не переживёт рефреш
-  if(typeof CaucasAPI!=='undefined' && getToken()){
-    CaucasAPI.createLoad(newLoad, _postLoadIdempotencyKey).then(r=>{
-      if(r.ok && r.load?.serverId){
-        // Успешно сохранено — сбрасываем ключ (следующий submit = новый груз)
-        _postLoadIdempotencyKey = null;
-        newLoad.serverId = r.load.serverId;
-        newLoad.userId   = currentUserId;
-        newLoad.fromServer = true;
-        const mi=_myLoads.findIndex(l=>l.id===newLoad.id);
-        if(mi>-1){ _myLoads[mi].serverId=r.load.serverId; _myLoads[mi].userId=currentUserId; _myLoads[mi].fromServer=true; }
-        const li=LOCAL.findIndex(l=>l.id===newLoad.id);
-        if(li>-1){ LOCAL[li].serverId=r.load.serverId; LOCAL[li].userId=currentUserId; LOCAL[li].fromServer=true; }
-        window.allLoads=[...LOCAL,...INTL];
-        persistMyLoads();
-        renderLoads(scope==='local'?LOCAL:INTL);
-        // Сбрасываем кэш кабинета чтобы новый груз появился сразу
-        window._cabinetFetching = false;
-        window._tabRestored = false;
-        if(typeof _renderOrders==='function') _renderOrders();
-        // removed console.log
+  const submittedScope=scope==='intl'?'intl':'local';
+  const submittedUserId=currentUserId;
+  const newLoad={from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:submittedScope,desc,co:user.name,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:submittedUserId};
+  _postLoadSubmitting=true;
+  if(!_postLoadIdempotencyKey) _postLoadIdempotencyKey=_genUUID();
+  if(_submitBtn){_submitBtn.disabled=true;_submitBtn.textContent=T.lbl_sending||'Отправляем...';}
+  document.getElementById('postSuccess').style.display='none';
+  let saved=false;
+  try {
+    const r=await CaucasAPI.createLoad(newLoad,_postLoadIdempotencyKey);
+    if(!r?.ok || !r.load?.serverId){
+      if(r?.error==='session_expired'){
+        if(typeof setToken==='function') setToken(null);
+        showToastWarn(T.warn_login||'Войдите в аккаунт');openAuth('login');
+      } else if(r?.error==='limit_exceeded' && typeof showLimitModal==='function'){
+        showLimitModal(r.limitData);
+      } else if(r?.error==='idempotency_payload_mismatch'){
+        showToastWarn(T.err_load_duplicate_payload||'Груз уже сохранён с другими данными. Проверьте «Мои грузы».');
+      } else if(r?.status===0){
+        showToastWarn(T.warn_network||'Нет связи с сервером');
       } else {
-        console.warn('[createLoad] Server rejected:', r.error);
-        if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
-        const li=LOCAL.findIndex(l=>l.id===newLoad.id);
-        if(li>-1) LOCAL.splice(li,1);
-        renderLoads(scope==='local'?LOCAL:INTL);
-        if(r.error === 'session_expired'){
-          if(typeof openAuth==='function') openAuth('login');
-        } else if(r.error === 'role_error'){
-          closeModal('postOverlay');
-          if(confirm('⚠️ ' + (r.message || 'Недостаточно прав') + '\n\nПерейти в настройки?')){
-            if(typeof openSettings==='function') openSettings();
-          }
-        } else if(r.error === 'limit_exceeded') {
-          closeModal('postOverlay');
-          if(typeof showLimitModal==='function') showLimitModal(r.limitData);
-        } else {
-          showToastWarn('⚠️ Груз не удалось сохранить. Попробуйте ещё раз.');
-        }
+        showToastWarn(r?.error || T.err_load_save || 'Не удалось сохранить груз');
       }
-    }).catch((err)=>{
-      console.warn('[createLoad] Network error:', err);
-      if(_submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_post_submit||'📦 Разместить груз';}
-      showToastWarn('⚠️ Нет соединения. Груз не сохранён.');
-      const li=LOCAL.findIndex(l=>l.id===newLoad.id);
-      if(li>-1) LOCAL.splice(li,1);
-      renderLoads(scope==='local'?LOCAL:INTL);
-    });
-  } else {
-    // Нет токена — не залогинен
-    showToastWarn('⚠️ Войдите в аккаунт чтобы добавить груз.');
-    const li=LOCAL.findIndex(l=>l.id===newLoad.id);
-    if(li>-1) LOCAL.splice(li,1);
-    renderLoads(scope==='local'?LOCAL:INTL);
+      return;
+    }
+    const confirmed={...newLoad,...r.load,id:r.load.serverId,fromServer:true,userId:submittedUserId};
+    const target=submittedScope==='intl'?INTL:LOCAL;
+    const index=target.findIndex(l=>(l.serverId||l.id)===confirmed.serverId);
+    if(index<0) target.unshift(confirmed); else target[index]=confirmed;
+    window.allLoads=[...LOCAL,...INTL];
+    if(currentUserId===submittedUserId){
+      const ownIndex=_myLoads.findIndex(l=>(l.serverId||l.id)===confirmed.serverId);
+      if(ownIndex<0) addMyLoad(confirmed);
+      else {_myLoads[ownIndex]=confirmed;persistMyLoads();}
+    }
+    saved=true;
+    _postLoadIdempotencyKey=null;
+    window._cabinetFetching=false;window._tabRestored=false;
+    const visible=scope==='intl'?INTL:LOCAL;
+    renderLoads(visible);
+    const count=document.getElementById('fcount');
+    if(count) count.textContent=visible.length+' '+(T.fcount_suffix||'грузов');
+    document.getElementById('postSuccess').style.display='block';
+    setTimeout(()=>{
+      // An old completion timer must not close a newly opened form.
+      if(_postLoadIdempotencyKey===null && !_editingLoadId) closeModal('postOverlay');
+    },1200);
+  } catch(error) {
+    showToastWarn(T.warn_network||'Нет связи с сервером');
+  } finally {
+    _postLoadSubmitting=false;
+    if(!saved && _submitBtn){_submitBtn.disabled=false;_submitBtn.textContent=T.btn_post_submit||'Разместить груз';}
   }
-
-  setTimeout(()=>{
-    closeModal('postOverlay');
-    renderLoads(scope==='local'?LOCAL:INTL);
-    document.getElementById('fcount').textContent=LOCAL.length+' '+(((typeof TRANSLATIONS!=='undefined')?TRANSLATIONS[lang]||TRANSLATIONS['ru']:TRANSLATIONS['ru']).fcount_suffix||'грузов');
-  },1200);
 }
 
 // Массив своих грузов (отдельно от откликов)
@@ -3376,6 +3390,13 @@ const TRANSLATIONS = {
     transport_filter_type: 'Любой кузов',
     transport_btn_find: '🔍 Найти',
     transport_btn_offer: '+ Предложить транспорт',
+    err_transport_save: 'Не удалось сохранить предложение транспорта',
+    err_transport_request: 'Не удалось отправить запрос',
+    err_load_route: 'Укажите маршрут груза',
+    err_load_weight: 'Укажите вес от 1 до 50 000 кг',
+    err_load_save: 'Не удалось сохранить груз',
+    err_load_duplicate_payload: 'Груз уже сохранён с другими данными. Проверьте «Мои грузы».',
+    err_response_save: 'Не удалось отправить отклик. Попробуйте ещё раз.',
     transport_confirm_availability: 'Уточнить доступность',
     transport_count_suffix: 'предложений транспорта',
     transport_empty_title: 'Предложений нет',
@@ -4173,6 +4194,13 @@ const TRANSLATIONS = {
     transport_filter_type: 'ნებისმიერი კუზოვი',
     transport_btn_find: '🔍 ძიება',
     transport_btn_offer: '+ ტრანსპორტის შეთავაზება',
+    err_transport_save: 'ტრანსპორტის შეთავაზების შენახვა ვერ მოხერხდა',
+    err_transport_request: 'მოთხოვნის გაგზავნა ვერ მოხერხდა',
+    err_load_route: 'მიუთითეთ ტვირთის მარშრუტი',
+    err_load_weight: 'მიუთითეთ წონა 1-დან 50 000 კგ-მდე',
+    err_load_save: 'ტვირთის შენახვა ვერ მოხერხდა',
+    err_load_duplicate_payload: 'ტვირთი უკვე შენახულია სხვა მონაცემებით. შეამოწმეთ „ჩემი ტვირთები“.',
+    err_response_save: 'გამოხმაურების გაგზავნა ვერ მოხერხდა. სცადეთ ხელახლა.',
     transport_confirm_availability: 'დააზუსტეთ ხელმისაწვდომობა',
     transport_count_suffix: 'ტრანსპორტის შეთავაზება',
     transport_empty_title: 'შეთავაზებები არ არის',
@@ -6628,7 +6656,10 @@ function renderTransportOffers() {
 // Открыть модалку отклика на транспортное предложение
 var _currentTransportOfferId = null;
 var _currentTransportMaxKg = null;
+var _transportRequestSubmitting=false;
+var _transportOfferSubmitting=false;
 window.openTransportRequest = function(offerId) {
+  if(_transportRequestSubmitting) return;
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) { openAuth('register'); return; }
   _currentTransportOfferId = offerId;
@@ -6661,6 +6692,7 @@ window.openTransportRequest = function(offerId) {
 };
 
 window.submitTransportRequest = async function() {
+  if(_transportRequestSubmitting) return;
   if(!_currentTransportOfferId) return;
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) { openAuth('login'); return; }
@@ -6678,6 +6710,9 @@ window.submitTransportRequest = async function() {
     return;
   }
 
+  var submitButton=document.querySelector('#transportRequestOverlay .btn-primary');
+  _transportRequestSubmitting=true;
+  if(submitButton) submitButton.disabled=true;
   try {
     var r = await fetch(API_BASE + '/api/transport/' + _currentTransportOfferId + '/request', {
       method: 'POST',
@@ -6685,19 +6720,27 @@ window.submitTransportRequest = async function() {
       body: JSON.stringify({cargo_description: desc, weight_kg: weight, message: msg}),
     });
     var d = await r.json();
-    if(r.ok) {
+    if(r.ok && d.ok && d.request?.id) {
       closeModal('transportRequestOverlay');
       pushNotif('✅ Отклик отправлен', 'Перевозчик рассмотрит ваш запрос', []);
     } else {
-      if(errEl){ errEl.textContent = d.detail || 'Ошибка'; errEl.style.display = 'block'; }
+      if(errEl){ errEl.textContent = typeof d.detail==='string'?d.detail:((TRANSLATIONS[lang]||TRANSLATIONS.ru).err_transport_request||'Не удалось отправить запрос'); errEl.style.display = 'block'; }
     }
   } catch(e) {
     if(errEl){ errEl.textContent = 'Ошибка сети'; errEl.style.display = 'block'; }
+  } finally {
+    _transportRequestSubmitting=false;
+    if(submitButton) submitButton.disabled=false;
   }
 };
 
 // Форма размещения транспортного предложения
 window.openPostTransportOffer = function() {
+  if(_transportOfferSubmitting) return;
+  var submitButton=document.querySelector('#postTransportOverlay .btn-primary');
+  if(submitButton) submitButton.disabled=false;
+  var success=document.getElementById('postTransportSuccess');
+  if(success) success.style.display='none';
   var tk = typeof getToken === 'function' ? getToken() : null;
   if(!tk) { openAuth('register'); return; }
   // Устанавливаем min дату
@@ -6716,6 +6759,9 @@ window.openPostTransportOffer = function() {
 };
 
 window.submitTransportOffer = async function() {
+  if(_transportOfferSubmitting) return;
+  var submitButton=document.querySelector('#postTransportOverlay .btn-primary');
+  if(submitButton?.disabled) return;
   var from     = (document.getElementById('ptFrom')      || {}).value || '';
   var to       = (document.getElementById('ptTo')        || {}).value || '';
   var type     = (document.getElementById('ptTruckType') || {}).value || '';
@@ -6744,6 +6790,9 @@ window.submitTransportOffer = async function() {
     notes: notes.trim() || null,
   };
 
+  _transportOfferSubmitting=true;
+  if(submitButton) submitButton.disabled=true;
+  var confirmed=false;
   try {
     var r = await fetch(API_BASE + '/api/transport/', {
       method: 'POST',
@@ -6763,16 +6812,20 @@ window.submitTransportOffer = async function() {
       if(errEl){ errEl.textContent = msg422; errEl.style.display = 'block'; }
       return;
     }
-    if(r.status === 201) {
+    if(r.status === 201 && d.ok && d.offer?.id) {
+      confirmed=true;
       var succ = document.getElementById('postTransportSuccess');
       if(succ) { succ.style.display = 'block'; setTimeout(function(){ succ.style.display='none'; }, 2000); }
       setTimeout(function(){ closeModal('postTransportOverlay'); loadTransportOffers(); }, 1500);
     } else {
-      var errMsg = (typeof d.detail === 'string') ? d.detail : 'Не удалось отправить, попробуйте позже';
+      var errMsg = (typeof d.detail === 'string') ? d.detail : ((TRANSLATIONS[lang]||TRANSLATIONS.ru).err_transport_save||'Не удалось сохранить предложение транспорта');
       if(errEl){ errEl.textContent = errMsg; errEl.style.display = 'block'; }
     }
   } catch(e) {
     if(errEl){ errEl.textContent = 'Ошибка соединения'; errEl.style.display = 'block'; }
+  } finally {
+    _transportOfferSubmitting=false;
+    if(submitButton) submitButton.disabled=confirmed;
   }
 };
 
