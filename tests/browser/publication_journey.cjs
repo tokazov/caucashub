@@ -12,6 +12,7 @@ const ROOT=path.resolve(process.env.CARRIER_PROFILE_REPO_ROOT||path.join(__dirna
 const {chromium}=require(require.resolve('playwright',{paths:[ROOT,__dirname]}));
 const ARTIFACTS=path.resolve(process.env.CARRIER_PUBLICATION_ARTIFACTS||path.join(ROOT,'artifacts/publication-journey'));
 const auditContacts=process.argv.includes('--audit-contacts');
+const completionEnabled=process.env.CARRIER_BROWSER_COMPLETION==='1';
 const results=[],diagnostics={productionApiAttempts:0,blockedHosts:[],pages:[],mutations:[]};
 const blocked=new Set();
 let browser,server,serverError;
@@ -229,13 +230,20 @@ async function run(configuration,index){
   const accounts={shipper:await register(sh.page,'shipper','shipper.'+suffix,index*2+1),carrier:await register(ca.page,'carrier','carrier.'+suffix,index*2+2)};
   const cargo=await cargoPath(sh.page,ca.page,configuration,accounts,'QA cargo '+suffix);
   const transport=await transportPath(sh.page,ca.page,configuration,accounts,'QA transport '+suffix);
+  let completion=[];
+  if(completionEnabled){
+   const complete=require('./deal_completion_steps.cjs');
+   for(const[source,journey,first]of[['cargo',cargo,'carrier'],['transport',transport,'shipper']]){
+    completion.push(await complete({shipper:sh.page,carrier:ca.page,configuration,accounts,dealId:journey.contacts[0].dealId,source,first,readApi,cabinetTab,clickRequest,artifacts:ARTIFACTS}));
+   }
+  }
   for(const account of[sh,ca]){
    await account.page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-'+account.log.role+'.png'),fullPage:true});
    assert.deepEqual(account.log.pageErrors,[]);assert.deepEqual(account.log.dialogs,[]);
   }
   const contactsComplete=[...cargo.contacts,...transport.contacts].every(result=>result.phoneVisible&&result.emailVisible);
   console.log(configuration.name+': cargo and transport publication, response, acceptance and both participants contacts '+(contactsComplete?'passed':'incomplete'));
-  results.push({viewport:configuration.name,status:contactsComplete?'passed':'core-passed-contact-gap',contactsComplete,cargo,transport});
+  results.push({viewport:configuration.name,status:contactsComplete?'passed':'core-passed-contact-gap',contactsComplete,cargo,transport,completion});
  }catch(error){
   for(const account of[sh,ca])await account.page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-'+account.log.role+'-failure.png'),fullPage:true}).catch(()=>{});
   results.push({viewport:configuration.name,status:'failed',error:error.message});throw error;

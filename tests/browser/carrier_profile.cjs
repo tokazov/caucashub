@@ -12,6 +12,7 @@ fs.mkdirSync(ARTIFACTS, { recursive: true });
 let server;
 let serverError;
 let browser;
+const settingsDiagnostics=[];
 const results = [];
 const diagnostics = { blockedHosts: [], productionApiAttempts: 0, pages: [] };
 const blockedHosts = new Set();
@@ -120,7 +121,18 @@ async function login(page, email, password) {
 async function saveSettings(page, type, tonnes) {
   await page.locator('#sTruckType').selectOption(type ?? '');
   await page.locator('#sTonnage').fill(tonnes === null ? '' : String(tonnes));
-  const profile = await realResponse(page, '#settingsOverlay button[onclick="saveSettings()"]', '/api/users/me', 'PUT');
+  assert.equal(await page.locator('#sTruckType').inputValue(),type??'');
+  assert.equal(await page.locator('#sTonnage').inputValue(),tonnes===null?'':String(tonnes));
+  const responsePromise=page.waitForResponse(response=>response.url().split('?')[0]===new URL('/api/users/me',BASE).href&&response.request().method()==='PUT');
+  await page.locator('#settingsOverlay button[onclick="saveSettings()"]').click();
+  const response=await responsePromise;
+  const profile=await response.json();
+  const sent=response.request().postDataJSON();
+  settingsDiagnostics.push({viewport:await page.evaluate(()=>innerWidth),expected:{truck_type:type,tonnage:tonnes},sent:{truck_type:sent.truck_type,tonnage:sent.tonnage},received:{truck_type:profile.truck_type,tonnage:profile.tonnage}});
+  console.log('Settings canonical payload:',JSON.stringify(settingsDiagnostics.at(-1)));
+  assert.equal(response.status(),200);
+  assert.equal(response.headers()['x-carrier-test-only'],'1');
+  assertProfile(sent,type,tonnes);
   assertProfile(profile, type, tonnes);
   await page.locator('#settingsOverlay').waitFor({ state: 'hidden' });
   assertProfile(await backendProfile(page), type, tonnes);
@@ -218,6 +230,16 @@ async function journey(configuration, index) {
     await checkSettings(page, null, null);
     assertProfile(await backendProfile(page), null, null);
     await screenshot(page, configuration.name + '-cleared-new-login');
+    await closeSettings(page);
+    for(let clearRound=0;clearRound<3;clearRound++){
+      await openSettings(page);
+      await saveSettings(page,'tent',12.5);
+      await logout(page);
+      await login(page,email,password);
+      await openSettings(page);
+      await checkSettings(page,'tent',12.5);
+      await saveSettings(page,null,null);
+    }
     assert.equal(diagnostics.productionApiAttempts, 0, 'All production API origins must be rewritten in the temporary copy');
     assert.deepEqual(pageLog.dialogs, [], 'Unexpected UI alert/confirm');
     assert.deepEqual(pageLog.pageErrors, [], 'Browser JavaScript errors must be fixed, not hidden by this fixture');
@@ -270,6 +292,6 @@ async function journey(configuration, index) {
     if (browser) await browser.close().catch(() => {});
     if (server && server.exitCode === null) server.kill('SIGTERM');
     diagnostics.blockedHosts = [...blockedHosts].sort();
-    fs.writeFileSync(path.join(ARTIFACTS, 'results.json'), JSON.stringify({ results, diagnostics }, null, 2));
+    fs.writeFileSync(path.join(ARTIFACTS, 'results.json'), JSON.stringify({ results, diagnostics,settingsDiagnostics }, null, 2));
   }
 })();
