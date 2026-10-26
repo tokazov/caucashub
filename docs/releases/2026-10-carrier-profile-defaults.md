@@ -15,7 +15,8 @@ Existing user rows start with both values null; no backfill is performed.
    `SELECT(User)` references the new mapped columns, so `/health` alone is
    insufficient to prove schema readiness.
 4. The pre-deploy gate applies revision 021 directly and idempotently,
-   checks both column types/nullability and rejects truncated body codes or\n   capacity types that round valid fractional tonnes, then executes
+   checks both column types/nullability and rejects truncated body codes or
+   capacity types that round valid fractional tonnes, then executes
    `SELECT truck_type, tonnage FROM users LIMIT 0`.
    It does not stamp or replay the historical Alembic chain.
 5. Verify the successful pre-deploy log includes
