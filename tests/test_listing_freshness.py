@@ -70,23 +70,41 @@ async def test_feed_counter_and_tariff_use_same_current_loads(db):
 
 
 @pytest.mark.asyncio
-async def test_transport_keeps_current_interval_but_hides_expired_and_demo(db):
+@pytest.mark.parametrize("available_only", [False, True])
+async def test_transport_directory_preserves_carriers_with_expired_dates(db, available_only):
     cutoff = listing_day_start()
-    def offer(start, end=None, demo=False):
+    def offer(start, end=None, demo=False, status="active"):
         return TransportOffer(user_id=1, from_city='Tbilisi', to_city='Batumi',
             truck_type='tent', capacity_kg=1000, available_from=start,
-            available_to=end, is_demo=demo)
+            available_to=end, is_demo=demo, status=status)
     expired = offer(cutoff-timedelta(days=2), cutoff-timedelta(seconds=1))
     interval = offer(cutoff-timedelta(days=2), cutoff+timedelta(days=1))
     today = offer(cutoff)
     old_single = offer(cutoff-timedelta(days=1))
+    future = offer(cutoff+timedelta(days=2))
     demo = offer(cutoff, demo=True)
-    db.add_all([expired, interval, today, old_single, demo])
+    canceled = offer(cutoff, status="canceled")
+    taken = offer(cutoff, status="taken")
+    db.add_all([expired, interval, today, old_single, future, demo, canceled, taken])
     await db.commit()
+    # Omit the option to exercise the default used by the Machines tab.
+    options = {"available_only": True} if available_only else {}
     result = await list_transport_offers(from_city=None, to_city=None, truck_type=None,
-        min_cap_kg=None, limit=50, offset=0, db=db, authorization=None)
-    assert result['total'] == 2
-    assert {o['id'] for o in result['offers']} == {interval.id, today.id}
+        min_cap_kg=None, limit=50, offset=0, db=db, authorization=None, **options)
+    expected = {interval.id, today.id, future.id}
+    if not available_only:
+        expected |= {expired.id, old_single.id}
+    assert result['total'] == len(expected)
+    assert {o['id'] for o in result['offers']} == expected
+    for row in result['offers']:
+        assert row['dates_expired'] == (row['id'] in {expired.id, old_single.id})
+        assert row['owner_phone'] is None
+        assert row['owner_email'] is None
+    # Visibility must never renew dates, delete history, or change user accounts.
+    assert (await db.execute(select(func.count()).select_from(TransportOffer))).scalar_one() == 8
+    assert (await db.execute(select(func.count()).select_from(User))).scalar_one() == 1
+    await db.refresh(expired)
+    assert not date_is_current(expired.available_to)
 
 
 @pytest.mark.parametrize('schema', [LoadCreate, LoadUpdate])
