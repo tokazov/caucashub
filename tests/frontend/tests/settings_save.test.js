@@ -12,8 +12,12 @@ function form(path,reply){
  document:{getElementById:id=>fields[id],createElement:()=>({style:{},remove(){}}),body:{appendChild(){}}},
  fetch:async()=>{c.requests++;return typeof reply==='function'?await reply():reply;},
  showToastWarn:m=>c.warnings.push(m),closeModal:id=>c.closed.push(id),_lsSet:(k,v)=>c.saved.push(v),pushNotif:(...x)=>c.notifs.push(x),setTimeout:()=>{}};
+ ctx.currentUserId=null;fields.sTonnage.value="3.5";fields.sTruckType.value="tent";
  vm.createContext(ctx);
  const src=readFileSync(new URL('../../../'+path,import.meta.url),'utf8'),a=src.indexOf('async function saveSettings(){');
+ const api=readFileSync(new URL('../../../'+(path.startsWith('frontend/')?'frontend/api.js':'api.js'),import.meta.url),'utf8');
+ const capacity=api.indexOf('function carrierTonnageValue(');vm.runInContext(api.slice(capacity,api.indexOf('// ── AUTH',capacity)),ctx);
+ const helper=src.indexOf('function applyCarrierProfileDefaults(');vm.runInContext(src.slice(helper,src.indexOf('async function doLogin()',helper)),ctx);
  vm.runInContext(src.slice(a,src.indexOf('\nfunction _refreshAnalytics',a)),ctx);
  return {ctx,c,fields};
 }
@@ -23,7 +27,8 @@ for(const path of ['main.js','frontend/main.js']){
  let resolve;const {ctx,c}=form(path,()=>new Promise(r=>resolve=r));
  const p=ctx.saveSettings();await ctx.saveSettings();
  assert.equal(c.requests,1);assert.equal(c.closed.length,0);assert.equal(c.saved.length,0);assert.equal(ctx.user.name,'Before');
- resolve(response(200,{ok:true,id:7,company_name:'Server name',phone:'confirmed',inn:'123456789',org_type:'LLC',city:'Tbilisi'}));await p;
+ resolve(response(200,{ok:true,id:7,company_name:'Server name',phone:'confirmed',inn:'123456789',org_type:'LLC',city:'Tbilisi',truck_type:'ref',tonnage:3.5}));await p;
+ assert.equal(ctx.user.truckType,'ref');assert.equal(ctx.user.tonnage,3.5);
  assert.equal(ctx.user.name,'Server name');assert.equal(ctx.user.phone,'confirmed');assert.equal(c.closed.length,1);assert.equal(c.saved.length,1);assert.equal(c.notifs.length,1);
  });
  for(const mode of ['edit','reopen','closed'])test(path+': late success preserves '+mode+' form',async()=>{
@@ -54,4 +59,36 @@ for(const path of ['main.js','frontend/main.js']){
  test(path+': rejects malformed success',async()=>{const {ctx,c}=form(path,response(200,{}));await ctx.saveSettings();assert.equal(c.closed.length,0);assert.equal(c.saved.length,0);assert.equal(c.warnings.length,1);});
  test(path+': no token means no request',async()=>{const {ctx,c}=form(path,response(200,{}));ctx.token=null;await ctx.saveSettings();assert.equal(c.requests,0);assert.equal(c.saved.length,0);});
  test(path+': old session cannot update profile',async()=>{let resolve;const {ctx,c}=form(path,()=>new Promise(r=>resolve=r));const p=ctx.saveSettings();ctx.token='new-token';resolve(response(200,{ok:true,id:7}));await p;assert.equal(c.saved.length,0);assert.equal(c.closed.length,0);});
+}
+
+for(const path of ['main.js','frontend/main.js']){
+ test(path+': confirmed clearing removes cached carrier defaults',async()=>{
+  const{ctx,c}=form(path,response(200,{ok:true,id:7,truck_type:null,tonnage:null}));
+  ctx.user.truckType='tent';ctx.user.tonnage=20;await ctx.saveSettings();
+  assert.equal(ctx.user.truckType,'');assert.equal(ctx.user.tonnage,'');assert.equal(c.saved.length,1);
+ });
+ for(const field of ['truck_type','tonnage'])test(path+': server validation highlights '+field,async()=>{
+  const{ctx,c}=form(path,response(422,{detail:[{loc:['body',field],msg:'Invalid capacity'}]}));await ctx.saveSettings();
+  assert.equal(c.highlight,field==='truck_type'?'sTruckType':'sTonnage');assert.equal(c.closed.length,0);
+ });
+ test(path+': invalid tonnes preserve the saved profile and never start a request',async()=>{
+  for(const value of ['NaN','Infinity','0','-1','101']){
+   const{ctx,c,fields}=form(path,response(200,{ok:true,id:7}));fields.sTonnage.value=value;
+   await ctx.saveSettings();assert.equal(c.requests,0);assert.equal(c.saved.length,0);assert.equal(ctx.user.name,'Before');
+   assert.equal(c.focus,'sTonnage');assert.equal(c.closed.length,0);
+  }
+ });
+ test(path+': same-token user replacement and logout cannot receive an old settings response',async()=>{
+  for(const mode of ['logout','new-login','wrong-id']){
+   let resolve;const{ctx,c}=form(path,()=>new Promise(r=>{resolve=r;}));
+   ctx.user.userId=7;const oldOwner=ctx.user;const pending=ctx.saveSettings();
+   if(mode==='logout')ctx.user=null;
+   if(mode==='new-login')ctx.user={userId:8,name:'Other',truckType:'tent',tonnage:20};
+   resolve(response(200,{ok:true,id:mode==='wrong-id'?8:7,truck_type:'ref',tonnage:3.5}));await pending;
+   assert.equal(c.saved.length,0);assert.equal(c.closed.length,0);
+   if(mode==='logout')assert.equal(ctx.user,null);
+   if(mode==='new-login')assert.equal(ctx.user.truckType,'tent');
+   if(mode==='wrong-id')assert.equal(ctx.user,oldOwner);
+  }
+ });
 }

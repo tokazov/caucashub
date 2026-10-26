@@ -1893,6 +1893,33 @@ function backToStep1(){
     document.getElementById(id).classList.remove('selected');
   });
 }
+function applyCarrierProfileDefaults(profile,target){
+  if(!profile||!target) return;
+  if(Object.prototype.hasOwnProperty.call(profile,'truck_type')&&profile.truck_type!==undefined)
+    target.truckType=profile.truck_type??'';
+  if(Object.prototype.hasOwnProperty.call(profile,'tonnage')&&profile.tonnage!==undefined){
+    if(profile.tonnage===null) target.tonnage='';
+    else {
+      try{target.tonnage=carrierTonnageValue(profile.tonnage);}catch(error){}
+    }
+  }
+}
+function readCarrierTonnage(inputId){
+  const input=document.getElementById(inputId);
+  try{return carrierTonnageValue(input?.value??'');}
+  catch(error){
+    if(input){
+      input.classList.add('input-error');
+      input.addEventListener('input',()=>input.classList.remove('input-error'),{once:true});
+      input.focus();
+    }
+    showToastWarn(lang==='ge'
+      ?'ტვირთამწეობა უნდა იყოს 0-ზე მეტი და არაუმეტეს 100 ტონის'
+      :error.message);
+    return undefined;
+  }
+}
+
 async function doLogin(){
   if(typeof CaucasAPI==='undefined'){
     showToastWarn((TRANSLATIONS[lang]||TRANSLATIONS.ru).warn_network||'Нет связи с сервером');return;
@@ -1932,18 +1959,21 @@ async function doLogin(){
   _lsSet('ch_user',JSON.stringify(user));
   document.getElementById('loginSuccess').style.display='block';
   setTimeout(()=>{
+    if(user!==userData||getToken()!==userData.token) return;
     closeModal('authOverlay');
     showUserState();
     if(typeof syncLoadsFromServer==='function') syncLoadsFromServer();
     if(typeof loadDeals==='function') loadDeals();
     // Подгружаем полный профиль с сервера
-    if(getToken()) fetch('https://api-production-f3ea.up.railway.app/api/users/me',{
-      headers:{'Authorization':'Bearer '+getToken()}
-    }).then(r=>r.json()).then(d=>{
-      if(d.id && user){
+    const profileToken=userData.token;
+    if(profileToken) fetch('https://api-production-f3ea.up.railway.app/api/users/me',{
+      headers:{'Authorization':'Bearer '+profileToken}
+    }).then(r=>r.ok?r.json():null).then(d=>{
+      if(d?.id&&user===userData&&getToken()===profileToken&&Number(d.id)===Number(userData.userId)){
         user.inn=d.inn||user.inn; user.orgType=d.org_type||user.orgType;
         user.city=d.city||user.city; user.phone=d.phone||user.phone;
         user.name=d.company_name||user.name;
+        applyCarrierProfileDefaults(d,user);
         _lsSet('ch_user',JSON.stringify(user));
       }
     }).catch(()=>{});
@@ -1973,7 +2003,8 @@ async function doRegister(){
   const orgType=document.getElementById('regOrgType')?.value||'';
   const city=document.getElementById('regCity')?.value||'';
   const truckType=document.getElementById('regTruckType')?.value||'';
-  const tonnage=document.getElementById('regTonnage')?.value||'';
+  const tonnage=readCarrierTonnage('regTonnage');
+  if(tonnage===undefined) return;
 
   const btn=document.querySelector('#formRegister .btn-primary');
   if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_creating||'Создаём...';btn.disabled=true;}
@@ -1981,9 +2012,10 @@ async function doRegister(){
   let userData={name,email,phone,role,inn,orgType,city,truckType,tonnage};
 
   if(typeof CaucasAPI!=='undefined'){
-    const r=await CaucasAPI.register({email,password:pass,name,phone,role,inn,orgType,city});
+    const r=await CaucasAPI.register({email,password:pass,name,phone,role,inn,orgType,city,truckType,tonnage});
     if(r.ok){
       userData={...userData,userId:r.user_id,token:r.token};
+      applyCarrierProfileDefaults(r,userData);
       currentUserId=r.user_id; // обновляем сразу
     } else {
       if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_register_submit||'Создать аккаунт';btn.disabled=false;}
@@ -2000,7 +2032,7 @@ async function doRegister(){
         const fieldName = first?.loc ? first.loc[first.loc.length - 1] : null;
         const msg422 = first?.msg || (typeof r.error==='string'?r.error:'Проверьте введённые данные');
         // Map backend field name → form element id
-        const fieldMap = { inn:'regInn',email:'regEmail',password:'regPass',name:'regName',company_name:'regName',phone:'regPhone' };
+        const fieldMap = { inn:'regInn',email:'regEmail',password:'regPass',name:'regName',company_name:'regName',phone:'regPhone',truck_type:'regTruckType',tonnage:'regTonnage' };
         const inputId = fieldMap[fieldName] || ('reg' + (fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : ''));
         const inputEl = document.getElementById(inputId);
         if(inputEl){ inputEl.classList.add('input-error'); inputEl.addEventListener('input', function(){ inputEl.classList.remove('input-error'); }, {once: true}); }
@@ -2061,6 +2093,8 @@ function showUserState(){
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
 function doLogout(){
+  if(typeof setToken==='function') setToken(null);
+  currentUserId=null;
   user=null;
   _lsDel('ch_user');
   const od2=document.getElementById('onlineDot');
@@ -5181,7 +5215,7 @@ function openSettings(){
     const sotAll=document.getElementById('sOrgTypeAll'); if(sotAll) sotAll.value=user.orgType||'';
     _sfill('sCityAll', user.city);
     const sot=document.getElementById('sOrgType'); if(sot&&user.orgType) sot.value=user.orgType;
-    const stt=document.getElementById('sTruckType'); if(stt&&user.truckType) stt.value=user.truckType;
+    _sfill('sTruckType',user.truckType);
     _sfill('sTonnage', user.tonnage);
   }
   // Показываем поля перевозчика только для carrier/both
@@ -5239,12 +5273,15 @@ async function saveSettings(){
   const orgType=visibleValue(['sOrgType','sOrgTypeAll']);
   const city=document.getElementById('sCityAll').value;
   const truckType=document.getElementById('sTruckType').value;
-  const tonnage=document.getElementById('sTonnage').value;
+  const tonnage=readCarrierTonnage('sTonnage');
+  if(tonnage===undefined) return;
+  const profileOwner=user;
+  const profileOwnerId=profileOwner?.userId??currentUserId;
 
   const revision=openSettings.revision||0;
   const draftIds=['sName','sPhone','sTelegram','sRole','sInnAll','sOrgTypeAll','sCityAll','sTruckType','sTonnage'];
   const draft=draftIds.map(id=>document.getElementById(id)?.value||'');
-  const sameDraft=()=>getToken()===token && (openSettings.revision||0)===revision &&
+  const sameDraft=()=>getToken()===token && user===profileOwner && (openSettings.revision||0)===revision &&
     document.getElementById('settingsOverlay')?.classList.contains('on') &&
     draftIds.every((id,i)=>(document.getElementById(id)?.value||'')===draft[i]);
   saveSettings.pending=true;
@@ -5264,7 +5301,7 @@ async function saveSettings(){
       if(r.status===422){
         const first=Array.isArray(data?.detail)?data.detail[0]:null;
         const field=first?.loc?.[first.loc.length-1];
-        const fieldMap={inn:['sInn','sInnAll'],org_type:['sOrgType','sOrgTypeAll'],city:['sCityAll'],company_name:['sName'],phone:['sPhone']};
+        const fieldMap={inn:['sInn','sInnAll'],org_type:['sOrgType','sOrgTypeAll'],city:['sCityAll'],company_name:['sName'],phone:['sPhone'],truck_type:['sTruckType'],tonnage:['sTonnage']};
         const candidates=(fieldMap[field]||[]).map(id=>document.getElementById(id)).filter(Boolean);
         const input=candidates.find(el=>el.getClientRects().length>0);
         if(input){
@@ -5285,11 +5322,12 @@ async function saveSettings(){
       showToastWarn(lang==='ge'?'სერვერმა შენახვა ვერ დაადასტურა':'Сервер не подтвердил сохранение');
       return;
     }
-    if(getToken()!==token) return;
-    if(!user){ user = {}; }
+    if(getToken()!==token||!profileOwner||user!==profileOwner||
+      (profileOwnerId!=null&&Number(data.id)!==Number(profileOwnerId))) return;
     user.name=data.company_name||user.name||'Пользователь';
     user.phone=data.phone; user.telegram=tg; user.role=role;
-    user.inn=data.inn; user.orgType=data.org_type; user.truckType=truckType; user.tonnage=tonnage; user.city=data.city;
+    user.inn=data.inn; user.orgType=data.org_type; user.city=data.city;
+    applyCarrierProfileDefaults(data,user);
     _lsSet('ch_user',JSON.stringify(user));
 
     // Обновляем UI
@@ -5606,9 +5644,12 @@ try{
     if(_savedUser&&_savedUser.name){
       const _tok = (typeof getToken!=='undefined'&&getToken()) || _savedUser.token || localStorage.getItem('ch_token');
       if(_tok){
+        const _restoreOwner=user;
+        const _sameRestoreSession=()=>getToken()===_tok&&user===_restoreOwner;
         // Проверяем токен через API — если 401 очищаем сессию
         fetch(API_BASE+'/api/users/me',{headers:{'Authorization':'Bearer '+_tok},signal:AbortSignal.timeout(5000)})
           .then(r=>{
+            if(!_sameRestoreSession()) return null;
             if(r.status===401||r.status===403){
               // Токен невалиден — очищаем сессию
               _lsDel('ch_user'); localStorage.removeItem('ch_token');
@@ -5619,7 +5660,8 @@ try{
             return r.json();
           })
           .then(d=>{
-            if(!d) return;
+            if(!d?.id||!_sameRestoreSession()||
+              (_savedUser.userId!=null&&Number(d.id)!==Number(_savedUser.userId))) return;
             // Токен валиден — восстанавливаем сессию с актуальными данными с сервера
             user=_savedUser;
             user.name = d.company_name || _savedUser.name;
@@ -5627,12 +5669,14 @@ try{
             user.inn = d.inn || _savedUser.inn;
             user.plan = d.plan || _savedUser.plan;
             user.userId = d.id || _savedUser.userId;
+            applyCarrierProfileDefaults(d,user);
             currentUserId = Number(d.id || _savedUser.userId);
             _lsSet('ch_user',JSON.stringify(user));
             showUserState();
             setTimeout(()=>{ if(typeof syncLoadsFromServer==='function') syncLoadsFromServer(); },300);
           })
           .catch(()=>{
+            if(!_sameRestoreSession()) return;
             // Нет сети — доверяем localStorage (оффлайн режим)
             user=_savedUser;
             if(_savedUser.userId) currentUserId=Number(_savedUser.userId);
@@ -5715,14 +5759,17 @@ let dealsData = [], exportDateFrom='', exportDateTo='';
 
 async function loadDeals(){
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk){document.getElementById('dealsLoading').style.display='none'; return;}
-  document.getElementById('dealsLoading').style.display='block';
-  document.getElementById('dealsList').innerHTML='';
+  // The current cabinet has #myDealsList; these legacy containers are optional.
+  const loading=document.getElementById('dealsLoading');
+  const list=document.getElementById('dealsList');
+  if(!tk){if(loading) loading.style.display='none'; return;}
+  if(loading) loading.style.display='block';
+  if(list) list.innerHTML='';
   try{
     const r = await fetch(API_BASE+'/api/deals/my',{headers:{'Authorization':'Bearer '+tk}});
     if(r.ok){const d=await r.json();dealsData=d.deals||d||[];renderDeals();}
   }catch(e){}
-  document.getElementById('dealsLoading').style.display='none';
+  if(loading) loading.style.display='none';
 }
 
 function renderDeals(){
@@ -6074,6 +6121,7 @@ function _renderTgStatus(linked){
 }
 
 async function _initTgStatus(){
+  const token=typeof getToken==='function'?getToken():null;
   if(!token) return;
   try {
     const st = await apiFetch('/api/tg/status');

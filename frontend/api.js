@@ -7,6 +7,7 @@ const API_BASE = 'https://api-production-f3ea.up.railway.app';
 function getToken(){ return localStorage.getItem('ch_token') || null; }
 function setToken(t){ if(t) localStorage.setItem('ch_token',t); else localStorage.removeItem('ch_token'); }
 
+
 async function apiRequest(method, path, body=null, extraHeaders={}){
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   const token = getToken();
@@ -71,10 +72,25 @@ function loadingRequestError(detail) {
     ? detail.map(x=>x.msg||'').join('; ') : 'Не удалось сохранить груз';
 }
 
+// Profile capacities are tonnes. Reject invalid values before JSON can turn
+// NaN/Infinity into null (which would otherwise clear a saved default).
+function carrierTonnageValue(value){
+  if(value===null||value===undefined||(typeof value==='string'&&!value.trim())) return null;
+  if((typeof value!=='number'&&typeof value!=='string')||
+     !Number.isFinite(Number(value))||Number(value)<=0||Number(value)>100)
+    throw new Error('Грузоподъёмность должна быть больше 0 и не больше 100 тонн');
+  return Number(value);
+}
+function carrierCapacityError(error){
+  return {ok:false,status:422,error:[{loc:['body','tonnage'],msg:error.message}]};
+}
+
 // ── AUTH ──────────────────────────────────────────────
 const CaucasAPI = {
 
   async register({ email, password, name, phone, role, inn, orgType, city, truckType, tonnage }){
+    let capacity;
+    try{capacity=carrierTonnageValue(tonnage);}catch(error){return carrierCapacityError(error);}
     const r = await apiRequest('POST', '/api/auth/register', {
       email, password,
       company_name: name,
@@ -83,10 +99,14 @@ const CaucasAPI = {
       inn:      inn      || null,
       org_type: orgType  || null,
       city:     city     || null,
+      truck_type: truckType || null,
+      tonnage: capacity,
     });
     if(r.ok && r.data?.token){
       setToken(r.data.token);
-      return { ok: true, token: r.data.token, user_id: r.data.user_id };
+      return { ok: true, token: r.data.token, user_id: r.data.user_id,
+        ...(Object.prototype.hasOwnProperty.call(r.data,'truck_type')?{truck_type:r.data.truck_type}:{}),
+        ...(Object.prototype.hasOwnProperty.call(r.data,'tonnage')?{tonnage:r.data.tonnage}:{}) };
     }
     return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
@@ -182,23 +202,17 @@ const CaucasAPI = {
   },
 
   async updateProfile({ company_name, phone, inn, org_type, city, lang, truck_type, tonnage }){
-    // CONTRACT-4: truck_type and tonnage sent to API for future backend support.
-    // NOTE: UpdateProfileRequest in users.py does NOT include these fields yet —
-    // they belong to Truck model, not User. Backend task required to support them.
-    // Fields are included here so saveSettings() can call updateProfile consistently.
-    const body = {
-      company_name: company_name || null,
-      phone:        phone        || null,
-      inn:          inn          || null,
-      org_type:     org_type     || null,
-      city:         city         || null,
-      lang:         lang         || null,
+    const body={
+      company_name:company_name||null,phone:phone||null,inn:inn||null,
+      org_type:org_type||null,city:city||null,lang:lang||null
     };
-    // Include only if provided — backend ignores unknown fields via Pydantic extra='ignore'
-    if(truck_type !== undefined && truck_type !== null) body.truck_type = truck_type;
-    if(tonnage !== undefined && tonnage !== null) body.tonnage = tonnage;
-    const r = await apiRequest('PUT', '/api/users/me', body);
-    return r.ok ? r.data : { ok: false, error: r.data?.detail };
+    // Omitted defaults preserve prior values; explicit null clears them.
+    if(truck_type!==undefined) body.truck_type=truck_type||null;
+    if(tonnage!==undefined){
+      try{body.tonnage=carrierTonnageValue(tonnage);}catch(error){return carrierCapacityError(error);}
+    }
+    const r=await apiRequest('PUT','/api/users/me',body);
+    return r.ok?r.data:{ok:false,status:r.status,error:r.data?.detail};
   },
 
   async forgotPassword(email){
