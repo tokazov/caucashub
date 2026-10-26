@@ -25,6 +25,52 @@ async function apiRequest(method, path, body=null, extraHeaders={}){
   }
 }
 
+// Calendar days in Georgia must not depend on the browser's timezone.
+function loadingDayToday(now = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Tbilisi', year:'numeric', month:'2-digit', day:'2-digit'
+  }).formatToParts(now).map(x => [x.type,x.value]));
+  return p.year + '-' + p.month + '-' + p.day;
+}
+function shiftLoadingDay(day, offset) {
+  const d = new Date(day + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0,10);
+}
+function loadDateISO(value) {
+  if(value === null || value === undefined || value === '') return null;
+  let s = String(value).trim();
+  if(s === 'today') return loadingDayToday();
+  if(s === 'tomorrow') return shiftLoadingDay(loadingDayToday(),1);
+  const old = s.match(/^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$/);
+  if(old) s = (old[3].length===2?'20'+old[3]:old[3])+'-'+old[2]+'-'+old[1];
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new Error('Укажите корректную дату загрузки');
+  const d = new Date(s+'T00:00:00Z');
+  if(!Number.isFinite(d.getTime()) || d.toISOString().slice(0,10)!==s || s.slice(0,4)==='0000')
+    throw new Error('Укажите корректную дату загрузки');
+  return s;
+}
+function displayLoadingDay(value) {
+  const d=loadDateISO(value);
+  return d ? d.slice(8,10)+'.'+d.slice(5,7)+'.'+d.slice(2,4) : null;
+}
+function loadingDatesPayload(load, partial=false) {
+  const own=name=>Object.prototype.hasOwnProperty.call(load,name), dates={};
+  if(!partial || own('load_date') || own('date')) {
+    dates.load_date=loadDateISO(own('load_date')?load.load_date:load.date);
+    if(!dates.load_date) throw new Error('Укажите дату загрузки');
+  }
+  if(!partial || own('load_date_end') || own('date2'))
+    dates.load_date_end=loadDateISO(own('load_date_end')?load.load_date_end:load.date2);
+  if(dates.load_date && dates.load_date_end && dates.load_date_end<dates.load_date)
+    throw new Error('Дата окончания не может быть раньше даты начала');
+  return dates;
+}
+function loadingRequestError(detail) {
+  return typeof detail==='string' ? detail : Array.isArray(detail)
+    ? detail.map(x=>x.msg||'').join('; ') : 'Не удалось сохранить груз';
+}
+
 // ── AUTH ──────────────────────────────────────────────
 const CaucasAPI = {
 
@@ -76,6 +122,9 @@ const CaucasAPI = {
   },
 
   async createLoad(load, idempotencyKey){
+    let dates;
+    try { dates=loadingDatesPayload(load); }
+    catch(e) { return {ok:false,error:e.message}; }
     const body = {
       from_city: load.from,
       from_address: load.from2 || load.from,
@@ -90,35 +139,36 @@ const CaucasAPI = {
       payment_type: load.pay,
       is_urgent: load.urgent || false,
       company_name: load.co,
-      load_date: new Date().toISOString(),
+      ...dates,
     };
     // Idempotency-Key временно отключён — бэкенд возвращает 500 при наличии заголовка
     // (таблица idempotency_keys, Issue #27). Вернуть после backend-фикса.
     const extraH = {}; // idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
     const r = await apiRequest('POST', '/api/loads/', body, extraH);
     if(r.ok && r.data?.id){
-      return { ok: true, load: { ...load, id: r.data.id, serverId: r.data.id } };
+      return { ok: true, load: { ...load, ...mapServerLoad(r.data) } };
     }
     // 403 limit_exceeded
     if(r.status === 403 && r.data?.detail?.error === 'limit_exceeded') {
       return { ok: false, error: 'limit_exceeded', limitData: r.data.detail };
     }
-    return { ok: false, error: r.data?.detail || 'Ошибка сохранения' };
+    return { ok: false, error: loadingRequestError(r.data?.detail) };
   },
 
   async updateLoad(serverId, updates){
-    const body = {};
-    if(updates.from)  body.from_city    = updates.from;
-    if(updates.to)    body.to_city      = updates.to;
-    if(updates.kg)    body.weight_kg    = updates.kg;
-    if(updates.desc)  body.cargo_desc   = updates.desc;
-    if(updates.type)  body.truck_type   = updates.type;
-    if(updates.pay)   body.payment_type = updates.pay;
-    if(updates.urgent !== undefined) body.is_urgent = updates.urgent;
-    if(updates.price && updates.cur === '₾') body.price_gel = updates.price;
-    if(updates.price && updates.cur === '$') body.price_usd = updates.price;
-    const r = await apiRequest('PUT', `/api/loads/${serverId}`, body);
-    return { ok: r.ok };
+    let dates;
+    try { dates=loadingDatesPayload(updates,true); }
+    catch(e) { return {ok:false,error:e.message}; }
+    const body={...dates};
+    const fields={from:'from_city',to:'to_city',from2:'from_address',to2:'to_address',
+      kg:'weight_kg',desc:'cargo_desc',type:'truck_type',pay:'payment_type',urgent:'is_urgent'};
+    for(const [key,apiKey] of Object.entries(fields))
+      if(Object.prototype.hasOwnProperty.call(updates,key)) body[apiKey]=updates[key];
+    if(updates.price!==undefined && updates.cur==='₾') body.price_gel=updates.price;
+    if(updates.price!==undefined && updates.cur==='$') body.price_usd=updates.price;
+    const r=await apiRequest('PUT',`/api/loads/${serverId}`,body);
+    return r.ok ? {ok:true,load:mapServerLoad(r.data)}
+      : {ok:false,status:r.status,error:loadingRequestError(r.data?.detail)};
   },
 
   async deleteLoad(serverId){
@@ -294,7 +344,9 @@ function mapServerLoad(l){
     pay:       l.pay   || 'Нал',
     urgent:    l.urgent || false,
     date:      l.date  || '',
-    date2:     null,
+    date2:     l.date2 || displayLoadingDay(l.load_date_end),
+    load_date: l.load_date || loadDateISO(l.date),
+    load_date_end: l.load_date_end || loadDateISO(l.date2),
     km:        '—',
     co:        l.co    || 'CaucasHub',
     rat:       l.rat   || '5.0',

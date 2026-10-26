@@ -1,0 +1,67 @@
+name: Loading period regression
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "api.js"
+      - "main.js"
+      - "frontend/**"
+      - "tests/**"
+      - "alembic/**"
+      - ".github/workflows/loading-period.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: caucashub_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: test-secret-for-loading-period
+      GEMINI_API_KEY: test
+      BREVO_API_KEY: test
+      TG_BOT_TOKEN: test:test
+      TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/caucashub_ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite
+      - name: Backend and PostgreSQL migration regressions
+        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py -q
+      - name: JavaScript syntax
+        run: |
+          node --check api.js
+          node --check frontend/api.js
+          node --check main.js
+          node --check frontend/main.js
+      - name: Frontend regression (UTC)
+        run: node --test tests/frontend/tests/*.test.js
+        env:
+          TZ: UTC
+      - name: Loading dates in another browser timezone
+        run: node --test tests/frontend/tests/loading_dates.test.js
+        env:
+          TZ: Pacific/Kiritimati

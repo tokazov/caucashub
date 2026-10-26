@@ -59,6 +59,7 @@ class Load(Base):
 
     # Даты
     load_date     = Column(DateTime(timezone=True), nullable=False)
+    load_date_end = Column(DateTime(timezone=True), nullable=True)
     is_urgent     = Column(Boolean, default=False)
     status        = Column(Enum(LoadStatus), default=LoadStatus.active, index=True)
 

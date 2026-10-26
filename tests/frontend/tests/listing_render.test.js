@@ -39,7 +39,7 @@ for (const file of ['api.js', 'frontend/api.js']) {
     const end = source.indexOf('// FIX: openPlansModal', start);
     const context = {};
     vm.createContext(context);
-    vm.runInContext(source.slice(start, end), context);
+    vm.runInContext(source.slice(source.indexOf('// Calendar days in Georgia'), source.indexOf('// ── AUTH ─')) + source.slice(start, end), context);
     const mapped = vm.runInContext("mapServerLoad({id: 1, created_at: '2026-04-01T10:00:00Z'})", context);
     assert.equal(mapped.created_at, '2026-04-01T10:00:00Z');
     assert.equal(vm.runInContext('mapServerLoad({id: 2})', context).created_at, null);
