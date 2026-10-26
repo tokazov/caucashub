@@ -3366,6 +3366,7 @@ const TRANSLATIONS = {
     transport_filter_type: 'Любой кузов',
     transport_btn_find: '🔍 Найти',
     transport_btn_offer: '+ Предложить транспорт',
+    transport_confirm_availability: 'Уточнить доступность',
     transport_count_suffix: 'предложений транспорта',
     transport_empty_title: 'Предложений нет',
     transport_empty_sub: 'Попробуйте изменить фильтры',
@@ -4162,6 +4163,7 @@ const TRANSLATIONS = {
     transport_filter_type: 'ნებისმიერი კუზოვი',
     transport_btn_find: '🔍 ძიება',
     transport_btn_offer: '+ ტრანსპორტის შეთავაზება',
+    transport_confirm_availability: 'დააზუსტეთ ხელმისაწვდომობა',
     transport_count_suffix: 'ტრანსპორტის შეთავაზება',
     transport_empty_title: 'შეთავაზებები არ არის',
     transport_empty_sub: 'სცადეთ ფილტრების შეცვლა',
@@ -6525,11 +6527,14 @@ function renderTransportOffers() {
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
   var html = _transportOffers.map(function(o) {
-    var urgBadge = o.urgent ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
+    var datesExpired = o.dates_expired === true;
+    var availabilityText = (TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_confirm_availability || 'Уточнить доступность';
+    var urgBadge = o.urgent && !datesExpired ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
+    var availability = datesExpired ? esc(availabilityText) : dateFrom + dateTo;
     var actionBtn = tk
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
       : '<button onclick="openAuth(\'login\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
@@ -6566,7 +6571,7 @@ function renderTransportOffers() {
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
         '<div>' + typeTag + '</div>' +
         '<div class="price">' + (price || '—') + '</div>' +
-        '<div style="font-size:12px;font-weight:600;color:#555">' + dateFrom + dateTo + '</div>' +
+        '<div style="font-size:12px;font-weight:600;color:#555">' + availability + '</div>' +
         '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
       '</div>' +
 
@@ -6588,7 +6593,7 @@ function renderTransportOffers() {
         '<div class="card-footer-row">' +
           typeTag +
           '<span>' + capLabel + '</span>' +
-          (dateFrom ? '<span>' + dateFrom + dateTo + '</span>' : '') +
+          (availability ? '<span>' + availability + '</span>' : '') +
         '</div>' +
       '</div>' +
 

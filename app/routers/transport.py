@@ -20,7 +20,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 
-from app.services.listing_freshness import current_transport_conditions
+from app.services.listing_freshness import current_transport_conditions, date_is_current
 from app.database import get_db
 from app.models.transport_offer import TransportOffer
 from app.models.user import User
@@ -96,6 +96,7 @@ def _offer_to_dict(offer: TransportOffer, user: User = None,
         "capacity_kg":    offer.capacity_kg,
         "available_from": offer.available_from.isoformat() if offer.available_from else None,
         "available_to":   offer.available_to.isoformat() if offer.available_to else None,
+        "dates_expired":  not date_is_current(offer.available_to or offer.available_from),
         "price":          offer.price,
         "price_usd":      offer.price_usd,
         "status":         offer.status,
@@ -123,11 +124,16 @@ async def list_transport_offers(
     min_cap_kg:  Optional[float] = Query(None),
     limit:       int = Query(50, le=200),
     offset:      int = Query(0, ge=0),
+    available_only: bool = False,
     db:          AsyncSession = Depends(get_db),
     authorization: Optional[str] = Header(None),
 ):
-    """Публичный список транспортных предложений с фильтрами."""
-    q = select(TransportOffer).where(*current_transport_conditions())
+    """Каталог перевозчиков; прошедшие даты скрываются только по available_only."""
+    q = select(TransportOffer).where(
+        TransportOffer.status == "active", TransportOffer.is_demo.is_(False)
+    )
+    if available_only:
+        q = q.where(*current_transport_conditions())
     if from_city:
         q = q.where(TransportOffer.from_city.ilike(f"%{from_city}%"))
     if to_city:

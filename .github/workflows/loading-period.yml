@@ -1,5 +1,10 @@
 name: Loading period regression
 on:
+  push:
+    branches: [master]
+    paths:
+      - "app/routers/transport.py"
+      - ".github/workflows/loading-period.yml"
   pull_request:
     paths:
       - "app/**"
@@ -65,3 +70,56 @@ jobs:
         run: node --test tests/frontend/tests/loading_dates.test.js
         env:
           TZ: Pacific/Kiritimati
+  public-visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Read-only carrier visibility check
+        env:
+          WAIT_FOR_RELEASE: ${{ github.event_name == 'push' && '1' || '0' }}
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from urllib.request import Request, urlopen
+          base = "https://api-production-f3ea.up.railway.app"
+          wait = os.environ.get("WAIT_FOR_RELEASE") == "1"
+          deadline = time.monotonic() + (600 if wait else 30)
+          def get(path):
+              request = Request(base + path, headers={"Accept": "application/json"})
+              with urlopen(request, timeout=15) as response:
+                  return json.load(response)
+          while True:
+              try:
+                  counters = get("/api/stats/counters")
+                  directory = get("/api/transport/?limit=200")
+                  available = get("/api/transport/?limit=200&available_only=true")
+                  trucks = get("/api/trucks/?limit=200")
+                  rows = directory.get("offers", [])
+                  ready = bool(rows) and all("dates_expired" in row for row in rows)
+                  if not wait or ready:
+                      # Public aggregates only: never log carrier names or contacts.
+                      summary = {
+                          "total_users": counters.get("total_users"),
+                          "companies": counters.get("companies"),
+                          "transport_total": directory.get("total"),
+                          "current_transport_total": available.get("total"),
+                          "expired_dates_visible": sum(row.get("dates_expired") is True for row in rows),
+                          "truck_total": trucks.get("total"),
+                          "release_schema_seen": ready,
+                      }
+                      print(json.dumps(summary, sort_keys=True))
+                      if wait:
+                          assert directory["total"] >= available["total"]
+                          assert directory["total"] > 0
+                          assert counters["total_users"] > 0
+                      break
+              except Exception as error:
+                  if not wait:
+                      raise
+                  if time.monotonic() >= deadline:
+                      raise
+                  print("Public API not ready:", type(error).__name__)
+              if time.monotonic() >= deadline:
+                  raise TimeoutError("Carrier directory release did not become visible")
+              time.sleep(10)
+          PY
