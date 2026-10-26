@@ -4,7 +4,7 @@ import asyncio
 import pytest
 from sqlalchemy import func, select
 
-from test_publication_journeys import journey, cargo
+from tests.test_publication_journeys import journey, cargo
 from app.models.deal import Deal
 from app.models.deal_review import DealReview
 from app.models.user import User

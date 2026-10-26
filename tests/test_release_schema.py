@@ -61,22 +61,37 @@ async def test_release_gate_rejects_missing_column(monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.skipif(not os.environ.get("TEST_POSTGRES_URL"), reason="requires isolated CI PostgreSQL")
 async def test_release_gate_postgresql():
+    from uuid import uuid4
+
     url = os.environ["TEST_POSTGRES_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
-    engine = create_async_engine(url)
+    schema = "test_release_gate_" + uuid4().hex
+    bootstrap = create_async_engine(url)
+    engine = None
     try:
-        # A temporary table shadows any public table and cannot touch production data.
+        # Permanent review tables cannot reference temporary users/deals. Isolate
+        # every release table in a disposable schema instead of shadowing public.
+        async with bootstrap.begin() as conn:
+            await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+        engine = create_async_engine(url, connect_args={"server_settings": {"search_path": schema}})
         async with engine.begin() as conn:
-            await conn.execute(text("CREATE TEMPORARY TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
-            await conn.execute(text("CREATE TEMPORARY TABLE deals (id INTEGER PRIMARY KEY)"))
-            await conn.execute(text("CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)"))
+            await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text("CREATE TABLE deals (id INTEGER PRIMARY KEY)"))
+            await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
             await conn.execute(text("INSERT INTO loads VALUES (1, '2026-01-01')"))
             await conn.execute(text("INSERT INTO users VALUES (1)"))
+            await conn.execute(text("INSERT INTO deals VALUES (1)"))
         await release.prepare_schema(engine)
         await release.prepare_schema(engine)
         async with engine.connect() as conn:
             assert (await conn.execute(text("SELECT id, load_date_end FROM loads"))).first() == (1, None)
+            assert (await conn.execute(text("SELECT id, truck_type, tonnage FROM users"))).first() == (1, None, None)
+            assert (await conn.execute(text("SELECT COUNT(*) FROM deal_reviews"))).scalar_one() == 0
     finally:
-        await engine.dispose()
+        if engine is not None:
+            await engine.dispose()
+        async with bootstrap.begin() as conn:
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        await bootstrap.dispose()
 
 
 @pytest.mark.asyncio
