@@ -6563,7 +6563,10 @@ function renderTransportOffers() {
   var revision=_cancelTransportRender();
   var section=document.getElementById('sec-trucks');
   if(section&&!section.classList.contains('active')) return;
-  var formatter=renderTransportOffers._dateFormat||(renderTransportOffers._dateFormat=new Intl.DateTimeFormat('ru',{day:'2-digit',month:'2-digit'}));
+  sessionStorage.setItem('qa-transport-phase','before-intl');
+  var noIntl=new URLSearchParams(location.search).get('transport-qa')==='no-intl';
+  var formatter=noIntl?{format:function(d){return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0');}}:(renderTransportOffers._dateFormat||(renderTransportOffers._dateFormat=new Intl.DateTimeFormat('ru',{day:'2-digit',month:'2-digit'})));
+  sessionStorage.setItem('qa-transport-phase','after-intl');
   var formatDate=function(value){var date=new Date(value);return Number.isNaN(date.getTime())?'':formatter.format(date);};
   var count = document.getElementById('transportCount');
   if(count) count.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix);
@@ -6574,12 +6577,13 @@ function renderTransportOffers() {
     return;
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
+  sessionStorage.setItem('qa-transport-phase','before-build');
   var html = _transportOffers.map(function(o) {
     var datesExpired = o.dates_expired === true;
     var availabilityText = (TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_confirm_availability || 'Уточнить доступность';
     var urgBadge = o.urgent && !datesExpired ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
-    var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
+    var price = o.price ? (noIntl?String(o.price):o.price.toLocaleString()) + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? formatDate(o.available_from) : '';
     var dateTo   = o.available_to   ? ' – ' + formatDate(o.available_to) : '';
     var availability = datesExpired ? esc(availabilityText) : dateFrom + dateTo;
@@ -6647,10 +6651,13 @@ function renderTransportOffers() {
 
     '</div>';
   }).join('');
+  sessionStorage.setItem('qa-transport-phase','after-build');
   var commit=function(){
     if(revision!==renderTransportOffers._revision||(section&&!section.classList.contains('active'))) return;
     renderTransportOffers._frame=null;
+    sessionStorage.setItem('qa-transport-phase','before-insert');
     list.innerHTML=html;
+    sessionStorage.setItem('qa-transport-phase','after-insert');
   };
   renderTransportOffers._frame=(window.requestAnimationFrame||function(cb){return setTimeout(cb,16);})(commit);
 }
