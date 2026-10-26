@@ -88,7 +88,7 @@ const CaucasAPI = {
       setToken(r.data.token);
       return { ok: true, token: r.data.token, user_id: r.data.user_id };
     }
-    return { ok: false, error: r.data?.detail || 'Ошибка регистрации' };
+    return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
 
   async login({ email, password }){
@@ -97,7 +97,7 @@ const CaucasAPI = {
       setToken(r.data.token);
       return { ok: true, token: r.data.token, user_id: r.data.user_id, role: r.data.role };
     }
-    return { ok: false, error: r.data?.detail || 'Неверный email или пароль' };
+    return { ok: false, status:r.status, error: r.data?.detail || 'Неверный email или пароль' };
   },
 
   logout(){
@@ -121,7 +121,7 @@ const CaucasAPI = {
     return r.ok ? r.data?.loads || [] : [];
   },
 
-  async createLoad(load){
+  async createLoad(load, idempotencyKey){
     let dates;
     try { dates=loadingDatesPayload(load); }
     catch(e) { return {ok:false,error:e.message}; }
@@ -141,11 +141,18 @@ const CaucasAPI = {
       company_name: load.co,
       ...dates,
     };
-    const r = await apiRequest('POST', '/api/loads/', body);
+    const extraH=idempotencyKey?{'Idempotency-Key':idempotencyKey}:{};
+    const r=await apiRequest('POST','/api/loads/',body,extraH);
     if(r.ok && r.data?.id){
-      return { ok: true, load: { ...load, ...mapServerLoad(r.data) } };
+      return {ok:true,load:{...load,...mapServerLoad(r.data)}};
     }
-    return { ok: false, error: loadingRequestError(r.data?.detail) };
+    if(r.status===401) return {ok:false,status:401,error:'session_expired'};
+    if(r.data?.detail?.code==='idempotency_payload_mismatch')
+      return {ok:false,status:r.status,error:'idempotency_payload_mismatch'};
+    if(r.status===403 && r.data?.detail?.error==='limit_exceeded'){
+      return {ok:false,status:r.status,error:'limit_exceeded',limitData:r.data.detail};
+    }
+    return {ok:false,status:r.status,error:loadingRequestError(r.data?.detail)};
   },
 
   async updateLoad(serverId, updates){

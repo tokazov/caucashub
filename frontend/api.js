@@ -88,7 +88,7 @@ const CaucasAPI = {
       setToken(r.data.token);
       return { ok: true, token: r.data.token, user_id: r.data.user_id };
     }
-    return { ok: false, error: r.data?.detail || 'Ошибка регистрации' };
+    return { ok: false, status:r.status, error: r.data?.detail || 'Ошибка регистрации' };
   },
 
   async login({ email, password }){
@@ -97,7 +97,7 @@ const CaucasAPI = {
       setToken(r.data.token);
       return { ok: true, token: r.data.token, user_id: r.data.user_id, role: r.data.role };
     }
-    return { ok: false, error: r.data?.detail || 'Неверный email или пароль' };
+    return { ok: false, status:r.status, error: r.data?.detail || 'Неверный email или пароль' };
   },
 
   logout(){
@@ -141,18 +141,18 @@ const CaucasAPI = {
       company_name: load.co,
       ...dates,
     };
-    // Idempotency-Key временно отключён — бэкенд возвращает 500 при наличии заголовка
-    // (таблица idempotency_keys, Issue #27). Вернуть после backend-фикса.
-    const extraH = {}; // idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {};
-    const r = await apiRequest('POST', '/api/loads/', body, extraH);
+    const extraH=idempotencyKey?{'Idempotency-Key':idempotencyKey}:{};
+    const r=await apiRequest('POST','/api/loads/',body,extraH);
     if(r.ok && r.data?.id){
-      return { ok: true, load: { ...load, ...mapServerLoad(r.data) } };
+      return {ok:true,load:{...load,...mapServerLoad(r.data)}};
     }
-    // 403 limit_exceeded
-    if(r.status === 403 && r.data?.detail?.error === 'limit_exceeded') {
-      return { ok: false, error: 'limit_exceeded', limitData: r.data.detail };
+    if(r.status===401) return {ok:false,status:401,error:'session_expired'};
+    if(r.data?.detail?.code==='idempotency_payload_mismatch')
+      return {ok:false,status:r.status,error:'idempotency_payload_mismatch'};
+    if(r.status===403 && r.data?.detail?.error==='limit_exceeded'){
+      return {ok:false,status:r.status,error:'limit_exceeded',limitData:r.data.detail};
     }
-    return { ok: false, error: loadingRequestError(r.data?.detail) };
+    return {ok:false,status:r.status,error:loadingRequestError(r.data?.detail)};
   },
 
   async updateLoad(serverId, updates){
