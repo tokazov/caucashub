@@ -13,6 +13,8 @@ from app.models.load import Load, LoadStatus
 from app.models.truck import Truck
 from app.models.user import User
 
+from app.services.listing_freshness import current_load_conditions
+
 router = APIRouter()
 
 # ── In-memory кеш с safety-fallback TTL 10 минут ────────────────────────────
@@ -47,8 +49,7 @@ async def get_counters(db: AsyncSession = Depends(get_db)):
         # Активные грузы (только реальные, без демо)
         loads_res = await db.execute(
             select(func.count(Load.id)).where(
-                Load.status == LoadStatus.active,
-                Load.is_demo.is_(False)
+                *current_load_conditions(now)
             )
         )
         active_loads = loads_res.scalar() or 0

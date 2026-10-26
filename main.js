@@ -1222,7 +1222,7 @@ function openCargo(d){
 
   document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
-  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added_today||'Добавлен сегодня');
+  const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен') + ' —';
   const _scope = (d.scope||'local').toUpperCase();
   const _co = d.co || d.company || '—';
   document.getElementById('mSub').textContent=`#${_scope}-${String(d.id).padStart(5,'0')} · ${_co} · ${_addedStr}`;
@@ -6531,6 +6531,8 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
 };
 
 function renderTransportOffers() {
+  var count = document.getElementById('transportCount');
+  if(count) count.textContent = _transportTotal + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_count_suffix);
   var _rtoT0 = performance.now();
   console.log('[T] renderTransportOffers start, offers:', _transportOffers.length, 'lang:', lang);
   var list = document.getElementById('transportList');
@@ -6549,7 +6551,7 @@ function renderTransportOffers() {
     var dateTo   = o.available_to   ? ' – ' + new Date(o.available_to).toLocaleDateString('ru', {day:'2-digit',month:'2-digit'}) : '';
     var actionBtn = tk
       ? '<button onclick="openTransportRequest(' + o.id + ')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_interested||'Заинтересован') + '</button>'
-      : '<button onclick="openAuth(\'register\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
+      : '<button onclick="openAuth(\'login\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
     // null-guard: from_city/to_city/truck_type могут быть null
     var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city||''):o.from_city||'—');
@@ -6567,9 +6569,9 @@ function renderTransportOffers() {
     };
     var tt = o.truck_type ? o.truck_type.toLowerCase() : 'other';
     var tc = typeColors[tt] || typeColors.other;
-    var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(o.truck_type || '—') + '</span>';
+    var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(getTypeLabel(o.truck_type || 'other')) + '</span>';
 
-    var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'register\')"';
+    var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'login\')"';
     return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
 
       // ── ДЕСКТОП: grid по колонкам заголовка ──

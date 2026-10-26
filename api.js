@@ -280,6 +280,7 @@ function mapServerLoad(l){
     rat:       l.rat   || '5.0',
     trips:     l.trips || 0,
     badge:     l.urgent ? 'urgent' : (l.badge || null),
+    created_at: l.created_at || null,
     fromServer: true,
   };
 }

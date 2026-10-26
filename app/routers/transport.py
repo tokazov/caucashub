@@ -20,6 +20,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 
+from app.services.listing_freshness import current_transport_conditions
 from app.database import get_db
 from app.models.transport_offer import TransportOffer
 from app.models.user import User
@@ -126,7 +127,7 @@ async def list_transport_offers(
     authorization: Optional[str] = Header(None),
 ):
     """Публичный список транспортных предложений с фильтрами."""
-    q = select(TransportOffer).where(TransportOffer.status == "active")
+    q = select(TransportOffer).where(*current_transport_conditions())
     if from_city:
         q = q.where(TransportOffer.from_city.ilike(f"%{from_city}%"))
     if to_city:

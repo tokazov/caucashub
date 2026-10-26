@@ -4,11 +4,13 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.models.user import User
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 # ADR-010: require_user из auth — проверяет is_deleted, is_active, password_changed_at
 from app.routers.auth import require_user
+
+from app.services.listing_freshness import current_load_conditions, date_is_current
 
 router = APIRouter()
 
@@ -30,6 +32,14 @@ class LoadCreate(BaseModel):
     is_urgent: bool = False
     company_name: Optional[str] = None   # название компании для отображения
 
+    @field_validator("from_city", "to_city")
+    @classmethod
+    def validate_city(cls, value):
+        value = value.strip()
+        if not value or len(value) > 100:
+            raise ValueError("Укажите город длиной от 1 до 100 символов")
+        return value
+
 class LoadUpdate(BaseModel):
     from_city: Optional[str] = None
     from_address: Optional[str] = None
@@ -44,6 +54,13 @@ class LoadUpdate(BaseModel):
     load_date: Optional[datetime] = None
     load_date_end: Optional[str] = None
     is_urgent: Optional[bool] = None
+
+    @field_validator("from_city", "to_city")
+    @classmethod
+    def validate_city(cls, value):
+        if value is None:
+            return value
+        return LoadCreate.validate_city(value)
 
 def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:  # noqa: E741
     """Конвертируем Load в dict для фронтенда."""
@@ -112,7 +129,7 @@ async def get_loads(
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db)
 ):
-    q = select(Load).where(Load.status == LoadStatus.active)
+    q = select(Load).where(*current_load_conditions())
 
     if scope:
         q = q.where(Load.scope == scope)
@@ -155,7 +172,7 @@ async def create_load(data: LoadCreate, request: Request,
 
     # Проверяем лимит активных грузов по тарифу
     active_count_res = await db.execute(
-        select(func.count()).where(Load.user_id == user_id, Load.status == LoadStatus.active)
+        select(func.count()).where(Load.user_id == user_id, *current_load_conditions())
     )
     active_count = active_count_res.scalar_one()
     ok, limit_err = check_loads_limit(current_user, active_count)
@@ -176,12 +193,8 @@ async def create_load(data: LoadCreate, request: Request,
     if not load_data.get("load_date"):
         load_data["load_date"] = datetime.utcnow()
     else:
-        # Трек 9: дата загрузки не может быть в прошлом (> 1 день назад)
-        ld = load_data["load_date"]
-        if hasattr(ld, 'replace'):
-            ld_naive = ld.replace(tzinfo=None) if ld.tzinfo else ld
-            if ld_naive < datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0):
-                raise HTTPException(status_code=400, detail="load_date cannot be in the past")
+        if not date_is_current(load_data["load_date"]):
+            raise HTTPException(status_code=400, detail="load_date cannot be in the past")
 
     # Трек 9: нормализуем payment_type
     if load_data.get("payment_type"):
@@ -262,6 +275,8 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
     if current_status in ("canceled", "completed"):
         raise HTTPException(status_code=400, detail=f"Нельзя редактировать груз со статусом {current_status}")
     updates = data.model_dump(exclude_none=True)
+    if "load_date" in updates and not date_is_current(updates["load_date"]):
+        raise HTTPException(status_code=400, detail="load_date cannot be in the past")
     # Фикс 1: Валидация при обновлении
     if "weight_kg" in updates:
         w = updates["weight_kg"]
