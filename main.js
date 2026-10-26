@@ -5095,6 +5095,7 @@ document.addEventListener('click', function(e){
 
 // ── SETTINGS & ANALYTICS ──────────────────────────────
 function openSettings(){
+  openSettings.revision=(openSettings.revision||0)+1;
   closeModal('profileOverlay');
   // Безопасное заполнение — не падаем если элемент не найден
   function _sfill(id, v){ const el=document.getElementById(id); if(el) el.value=v||''; }
@@ -5169,6 +5170,12 @@ async function saveSettings(){
   const truckType=document.getElementById('sTruckType').value;
   const tonnage=document.getElementById('sTonnage').value;
 
+  const revision=openSettings.revision||0;
+  const draftIds=['sName','sPhone','sTelegram','sRole','sInnAll','sOrgTypeAll','sCityAll','sTruckType','sTonnage'];
+  const draft=draftIds.map(id=>document.getElementById(id)?.value||'');
+  const sameDraft=()=>getToken()===token && (openSettings.revision||0)===revision &&
+    document.getElementById('settingsOverlay')?.classList.contains('on') &&
+    draftIds.every((id,i)=>(document.getElementById(id)?.value||'')===draft[i]);
   saveSettings.pending=true;
   try {
     const r=await fetch('https://api-production-f3ea.up.railway.app/api/users/me', {
@@ -5182,6 +5189,7 @@ async function saveSettings(){
     });
     const data=await r.json().catch(()=>null);
     if(!r.ok){
+      if(!sameDraft()) return;
       if(r.status===422){
         const first=Array.isArray(data?.detail)?data.detail[0]:null;
         const field=first?.loc?.[first.loc.length-1];
@@ -5202,6 +5210,7 @@ async function saveSettings(){
       return;
     }
     if(!data||data.ok!==true||!data.id){
+      if(!sameDraft()) return;
       showToastWarn(lang==='ge'?'სერვერმა შენახვა ვერ დაადასტურა':'Сервер не подтвердил сохранение');
       return;
     }
@@ -5218,6 +5227,7 @@ async function saveSettings(){
     const pn=document.getElementById('profileName');
     if(pn&&user.name) pn.textContent=user.name;
 
+    if(!sameDraft()) return;
     closeModal('settingsOverlay');
     // Показываем подтверждение прямо на экране
     const toast = document.createElement('div');
@@ -5227,7 +5237,7 @@ async function saveSettings(){
     setTimeout(()=>toast.remove(), 2500);
     pushNotif(toast.textContent, lang==='ge'?'პროფილი განახლებულია':'Профиль обновлён', []);
   } catch(e) {
-    showToastWarn(lang==='ge'?'კავშირის შეცდომა. სცადეთ ხელახლა':'Ошибка соединения. Попробуйте ещё раз');
+    if(sameDraft()) showToastWarn(lang==='ge'?'კავშირის შეცდომა. სცადეთ ხელახლა':'Ошибка соединения. Попробуйте ещё раз');
   } finally {
     saveSettings.pending=false;
   }
