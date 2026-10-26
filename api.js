@@ -217,6 +217,7 @@ function decodeJwtUserId(token){
 
 // ── SYNC: загружаем грузы с сервера при старте ────────
 async function syncLoadsFromServer(){
+  var syncFailed=false;
   window._loadsLoading = true;
   try {
     // Определяем currentUserId из токена
@@ -250,9 +251,6 @@ async function syncLoadsFromServer(){
       // Обновляем счётчик реальными данными
       const _statEl = document.getElementById('statLoads');
       if(_statEl) _statEl.textContent = serverLoads.length;
-      // Обновляем fcount тоже
-      const _fcEl = document.getElementById('fcount');
-      if(_fcEl) _fcEl.textContent = serverLoads.length + ' грузов';
       console.log('[API] Loaded', serverLoads.length, 'loads from server');
     }
 
@@ -278,9 +276,18 @@ async function syncLoadsFromServer(){
       }
     }
   } catch(e) {
+    syncFailed=true;
     console.warn('[syncLoads]', e);
+    var _errList = document.getElementById('cargoList');
+    if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
     window._loadsLoading = false;
+    // A successful empty search must finish with an empty state, not a spinner.
+    var currentLoads=scope==='local'?LOCAL:INTL;
+    if(!syncFailed&&typeof renderLoads==='function'&&
+      (!currentLoads.length||(typeof filterLoadData==='function'&&!filterLoadData(currentLoads).length))){
+      renderLoads(currentLoads);
+    }
     // После загрузки грузов — восстанавливаем сохранённую вкладку
     if(!window._tabRestored){
       window._tabRestored = true;

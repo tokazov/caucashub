@@ -76,13 +76,22 @@ async def test_release_gate_postgresql():
 
 
 @pytest.mark.asyncio
-async def test_release_gate_rejects_incompatible_carrier_defaults():
+@pytest.mark.parametrize("definition, field", [
+    ("tonnage TEXT", "tonnage"),
+    ("tonnage NUMERIC(1,0)", "tonnage"),
+    ("tonnage NUMERIC(10,3)", "tonnage"),
+    ("tonnage FLOAT NOT NULL DEFAULT 1", "tonnage"),
+    ("truck_type VARCHAR(8)", "truck_type"),
+    ("truck_type INTEGER", "truck_type"),
+    ("truck_type VARCHAR(32) NOT NULL DEFAULT 'tent'", "truck_type"),
+])
+async def test_release_gate_rejects_incompatible_carrier_defaults(definition, field):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
-            await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, tonnage TEXT)"))
-        with pytest.raises(RuntimeError, match="tonnage"):
+            await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
+        with pytest.raises(RuntimeError, match=field):
             await release.prepare_schema(engine)
     finally:
         await engine.dispose()
@@ -117,3 +126,73 @@ async def test_release_gate_cannot_pass_with_noop_carrier_migration(monkeypatch)
             await release.prepare_schema(engine)
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("definition", [
+    "truck_type VARCHAR(9), tonnage FLOAT",
+    "truck_type TEXT, tonnage NUMERIC",
+])
+async def test_release_gate_accepts_compatible_drift_without_rounding(definition):
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
+            await conn.execute(text("INSERT INTO users (id) VALUES (1)"))
+        await release.prepare_schema(engine)
+        await release.prepare_schema(engine)
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "UPDATE users SET truck_type = 'evacuator', tonnage = 24.1256789 WHERE id = 1"))
+        async with engine.connect() as conn:
+            row = (await conn.execute(text("SELECT truck_type, tonnage FROM users WHERE id = 1"))).one()
+            assert row.truck_type == "evacuator"
+            assert float(row.tonnage) == pytest.approx(24.1256789, rel=0, abs=1e-12)
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not os.environ.get("TEST_POSTGRES_URL"), reason="requires isolated CI PostgreSQL")
+@pytest.mark.parametrize("definition, compatible", [
+    ("truck_type VARCHAR(8), tonnage DOUBLE PRECISION", False),
+    ("truck_type VARCHAR(9), tonnage REAL", False),
+    ("truck_type VARCHAR(9), tonnage NUMERIC(1,0)", False),
+    ("truck_type VARCHAR(9), tonnage DOUBLE PRECISION", True),
+    ("truck_type TEXT, tonnage NUMERIC", True),
+])
+async def test_release_gate_checks_postgresql_carrier_drift(definition, compatible):
+    from uuid import uuid4
+
+    url = os.environ["TEST_POSTGRES_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
+    schema = "test_carrier_schema_" + uuid4().hex
+    bootstrap = create_async_engine(url)
+    engine = None
+    try:
+        async with bootstrap.begin() as conn:
+            await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+        engine = create_async_engine(url, connect_args={"server_settings": {"search_path": schema}})
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE loads (id INTEGER PRIMARY KEY, load_date TIMESTAMP NOT NULL)"))
+            await conn.execute(text(f"CREATE TABLE users (id INTEGER PRIMARY KEY, {definition})"))
+            await conn.execute(text("INSERT INTO users (id) VALUES (1)"))
+        if not compatible:
+            with pytest.raises(RuntimeError, match="truck_type|tonnage"):
+                await release.prepare_schema(engine)
+        else:
+            await release.prepare_schema(engine)
+            await release.prepare_schema(engine)
+            async with engine.begin() as conn:
+                await conn.execute(text(
+                    "UPDATE users SET truck_type = 'evacuator', tonnage = 24.1256789 WHERE id = 1"))
+            async with engine.connect() as conn:
+                row = (await conn.execute(text("SELECT truck_type, tonnage FROM users WHERE id = 1"))).one()
+                assert row.truck_type == "evacuator"
+                assert float(row.tonnage) == pytest.approx(24.1256789, rel=0, abs=1e-12)
+    finally:
+        if engine is not None:
+            await engine.dispose()
+        async with bootstrap.begin() as conn:
+            await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        await bootstrap.dispose()
