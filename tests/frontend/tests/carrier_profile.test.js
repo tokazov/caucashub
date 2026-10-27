@@ -261,12 +261,14 @@ for(const path of ['main.js','frontend/main.js']){
   let token=null;
   const calls={requests:[],rendered:[],reads:0};
   const context={getToken:()=>{calls.reads++;return token;},
-   apiFetch:async route=>{calls.requests.push(route);return{linked:true};},
+   user:{userId:7},window:{},API_BASE:'https://api.test',
+   fetch:async(url,options)=>{calls.requests.push({url,options});return{ok:true,json:async()=>({linked:true})};},
+   document:{getElementById:id=>({style:new Proxy({},{set(target,key,value){if(id==='tgLinkedBlock'&&key==='display')calls.rendered.push(value==='flex');target[key]=value;return true;}})})},
    _renderTgStatus:linked=>calls.rendered.push(linked)};
   vm.createContext(context);
-  const code=source(path),start=code.indexOf('async function _initTgStatus(){');
+  const code=source(path),start=code.indexOf('// ── TELEGRAM CONNECT');
   assert.ok(start>=0);
-  vm.runInContext(code.slice(start,code.indexOf('window.connectTelegram',start)),context);
+  vm.runInContext(code.slice(start,code.indexOf('// Язык восстанавливается раньше',start)),context);
   return{context,calls,setToken:value=>{token=value;}};
  }
  test(path+': Telegram initialization with no token makes no request',async()=>{
@@ -279,11 +281,12 @@ for(const path of ['main.js','frontend/main.js']){
  test(path+': Telegram initialization reads current authentication without a token global',async()=>{
   const h=telegramContext();h.setToken('active-token');
   await h.context._initTgStatus();
-  assert.deepEqual(h.calls.requests,['/api/tg/status']);
+  assert.equal(h.calls.requests[0].url,'https://api.test/api/tg/status');
+  assert.equal(h.calls.requests[0].options.headers.Authorization,'Bearer active-token');
   assert.deepEqual(h.calls.rendered,[true]);
   assert.equal(Object.hasOwn(h.context,'token'),false);
   h.setToken(null);await h.context._initTgStatus();
-  assert.equal(h.calls.requests.length,1);assert.equal(h.calls.reads,2);
+  assert.equal(h.calls.requests.length,1);assert.ok(h.calls.reads>=3);
  });
 }
 

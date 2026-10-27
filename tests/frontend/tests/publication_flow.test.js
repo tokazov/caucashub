@@ -234,7 +234,7 @@ for(const path of ['main.js','frontend/main.js']) {
         _currentTransportOfferId:17,_currentTransportMaxKg:10000,
         _transportRequestSubmitting:false,_transportOfferSubmitting:false,
         fetch:(...args)=>{requests.push(args);return new Promise(r=>{resolve=r;});},
-        closeModal:id=>closed.push(id),pushNotif:message=>notifications.push(message),
+        closeModal:id=>closed.push(id),pushNotif:message=>notifications.push(message),showToastWarn:message=>notifications.push(message),
         setTimeout:callback=>timers.push(callback),loadTransportOffers:()=>{}};
       vm.createContext(context);
       const start=code.indexOf('window.'+method+' = async function()');
