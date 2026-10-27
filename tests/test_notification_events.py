@@ -269,7 +269,7 @@ async def test_parallel_postgresql_accepts_create_one_deal_and_one_event_per_par
     assert len(rows) == 2 and len({row["recipient"] for row in rows}) == 2
 
 
-async def test_direct_create_validates_response_binding_and_preserves_manual_assignment(journey):
+async def test_direct_create_requires_matching_carrier_consent_and_preserves_legacy_identifier_omission(journey):
     item_id, request_id = await make_request(journey, "cargo")
     ids = await role_ids(journey)
     client, headers = journey["client"], journey["headers"]["shipper"]
@@ -280,6 +280,14 @@ async def test_direct_create_validates_response_binding_and_preserves_manual_ass
     assert invalid.status_code == 400, invalid.text
     assert await count(journey, Deal) == 0
     assert not [row for row in await stored_events(journey) if row["kind"] == "deal_created"]
+    unbound = await client.post("/api/deals/", headers=headers, json={
+        "load_id": other_load_id, "carrier_id": ids["carrier"], "agreed_price": 700, "currency": "GEL"})
+    assert unbound.status_code == 400, unbound.text
+    assert await count(journey, Deal) == 0
+    assert not [row for row in await stored_events(journey) if row["kind"] == "deal_created"]
+    consent = await client.post(f"/api/responses/load/{other_load_id}",
+        headers=journey["headers"]["carrier"], json={"price": 700, "currency": "GEL"})
+    assert consent.status_code == 200, consent.text
     valid = await client.post("/api/deals/", headers=headers, json={
         "load_id": other_load_id, "carrier_id": ids["carrier"], "agreed_price": 700, "currency": "GEL"})
     assert valid.status_code == 200, valid.text

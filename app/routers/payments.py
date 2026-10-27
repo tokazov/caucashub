@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import httpx
+from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
@@ -35,7 +36,6 @@ _PAYMENTS_ENABLED = os.getenv("PAYMENTS_ENABLED", "true").lower() not in ("false
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
-ADMIN_SECRET = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
 BASE_URL = os.getenv("BASE_URL", "https://caucashub.ge")
 TBC_API_URL = os.getenv("TBC_API_URL", "https://api.tbcbank.ge/v1")
 TBC_CLIENT_ID = os.getenv("TBC_CLIENT_ID")
@@ -438,7 +438,7 @@ async def admin_payments_list(
     db: AsyncSession = Depends(get_db),
     x_admin_secret: str = Header(default=""),
 ):
-    if x_admin_secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(x_admin_secret):
         raise HTTPException(status_code=403, detail="Forbidden")
     q = select(Payment).order_by(Payment.id.desc()).limit(limit)
     if status:
@@ -469,7 +469,7 @@ async def admin_activate(
 ):
     """Ручная активация платежа (X-Admin-Secret header)."""
     secret = request.headers.get("X-Admin-Secret", "")
-    if secret != ADMIN_SECRET:
+    if not admin_secret_matches(secret):
         raise HTTPException(403, detail="Forbidden")
 
     ok = await activate_payment(payment_id, db)

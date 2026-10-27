@@ -47,6 +47,7 @@ class User(Base):
     responses_month_reset = Column(DateTime, nullable=True)
     # Фикс 3: инвалидация JWT при смене пароля (OQ-008 partial)
     password_changed_at = Column(DateTime(timezone=True), nullable=True)
+    password_version = Column(Integer, nullable=False, default=0, server_default="0")
     # Online tracking
     last_seen = Column(DateTime, nullable=True)  # naive UTC, обновляется при /api/users/me
     # Demo mode (ADR-012)
@@ -65,4 +66,6 @@ class ResetCode(Base):
     email      = Column(String, index=True)
     code       = Column(String)
     expires_at = Column(DateTime)
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    request_count = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())

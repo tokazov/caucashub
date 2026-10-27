@@ -13,6 +13,7 @@ import random
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -23,12 +24,11 @@ from app.models.ad import Ad
 
 router = APIRouter(prefix="/api/ads", tags=["ads"])
 
-ADMIN_SECRET = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
 
 # ── Auth helper ──────────────────────────────────────────────────────────────
 
 def _require_admin(x_admin_secret: str = Header(default="")):
-    if x_admin_secret != ADMIN_SECRET:
+    if not admin_secret_matches(x_admin_secret):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 

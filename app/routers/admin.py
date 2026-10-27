@@ -8,6 +8,7 @@ GET  /api/payments/admin/list      — все платежи (добавлено
 """
 import os
 from typing import Optional
+from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -19,11 +20,10 @@ from app.models.payment import Payment
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-ADMIN_SECRET = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
 
 
 def _require_admin(x_admin_secret: str = Header(default="")):
-    if x_admin_secret != ADMIN_SECRET:
+    if not admin_secret_matches(x_admin_secret):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 

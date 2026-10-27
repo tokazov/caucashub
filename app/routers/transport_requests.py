@@ -198,6 +198,9 @@ async def accept_transport_request(
         Deal.transport_offer_id == offer.id, Deal.status != DealStatus.canceled))).first()
     if existing:
         raise HTTPException(409, "Сделка для этого предложения уже существует")
+    shipper = await db.get(User, req.user_id)
+    if shipper is None or shipper.is_deleted or not shipper.is_active:
+        raise HTTPException(400, "Грузовладелец недоступен")
     req.status = "accepted"
     offer.status = "taken"
     from app.routers.deals import _act_number, _enqueue_deal_created

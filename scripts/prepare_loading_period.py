@@ -192,6 +192,34 @@ def prepare_notifications(connection):
         if checks.get(name) not in (value, alternative):
             raise RuntimeError("Notification schema is missing delivery constraints")
 
+
+def prepare_password_recovery(connection):
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/024_password_recovery_limits.py"
+    spec = importlib.util.spec_from_file_location("password_recovery_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    inspector = inspect(connection)
+    columns = {item["name"]: item for item in inspector.get_columns("reset_codes")}
+    user_columns = {item["name"]: item for item in inspector.get_columns("users")}
+    version = user_columns.get("password_version")
+    if (version is None or not isinstance(version["type"], Integer) or version["nullable"]
+            or version.get("default") is None):
+        raise RuntimeError("Password recovery schema is incompatible: users.password_version")
+    connection.execute(text("SELECT password_version FROM users LIMIT 0"))
+    expected = {"id", "email", "code", "expires_at", "created_at", "attempts", "request_count"}
+    if not expected.issubset(columns):
+        raise RuntimeError("Password recovery schema is missing columns")
+    for name in ("attempts", "request_count"):
+        column = columns[name]
+        if not isinstance(column["type"], Integer) or column["nullable"] or column.get("default") is None:
+            raise RuntimeError("Password recovery schema is incompatible: " + name)
+    connection.execute(text(
+        "SELECT id, email, code, expires_at, created_at, attempts, request_count FROM reset_codes LIMIT 0"))
+
+
+
 async def prepare_schema(engine):
     async with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
@@ -205,6 +233,7 @@ async def prepare_schema(engine):
         await connection.run_sync(prepare_deal_reviews)
         await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at FROM deal_reviews LIMIT 0"))
         await connection.run_sync(prepare_notifications)
+        await connection.run_sync(prepare_password_recovery)
         await connection.run_sync(prepare_idempotency)
         await connection.execute(text(
             "SELECT key, user_id, scope, request_hash, response_status, "
@@ -233,6 +262,7 @@ def main():
     print("Carrier profile schema ready; optional defaults enabled.")
     print("Deal review schema ready; per-participant reviews enabled.")
     print("Notification schema ready; persistent inbox and delivery queue enabled.")
+    print("Password recovery schema ready; persistent verification budgets enabled.")
     return 0
 
 

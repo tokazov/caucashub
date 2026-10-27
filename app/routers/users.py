@@ -1,3 +1,4 @@
+from app.services.admin_auth import admin_secret_matches
 import os
 import asyncio
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ class UpdateProfileRequest(CarrierProfileFields):
     org_type:     Optional[str] = None
     city:         Optional[str] = None
     lang:         Optional[str] = None
+    # Compatibility input only; linking/unlinking uses the verified Telegram flow.
     telegram_id:  Optional[str] = None
 
     @field_validator("inn")
@@ -107,6 +109,9 @@ async def update_me(
     if not user:
         raise HTTPException(404, "User not found")
 
+    if data.telegram_id is not None and data.telegram_id != user.telegram_id:
+        raise HTTPException(403, "Telegram подключается только через подтверждённую ссылку; используйте раздел Telegram")
+
     if data.company_name is not None:
         user.company_name = data.company_name
     if data.inn is not None:
@@ -117,8 +122,6 @@ async def update_me(
         user.city = data.city
     if data.lang is not None:
         user.lang = data.lang
-    if data.telegram_id is not None:
-        user.telegram_id = data.telegram_id
 
     # Absent defaults preserve prior values; explicit null clears them.
     if "truck_type" in data.model_fields_set:
@@ -191,8 +194,6 @@ async def request_phone_change(
 
     # Отправляем код на email (SMS нет — OQ-007)
     if current_user.email:
-        import httpx
-        RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
         html = f"""
         <div style="font-family:Arial;padding:20px;max-width:480px">
           <div style="background:#1a1a2e;padding:16px;text-align:center;border-radius:10px 10px 0 0">
@@ -207,21 +208,17 @@ async def request_phone_change(
             <p style="font-size:12px;color:#888">⏱ Код действует 15 минут. Если вы не запрашивали смену — проигнорируйте.</p>
           </div>
         </div>"""
+        from app.services import notification_channels
         try:
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-                    json={
-                        "from": "CaucasHub <onboarding@resend.dev>",
-                        "to": [current_user.email],
-                        "subject": "CaucasHub — подтверждение нового телефона",
-                        "html": html,
-                    },
-                    timeout=10,
-                )
+            result = await notification_channels.send_email(
+                current_user.email, "CaucasHub — подтверждение нового телефона", html,
+                idempotency_key=f"phone-change:{current_user.id}:{code}")
         except Exception:
-            pass
+            _phone_change_codes.pop(current_user.id, None)
+            raise HTTPException(status_code=503, detail="Не удалось отправить код. Попробуйте позднее.")
+        if result.status != "sent":
+            _phone_change_codes.pop(current_user.id, None)
+            raise HTTPException(status_code=503, detail="Не удалось отправить код. Попробуйте позднее.")
 
     return {"message": "Код подтверждения отправлен на ваш email"}
 
@@ -253,23 +250,16 @@ async def confirm_phone_change(
 
     # Уведомление на email о смене телефона
     if current_user.email and old_phone:
-        import httpx
-        RESEND_API_KEY = "re_UesN9evJ_H9Me3arJbM74gL1d2quF2te1"
+        from app.services import notification_channels
+        from html import escape
         try:
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-                    json={
-                        "from": "CaucasHub <onboarding@resend.dev>",
-                        "to": [current_user.email],
-                        "subject": "CaucasHub — ваш телефон изменён",
-                        "html": f"<p>Ваш телефон в CaucasHub изменён с <b>{old_phone}</b> на <b>{current_user.phone}</b>. Если это не вы — обратитесь в поддержку: <a href='https://t.me/caucashub_bot'>@caucashub_bot</a></p>",
-                    },
-                    timeout=10,
-                )
+            await notification_channels.send_email(
+                current_user.email, "CaucasHub — ваш телефон изменён",
+                f"<p>Ваш телефон в CaucasHub изменён с <b>{escape(old_phone)}</b> "
+                f"на <b>{escape(current_user.phone)}</b>.</p>")
         except Exception:
-            pass
+            pass  # The phone update is already committed; delivery is advisory.
+
 
     return {"ok": True, "phone": current_user.phone}
 
@@ -282,8 +272,7 @@ async def set_my_plan(
 ):
     """Admin устанавливает план пользователя вручную после оплаты."""
     user_id = current_user.id
-    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
-    if data.secret != admin_secret:
+    if not admin_secret_matches(data.secret):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
@@ -531,8 +520,7 @@ async def admin_block_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin: заблокировать пользователя (2.4.2)."""
-    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
-    if secret != admin_secret:
+    if not admin_secret_matches(secret):
         raise HTTPException(403, "Forbidden")
     from app.services.account_actions import block_user
     try:
@@ -552,8 +540,7 @@ async def admin_verify_user(
     Admin: установить/снять верификацию пользователя (2.4.4).
     POST /api/users/admin/{id}/verify?secret=...&verified=true
     """
-    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
-    if secret != admin_secret:
+    if not admin_secret_matches(secret):
         raise HTTPException(403, "Forbidden")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -572,8 +559,7 @@ async def admin_unblock_user(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin: разблокировать пользователя."""
-    admin_secret = os.getenv("ADMIN_SECRET", "caucashub-admin-2026")
-    if secret != admin_secret:
+    if not admin_secret_matches(secret):
         raise HTTPException(403, "Forbidden")
     from app.services.account_actions import unblock_user
     try:
