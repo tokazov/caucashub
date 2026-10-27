@@ -995,7 +995,7 @@ window.loadYmapsLazy = function(cb, onError) {
       </div>
 
       <div style="text-align:center;margin-top:10px">
-        <button onclick="closeModal('authOverlay');setTimeout(function(){document.getElementById('paywallOverlay').classList.add('on');},150)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline"><span data-i18n="None"><span data-i18n="cab_see_rates">📊 Посмотреть тарифы →</span></span></button>
+        <button onclick="openPlansModal(event)" style="background:none;border:none;color:#f7b731;font-size:13px;cursor:pointer;text-decoration:underline"><span data-i18n="None"><span data-i18n="cab_see_rates">📊 Посмотреть тарифы →</span></span></button>
       </div>
       <div style="text-align:center;margin-top:8px;font-size:13px;color:#888"><span data-i18n="already_account">Уже есть аккаунт?</span> <a href="#" onclick="switchAuth('login')" style="color:#f7b731;font-weight:700"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></a></div>
     </div>
@@ -1151,11 +1151,11 @@ window.loadYmapsLazy = function(cb, onError) {
       <div data-pw-plan="free" style="flex:1 1 170px;min-width:170px;scroll-snap-align:start;border:2px solid #e8eaf0;border-radius:14px;padding:14px;background:#fafafa;display:flex;flex-direction:column">
         <div style="font-weight:800;font-size:14px;color:#555;margin-bottom:4px" data-i18n="pw_free">Free</div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾0</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/მეს</div>
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
         <div style="font-size:11px;color:#555;line-height:1.8;flex:1" data-pw-features="free">
-          ✅ 5 გრუზი<br>✅ 10 გამოხ./თვეში<br>✅ 1 გამოწერა<br>✅ rs.ge ექსპ.
+          ✅ 5 активных грузов<br>✅ 10 откликов/мес<br>✅ 1 подписка на маршрут<br>✅ Экспорт rs.ge
         </div>
-        <button id="paywallBtnFree" onclick="closeModal('paywallOverlay')" style="margin-top:12px;width:100%;background:#e8eaf0;color:#888;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:default" disabled data-i18n="pw_current_plan">მიმდინარე გეგმა</button>
+        <button id="paywallBtnFree" onclick="closeModal('paywallOverlay')" style="margin-top:12px;width:100%;background:#e8eaf0;color:#888;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:default" disabled data-i18n="pw_current_plan">Текущий план</button>
       </div>
 
       <!-- PRO -->
@@ -1163,28 +1163,28 @@ window.loadYmapsLazy = function(cb, onError) {
         <div style="background:#f7b731;color:#1a1a2e;font-size:9px;font-weight:800;padding:2px 8px;border-radius:8px;text-align:center;margin-bottom:6px" data-i18n="pw_best">⭐ ПОПУЛЯРНЫЙ</div>
         <div style="font-weight:800;font-size:14px;color:#e6a820;margin-bottom:4px" data-i18n="pw_pro">Pro</div>
         <div style="font-size:22px;font-weight:900;color:#1a1a2e;margin-bottom:2px">₾49</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/მეს</div>
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
         <div style="font-size:11px;color:#555;line-height:1.8;flex:1" data-pw-features="pro">
-          ✅ 50 გრუზი<br>✅ 100 გამოხ./თვეში<br>✅ 20 გამოწერა<br>✅ პრიორიტ. მხარდ.
+          ✅ 50 активных грузов<br>✅ 100 откликов/мес<br>✅ 20 подписок<br>✅ Приоритетная поддержка
         </div>
-        <button onclick="closeModal('paywallOverlay');openPlanPayment('plan_pro')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-pw-btn="pro">💳 შეძენა ₾49-ად</button>
+        <button onclick="closeModal('paywallOverlay');openPlanPayment('plan_pro')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-pw-btn="pro">💳 Купить за ₾49</button>
       </div>
 
       <!-- BUSINESS -->
       <div data-pw-plan="business" style="flex:1 1 170px;min-width:170px;scroll-snap-align:start;border:2px solid #1a1a2e;border-radius:14px;padding:14px;background:#1a1a2e;display:flex;flex-direction:column">
         <div style="font-weight:800;font-size:14px;color:#fff;margin-bottom:4px" data-i18n="pw_proplus">Business</div>
         <div style="font-size:22px;font-weight:900;color:#f7b731;margin-bottom:2px">₾149</div>
-        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/მეს</div>
+        <div style="font-size:10px;color:#aaa;margin-bottom:12px" data-i18n="pw_per_month">/мес</div>
         <div style="font-size:11px;color:#ccc;line-height:1.8;flex:1" data-pw-features="business">
-          ✅ ულიმიტო გრუზი<br>✅ ულიმიტო გამოხ.<br>✅ ულიმიტო გამოწ.<br>✅ 24/7 მხარდ.<br>✅ პირ. მენეჯ.
+          ✅ Безлимит грузов<br>✅ Безлимит откликов<br>✅ Безлимит подписок<br>✅ Поддержка 24/7<br>✅ Персональный менеджер
         </div>
-        <button onclick="closeModal('paywallOverlay');openPlanPayment('plan_business')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-pw-btn="business">💳 შეძენა ₾149-ად</button>
+        <button onclick="closeModal('paywallOverlay');openPlanPayment('plan_business')" style="margin-top:12px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer" data-pw-btn="business">💳 Купить за ₾149</button>
       </div>
 
     </div>
     <div style="text-align:center;font-size:12px;color:#aaa;margin-top:14px">
-      <span data-i18n="pw_free_now">ახლა ყველა ფუნქცია უფასოა 🎉</span><br>
-      <span data-i18n="pw_coming_soon">გამოწერა მოგვიანებით გაიხსნება</span>
+      <span data-i18n="pw_free_now">Сейчас все функции бесплатны 🎉</span><br>
+      <span data-i18n="pw_coming_soon">Подписки откроются позже</span>
     </div>
   </div>
 </div>
@@ -1643,8 +1643,8 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261027-password-access"></script>
-<script src="main.js?v=20261027-password-access"></script>
+<script src="api.js?v=20261028-translations"></script>
+<script src="main.js?v=20261028-translations"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
