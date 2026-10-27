@@ -42,6 +42,7 @@ jobs:
       GEMINI_API_KEY: test
       BREVO_API_KEY: test
       TG_BOT_TOKEN: test:test
+      NOTIFICATIONS_WORKER_ENABLED: "0"
       TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/caucashub_ci
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +57,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite pypdf
       - name: Backend and PostgreSQL migration regressions
-        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py -q
+        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py -q
       - name: JavaScript syntax
         run: |
           node --check api.js

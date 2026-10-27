@@ -221,7 +221,19 @@ async def lifespan(app: FastAPI):
     # Запускаем фоновый цикл smoke-тестов
     _asyncio.create_task(_smoke_loop())
     _asyncio.create_task(_idempotency_cleanup_loop())
-    yield
+    from app.services.notification_delivery import worker_loop
+    import os
+    from contextlib import suppress
+    notification_task = None
+    if os.getenv("NOTIFICATIONS_WORKER_ENABLED", "1") == "1":
+        notification_task = _asyncio.create_task(worker_loop())
+    try:
+        yield
+    finally:
+        if notification_task is not None:
+            notification_task.cancel()
+            with suppress(_asyncio.CancelledError):
+                await notification_task
 
 # ── Background smoke-test cache (ADR-011 + Q-018 fix) ─────────────────────────
 import asyncio as _asyncio
@@ -333,6 +345,8 @@ app.include_router(trucks.router, prefix="/api/trucks", tags=["trucks"])
 app.include_router(ai.router,     prefix="/api/ai",     tags=["ai"])
 app.include_router(deals.router,  prefix="/api/deals",  tags=["deals"])
 app.include_router(responses.router, tags=["responses"])
+from app.routers import notifications
+app.include_router(notifications.router)
 app.include_router(tg_bot.router,   prefix="/api/tg",     tags=["telegram"])
 app.include_router(cities.router,        prefix="/api/cities",        tags=["cities"])
 app.include_router(dictionaries.router,  prefix="/api/dictionaries",  tags=["dictionaries"])
