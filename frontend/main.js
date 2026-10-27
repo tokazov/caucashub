@@ -1270,7 +1270,7 @@ function openCargo(d){
       `;
     } else if(!_canSeeContacts){
       _mContactBlock.style.display='none'; // pricing disabled
-      if(false) _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).contacts_locked||'Контакты доступны от'} <b>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_standard||'Стандарт'} ₾35 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_per_month||'мес'}</b><br><button onclick="closeModal('cargoOverlay');setTimeout(()=>document.getElementById('paywallOverlay').classList.add('on'),200)" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).details_link||'Подробнее →'}</button></div>`;
+      if(false) _mContactBlock.innerHTML=`<div style="font-size:13px;color:#888;padding:10px;background:#fff8e6;border-radius:8px;border:1px solid #f7b731;text-align:center">🔒 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).contacts_locked||'Контакты доступны от'} <b>${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_standard||'Стандарт'} ₾35 ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).pw_per_month||'мес'}</b><br><button onclick="closeModal('cargoOverlay');setTimeout(()=>openPaywall('contact'),200)" style="margin-top:8px;background:#f7b731;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).details_link||'Подробнее →'}</button></div>`;
     } else {
       _mContactBlock.style.display='none';
     }
@@ -1623,28 +1623,9 @@ function updateRespondCount(){
 }
 // ── PAYWALL ───────────────────────────────────────────
 function openPaywall(reason){
-  var isGe = lang === 'ge';
-  var titles = isGe ? {
-    contact:'კონტაქტების სანახავად საჭიროა გამოწერა',
-    respond:'გრუზებზე გამოხმაურებისთვის საჭიროა გამოწერა',
-    urgent:'სასწრაფო გრუზები ხელმისაწვდომია Pro გეგმაზე',
-  } : {
-    contact:'Чтобы видеть контакты — нужна подписка',
-    respond:'Чтобы откликаться на грузы — нужна подписка',
-    urgent:'Срочные грузы доступны на тарифе Pro',
-  };
-  var subs = isGe ? {
-    contact:'გახსენით გრუზის მფლობელის ტელეფონი და ელ-ფოსტა',
-    respond:'გაგზავნეთ განაცხადები პირდაპირ გადამზიდებს',
-    urgent:'მიიღეთ სასწრაფო გრუზები პირველებს შორის',
-  } : {
-    contact:'Откройте телефон и email грузовладельца',
-    respond:'Отправляйте заявки перевозчикам напрямую',
-    urgent:'Получайте срочные грузы первым',
-  };
-  document.getElementById('paywallTitle').textContent = titles[reason] || (isGe ? 'სატარიფო გეგმები' : 'Тарифные планы');
-  document.getElementById('paywallSub').textContent = subs[reason] || '';
-  // Обновляем тексты кнопок и описаний по языку
+  var pw = document.getElementById('paywallOverlay');
+  if(!pw) return;
+  pw.dataset.reason = reason || '';
   _applyPaywallLang();
   document.getElementById('paywallOverlay').classList.add('on');
 }
@@ -1653,9 +1634,6 @@ function _applyPaywallLang() {
   var isGe = lang === 'ge';
   var pw = document.getElementById('paywallOverlay');
   if(!pw) return;
-  var u = typeof user !== 'undefined' ? user : null;
-  var currentPlan = (u && u.plan) ? u.plan : 'free';
-
   // Описания планов
   var features = {
     free: isGe
@@ -1689,11 +1667,24 @@ function _applyPaywallLang() {
     if(popBadge) popBadge.textContent = isGe ? '⭐ პოპულარული' : '⭐ ПОПУЛЯРНЫЙ';
   });
 
-  // Заголовок
+  pw.querySelectorAll('[data-i18n="pw_per_month"]').forEach(function(el) {
+    el.textContent = isGe ? '/თვეში' : '/мес';
+  });
+  // Translate the reason on language changes too; never infer it from rendered text.
+  var reasons = isGe ? {
+    contact:['კონტაქტების სანახავად საჭიროა გამოწერა','ნახეთ ტვირთის მფლობელის ტელეფონი და ელფოსტა'],
+    respond:['ტვირთებზე გამოხმაურებისთვის საჭიროა გამოწერა','გაუგზავნეთ განაცხადები ტვირთის მფლობელებს'],
+    urgent:['სასწრაფო ტვირთები ხელმისაწვდომია Pro ტარიფზე','მიიღეთ სასწრაფო ტვირთები პირველებს შორის']
+  } : {
+    contact:['Чтобы видеть контакты — нужна подписка','Откройте телефон и email грузовладельца'],
+    respond:['Чтобы откликаться на грузы — нужна подписка','Отправляйте заявки грузовладельцам напрямую'],
+    urgent:['Срочные грузы доступны на тарифе Pro','Получайте срочные грузы первыми']
+  };
+  var reason = reasons[pw.dataset.reason];
   var titleEl = pw.querySelector('#paywallTitle');
-  if(titleEl && !titleEl.textContent.includes('კონტ') && !titleEl.textContent.includes('Чтобы')) {
-    titleEl.textContent = isGe ? 'სატარიფო გეგმები' : 'Тарифные планы';
-  }
+  var subEl = pw.querySelector('#paywallSub');
+  if(titleEl) titleEl.textContent = reason ? reason[0] : (isGe ? 'სატარიფო გეგმები' : 'Тарифные планы');
+  if(subEl) subEl.textContent = reason ? reason[1] : '';
 
   // Нижний текст
   var freeNow = pw.querySelector('[data-i18n="pw_free_now"]');
@@ -3397,6 +3388,20 @@ function setScope(s, el){
 // ── LANG / i18n ───────────────────────────────────────
 const TRANSLATIONS = {
   ru: {
+    sub_created: 'Подписка создана',
+    sub_deleted: 'Подписка удалена',
+    err_create_sub: 'Не удалось создать подписку',
+    offer_removed: 'Снято с публикации',
+    offer_removed_sub: 'Предложение транспорта снято с публикации',
+    truck_gazel: 'Фургон',
+    truck_ref: 'Рефрижератор',
+    truck_open: 'Бортовой',
+    truck_container: 'Контейнер',
+    pay_board: 'Бортовой',
+    pay_barter: 'Бартер',
+    loading_map: '⏳ Карта загружается...',
+    map_building: '⏳ Строим маршрут...',
+    loading_generic: '⏳ Загрузка...',
     nav_exchange: 'Биржа',
     nav_orders: 'Мои заказы',
     nav_transport: 'Транспорт',
@@ -4727,6 +4732,8 @@ function applyLang(l) {
   };
   _setOrgOptions(document.getElementById('sOrgTypeAll'), l);
   _setOrgOptions(document.getElementById('regOrgType'), l);
+  // Refresh dynamic tariff content independently of cabinet rendering.
+  _applyPaywallLang();
   // Рендер грузов и транспорта перенесён в setLang→setTimeout(0)
   // чтобы не дублировать вызовы и не нагружать синхронный поток applyLang
 }
@@ -4771,8 +4778,6 @@ function setLang(l, btn) {
     else if(_tab === 'loads' && typeof renderCabLoads === 'function') renderCabLoads();
     else if(_tab === 'responses' && typeof renderCabResponses === 'function') renderCabResponses();
     else if(_tab === 'deals' && typeof renderCabDeals === 'function') renderCabDeals();
-    // Всегда обновляем paywall
-    if(typeof _applyPaywallLang === 'function') _applyPaywallLang();
   } catch(e) {}
   // AI чат placeholder и приветствие
   var aiInp = document.getElementById('aiInput');
@@ -6089,29 +6094,13 @@ if(_dateInput){
 // Язык восстанавливается ниже через setLang() вместе с рендером
 
 // Гарантируем рендер после загрузки DOM
-// Применяем язык ДО рендера — чтобы renderLoads сразу взял правильный lang
+// Always restore a supported language, including RU on a returning visit.
 (function() {
-  const _saved = localStorage.getItem('ch_lang');
-  if (_saved) {
-    // Уже выбирал язык вручную — применяем его
-    if (_saved !== 'ru' && typeof setLang === 'function') {
-      const _btn = document.querySelector('.lang-btn[onclick*="' + _saved + '"]');
-      setLang(_saved, _btn || null);
-    }
-  } else {
-    // Первый визит — определяем язык устройства
-    var _nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
-    var _autoLang = 'ru'; // по умолчанию
-    if (_nav.startsWith('ka')) {
-      _autoLang = 'ge'; // грузинский
-    } else if (_nav.startsWith('en')) {
-      _autoLang = 'en'; // английский
-    }
-    if (_autoLang !== 'ru' && typeof setLang === 'function') {
-      const _btn = document.querySelector('.lang-btn[onclick*="' + _autoLang + '"]');
-      setLang(_autoLang, _btn || null);
-    }
-  }
+  const saved = localStorage.getItem('ch_lang');
+  const device = (navigator.language || navigator.userLanguage || '').toLowerCase();
+  const initial = saved === 'ru' || saved === 'ge' ? saved : (device.startsWith('ka') ? 'ge' : 'ru');
+  const button = document.querySelector('.lang-btn[onclick*="' + initial + '"]');
+  setLang(initial, button || null);
 })();
 
 if(document.readyState==='loading'){
@@ -6127,10 +6116,10 @@ if(document.readyState==='loading'){
   // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete не нужен
 }
 
-function openPlansModal(e){ 
-  if(e) e.stopPropagation(); 
-  closeModal('authOverlay'); 
-  setTimeout(function(){ document.getElementById('paywallOverlay').classList.add('on'); }, 150); 
+function openPlansModal(e){
+  if(e) e.stopPropagation();
+  closeModal('authOverlay');
+  setTimeout(function(){ openPaywall(); }, 150);
 }
 
 // ═══ DEALS (Мои сделки) ═══

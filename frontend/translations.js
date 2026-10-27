@@ -2,6 +2,20 @@
 // и устранения ложных срабатываний антивируса на грузинском тексте
 const TRANSLATIONS = {
   ru: {
+    sub_created: 'Подписка создана',
+    sub_deleted: 'Подписка удалена',
+    err_create_sub: 'Не удалось создать подписку',
+    offer_removed: 'Снято с публикации',
+    offer_removed_sub: 'Предложение транспорта снято с публикации',
+    truck_gazel: 'Фургон',
+    truck_ref: 'Рефрижератор',
+    truck_open: 'Бортовой',
+    truck_container: 'Контейнер',
+    pay_board: 'Бортовой',
+    pay_barter: 'Бартер',
+    loading_map: '⏳ Карта загружается...',
+    map_building: '⏳ Строим маршрут...',
+    loading_generic: '⏳ Загрузка...',
     nav_exchange: 'Биржа',
     nav_orders: 'Мои заказы',
     nav_transport: 'Транспорт',

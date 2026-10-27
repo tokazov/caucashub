@@ -380,7 +380,8 @@ window.openPlansModal = function(e){
   if(typeof closeModal==='function') closeModal('authOverlay');
   setTimeout(function(){
     var pw = document.getElementById('paywallOverlay');
-    if(pw) pw.classList.add('on');
+    if(typeof openPaywall === 'function') openPaywall();
+    else if(pw) pw.classList.add('on');
   }, 150);
 };
 
