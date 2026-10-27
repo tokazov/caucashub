@@ -140,6 +140,11 @@ async def send_telegram(chat_id, text, *, idempotency_key=None):
 
 async def configuration_health():
     """Read-only provider probes; never send a test message or expose identities."""
+    def record(provider, configured, status=None, error=None):
+        logging.getLogger("uvicorn.error.notifications").info(
+            "[NOTIFICATIONS] provider_probe provider=%s configured=%s http_status=%s error=%s",
+            provider, "true" if configured else "false", status if status is not None else "-", error or "-")
+
     result = {"email": "not_configured", "telegram": "not_configured"}
     token = _env("CAUCASHUB_TG_BOT_TOKEN", "TG_BOT_TOKEN", "TELEGRAM_BOT_TOKEN")
     brevo, resend = _env("BREVO_API_KEY"), _env("RESEND_API_KEY")
@@ -154,14 +159,24 @@ async def configuration_health():
             try:
                 response = await client.get("https://api.brevo.com/v3/account", headers={"api-key": brevo})
                 result["email"] = "ready" if response.status_code == 200 else "unavailable"
-            except httpx.TransportError:
+                record("brevo", True, response.status_code)
+            except httpx.TransportError as error:
                 result["email"] = "unreachable"
-        elif resend:
+                record("brevo", True, error=type(error).__name__)
+        else:
+            record("brevo", False)
+        if resend:
             # Sending-only keys may be unable to list domains; this is not a send failure.
             try:
                 response = await client.get("https://api.resend.com/domains",
                                             headers={"Authorization": "Bearer " + resend})
-                result["email"] = "ready" if response.status_code == 200 else "configured"
-            except httpx.TransportError:
-                result["email"] = "unreachable"
+                if not brevo:
+                    result["email"] = "ready" if response.status_code == 200 else "configured"
+                record("resend", True, response.status_code)
+            except httpx.TransportError as error:
+                if not brevo:
+                    result["email"] = "unreachable"
+                record("resend", True, error=type(error).__name__)
+        else:
+            record("resend", False)
     return result
