@@ -310,3 +310,134 @@ async def test_pre_connection_failure_can_retry_without_cross_provider_fallback(
     assert result.status == "retry" and result.retry_after == 60
     assert len(requests) == 1
     assert requests[0].url.host == ("api.brevo.com" if channel == "email" else "api.telegram.org")
+
+
+"""Read-only provider diagnostics must never send messages or log credentials."""
+import logging
+
+
+LOGGER = "uvicorn.error.notifications"
+TOKENS = {
+    "BREVO_API_KEY": "xkeysib-diagnostic-private",
+    "RESEND_API_KEY": "re_diagnostic_private",
+    "CAUCASHUB_TG_BOT_TOKEN": "123456:diagnostic-private-token",
+    "TG_BOT_TOKEN": "",
+    "TELEGRAM_BOT_TOKEN": "",
+}
+BODY_SECRETS = ("private-account@example.test", "private-account-body-key")
+
+
+@pytest.fixture
+def probe_http(monkeypatch, caplog):
+    for name, value in TOKENS.items():
+        monkeypatch.setenv(name, value)
+    caplog.set_level(logging.INFO)
+    requests = []
+    state = {"brevo": 200, "resend": 200, "telegram": 200,
+             "telegram_ok": True, "brevo_error": None}
+
+    def respond(request):
+        requests.append(request)
+        assert request.method == "GET", "Health probes must never send an email/message"
+        if request.url.host == "api.telegram.org":
+            assert request.url.path.endswith("/getMe")
+            return httpx.Response(state["telegram"], json={
+                "ok": state["telegram_ok"], "result": {"id": 1, "username": "private-account-body-key"}})
+        if request.url.host == "api.brevo.com":
+            assert request.url.path == "/v3/account"
+            if state["brevo_error"]:
+                raise state["brevo_error"](
+                    "private-account-body-key " + TOKENS["BREVO_API_KEY"], request=request)
+            return httpx.Response(state["brevo"], json={
+                "email": BODY_SECRETS[0], "marketingAutomation": {"key": BODY_SECRETS[1]}})
+        assert request.url.host == "api.resend.com"
+        assert request.url.path == "/domains"
+        return httpx.Response(state["resend"], json={
+            "data": [{"name": "private-account-body-key"}]})
+
+    original_init = httpx.AsyncClient.__init__
+    transport = httpx.MockTransport(respond)
+    def isolated_client(client, *args, **kwargs):
+        kwargs["transport"] = transport
+        return original_init(client, *args, **kwargs)
+    monkeypatch.setattr(httpx.AsyncClient, "__init__", isolated_client)
+    return requests, state
+
+
+def diagnostic_lines(caplog):
+    return [record.getMessage() for record in caplog.records
+            if record.name == LOGGER and "provider_probe" in record.getMessage()]
+
+
+def assert_no_sensitive_logs(caplog):
+    text = "\n".join(record.getMessage() for record in caplog.records)
+    for secret in (*BODY_SECRETS, *[value for value in TOKENS.values() if value]):
+        assert secret not in text
+    for line in diagnostic_lines(caplog):
+        assert "\n" not in line and "\r" not in line and "://" not in line
+        assert "headers" not in line and "Authorization" not in line
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("brevo_status", [401, 403, 200])
+async def test_both_configured_email_providers_are_probed_without_redefining_primary_readiness(
+        probe_http, caplog, brevo_status):
+    requests, state = probe_http
+    state["brevo"] = brevo_status
+    result = await channels.configuration_health()
+    assert result == {"email": "ready" if brevo_status == 200 else "unavailable", "telegram": "ready"}
+    assert {request.url.host for request in requests} == {
+        "api.telegram.org", "api.brevo.com", "api.resend.com"}
+    assert len(requests) == 3
+    lines = diagnostic_lines(caplog)
+    assert len(lines) == 2
+    assert any(f"provider=brevo configured=true http_status={brevo_status} error=-" in line for line in lines)
+    assert any("provider=resend configured=true http_status=200 error=-" in line for line in lines)
+    assert_no_sensitive_logs(caplog)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resend_status", [401, 403, 200])
+async def test_resend_only_preserves_configured_label_for_restricted_read_permissions(
+        probe_http, caplog, monkeypatch, resend_status):
+    requests, state = probe_http
+    state["resend"] = resend_status
+    monkeypatch.setenv("BREVO_API_KEY", "")
+    monkeypatch.setenv("CAUCASHUB_TG_BOT_TOKEN", "")
+    result = await channels.configuration_health()
+    assert result == {"email": "ready" if resend_status == 200 else "configured",
+                      "telegram": "not_configured"}
+    assert len(requests) == 1 and requests[0].url.host == "api.resend.com"
+    lines = diagnostic_lines(caplog)
+    assert any("provider=brevo configured=false http_status=- error=-" in line for line in lines)
+    assert any(f"provider=resend configured=true http_status={resend_status} error=-" in line for line in lines)
+    assert_no_sensitive_logs(caplog)
+
+
+@pytest.mark.asyncio
+async def test_network_error_logs_only_class_and_still_probes_configured_fallback(probe_http, caplog):
+    requests, state = probe_http
+    state["brevo_error"] = httpx.ReadTimeout
+    state["resend"] = 403
+    result = await channels.configuration_health()
+    assert result == {"email": "unreachable", "telegram": "ready"}
+    assert len(requests) == 3
+    lines = diagnostic_lines(caplog)
+    assert any("provider=brevo configured=true http_status=- error=ReadTimeout" in line for line in lines)
+    assert any("provider=resend configured=true http_status=403 error=-" in line for line in lines)
+    assert_no_sensitive_logs(caplog)
+
+
+@pytest.mark.asyncio
+async def test_missing_configuration_logs_booleans_without_any_http(probe_http, caplog, monkeypatch):
+    requests, _ = probe_http
+    for name in TOKENS:
+        monkeypatch.setenv(name, "")
+    result = await channels.configuration_health()
+    assert result == {"email": "not_configured", "telegram": "not_configured"}
+    assert requests == []
+    lines = diagnostic_lines(caplog)
+    assert len(lines) == 2
+    assert all("configured=false http_status=- error=-" in line for line in lines)
+    assert_no_sensitive_logs(caplog)
+
