@@ -2123,7 +2123,7 @@ function showUserState(){
   if(pb) pb.innerHTML=getPlanBadge();
   // показываем заказы
   document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
-  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='';
+  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='inline-flex';
   if(typeof startNotificationPolling==='function')startNotificationPolling();
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
@@ -2133,6 +2133,7 @@ function doLogout(){
   if(typeof setToken==='function') setToken(null);
   currentUserId=null;
   user=null;
+  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='none';
   _lsDel('ch_user');
   const od2=document.getElementById('onlineDot');
   if(od2)od2.style.display='none';
