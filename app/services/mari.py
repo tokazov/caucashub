@@ -131,9 +131,37 @@ def clean_state(previous, proposed, action=None, user_role=None, scope="local", 
     state["awaiting_role_clarification"] = ambiguous
     route = bool(state.get("from") and state.get("to"))
     state["ready_to_search"] = bool(intent in {"search_load", "search_transport"} and state.get("from"))
-    state["ready_to_post"] = bool(intent == "post_load" and route and state.get("weight_cap"))
-    state["ready_to_post_transport"] = bool(intent == "post_transport" and route and state.get("truck") and (state.get("capacity_kg") or state.get("weight_cap")))
+    complete = route and draft_question(state, "ru") is None
+    state["ready_to_post"] = bool(intent == "post_load" and complete)
+    state["ready_to_post_transport"] = bool(intent == "post_transport" and complete)
     return state
+
+
+def draft_question(state, language):
+    """Ask for one missing form field; never turn an incomplete draft into a claim."""
+    if state.get("intent") not in {"post_load", "post_transport"}:
+        return None
+    transport = state["intent"] == "post_transport"
+    kg = (state.get("capacity_kg") or state.get("weight_cap")) if transport else state.get("weight_cap")
+    today = loading_day(listing_day_start()).isoformat()
+    questions = [
+        (not state.get("from"), "Из какого города отправление?", "რომელი ქალაქიდან არის გამგზავრება?"),
+        (not state.get("to"), "В какой город доставка?", "რომელ ქალაქშია მიწოდება?"),
+        (not kg or kg < (100 if transport else 1) or kg > (100000 if transport else 50000),
+         "Какой вес груза в килограммах (до 50 000)?" if not transport else "Какая вместимость машины в килограммах (от 100)?",
+         "რამდენი კილოგრამია ტვირთი (მაქს. 50 000)?" if not transport else "რამდენი კილოგრამია მანქანის ტევადობა (მინ. 100)?"),
+        (not state.get("truck"), "Какой тип кузова?", "რა ტიპის ძარაა?"),
+        (not state.get("date") or state["date"] < today,
+         "На какую дату планируется погрузка? Укажите сегодня или позднее.", "როდის იგეგმება დატვირთვა? მიუთითეთ დღევანდელი ან მომავალი თარიღი."),
+        (bool(state.get("date_end") and state.get("date") and state["date_end"] < state["date"]),
+         "Дата окончания раньше начала. Какую дату окончания указать?", "დასრულების თარიღი დასაწყისზე ადრეა. რომელი თარიღი მივუთითო?"),
+        (not transport and not state.get("price"),
+         f"Какую ставку указать в {state.get('currency', 'GEL')}?", f"რა ფასი მივუთითო {state.get('currency', 'GEL')}-ში?"),
+    ]
+    for missing, ru, ge in questions:
+        if missing:
+            return ge if language == "ge" else ru
+    return None
 
 
 def listing_matches(row, state, transport=False):

@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from app.models.transport_offer import TransportOffer
 from app.models.user import User
 from app.services.listing_freshness import current_load_conditions, current_transport_conditions
-from app.services.mari import clean_state, listing_matches, public_listing
+from app.services.mari import clean_state, draft_question, listing_matches, public_listing
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +226,7 @@ weight_cap — вес груза или максимум для перевозч
                                   "max_kg": state.get("capacity_kg") or state.get("weight_cap"),
                                   "truck": state.get("truck"), "date": state.get("date"), "kind": "transport" if transport else "load"}
         elif intent in {"post_load", "post_transport"}:
-            reply = ("მოვამზადე მონახაზი. შეამოწმეთ და შეავსეთ მონაცემები ფორმაში; ჯერ არაფერი გამოქვეყნებულა."
+            reply = draft_question(state, req.lang) or ("მოვამზადე მონახაზი. შეამოწმეთ და შეავსეთ მონაცემები ფორმაში; ჯერ არაფერი გამოქვეყნებულა."
                      if req.lang == "ge" else "Подготовила черновик. Проверьте и дополните данные в форме; объявление ещё не опубликовано.")
         return {"reply": reply, "state": state, "search_filters": search_filters,
                 "loads": loads, "offers": offers, "action": intent,

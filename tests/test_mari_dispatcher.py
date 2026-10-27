@@ -112,7 +112,7 @@ async def test_transport_search_requires_current_dates_and_enough_capacity(mari)
 @pytest.mark.asyncio
 async def test_drafts_are_not_published_and_state_survives_missing_model_fields(mari):
     client, sessions, answer, _ = mari
-    answer({"intent": "post_transport", "capacity_kg": "5т", "truck": "тент"})
+    answer({"intent": "post_transport", "capacity_kg": "5т", "truck": "тент", "date": "tomorrow"})
     data = (await client.post("/api/ai/dispatcher", json={"message": "Тент 5т", "user_role": "carrier",
         "state": {"from": "Тбилиси", "to": "Батуми", "price": 800}})).json()
     assert data["action"] == "post_transport"
@@ -188,3 +188,26 @@ def test_state_normalizes_units_and_supports_explicit_clearing_without_fabricati
     assert state["capacity_kg"] == 5500 and "price" not in state and "truck" not in state
     assert "date" not in state
     assert same_city("Ахалцихе", "Ахалкалаки") is False
+
+
+@pytest.mark.asyncio
+async def test_conversation_asks_one_missing_field_and_retains_previous_answers(mari):
+    client, _, answer, _ = mari
+    state = {}
+    for update, expected in [
+        ({"intent": "post_load"}, "Из какого города"),
+        ({"from": "Тбилиси"}, "В какой город"),
+        ({"to": "Батуми"}, "Какой вес"),
+        ({"weight_cap": 3000}, "Какой тип кузова"),
+        ({"truck": "tent"}, "На какую дату"),
+        ({"date": "tomorrow"}, "Какую ставку"),
+        ({"price": 700}, "не опубликовано"),
+    ]:
+        answer(update)
+        response = await client.post("/api/ai/dispatcher", json={"message": "Следующее уточнение", "state": state})
+        assert response.status_code == 200
+        result = response.json()
+        assert expected in result["reply"]
+        state = result["state"]
+    assert state["ready_to_post"] is True
+    assert state["from"] == "Тбилиси" and state["weight_cap"] == 3000
