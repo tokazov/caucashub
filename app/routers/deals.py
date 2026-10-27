@@ -14,12 +14,13 @@ from app.models.load import Load, LoadStatus
 from app.models.transport_offer import TransportOffer
 from app.models.transport_request import TransportRequest
 from app.models.response import Response as LoadResponse, ResponseStatus
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routers.loads import require_user
 from app.routers.auth import require_user as require_authenticated_user
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.exc import IntegrityError
 from app.pdf_utils import generate_act_pdf
+from app.services.notifications import enqueue_event
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime, timezone
@@ -119,6 +120,29 @@ async def _locked_users(db: AsyncSession, ids: list[int]) -> list[User]:
     return list(result.scalars().all())
 
 
+async def _deal_notification_data(db: AsyncSession, deal: Deal) -> dict:
+    source = (await db.get(TransportOffer, deal.transport_offer_id)
+              if deal.transport_offer_id else await db.get(Load, deal.load_id))
+    return {
+        "source": deal.deal_source, "load_id": deal.load_id,
+        "transport_offer_id": deal.transport_offer_id,
+        "transport_request_id": deal.transport_request_id, "response_id": deal.response_id,
+        "deal_id": deal.id, "deal_number": deal.act_number or _act_number(deal.id),
+        "from_city": source.from_city if source else None,
+        "to_city": source.to_city if source else None,
+        "price": float(deal.agreed_price) if deal.agreed_price is not None else None,
+        "currency": deal.currency or "GEL",
+    }
+
+
+async def _enqueue_deal_created(db: AsyncSession, deal: Deal, actor_id: int):
+    await enqueue_event(
+        db, event_key=f"deal:{deal.id}:created", kind="deal_created",
+        recipient_ids=[deal.shipper_id, deal.carrier_id], actor_id=actor_id,
+        data=await _deal_notification_data(db, deal),
+    )
+
+
 async def _confirm_deal(db: AsyncSession, deal: Deal, user_id: int) -> bool:
     from app.services.audit_log import log_status_change
 
@@ -127,6 +151,9 @@ async def _confirm_deal(db: AsyncSession, deal: Deal, user_id: int) -> bool:
         return False
     if previous not in ("confirmed", "loading", "in_transit", "delivered"):
         raise HTTPException(400, "Нельзя подтвердить доставку из статуса " + previous)
+    already_confirmed = deal.shipper_confirmed if user_id == deal.shipper_id else deal.carrier_confirmed
+    if already_confirmed:
+        return False
     now = datetime.now(timezone.utc)
     if user_id == deal.shipper_id:
         deal.shipper_confirmed = True
@@ -147,6 +174,19 @@ async def _confirm_deal(db: AsyncSession, deal: Deal, user_id: int) -> bool:
     if target != previous:
         await log_status_change(db, "deal", deal.id, previous, target, user_id,
                                 reason="delivery_confirmed")
+    data = await _deal_notification_data(db, deal)
+    if completed:
+        await enqueue_event(
+            db, event_key=f"deal:{deal.id}:completed", kind="deal_completed",
+            recipient_ids=[deal.shipper_id, deal.carrier_id], actor_id=user_id, data=data,
+        )
+    else:
+        event_key = f"deal:{deal.id}:confirmed:{user_id}"
+        peer_id = deal.carrier_id if user_id == deal.shipper_id else deal.shipper_id
+        await enqueue_event(db, event_key=event_key, kind="delivery_waiting",
+                            recipient_ids=[user_id], actor_id=user_id, data=data)
+        await enqueue_event(db, event_key=event_key, kind="delivery_confirmation_required",
+                            recipient_ids=[peer_id], actor_id=user_id, data=data)
     return completed
 
 
@@ -173,48 +213,46 @@ async def create_deal(
     current_user: User = Depends(require_user),
 ):
     user_id = current_user.id
-    # Проверяем что груз принадлежит текущему пользователю
-    result = await db.execute(select(Load).where(Load.id == data.load_id))
-    load = result.scalar_one_or_none()
-    if not load:
+    load = (await db.execute(select(Load).where(Load.id == data.load_id)
+                             .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+    if load is None:
         raise HTTPException(404, "Груз не найден")
     if load.user_id != user_id:
         raise HTTPException(403, "Это не ваш груз")
-
-    # Помечаем отклик как принятый
-    if data.response_id:
-        res = await db.execute(select(LoadResponse).where(LoadResponse.id == data.response_id))
-        resp = res.scalar_one_or_none()
-        if resp:
-            resp.status = ResponseStatus.accepted
-            # Отклоняем остальные отклики на этот груз
-            other = await db.execute(
-                select(LoadResponse).where(
-                    LoadResponse.load_id == data.load_id,
-                    LoadResponse.id != data.response_id,
-                    LoadResponse.status == ResponseStatus.pending,
-                )
-            )
-            for o in other.scalars().all():
-                o.status = ResponseStatus.rejected
-
-    # Переводим груз в статус taken
+    existing = (await db.execute(select(Deal.id).where(
+        Deal.load_id == load.id, Deal.status != DealStatus.canceled))).first()
+    if existing:
+        raise HTTPException(409, "Сделка для этого груза уже существует")
+    if load.status != LoadStatus.active or getattr(load, "is_demo", False):
+        raise HTTPException(400, "Груз недоступен")
+    carrier = await db.get(User, data.carrier_id)
+    if carrier is None or carrier.id == user_id or carrier.role not in (UserRole.carrier, UserRole.both):
+        raise HTTPException(400, "Выберите существующего перевозчика")
+    if data.response_id is not None:
+        resp = (await db.execute(select(LoadResponse).where(LoadResponse.id == data.response_id)
+                                 .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+        if resp is None or resp.load_id != load.id or resp.user_id != carrier.id:
+            raise HTTPException(400, "Отклик не принадлежит этому грузу и перевозчику")
+        if resp.status != ResponseStatus.pending:
+            raise HTTPException(400, "Отклик уже обработан")
+        resp.status = ResponseStatus.accepted
+    others = (await db.execute(select(LoadResponse).where(
+        LoadResponse.load_id == load.id, LoadResponse.status == ResponseStatus.pending)
+        .order_by(LoadResponse.id).with_for_update()
+        .execution_options(populate_existing=True))).scalars().all()
+    from app.routers.responses import _enqueue_response_rejected
+    for other in others:
+        other.status = ResponseStatus.rejected
+        await _enqueue_response_rejected(db, other, load, user_id)
     load.status = LoadStatus.taken
-
-    # Создаём сделку
-    deal = Deal(
-        load_id      = data.load_id,
-        shipper_id   = user_id,
-        carrier_id   = data.carrier_id,
-        response_id  = data.response_id,
-        agreed_price = data.agreed_price or (load.price_gel or load.price_usd),
-        currency     = data.currency,
-        notes        = data.notes,
-        status       = DealStatus.confirmed,
-    )
+    deal = Deal(load_id=load.id, shipper_id=user_id, carrier_id=carrier.id,
+                response_id=data.response_id,
+                agreed_price=data.agreed_price or (load.price_gel or load.price_usd),
+                currency=data.currency, notes=data.notes, status=DealStatus.confirmed)
     db.add(deal)
-    await db.flush()  # получаем id
+    await db.flush()
     deal.act_number = _act_number(deal.id)
+    await _enqueue_deal_created(db, deal, user_id)
     await db.commit()
     await db.refresh(deal)
     return deal_to_dict(deal)
@@ -239,8 +277,6 @@ async def update_status(
     user_id = current_user.id
     deal = await _locked_deal(db, deal_id, user_id)
     previous, target = _status_value(deal), data.status
-    completed_now = False
-    status_email = None
     if target in ("completed", "rated"):
         raise HTTPException(400, "Используйте подтверждение доставки или оценку сделки")
     if target in ("delivered", "delivered_shipper", "delivered_carrier"):
@@ -248,7 +284,7 @@ async def update_status(
             raise HTTPException(403, "Только грузовладелец может подтвердить получение")
         if target == "delivered_carrier" and user_id != deal.carrier_id:
             raise HTTPException(403, "Только перевозчик может подтвердить доставку")
-        completed_now = await _confirm_deal(db, deal, user_id)
+        await _confirm_deal(db, deal, user_id)
     else:
         validate_transition("deal", previous, target)
         if target in ("loading", "in_transit"):
@@ -257,7 +293,6 @@ async def update_status(
             deal.status = DealStatus(target)
             if target == "loading":
                 deal.loading_at = datetime.now(timezone.utc)
-            status_email = target
         elif target == "canceled":
             deal.status = DealStatus.canceled
         else:
@@ -268,35 +303,12 @@ async def update_status(
     await db.flush()
     payload = await _mutation_dict(db, deal, user_id)
     await db.commit()
-    # Notifications describe committed state and are never sent for rolled-back work.
-    number = deal.act_number or f"#{deal.id}"
-    if completed_now:
-        _send_completed_emails(deal.shipper, deal.carrier, number)
-    elif status_email and deal.shipper and deal.shipper.email:
-        try:
-            import asyncio
-            from app.email_utils import send_deal_status_email, _deal_email_html
-            title = "Перевозчик приступил к загрузке" if status_email == "loading" else "Груз отправлен и в пути"
-            asyncio.create_task(send_deal_status_email(
-                deal.shipper.email, f"CaucasHub: {title} — {number}",
-                _deal_email_html(title, f"Статус сделки <strong>{number}</strong> обновлён.", number)))
-        except Exception:
-            pass
     return payload
 
 
 def _send_completed_emails(shipper, carrier, deal_num: str):
-    import asyncio
-    try:
-        from app.email_utils import send_deal_status_email, _deal_email_html
-        html = _deal_email_html("🏆 Сделка завершена!",
-            f"Сделка <strong>{deal_num}</strong> успешно завершена. Акт выполненных работ доступен в кабинете.", deal_num)
-        if shipper and shipper.email:
-            asyncio.create_task(send_deal_status_email(shipper.email, f"CaucasHub: Сделка завершена — {deal_num}", html))
-        if carrier and carrier.email:
-            asyncio.create_task(send_deal_status_email(carrier.email, f"CaucasHub: Сделка завершена — {deal_num}", html))
-    except Exception:
-        pass
+    """Compatibility no-op: completion delivery is handled by the transactional outbox."""
+    return None
 
 
 # ── Подтвердить доставку ─────────────────────────────────────────────
@@ -307,12 +319,10 @@ async def confirm_delivery(
     current_user: User = Depends(require_user),
 ):
     deal = await _locked_deal(db, deal_id, current_user.id)
-    completed_now = await _confirm_deal(db, deal, current_user.id)
+    await _confirm_deal(db, deal, current_user.id)
     await db.flush()
     payload = await _mutation_dict(db, deal, current_user.id)
     await db.commit()
-    if completed_now:
-        _send_completed_emails(deal.shipper, deal.carrier, deal.act_number or f"#{deal.id}")
     return payload
 
 

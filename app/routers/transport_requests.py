@@ -26,7 +26,7 @@ from app.models.deal import Deal, DealStatus
 from app.models.user import User
 from app.routers.auth import require_user
 from app.services.user_display import display_name, display_phone
-from app.services.telegram_notify import send_tg_message
+from app.services.notifications import enqueue_event
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,8 @@ async def create_transport_request(
     current_user: User = Depends(require_user),
 ):
     """Грузовладелец откликается на транспортное предложение."""
-    offer_res = await db.execute(select(TransportOffer).where(TransportOffer.id == offer_id))
+    offer_res = await db.execute(select(TransportOffer).where(TransportOffer.id == offer_id)
+                                 .with_for_update().execution_options(populate_existing=True))
     offer = offer_res.scalar_one_or_none()
     if not offer:
         raise HTTPException(404, "Предложение не найдено")
@@ -99,86 +100,16 @@ async def create_transport_request(
         status             = "pending",
     )
     db.add(req)
+    await db.flush()
+    await enqueue_event(
+        db, event_key=f"transport_request:{req.id}:created", kind="new_transport_request",
+        recipient_ids=[offer.user_id], actor_id=current_user.id,
+        data={"source": "transport", "transport_offer_id": offer.id,
+              "transport_request_id": req.id, "from_city": offer.from_city,
+              "to_city": offer.to_city,
+              "price": float(req.price) if req.price is not None else None, "currency": "GEL"},
+    )
     await db.commit()
-    await db.refresh(req)
-
-    # ── Уведомляем перевозчика (owner оффера) ─────────────────────────────────
-    owner_res = await db.execute(select(User).where(User.id == offer.user_id))
-    owner = owner_res.scalar_one_or_none()
-    if owner:
-        shipper_name  = display_name(current_user)
-        shipper_phone = display_phone(current_user) or "—"
-        route         = f"{offer.from_city} → {offer.to_city}"
-        weight_str    = f"{int(req.weight_kg):,} кг".replace(",", " ") if req.weight_kg else "—"
-        msg_text      = req.message or "—"
-        cargo_desc    = req.cargo_description or "—"
-        owner_lang    = getattr(owner, "lang", None) or "ru"
-
-        if owner_lang == "ge":
-            tg_text = (
-                f"📦 <b>ახალი განაცხადი თქვენს სატრანსპორტო შეთავაზებაზე</b>\n\n"
-                f"🛣 <b>მარშრუტი:</b> {route}\n"
-                f"👤 <b>გამგზავნი:</b> {shipper_name}\n"
-                f"📞 <b>ტელეფონი:</b> {shipper_phone}\n"
-                f"📦 <b>ტვირთი:</b> {cargo_desc}\n"
-                f"⚖️ <b>წონა:</b> {weight_str}\n"
-                f"💬 <b>შეტყობინება:</b> {msg_text}\n\n"
-                f"<a href='https://caucashub.ge'>caucashub.ge-ზე პასუხის გაცემა →</a>"
-            )
-            email_subject = f"📦 ახალი განაცხადი — {route}"
-            email_html = f"""
-            <div style="font-family:sans-serif;max-width:520px;color:#1a1a2e">
-              <h2 style="color:#1a1a2e">📦 ახალი განაცხადი თქვენს შეთავაზებაზე</h2>
-              <p style="font-size:20px;font-weight:bold">{route}</p>
-              <table style="font-size:14px;color:#333;border-collapse:collapse;width:100%">
-                <tr><td style="padding:6px 12px 6px 0;color:#888">გამგზავნი</td><td style="padding:6px 0"><b>{shipper_name}</b></td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">ტელეფონი</td><td style="padding:6px 0">{shipper_phone}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">ტვირთი</td><td style="padding:6px 0">{cargo_desc}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">წონა</td><td style="padding:6px 0">{weight_str}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">შეტყობინება</td><td style="padding:6px 0">{msg_text}</td></tr>
-              </table>
-              <a href="https://caucashub.ge" style="display:inline-block;margin-top:20px;background:#f7b731;color:#1a1a2e;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">კაბინეტში გახსნა →</a>
-              <div style="margin-top:20px;padding:12px;background:#f0f2f5;text-align:center;font-size:12px;color:#999">CaucasHub.ge — კავკასიის სატვირThო ბირჟა</div>
-            </div>"""
-        else:
-            tg_text = (
-                f"📦 <b>Новый отклик на ваше транспортное предложение</b>\n\n"
-                f"🛣 <b>Маршрут:</b> {route}\n"
-                f"👤 <b>Грузоотправитель:</b> {shipper_name}\n"
-                f"📞 <b>Телефон:</b> {shipper_phone}\n"
-                f"📦 <b>Груз:</b> {cargo_desc}\n"
-                f"⚖️ <b>Вес:</b> {weight_str}\n"
-                f"💬 <b>Сообщение:</b> {msg_text}\n\n"
-                f"<a href='https://caucashub.ge'>Ответить на caucashub.ge →</a>"
-            )
-            email_subject = f"📦 Новый отклик на ваш транспорт — {route}"
-            email_html = f"""
-            <div style="font-family:sans-serif;max-width:520px;color:#1a1a2e">
-              <h2 style="color:#1a1a2e">📦 Новый отклик на ваш транспорт</h2>
-              <p style="font-size:20px;font-weight:bold">{route}</p>
-              <table style="font-size:14px;color:#333;border-collapse:collapse;width:100%">
-                <tr><td style="padding:6px 12px 6px 0;color:#888">Грузоотправитель</td><td style="padding:6px 0"><b>{shipper_name}</b></td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">Телефон</td><td style="padding:6px 0">{shipper_phone}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">Описание груза</td><td style="padding:6px 0">{cargo_desc}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">Вес</td><td style="padding:6px 0">{weight_str}</td></tr>
-                <tr><td style="padding:6px 12px 6px 0;color:#888">Сообщение</td><td style="padding:6px 0">{msg_text}</td></tr>
-              </table>
-              <a href="https://caucashub.ge" style="display:inline-block;margin-top:20px;background:#f7b731;color:#1a1a2e;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Открыть кабинет →</a>
-              <div style="margin-top:20px;padding:12px;background:#f0f2f5;text-align:center;font-size:12px;color:#999">CaucasHub.ge — Биржа грузов Кавказа</div>
-            </div>"""
-
-        # Telegram
-        if owner.telegram_id:
-            background_tasks.add_task(send_tg_message, owner.telegram_id, tg_text)
-
-        # Email
-        if owner.email:
-            try:
-                from app.routers.responses import send_email
-                background_tasks.add_task(send_email, owner.email, email_subject, email_html)
-            except Exception as e:
-                logger.warning(f"[TR] email notify failed: {e}")
-
     return {"ok": True, "request": _req_to_dict(req)}
 
 
@@ -246,56 +177,39 @@ async def offer_requests(
 @router.post("/api/transport-requests/{req_id}/accept")
 async def accept_transport_request(
     req_id: int,
-    db:     AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Перевозчик принимает отклик → создаётся Deal (transport_offer_id заполнен)."""
-    req_res = await db.execute(select(TransportRequest).where(TransportRequest.id == req_id))
-    req = req_res.scalar_one_or_none()
-    if not req:
+    """Accept the request, take its source and enqueue both participants atomically."""
+    req = (await db.execute(select(TransportRequest).where(TransportRequest.id == req_id))).scalar_one_or_none()
+    if req is None:
         raise HTTPException(404, "Отклик не найден")
-
-    offer_res = await db.execute(select(TransportOffer).where(TransportOffer.id == req.transport_offer_id))
-    offer = offer_res.scalar_one_or_none()
-    if not offer or offer.user_id != current_user.id:
+    offer = (await db.execute(select(TransportOffer).where(TransportOffer.id == req.transport_offer_id)
+                              .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+    if offer is None or offer.user_id != current_user.id:
         raise HTTPException(403, "Это не ваше предложение")
+    req = (await db.execute(select(TransportRequest).where(TransportRequest.id == req_id)
+                            .with_for_update().execution_options(populate_existing=True))).scalar_one()
     if req.status != "pending":
         raise HTTPException(400, f"Отклик уже обработан: {req.status}")
     if offer.status != "active":
         raise HTTPException(400, f"Предложение недоступно: {offer.status}")
-
-    # Меняем статусы
+    existing = (await db.execute(select(Deal.id).where(
+        Deal.transport_offer_id == offer.id, Deal.status != DealStatus.canceled))).first()
+    if existing:
+        raise HTTPException(409, "Сделка для этого предложения уже существует")
     req.status = "accepted"
     offer.status = "taken"
-
-    # Создаём Deal
-    from app.routers.deals import _act_number
-    # Определяем agreed_price (из отклика или из предложения)
-    agreed_price = req.price or offer.price
-
-    deal = Deal(
-        load_id              = None,                   # transport-путь
-        transport_offer_id   = offer.id,
-        transport_request_id = req.id,
-        shipper_id           = req.user_id,            # грузовладелец → откликался
-        carrier_id           = current_user.id,        # перевозчик → владелец offer
-        response_id          = None,
-        status               = DealStatus.confirmed,
-        agreed_price         = agreed_price,
-        currency             = "GEL",
-    )
+    from app.routers.deals import _act_number, _enqueue_deal_created
+    deal = Deal(load_id=None, transport_offer_id=offer.id, transport_request_id=req.id,
+                shipper_id=req.user_id, carrier_id=current_user.id, response_id=None,
+                status=DealStatus.confirmed, agreed_price=req.price or offer.price, currency="GEL")
     db.add(deal)
-    await db.flush()   # получаем deal.id
+    await db.flush()
     deal.act_number = _act_number(deal.id)
+    await _enqueue_deal_created(db, deal, current_user.id)
     await db.commit()
-    await db.refresh(deal)
-
-    return {
-        "ok":         True,
-        "deal_id":    deal.id,
-        "act_number": deal.act_number,
-        "status":     deal.status.value,
-    }
+    return {"ok": True, "deal_id": deal.id, "act_number": deal.act_number, "status": deal.status.value}
 
 
 # ── Отклонить отклик ──────────────────────────────────────────────────────────
@@ -303,22 +217,30 @@ async def accept_transport_request(
 @router.post("/api/transport-requests/{req_id}/reject")
 async def reject_transport_request(
     req_id: int,
-    db:     AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Перевозчик отклоняет отклик."""
-    req_res = await db.execute(select(TransportRequest).where(TransportRequest.id == req_id))
-    req = req_res.scalar_one_or_none()
-    if not req:
+    req = (await db.execute(select(TransportRequest).where(TransportRequest.id == req_id))).scalar_one_or_none()
+    if req is None:
         raise HTTPException(404, "Отклик не найден")
-    offer_res = await db.execute(select(TransportOffer).where(TransportOffer.id == req.transport_offer_id))
-    offer = offer_res.scalar_one_or_none()
-    if not offer or offer.user_id != current_user.id:
+    offer = (await db.execute(select(TransportOffer).where(TransportOffer.id == req.transport_offer_id)
+                              .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+    if offer is None or offer.user_id != current_user.id:
         raise HTTPException(403, "Это не ваше предложение")
+    req = (await db.execute(select(TransportRequest).where(TransportRequest.id == req_id)
+                            .with_for_update().execution_options(populate_existing=True))).scalar_one()
+    if req.status == "rejected":
+        return {"ok": True, "request_id": req_id, "status": "rejected"}
     if req.status != "pending":
         raise HTTPException(400, f"Отклик уже обработан: {req.status}")
-
     req.status = "rejected"
+    await enqueue_event(
+        db, event_key=f"transport_request:{req.id}:rejected", kind="transport_request_rejected",
+        recipient_ids=[req.user_id], actor_id=current_user.id,
+        data={"source": "transport", "transport_offer_id": offer.id, "transport_request_id": req.id,
+              "from_city": offer.from_city, "to_city": offer.to_city,
+              "price": float(req.price) if req.price is not None else None, "currency": "GEL"},
+    )
     await db.commit()
     return {"ok": True, "request_id": req_id, "status": "rejected"}
 
@@ -338,6 +260,10 @@ async def cancel_transport_request(
         raise HTTPException(404, "Отклик не найден")
     if req.user_id != current_user.id:
         raise HTTPException(403, "Это не ваш отклик")
+    await db.execute(select(TransportOffer).where(TransportOffer.id == req.transport_offer_id)
+                     .with_for_update().execution_options(populate_existing=True))
+    req = (await db.execute(select(TransportRequest).where(TransportRequest.id == req_id)
+                            .with_for_update().execution_options(populate_existing=True))).scalar_one()
     if req.status != "pending":
         raise HTTPException(400, f"Отклик уже обработан: {req.status}")
 

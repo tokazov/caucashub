@@ -11,3 +11,5 @@ from .transport_request import TransportRequest as TransportRequest
 from .transport_subscription import TransportSubscription as TransportSubscription
 from .idempotency_key import IdempotencyKey as IdempotencyKey
 from .deal_review import DealReview as DealReview
+
+from .notification import Notification as Notification, NotificationDelivery as NotificationDelivery

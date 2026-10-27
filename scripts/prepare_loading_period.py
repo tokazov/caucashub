@@ -119,6 +119,79 @@ def prepare_deal_reviews(connection):
         raise RuntimeError("Deal review schema is missing participant/deal foreign keys")
 
 
+
+def prepare_notifications(connection):
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/023_notifications.py"
+    spec = importlib.util.spec_from_file_location("notifications_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    from sqlalchemy import JSON
+    inspector = inspect(connection)
+    expected = {
+        "notifications": {
+            "id": (Integer, False), "recipient_id": (Integer, False), "actor_id": (Integer, True),
+            "event_key": (String, False), "kind": (String, False), "data": (JSON, False),
+            "created_at": (DateTime, False), "read_at": (DateTime, True)},
+        "notification_deliveries": {
+            "id": (Integer, False), "notification_id": (Integer, False), "channel": (String, False),
+            "status": (String, False), "attempts": (Integer, False), "idempotency_key": (String, False),
+            "next_attempt_at": (DateTime, False), "last_attempt_at": (DateTime, True),
+            "locked_until": (DateTime, True), "claim_token": (String, True),
+            "provider_id": (String, True), "last_error": (String, True), "created_at": (DateTime, False)},
+    }
+    lengths = {"event_key": 160, "kind": 48, "channel": 16, "status": 16,
+               "idempotency_key": 36, "claim_token": 36, "provider_id": 250, "last_error": 96}
+    for table, fields in expected.items():
+        columns = {item["name"]: item for item in inspector.get_columns(table)}
+        for name, (kind, nullable) in fields.items():
+            item = columns.get(name)
+            if item is None or not isinstance(item["type"], kind) or item["nullable"] != nullable:
+                raise RuntimeError("Notification schema is incompatible: " + table + "." + name)
+            if kind is String and item["type"].length is not None and item["type"].length < lengths[name]:
+                raise RuntimeError("Notification schema has a short column: " + name)
+            if kind is DateTime and connection.dialect.name == "postgresql" and not item["type"].timezone:
+                raise RuntimeError("Notification timestamp requires timezone: " + name)
+        if inspector.get_pk_constraint(table).get("constrained_columns") != ["id"]:
+            raise RuntimeError("Notification schema is missing its primary key")
+        identity = columns["id"]
+        if connection.dialect.name == "postgresql":
+            if not identity.get("identity") and not (identity.get("default") or "").lower().startswith("nextval("):
+                raise RuntimeError("Notification schema is missing generated ids")
+        elif connection.dialect.name == "sqlite" and str(identity["type"]).upper() != "INTEGER":
+            raise RuntimeError("Notification schema requires SQLite INTEGER generated ids")
+        for name in ("created_at", "next_attempt_at"):
+            if name in columns and columns[name].get("default") is None:
+                raise RuntimeError("Notification schema is missing a timestamp default")
+    unique = lambda table: [set(item["column_names"]) for item in inspector.get_unique_constraints(table)]
+    if {"event_key", "recipient_id"} not in unique("notifications"):
+        raise RuntimeError("Notification schema is missing event/recipient uniqueness")
+    if ({"notification_id", "channel"} not in unique("notification_deliveries")
+            or {"idempotency_key"} not in unique("notification_deliveries")):
+        raise RuntimeError("Notification schema is missing channel uniqueness")
+    required = {"notifications": {(("recipient_id",), "users", ("id",)), (("actor_id",), "users", ("id",))},
+                "notification_deliveries": {(("notification_id",), "notifications", ("id",))}}
+    for table, references in required.items():
+        actual = {(tuple(item["constrained_columns"]), item["referred_table"], tuple(item["referred_columns"]))
+                  for item in inspector.get_foreign_keys(table)}
+        if not references.issubset(actual):
+            raise RuntimeError("Notification schema is missing foreign keys")
+    import re
+    def normalized_check(value):
+        value = re.sub(r"::(?:character varying|text)(?:\[\])?", "", value.lower())
+        return "".join(value.split()).replace("(", "").replace(")", "")
+    checks = {item["name"]: normalized_check(item["sqltext"])
+              for item in inspector.get_check_constraints("notification_deliveries")}
+    required_checks = {
+        "ck_notification_deliveries_channel": "channelin'email','telegram'",
+        "ck_notification_deliveries_status": "statusin'pending','sending','sent','failed','unknown','skipped'",
+        "ck_notification_deliveries_attempts": "attempts>=0"}
+    for name, value in required_checks.items():
+        alternative = value.replace("in", "=anyarray[", 1) + "]" if "in" in value else value
+        if checks.get(name) not in (value, alternative):
+            raise RuntimeError("Notification schema is missing delivery constraints")
+
 async def prepare_schema(engine):
     async with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
@@ -131,6 +204,7 @@ async def prepare_schema(engine):
         await connection.execute(text("SELECT truck_type, tonnage FROM users LIMIT 0"))
         await connection.run_sync(prepare_deal_reviews)
         await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at FROM deal_reviews LIMIT 0"))
+        await connection.run_sync(prepare_notifications)
         await connection.run_sync(prepare_idempotency)
         await connection.execute(text(
             "SELECT key, user_id, scope, request_hash, response_status, "
@@ -158,6 +232,7 @@ def main():
     print("Idempotency schema ready; retry-safe publication enabled.")
     print("Carrier profile schema ready; optional defaults enabled.")
     print("Deal review schema ready; per-participant reviews enabled.")
+    print("Notification schema ready; persistent inbox and delivery queue enabled.")
     return 0
 
 
