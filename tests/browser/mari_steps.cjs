@@ -65,6 +65,7 @@ module.exports=async function mariSteps(page, options){
   await page.getByRole('button',{name:'RU',exact:true}).click();
 
   await open();await send('draft','MARI DRAFT READY');
+  assert.equal(await page.locator('#tTruck').innerText(),'Тент');
   await page.locator('#aiPostBtn').click();
   await page.locator('#postOverlay').waitFor({state:'visible'});
   assert.equal(await page.locator('#pFromAddr').inputValue(),'Тбилиси');

@@ -196,15 +196,27 @@
     msgs.scrollTop = msgs.scrollHeight;
   }
 
+  function _city(value){
+    if(typeof translateCity==='function') return translateCity(String(value || '—'));
+    return value || '—';
+  }
+  function _truck(value){
+    var keys={tent:'truck_tent',ref:'truck_ref_full',reftent:'truck_reftent',megatent:'truck_megatent',bort:'truck_bort_full',
+      termos:'truck_termos_full',gazel:'truck_gazel_full',container:'truck_container_full',auto:'truck_auto_full',
+      evacuator:'truck_evac',cistern:'truck_cistern',grain:'truck_grain',dump:'truck_dump',other:'truck_other'};
+    var translations=typeof TRANSLATIONS!=='undefined' ? (TRANSLATIONS[_getLang()] || TRANSLATIONS.ru) : {};
+    return translations[keys[value]] || '—';
+  }
+
   function _showDraft(draft){
     _draft = draft && ['post_load','post_transport'].includes(draft.intent) ? draft : null;
     var template = document.getElementById('aiTemplate'), button = document.getElementById('aiPostBtn');
     if(template) template.style.display = _draft ? 'block' : 'none';
     if(button){ button.style.display = _draft ? 'block' : 'none'; button.textContent = _t('draft'); }
     if(!_draft) return;
-    var fields = {aiTFrom:draft.from, aiTTo:draft.to, tDesc:draft.cargo_desc,
+    var fields = {aiTFrom:_city(draft.from), aiTTo:_city(draft.to), tDesc:draft.cargo_desc,
       tWeight:(draft.capacity_kg || draft.weight_cap) ? (draft.capacity_kg || draft.weight_cap)+' '+_t('kg') : null,
-      aiTDate:draft.date, tTruck:draft.truck, tPrice:draft.price ? draft.price+' '+draft.currency : null, tPay:null};
+      aiTDate:draft.date, tTruck:_truck(draft.truck), tPrice:draft.price ? draft.price+' '+draft.currency : null, tPay:null};
     Object.keys(fields).forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=fields[id] || '—'; });
   }
 
@@ -218,7 +230,7 @@
       card.style.cssText='background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px';
       route.style.cssText='font-weight:700;font-size:14px;color:#1a1a2e';
       // Listing text is untrusted. Never interpolate it into HTML or handlers.
-      route.textContent=(record.from || '—')+' → '+(record.to || '—');
+      route.textContent=_city(record.from)+' → '+_city(record.to);
       detail.textContent=(Number(record.kg)||0).toLocaleString()+' '+_t('kg')+' · '+(record.price == null ? '—' : (record.cur || '')+Number(record.price).toLocaleString());
       button.textContent=_t('view');
       button.style.cssText='margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer';
