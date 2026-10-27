@@ -164,7 +164,7 @@ async function register(page, configuration, index, suffix) {
   }
   await page.locator('#rtShipperCo').click();
   const account = {
-    email: 'auth.' + configuration.name + '.' + suffix + '.' + Date.now() + '@example.test',
+    email: ('auth.' + configuration.name + '.' + suffix + '.' + Date.now() + '@example.test').toLowerCase(),
     name: 'Isolated auth ' + configuration.name + ' account ' + suffix,
   };
   await page.locator('#regName').fill(account.name);
