@@ -291,3 +291,22 @@ async def test_telegram_adapter_checks_body_and_connection_before_marking_sent(p
         body = json.loads(request.content)
         assert str(body["chat_id"]) == "901000001"
         assert body["text"] == "Изолированное уведомление"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("channel", ["email", "telegram"])
+@pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout])
+async def test_pre_connection_failure_can_retry_without_cross_provider_fallback(provider_http, channel, error_type):
+    requests, state = provider_http
+    def unavailable(request):
+        raise error_type("Isolated connection was not established", request=request)
+    state["handler"] = unavailable
+    if channel == "email":
+        result = await channels.send_email("shipper@example.test", "Test", "<p>Test</p>",
+            idempotency_key="33333333-3333-4333-8333-333333333344")
+    else:
+        result = await channels.send_telegram("901000001", "Test",
+            idempotency_key="33333333-3333-4333-8333-333333333344")
+    assert result.status == "retry" and result.retry_after == 60
+    assert len(requests) == 1
+    assert requests[0].url.host == ("api.brevo.com" if channel == "email" else "api.telegram.org")

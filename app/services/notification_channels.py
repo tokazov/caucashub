@@ -66,6 +66,8 @@ async def send_email(to, subject, html, *, idempotency_key=None):
                     json={"sender": {"name": name, "email": sender}, "to": [{"email": to}],
                           "subject": subject, "htmlContent": html,
                           "headers": {"idempotencyKey": key}})
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
+                return DeliveryResult("retry", error="brevo_connection_unavailable", retry_after=60)
             except httpx.TransportError:
                 # The provider may already have accepted it. Never cross-provider retry.
                 return DeliveryResult("unknown", error="brevo_transport_uncertain")
@@ -89,6 +91,8 @@ async def send_email(to, subject, html, *, idempotency_key=None):
                 headers={"Authorization": "Bearer " + resend, "Content-Type": "application/json",
                          "Idempotency-Key": key},
                 json={"from": f"{name} <{sender}>", "to": [to], "subject": subject, "html": html})
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
+            return DeliveryResult("retry", error="resend_connection_unavailable", retry_after=60)
         except httpx.TransportError:
             return DeliveryResult("unknown", error="resend_transport_uncertain")
         body = _json(response)
@@ -117,6 +121,8 @@ async def send_telegram(chat_id, text, *, idempotency_key=None):
         async with httpx.AsyncClient(timeout=12.0) as client:
             response = await client.post("https://api.telegram.org/bot" + token + "/sendMessage",
                 json={"chat_id": chat, "text": str(text)[:4000], "disable_web_page_preview": True})
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
+        return DeliveryResult("retry", error="telegram_connection_unavailable", retry_after=60)
     except httpx.TransportError:
         return DeliveryResult("unknown", error="telegram_transport_uncertain")
     body = _json(response)
