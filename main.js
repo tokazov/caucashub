@@ -1145,12 +1145,15 @@ async function syncTrucksFromServer(){
   var _stT0 = performance.now();
   console.log('[T] syncTrucksFromServer start');
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) { console.log('[T] syncTrucksFromServer: no token, skip'); return; }
   try{
     const r = await fetch(API_BASE+'/api/trucks/', {headers:{'Authorization':'Bearer '+tk}});
     console.log('[T] syncTrucksFromServer fetch done:', (performance.now()-_stT0).toFixed(0)+'ms status:'+r.status);
     if(r.ok){
       const d = await r.json();
+      if(!current())return;
       const uid = currentUserId;
       const all = (d.trucks||[]).map(t=>({
         id:'srv_'+t.id,from:t.available_from||'Тбилиси',to:t.available_to||'Любое',
@@ -1788,99 +1791,169 @@ function switchAuth(tab){
   if(tab==='register') backToStep1();
 }
 
+// ── PASSWORD RECOVERY & CHANGE ───────────────────────────
+let _forgotEmail='', _recoveryRevision=0, _forgotSending=null, _forgotResetting=null;
+let _passwordChanging=null;
+function _passwordSession(){return{owner:user,token:typeof getToken==='function'?getToken():null};}
+function _passwordSessionCurrent(session){return user===session.owner&&(typeof getToken==='function'?getToken():null)===session.token;}
+function _passwordError(data,fallback){
+  if(typeof data?.detail==='string')return data.detail;
+  if(Array.isArray(data?.detail)&&typeof data.detail[0]?.msg==='string')return data.detail[0].msg;
+  return fallback;
+}
+function _newPasswordError(password){
+  if([...password].length<8)return lang==='ge'?'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს':'Пароль должен содержать минимум 8 символов';
+  if(new TextEncoder().encode(password).length>72)return lang==='ge'?'პაროლი ძალიან გრძელია. გამოიყენეთ უფრო მოკლე პაროლი':'Пароль слишком длинный. Используйте более короткий пароль';
+  if(typeof _WEAK_PASS!=='undefined'&&_WEAK_PASS.has(password.toLowerCase()))return lang==='ge'?'აირჩიეთ უფრო საიმედო პაროლი':'Выберите более надёжный пароль';
+  return '';
+}
+function _passwordFieldError(id,message){
+  const element=document.getElementById(id);if(element){element.textContent=message;element.style.display=message?'block':'none';}
+}
+function _recoveryViewCurrent(snapshot){
+  return _passwordSessionCurrent(snapshot.session)&&snapshot.revision===_recoveryRevision&&
+    document.getElementById('authOverlay')?.classList.contains('on')&&document.getElementById('formForgot')?.style.display==='block';
+}
+function _recoveryCurrent(snapshot,includePassword=false){
+  if(!_passwordSessionCurrent(snapshot.session)||snapshot.revision!==_recoveryRevision||
+    !document.getElementById('authOverlay')?.classList.contains('on')||
+    document.getElementById('formForgot')?.style.display!=='block')return false;
+  if(document.getElementById('forgotEmail')?.value.trim()!==snapshot.email)return false;
+  return !includePassword||(document.getElementById('forgotCode')?.value.trim()===snapshot.code&&
+    document.getElementById('forgotNewPass')?.value===snapshot.password&&document.getElementById('forgotNewPass2')?.value===snapshot.confirmation);
+}
+function _clearPasswordInputs(){
+  for(const id of ['loginPass','regPass','forgotCode','forgotNewPass','forgotNewPass2','changeOldPass','changeNewPass','changeNewPass2','deletePasswordInput']){
+    const field=document.getElementById(id);if(field)field.value='';
+  }
+}
+function _clearCredentialSession(){
+  if(typeof doLogout==='function')doLogout();
+  else{if(typeof setToken==='function')setToken(null);user=null;currentUserId=null;_lsDel('ch_user');}
+  _clearPasswordInputs();
+}
+function _resetPasswordChangeForm(){
+  const block=document.getElementById('passwordChangeBlock');if(block)block.open=false;
+  for(const id of ['changeOldPass','changeNewPass','changeNewPass2']){const field=document.getElementById(id);if(field)field.value='';}
+  _passwordFieldError('changePasswordError','');
+  const button=document.getElementById('btnChangePassword');if(button)button.disabled=false;
+}
 function showForgotForm(){
+  _recoveryRevision++;_forgotEmail='';
   document.getElementById('formLogin').style.display='none';
   document.getElementById('formRegister').style.display='none';
   document.getElementById('formForgot').style.display='block';
   document.getElementById('forgotStep1').style.display='block';
   document.getElementById('forgotStep2').style.display='none';
   document.getElementById('forgotSuccess').style.display='none';
-  document.getElementById('forgotError').style.display='none';
-  // Подставляем email если уже введён
-  const email=document.getElementById('loginEmail').value;
-  if(email) document.getElementById('forgotEmail').value=email;
+  _passwordFieldError('forgotError','');_passwordFieldError('forgotError2','');
+  for(const id of ['forgotCode','forgotNewPass','forgotNewPass2'])document.getElementById(id).value='';
+  for(const id of ['btnForgotSend','btnForgotReset']){const button=document.getElementById(id);if(button)button.disabled=false;}
+  const email=document.getElementById('loginEmail').value.trim();if(email)document.getElementById('forgotEmail').value=email;
+  _updateResendCooldown();
 }
-
-let _forgotEmail='';
 async function doForgotStep1(){
   const email=document.getElementById('forgotEmail').value.trim();
-  const errEl=document.getElementById('forgotError');
-  if(!email){errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_enter_email||'Введите email';errEl.style.display='block';return;}
-  errEl.style.display='none';
-  const btn=event.target||document.querySelector('#forgotStep1 .btn-primary');
-  if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_sending||'Отправляем...';btn.disabled=true;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    _passwordFieldError('forgotError',lang==='ge'?'შეიყვანეთ სწორი email':'Введите корректный email');return;
+  }
+  if(_forgotSending?.revision===_recoveryRevision)return;
+  if(_resendRemaining(email)>0){
+    _passwordFieldError('forgotError',lang==='ge'?'ხელახლა გაგზავნამდე ცოტა ხანს დაელოდეთ':'Подождите перед повторной отправкой кода');return;
+  }
+  const snapshot={email,revision:_recoveryRevision,session:_passwordSession()};
+  const button=document.getElementById('btnForgotSend');
+  _forgotSending=snapshot;if(button)button.disabled=true;_updateResendCooldown();_passwordFieldError('forgotError','');
   try{
-    const r=await fetch('https://api-production-f3ea.up.railway.app/api/auth/forgot-password',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email})
-    });
-    const d=await r.json();
-    if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_get_code||'Получить код';btn.disabled=false;}
+    const response=await fetch(API_BASE+'/api/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const data=await response.json().catch(()=>null);
+    if(!_recoveryCurrent(snapshot))return;
+    if(!response.ok||typeof data?.message!=='string'){
+      if(response.status===429){const seconds=Number(response.headers?.get('Retry-After'));if(Number.isFinite(seconds)&&seconds>0)_startResendCooldown(Math.min(900,seconds),email);}
+      _passwordFieldError('forgotError',_passwordError(data,lang==='ge'?'კოდის გაგზავნა ვერ მოხერხდა. სცადეთ მოგვიანებით':'Не удалось запросить код. Попробуйте позже'));return;
+    }
     _forgotEmail=email;
     document.getElementById('forgotEmailShow').textContent=email;
     document.getElementById('forgotStep1').style.display='none';
     document.getElementById('forgotStep2').style.display='block';
-    // DEV: показываем код прямо на экране пока нет email
-    if(d.dev_code){
-      // Код пришёл в ответе - вставляем автоматически
-      const codeInput=document.getElementById('forgotCode');
-      codeInput.value=d.dev_code;
-      codeInput.style.background='#f0fdf4';
-    }
-  }catch(e){
-    if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_get_code||'Получить код';btn.disabled=false;}
-    errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_connection||'Ошибка соединения';errEl.style.display='block';
+    document.getElementById('forgotCode').value='';
+    _passwordFieldError('forgotError2','');_startResendCooldown(60,email);
+  }catch(e){if(_recoveryCurrent(snapshot))_passwordFieldError('forgotError',lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');}
+  finally{
+    if(_forgotSending===snapshot)_forgotSending=null;
+    if(_recoveryViewCurrent(snapshot)){if(button)button.disabled=false;_updateResendCooldown();}
   }
 }
-
 async function doForgotStep2(){
-  const code=document.getElementById('forgotCode').value.trim();
-  const pass1=document.getElementById('forgotNewPass').value;
-  const pass2=document.getElementById('forgotNewPass2').value;
-  const errEl=document.getElementById('forgotError2');
-  if(!code||code.length!==6){errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_enter_code||'Введите 6-значный код';errEl.style.display='block';return;}
-  if(!pass1||pass1.length<6){errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_password_min||'Пароль минимум 6 символов';errEl.style.display='block';return;}
-  if(pass1!==pass2){errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_password_match||'Пароли не совпадают';errEl.style.display='block';return;}
-  errEl.style.display='none';
-  const btn=event.target;
-  if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).lbl_changing||'Меняем...';btn.disabled=true;}
+  if(_forgotResetting?.revision===_recoveryRevision)return;
+  const email=_forgotEmail,code=document.getElementById('forgotCode').value.trim();
+  const password=document.getElementById('forgotNewPass').value,confirmation=document.getElementById('forgotNewPass2').value;
+  if(!email){_passwordFieldError('forgotError2',lang==='ge'?'ჯერ მოითხოვეთ კოდი email-ზე':'Сначала запросите код на email');return;}
+  if(!/^[0-9]{6}$/.test(code)){_passwordFieldError('forgotError2',lang==='ge'?'შეიყვანეთ 6-ციფრიანი კოდი':'Введите код из 6 цифр');return;}
+  const invalid=_newPasswordError(password);
+  if(invalid){_passwordFieldError('forgotError2',invalid);return;}
+  if(password!==confirmation){_passwordFieldError('forgotError2',lang==='ge'?'პაროლები არ ემთხვევა':'Пароли не совпадают');return;}
+  const snapshot={email,code,password,confirmation,revision:_recoveryRevision,session:_passwordSession()};
+  const button=document.getElementById('btnForgotReset');
+  _forgotResetting=snapshot;if(button)button.disabled=true;_passwordFieldError('forgotError2','');
   try{
-    const r=await fetch('https://api-production-f3ea.up.railway.app/api/auth/reset-password',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email:_forgotEmail,code,new_password:pass1})
-    });
-    const d=await r.json();
-    if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_change_pass||'Сменить пароль';btn.disabled=false;}
-    if(r.ok&&(d.ok||d.message)){
+    const response=await fetch(API_BASE+'/api/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,code,new_password:password})});
+    const data=await response.json().catch(()=>null);
+    if(!_passwordSessionCurrent(snapshot.session))return;
+    if(!response.ok||!(data?.ok===true||(typeof data?.message==='string'&&data.message))){
+      if(_recoveryCurrent(snapshot,true))_passwordFieldError('forgotError2',_passwordError(data,lang==='ge'?'პაროლის შეცვლა ვერ მოხერხდა':'Не удалось изменить пароль'));return;
+    }
+    const currentForm=_recoveryCurrent(snapshot,true);
+    _clearCredentialSession();_forgotEmail='';
+    if(currentForm){
       document.getElementById('forgotStep2').style.display='none';
       document.getElementById('forgotSuccess').style.display='block';
-      document.getElementById('loginEmail').value=_forgotEmail;
-      document.getElementById('loginPass').value='';
-    } else {
-      // Если пароль уже изменён — код инвалидируется сервером, показываем успех
-      const errMsg = d.detail||'';
-      if(errMsg.toLowerCase().includes('expired')||errMsg.toLowerCase().includes('invalid')||errMsg.toLowerCase().includes('not found')){
-        // Пробуем войти с новым паролем чтобы проверить изменился ли пароль
-        const testLogin = await fetch('https://api-production-f3ea.up.railway.app/api/auth/login',{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({email:_forgotEmail,password:pass1})
-        }).catch(()=>null);
-        if(testLogin&&testLogin.ok){
-          // Пароль изменён успешно!
-          document.getElementById('forgotStep2').style.display='none';
-          document.getElementById('forgotSuccess').style.display='block';
-          document.getElementById('loginEmail').value=_forgotEmail;
-          document.getElementById('loginPass').value='';
-          return;
-        }
-      }
-      errEl.textContent=errMsg||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_wrong_code||'Неверный код';errEl.style.display='block';
+      document.getElementById('loginEmail').value=email;
     }
-  }catch(e){
-    if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_change_pass||'Сменить пароль';btn.disabled=false;}
-    errEl.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).err_connection||'Ошибка соединения';errEl.style.display='block';
+  }catch(e){if(_recoveryCurrent(snapshot,true))_passwordFieldError('forgotError2',lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');}
+  finally{
+    if(_forgotResetting===snapshot)_forgotResetting=null;
+    if(_passwordSessionCurrent(snapshot.session)&&snapshot.revision===_recoveryRevision&&button)button.disabled=false;
   }
 }
+async function changePassword(){
+  const session=_passwordSession();if(!session.owner||!session.token)return;
+  const revision=openSettings.revision||0;
+  if(_passwordChanging&&_passwordChanging.revision===revision&&_passwordSessionCurrent(_passwordChanging.session))return;
+  const oldPassword=document.getElementById('changeOldPass').value;
+  const password=document.getElementById('changeNewPass').value,confirmation=document.getElementById('changeNewPass2').value;
+  if(!oldPassword){_passwordFieldError('changePasswordError',lang==='ge'?'შეიყვანეთ მიმდინარე პაროლი':'Введите текущий пароль');return;}
+  const invalid=_newPasswordError(password);
+  if(invalid){_passwordFieldError('changePasswordError',invalid);return;}
+  if(password!==confirmation){_passwordFieldError('changePasswordError',lang==='ge'?'პაროლები არ ემთხვევა':'Пароли не совпадают');return;}
+  const snapshot={session,revision,oldPassword,password,confirmation};
+  const current=()=>_passwordSessionCurrent(session)&&(openSettings.revision||0)===revision&&
+    document.getElementById('settingsOverlay')?.classList.contains('on')&&
+    document.getElementById('changeOldPass')?.value===oldPassword&&document.getElementById('changeNewPass')?.value===password&&
+    document.getElementById('changeNewPass2')?.value===confirmation;
+  const button=document.getElementById('btnChangePassword');
+  _passwordChanging=snapshot;if(button)button.disabled=true;_passwordFieldError('changePasswordError','');
+  try{
+    const response=await fetch(API_BASE+'/api/auth/change-password',{method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.token},
+      body:JSON.stringify({old_password:oldPassword,new_password:password})});
+    const data=await response.json().catch(()=>null);
+    if(!_passwordSessionCurrent(session))return;
+    if(!response.ok||!(data?.ok===true||(typeof data?.message==='string'&&data.message))){
+      if(current())_passwordFieldError('changePasswordError',_passwordError(data,lang==='ge'?'პაროლის შეცვლა ვერ მოხერხდა':'Не удалось изменить пароль'));return;
+    }
+    const email=session.owner.email||document.getElementById('sEmail')?.value||'';
+    _clearCredentialSession();closeModal('settingsOverlay');openAuth('login');
+    document.getElementById('loginEmail').value=email;
+    showToastWarn(lang==='ge'?'პაროლი შეიცვალა. შედით ახალი პაროლით':'Пароль изменён. Войдите с новым паролем');
+  }catch(e){if(current())_passwordFieldError('changePasswordError',lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');}
+  finally{
+    if(_passwordChanging===snapshot)_passwordChanging=null;
+    if(_passwordSessionCurrent(session)&&(openSettings.revision||0)===revision&&button)button.disabled=false;
+  }
+}
+// ── END PASSWORD RECOVERY & CHANGE ──────────────────────
 
 function selectRegType(type){
   // подсветка выбранной кнопки
@@ -1985,6 +2058,7 @@ async function doLogin(){
     }
   }
 
+  if(typeof resetCabinetState==='function')resetCabinetState();
   user=userData;
   if(typeof resetNotifications==='function')resetNotifications();
   if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
@@ -2080,6 +2154,7 @@ async function doRegister(){
     }
   }
 
+  if(typeof resetCabinetState==='function')resetCabinetState();
   user=userData;
   if(typeof resetNotifications==='function')resetNotifications();
   if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
@@ -2111,6 +2186,35 @@ async function doRegister(){
   },400);
   if(btn){btn.textContent=(TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_register_submit||'Создать аккаунт';btn.disabled=false;}
 }
+function resetCabinetState(clearDraft=false){
+  if(typeof stopCabRefresh==='function')stopCabRefresh();
+  if(typeof _myLoads!=='undefined')_myLoads=[];
+  if(typeof _orders!=='undefined')_orders=[];
+  if(typeof _deals!=='undefined')_deals=[];
+  if(typeof _loadResponses!=='undefined')_loadResponses={};
+  if(typeof _myTrucks!=='undefined')_myTrucks=[];
+  if(typeof _subscriptions!=='undefined')_subscriptions=[];
+  if(typeof dealsData!=='undefined')dealsData=[];
+  window._serverTrucks=[];window._truckCache={};window.currentCargoData=null;window.currentCargoId=null;
+  if(typeof currentCargoId!=='undefined')currentCargoId=null;
+  for(const key of ['ch_my_loads','ch_orders','ch_my_trucks','ch_notifs'])_lsDel(key);
+  if(clearDraft)_lsDel('ch_ai_parsed_load');
+  for(const id of ['myLoadsList','myResponsesList','myDealsList','myTransportList','myTransportRequestsIn','myTransportRequestsOut',
+    'myTransportSubsList','subscriptionsList','paymentsList','ordersList','dealsList','cabUserName','cabUserSub','cabAvatar']){
+    const element=document.getElementById(id);if(element)element.innerHTML='';
+  }
+  for(const id of ['cabStatLoads','cabStatResponses','cabStatDeals','cabStatRevenue']){
+    const element=document.getElementById(id);if(element)element.textContent='0';
+  }
+  const panel=document.getElementById('cabinetPanel');if(panel)panel.style.display='none';
+  const phone=document.getElementById('phoneChangeBlock');
+  if(phone){phone.style.display='none';phone.querySelectorAll?.('button').forEach(button=>{button.disabled=false;});}
+  for(const id of ['sPhoneNew','sPhoneCode']){const input=document.getElementById(id);if(input)input.value='';}
+  for(const id of ['profileOverlay','settingsOverlay','cargoOverlay','postOverlay','postTruckOverlay','postTransportOverlay','transportRequestOverlay']){
+    if(document.getElementById(id)&&typeof closeModal==='function')closeModal(id);
+  }
+}
+
 function showUserState(){
   document.getElementById('btnLogin').style.display='none';
   document.getElementById('btnReg').style.display='none';
@@ -2128,6 +2232,8 @@ function showUserState(){
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
 function doLogout(){
+  if(typeof _clearPasswordInputs==='function')_clearPasswordInputs();
+  if(typeof resetCabinetState==='function')resetCabinetState(true);
   if(typeof resetNotifications==='function')resetNotifications();
   if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
   if(typeof setToken==='function') setToken(null);
@@ -2985,11 +3091,12 @@ function stopCabRefresh(){
 
 function loadCabinetData(){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
-  if(!tk) return;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner||!tk)return;
   // Мои грузы
   fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads',{headers:{'Authorization':'Bearer '+tk}})
     .then(r=>r.ok?r.json():null).then(data=>{
-      if(!data) return;
+      if(!current()||!data) return;
       var loads = data.loads || [];
       var serverLoads = loads.map(l=>typeof mapServerLoad==='function'?mapServerLoad(l):l);
       // Дедублируем — убираем из localStorage те что уже есть на сервере
@@ -3000,7 +3107,7 @@ function loadCabinetData(){
       loads.forEach(l=>{
         fetch('https://api-production-f3ea.up.railway.app/api/responses/load/'+l.id,{headers:{'Authorization':'Bearer '+tk}})
           .then(r=>r.ok?r.json():null).then(d=>{
-            if(!d) return;
+            if(!current()||!d) return;
             _loadResponses[l.id]=(d.responses||[]).map(r=>({id:r.id,name:r.carrier_name||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',phone:r.carrier_phone||null,message:r.message||null,price:r.price||null,status:r.status||'pending'}));
             if(_currentCabTab==='loads') renderCabLoads();
           }).catch(()=>{});
@@ -3010,7 +3117,7 @@ function loadCabinetData(){
   // Мои отклики как перевозчик
   fetch('https://api-production-f3ea.up.railway.app/api/responses/my',{headers:{'Authorization':'Bearer '+tk}})
     .then(r=>r.ok?r.json():null).then(d=>{
-      if(!d) return;
+      if(!current()||!d) return;
       _orders = (d.responses||[]).map(r=>({id:r.id,serverId:r.id,loadId:r.load_id,title:(r.from||'?')+' → '+(r.to||'?'),from:r.from,to:r.to,price:r.price,cur:'₾',co:r.company_name||'—',status:r.status,created:r.created_at}));
       persistOrders();
       if(_currentCabTab==='responses') renderCabResponses();
@@ -3018,7 +3125,7 @@ function loadCabinetData(){
   // Сделки
   fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}})
     .then(r=>r.ok?r.json():null).then(d=>{
-      if(!d) return;
+      if(!current()||!d) return;
       _deals = d.deals||[];
       if(_currentCabTab==='deals') renderCabDeals();
     }).catch(()=>{});
@@ -3477,6 +3584,8 @@ const TRANSLATIONS = {
     login_title: 'Войти в аккаунт',
     btn_register2: 'Зарегистрироваться',
     already_account: 'Уже есть аккаунт?',
+    auth_change_title:'Сменить пароль',auth_old_password:'Текущий пароль',auth_new_password:'Новый пароль',auth_repeat_password:'Повторите новый пароль',
+    auth_change_submit:'Сменить пароль и войти заново',auth_recovery_notice:'Если аккаунт существует, код отправлен на',auth_resend:'Отправить код повторно',auth_password_changed:'Пароль изменён!',auth_password_placeholder:'Минимум 8 символов',auth_seconds:'с',
     forgot_pwd: 'Забыли пароль?',
     btn_back: '← Назад',
     btn_back_login: '← Назад ко входу',
@@ -4105,6 +4214,8 @@ const TRANSLATIONS = {
     login_title: 'ანგარიშში შესვლა',
     btn_register2: 'რეგისტრაცია',
     already_account: 'უკვე გაქვთ ანგარიში?',
+    auth_change_title:'პაროლის შეცვლა',auth_old_password:'მიმდინარე პაროლი',auth_new_password:'ახალი პაროლი',auth_repeat_password:'გაიმეორეთ ახალი პაროლი',
+    auth_change_submit:'პაროლის შეცვლა და ხელახლა შესვლა',auth_recovery_notice:'თუ ანგარიში არსებობს, კოდი გაიგზავნა მისამართზე',auth_resend:'კოდის ხელახლა გაგზავნა',auth_password_changed:'პაროლი შეიცვალა!',auth_password_placeholder:'მინიმუმ 8 სიმბოლო',auth_seconds:'წმ',
     forgot_pwd: 'დაგავიწყდათ პაროლი?',
     btn_back: '← უკან',
     btn_back_login: '← შესვლასთან დაბრუნება',
@@ -5306,6 +5417,7 @@ document.addEventListener('click', function(e){
 // ── SETTINGS & ANALYTICS ──────────────────────────────
 function openSettings(){
   openSettings.revision=(openSettings.revision||0)+1;
+  if(typeof _resetPasswordChangeForm==='function')_resetPasswordChangeForm();
   closeModal('profileOverlay');
   // Безопасное заполнение — не падаем если элемент не найден
   function _sfill(id, v){ const el=document.getElementById(id); if(el) el.value=v||''; }
@@ -5940,9 +6052,8 @@ try{
             if(!_sameRestoreSession()) return null;
             if(r.status===401||r.status===403){
               // Токен невалиден — очищаем сессию
-              _lsDel('ch_user'); localStorage.removeItem('ch_token');
-              user=null; currentUserId=null;
-              if(typeof showUserState==='function') showUserState();
+              if(typeof doLogout==='function')doLogout();
+              else{_lsDel('ch_user');localStorage.removeItem('ch_token');user=null;currentUserId=null;}
               return;
             }
             return r.json();
@@ -6047,17 +6158,18 @@ let dealsData = [], exportDateFrom='', exportDateTo='';
 
 async function loadDeals(){
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  const owner=user,current=()=>user===owner&&getToken()===tk;
   // The current cabinet has #myDealsList; these legacy containers are optional.
   const loading=document.getElementById('dealsLoading');
   const list=document.getElementById('dealsList');
-  if(!tk){if(loading) loading.style.display='none'; return;}
+  if(!owner||!tk){if(loading) loading.style.display='none'; return;}
   if(loading) loading.style.display='block';
   if(list) list.innerHTML='';
   try{
     const r = await fetch(API_BASE+'/api/deals/my',{headers:{'Authorization':'Bearer '+tk}});
-    if(r.ok){const d=await r.json();dealsData=d.deals||d||[];renderDeals();}
+    if(r.ok){const d=await r.json();if(!current())return;dealsData=d.deals||d||[];renderDeals();}
   }catch(e){}
-  if(loading) loading.style.display='none';
+  if(current()&&loading) loading.style.display='none';
 }
 
 function renderDeals(){
@@ -6281,43 +6393,37 @@ window.cancelMyResponse = cancelMyResponse;
 window.doForgotStep1 = doForgotStep1;
 window.doForgotStep2 = doForgotStep2;
 
-// 3.6: Cooldown кнопки повторной отправки кода
-let _resendTimer = null;
-function _startResendCooldown(seconds) {
-  const btn = document.getElementById('btnResendCode');
-  const countdown = document.getElementById('resendCountdown');
-  if(!btn || !countdown) return;
-  let left = seconds;
-  btn.disabled = true;
-  countdown.textContent = left;
-  clearInterval(_resendTimer);
-  _resendTimer = setInterval(() => {
-    left--;
-    countdown.textContent = left;
-    if(left <= 0){
-      clearInterval(_resendTimer);
-      btn.disabled = false;
-      btn.textContent = 'Отправить код повторно';
-    }
-  }, 1000);
+// Recovery resend cooldown applies only after a confirmed request.
+let _resendTimer=null;
+const _resendCooldowns=new Map();
+function _resendRemaining(email){return Math.max(0,Math.ceil(((_resendCooldowns.get(email)||0)-Date.now())/1000));}
+function _resendTick(){
+  if(document.getElementById('formForgot')?.style.display!=='block'||!document.getElementById('authOverlay')?.classList.contains('on')){
+    clearInterval(_resendTimer);_resendTimer=null;return;
+  }
+  _updateResendCooldown();
 }
-
+function _updateResendCooldown(){
+  const email=_forgotEmail||document.getElementById('forgotEmail')?.value.trim()||'';
+  const left=_resendRemaining(email),button=document.getElementById('btnResendCode');
+  const count=document.getElementById('resendCountdown'),text=document.getElementById('resendCooldownText');
+  if(button)button.disabled=left>0||!!(_forgotSending?.revision===_recoveryRevision);
+  if(count)count.textContent=String(left);
+  if(text)text.style.display=left>0?'':'none';
+  if(left<=0&&_resendTimer!==null){clearInterval(_resendTimer);_resendTimer=null;}
+  else if(left>0&&_resendTimer===null&&document.getElementById('formForgot')?.style.display==='block')_resendTimer=setInterval(_resendTick,1000);
+}
+function _startResendCooldown(seconds,email=_forgotEmail){
+  _resendCooldowns.set(email,Date.now()+seconds*1000);_updateResendCooldown();
+}
 async function doResendCode(){
-  // Повторная отправка кода — используем тот же email из шага 1
-  const email = document.getElementById('forgotEmail')?.value || window._forgotEmail;
-  if(!email) return;
-  _startResendCooldown(60);
-  await doForgotStep1(true); // reuse doForgotStep1 с пометкой resend
+  if(!_forgotEmail||_resendRemaining(_forgotEmail)>0)return;
+  document.getElementById('forgotEmail').value=_forgotEmail;
+  await doForgotStep1();
 }
-window.doResendCode = doResendCode;
+window.doResendCode=doResendCode;
+window.changePassword=changePassword;
 
-// Запускаем cooldown автоматически после первой отправки
-const _origDoForgotStep1 = doForgotStep1;
-doForgotStep1 = async function(isResend){
-  await _origDoForgotStep1.call(this);
-  if(!isResend) _startResendCooldown(60);
-};
-window.doForgotStep1 = doForgotStep1;
 window.dealAction = dealAction;
 window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
@@ -6644,6 +6750,8 @@ async function sendPhoneCode(){
   const errEl = document.getElementById('phoneChangeErr1');
   if(!newPhone){ if(errEl){errEl.textContent='Введите новый телефон';errEl.style.display='';} return; }
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk){ if(errEl){errEl.textContent='Необходима авторизация';errEl.style.display='';} return; }
   const btn = event.target;
   if(btn){ btn.disabled=true; btn.textContent='Отправляем...'; }
@@ -6654,6 +6762,7 @@ async function sendPhoneCode(){
       body: JSON.stringify({new_phone: newPhone})
     });
     const d = await r.json();
+    if(!current())return;
     if(r.ok){
       const s1 = document.getElementById('phoneChangeStep1');
       const s2 = document.getElementById('phoneChangeStep2');
@@ -6676,6 +6785,8 @@ async function confirmPhoneCode(){
   const errEl = document.getElementById('phoneChangeErr2');
   if(!code||code.length!==6){ if(errEl){errEl.textContent='Введите 6-значный код';errEl.style.display='';} return; }
   const tk = getToken ? getToken() : localStorage.getItem('ch_token');
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   const btn = event.target;
   if(btn){ btn.disabled=true; btn.textContent='Проверяем...'; }
   try{
@@ -6685,6 +6796,7 @@ async function confirmPhoneCode(){
       body: JSON.stringify({code})
     });
     const d = await r.json();
+    if(!current())return;
     if(r.ok && d.ok){
       // Обновляем UI
       const sPhone = document.getElementById('sPhone');
@@ -6738,10 +6850,13 @@ var _subscriptions = [];
 
 async function loadSubscriptions() {
   var tk = typeof getToken==='function' ? getToken() : localStorage.getItem('ch_token');
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) { console.warn('[SUB] no token, skip'); return; }
   try {
     var r = await fetch(API_BASE + '/api/subscriptions/', {headers:{'Authorization':'Bearer '+tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     // removed console.log
     _subscriptions = d.subscriptions || [];
     renderSubscriptions();
@@ -7272,10 +7387,13 @@ window.showCabinet = function() {
 // ── Мои транспортные предложения ─────────────────────────────────────────────
 async function loadMyTransportOffers() {
   var tk = typeof getToken === 'function' ? getToken() : null;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) return;
   try {
     var r = await fetch(API_BASE + '/api/transport/my', {headers: {'Authorization': 'Bearer ' + tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     renderMyTransportOffers(d.offers || []);
   } catch(e) {}
 }
@@ -7320,21 +7438,25 @@ window.deleteMyTransportOffer = async function(offerId) {
 // ── Входящие запросы на мой транспорт ────────────────────────────────────────
 async function loadIncomingTransportRequests() {
   var tk = typeof getToken === 'function' ? getToken() : null;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) return;
   try {
     // Загружаем активные предложения, потом их запросы
     var r = await fetch(API_BASE + '/api/transport/my', {headers: {'Authorization': 'Bearer ' + tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     var offers = (d.offers || []).filter(function(o){ return o.status === 'active' || o.status === 'taken'; });
     var allRequests = [];
     for(var i=0; i<offers.length; i++) {
       try {
         var rr = await fetch(API_BASE + '/api/transport/' + offers[i].id + '/requests', {headers: {'Authorization': 'Bearer ' + tk}});
         var dd = await rr.json();
+        if(!rr.ok||!current())return;
         (dd.requests||[]).forEach(function(req){ req._offer = offers[i]; allRequests.push(req); });
       } catch(e2) {}
     }
-    renderIncomingTransportRequests(allRequests);
+    if(current())renderIncomingTransportRequests(allRequests);
   } catch(e) {}
 }
 
@@ -7396,10 +7518,13 @@ window.rejectTransportReq = async function(reqId) {
 // ── Мои отклики на транспорт (грузовладелец) ─────────────────────────────────
 async function loadMyTransportRequestsOut() {
   var tk = typeof getToken === 'function' ? getToken() : null;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) return;
   try {
     var r = await fetch(API_BASE + '/api/transport-requests/my', {headers: {'Authorization': 'Bearer ' + tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     renderMyTransportRequestsOut(d.requests || []);
   } catch(e) {}
 }
@@ -7437,10 +7562,13 @@ window.cancelMyTransportReq = async function(reqId) {
 // ── Подписки на транспорт ─────────────────────────────────────────────────────
 async function loadMyTransportSubs() {
   var tk = typeof getToken === 'function' ? getToken() : null;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) return;
   try {
     var r = await fetch(API_BASE + '/api/transport-subscriptions/', {headers: {'Authorization': 'Bearer ' + tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     renderMyTransportSubs(d.subscriptions || []);
   } catch(e) {}
 }
@@ -7858,7 +7986,7 @@ window.openPlanPayment = async function(planType) {
         // Обновляем данные пользователя
         if(tk) fetch(API_BASE + '/api/users/me', {headers:{'Authorization':'Bearer '+tk}})
           .then(function(r){ return r.json(); })
-          .then(function(u){ if(u && u.id && typeof user!=='undefined') { user=u; } })
+          .then(function(u){ if(u&&u.id&&user&&getToken()===tk&&Number(u.id)===Number(user.userId??user.id??currentUserId)){ user=u; } })
           .catch(function(){});
         setTimeout(function(){ window.location.href = '/#cabinet'; }, 4000);
       } else {
@@ -7879,6 +8007,8 @@ async function loadMyPayments() {
   if(!list) return;
   var isGe = lang === 'ge';
   var tk = typeof getToken==='function' ? getToken() : null;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner)return;
   if(!tk) {
     list.innerHTML = '<div style="text-align:center;color:#aaa;padding:32px">' + (isGe ? 'შედით ანგარიშში' : 'Войдите в аккаунт') + '</div>';
     return;
@@ -7895,6 +8025,7 @@ async function loadMyPayments() {
   try {
     var r = await fetch(API_BASE + '/api/payments/my', {headers:{'Authorization':'Bearer '+tk}});
     var d = await r.json();
+    if(!r.ok||!current())return;
     var payments = d.payments || [];
 
     if(!payments.length) {
@@ -7930,6 +8061,7 @@ async function loadMyPayments() {
         + '</div>';
     }).join('');
   } catch(e) {
+    if(!current())return;
     list.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:32px">'
       + (isGe ? 'ჩატვირთვის შეცდომა' : 'Ошибка загрузки') + '</div>';
   }

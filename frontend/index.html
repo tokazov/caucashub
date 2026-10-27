@@ -849,37 +849,37 @@ window.loadYmapsLazy = function(cb, onError) {
       <div id="forgotStep1">
         <div class="form-group">
           <label data-i18n="lbl_email">Email</label>
-          <input class="form-input" type="email" id="forgotEmail" placeholder="your@email.com">
+          <input class="form-input" type="email" id="forgotEmail" autocomplete="email" maxlength="254" placeholder="your@email.com">
         </div>
         <div id="forgotError" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
-        <button class="btn-primary" onclick="doForgotStep1()">Получить код</button>
+        <button type="button" class="btn-primary" id="btnForgotSend" onclick="doForgotStep1()">Получить код</button>
       </div>
       <div id="forgotStep2" style="display:none">
         <div style="background:#fff7e6;border:1px solid #fde8a0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;text-align:center">
-          📧 Код отправлен на <strong id="forgotEmailShow"></strong>
+          📧 <span data-i18n="auth_recovery_notice">Если аккаунт существует, код отправлен на</span> <strong id="forgotEmailShow"></strong>
         </div>
         <div class="form-group">
           <label><span data-i18n="None"><span data-i18n="code_label"><span data-i18n="lbl_code">Код подтверждения (6 цифр)</span></span></span></label>
-          <input class="form-input" type="text" id="forgotCode" placeholder="000000" maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center">
+          <input class="form-input" type="text" id="forgotCode" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center">
         </div>
         <div class="form-group">
           <label>Новый пароль</label>
-          <div class="pass-wrap"><input class="form-input" type="password" id="forgotNewPass" placeholder="Минимум 6 символов" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('forgotNewPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
+          <div class="pass-wrap"><input class="form-input" type="password" id="forgotNewPass" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Минимум 8 символов" data-i18n-ph="auth_password_placeholder" style="padding-right:36px"><button type="button" class="eye-btn" onclick="var i=document.getElementById('forgotNewPass');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈'">👁</button></div>
         </div>
         <div class="form-group">
           <label>Повторите пароль</label>
-          <input class="form-input" type="password" id="forgotNewPass2" placeholder="Повторите пароль">
+          <input class="form-input" type="password" id="forgotNewPass2" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Повторите пароль">
         </div>
         <div id="forgotError2" style="color:#e74c3c;font-size:13px;text-align:center;display:none;margin-bottom:10px"></div>
-        <button class="btn-primary" onclick="doForgotStep2()">Сменить пароль</button>
+        <button type="button" class="btn-primary" id="btnForgotReset" onclick="doForgotStep2()">Сменить пароль</button>
         <!-- 3.6: cooldown кнопки повторной отправки -->
         <div style="text-align:center;margin-top:10px">
-          <button id="btnResendCode" onclick="doResendCode()" style="background:none;border:none;font-size:12px;color:#888;cursor:pointer;text-decoration:underline" disabled>Отправить код повторно (<span id="resendCountdown">60</span>с)</button>
+          <button type="button" id="btnResendCode" onclick="doResendCode()" style="background:none;border:none;font-size:12px;color:#888;cursor:pointer;text-decoration:underline" disabled><span data-i18n="auth_resend">Отправить код повторно</span> <span id="resendCooldownText">(<span id="resendCountdown">60</span> <span data-i18n="auth_seconds">с</span>)</span></button>
         </div>
       </div>
       <div id="forgotSuccess" style="display:none;text-align:center;padding:20px">
         <div style="font-size:40px;margin-bottom:10px">✅</div>
-        <div style="font-size:16px;font-weight:700;margin-bottom:6px">Пароль изменён!</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px" data-i18n="auth_password_changed">Пароль изменён!</div>
         <div style="font-size:13px;color:#888;margin-bottom:16px"><span data-i18n="None"><span data-i18n="login_new_pwd"><span data-i18n="hint_new_pass">Войдите с новым паролем</span></span></span></div>
         <button class="btn-primary" onclick="switchAuth('login')"><span data-i18n="None"><span data-i18n="btn_login_short">Войти</span></span></button>
       </div>
@@ -1399,6 +1399,23 @@ window.loadYmapsLazy = function(cb, onError) {
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox"> <span data-i18n="notif_rate_changes">Изменение ставок на маршрутах</span></label>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" checked> <span data-i18n="notif_my_status">Статус моих заявок</span></label>
     </div>
+    <details id="passwordChangeBlock" class="form-group">
+      <summary data-i18n="auth_change_title">Сменить пароль</summary>
+      <div class="form-group">
+        <label for="changeOldPass" data-i18n="auth_old_password">Текущий пароль</label>
+        <input class="form-input" type="password" id="changeOldPass" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label for="changeNewPass" data-i18n="auth_new_password">Новый пароль</label>
+        <input class="form-input" type="password" id="changeNewPass" autocomplete="new-password" minlength="8" maxlength="72">
+      </div>
+      <div class="form-group">
+        <label for="changeNewPass2" data-i18n="auth_repeat_password">Повторите новый пароль</label>
+        <input class="form-input" type="password" id="changeNewPass2" autocomplete="new-password" minlength="8" maxlength="72">
+      </div>
+      <div id="changePasswordError" style="color:#e74c3c;font-size:13px;display:none" role="alert"></div>
+      <button type="button" id="btnChangePassword" class="btn-secondary" onclick="changePassword()" data-i18n="auth_change_submit">Сменить пароль и войти заново</button>
+    </details>
     <button class="btn-primary" onclick="saveSettings()"><span data-i18n="None"><span data-i18n="btn_save">💾 Сохранить</span></span></button>
     <button class="btn-secondary" onclick="closeModal('settingsOverlay')" data-i18n="btn_cancel_form">Отмена</button>
   </div>
@@ -1626,8 +1643,8 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261027-carrier-defaults"></script>
-<script src="main.js?v=20261027-notifications"></script>
+<script src="api.js?v=20261027-password-access"></script>
+<script src="main.js?v=20261027-password-access"></script>
 <script src="ai-dispatcher.js?v=1790616851"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 function loader(path,{token='test-token',legacy=false,failed=false}={}){
  const calls={fetches:[],renders:0},elements=legacy?{dealsLoading:{style:{}},dealsList:{innerHTML:'before'}}:{};
- const context={API_BASE:'http://127.0.0.1:8765',getToken:()=>token,dealsData:[],
+ const context={user:{userId:7},API_BASE:'http://127.0.0.1:8765',getToken:()=>token,dealsData:[],
   document:{getElementById:id=>elements[id]||null},
   fetch:async(url,options)=>{calls.fetches.push({url,options});if(failed)throw Error('offline');return{ok:true,json:async()=>({deals:[{id:31}]})};},
   renderDeals:()=>calls.renders++};

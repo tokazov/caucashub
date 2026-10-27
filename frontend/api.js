@@ -216,12 +216,12 @@ const CaucasAPI = {
   },
 
   async forgotPassword(email){
-    const r = await apiRequest('POST', '/api/auth/forgot-password/', { email });
+    const r = await apiRequest('POST', '/api/auth/forgot-password', { email });
     return r.data || { ok: false };
   },
 
   async resetPassword(email, code, new_password){
-    const r = await apiRequest('POST', '/api/auth/reset-password/', { email, code, new_password });
+    const r = await apiRequest('POST', '/api/auth/reset-password', { email, code, new_password });
     return { ok: r.ok, data: r.data };
   },
 

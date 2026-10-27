@@ -272,3 +272,42 @@ jobs:
           name: notification-browser
           path: artifacts/notifications/
           if-no-files-found: warn
+
+  auth-recovery-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      CARRIER_BROWSER_AUTH: "1"
+      CARRIER_BROWSER_PUBLICATION: "1"
+      NOTIFICATIONS_WORKER_ENABLED: "0"
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated browser dependencies
+        run: |
+          python -m pip install -r requirements.txt aiosqlite
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Verify password recovery, session revocation and account isolation
+        run: |
+          mkdir -p artifacts/auth-recovery
+          python tests/browser/carrier_profile_server.py > artifacts/auth-recovery/server.log 2>&1 &
+          carrier_server_pid=$!
+          trap 'kill "$carrier_server_pid" 2>/dev/null || true' EXIT
+          node tests/browser/auth_recovery.cjs
+      - name: Upload recovery screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-recovery-browser
+          path: artifacts/auth-recovery/
+          if-no-files-found: warn
