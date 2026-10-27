@@ -79,7 +79,7 @@ module.exports=async function mariSteps(page, options){
   await page.locator('#aiPostBtn').click();
   await page.locator('#postTransportOverlay').waitFor({state:'visible'});
   assert.equal(await page.locator('#ptCapacity').inputValue(),'7000');
-  assert.equal(await page.locator('#ptTruckType').inputValue(),'open');
+  assert.equal(await page.locator('#ptTruckType').inputValue(),'bort');
   assert.equal(await page.locator('#ptDateFrom').inputValue(),date);
   await page.screenshot({path:path.join(artifacts,name+'-mari-transport-draft.png')});
   await page.locator('#postTransportOverlay .close-btn').click();

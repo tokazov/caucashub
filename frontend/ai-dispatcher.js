@@ -320,7 +320,9 @@
       openPostTransportOffer();
       _fill('ptFrom',draft.from);_fill('ptTo',draft.to);
       var types={bort:'open',auto:'autovoz',evacuator:'lowboy'};
-      _fill('ptTruckType',types[draft.truck]||draft.truck);
+      var typeSelect=document.getElementById('ptTruckType');
+      var supported=typeSelect && Array.from(typeSelect.options).some(function(option){return option.value===draft.truck;});
+      _fill('ptTruckType',supported?draft.truck:(types[draft.truck]||draft.truck));
       _fill('ptCapacity',draft.capacity_kg||draft.weight_cap);_fill('ptDateFrom',draft.date);
       _fill('ptDateTo',draft.date_end);_fill('ptPrice',draft.currency==='USD'?null:draft.price);_fill('ptNotes',draft.cargo_desc);
     }else{
