@@ -191,6 +191,10 @@ body { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 /* MAP */
 .map-wrap { display:none; background:#fff; border-bottom:1px solid #eee; }
 .map-wrap.open { display:block; }
+/* Scope the load-search map without collapsing its canvas during SDK loading. */
+body:not(:has(#sec-loads.active)) #mapWrap {
+  max-height:0; overflow:hidden; visibility:hidden; border-bottom:0;
+}
 #routeMap { height:300px; }
 .map-info { padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
 .map-route-label { font-size:14px; font-weight:700; }
