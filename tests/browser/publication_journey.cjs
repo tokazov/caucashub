@@ -13,6 +13,10 @@ const {chromium}=require(require.resolve('playwright',{paths:[ROOT,__dirname]}))
 const ARTIFACTS=path.resolve(process.env.CARRIER_PUBLICATION_ARTIFACTS||path.join(ROOT,'artifacts/publication-journey'));
 const auditContacts=process.argv.includes('--audit-contacts');
 const completionEnabled=process.env.CARRIER_BROWSER_COMPLETION==='1';
+const notificationsEnabled=process.env.CARRIER_BROWSER_NOTIFICATIONS==='1';
+const notificationSteps=notificationsEnabled?require('./notification_steps.cjs'):null;
+const TEST_PASSWORD='PublicationBrowser39!';
+if(notificationsEnabled&&!completionEnabled)throw Error('Notification browser mode requires full completion');
 const results=[],diagnostics={productionApiAttempts:0,blockedHosts:[],pages:[],mutations:[]};
 const blocked=new Set();
 let browser,server,serverError;
@@ -29,7 +33,7 @@ async function ready(){
    const data=await r.json();
    assert.equal(r.headers.get('x-carrier-test-only'),'1');
    assert.equal(data.test_only,true);assert.equal(data.isolated_sqlite,true);
-   assert.equal(data.actual_profile_routers,true);assert.equal(data.origin,BASE.origin);assert.equal(data.ready,true);
+   assert.equal(data.actual_profile_routers,true);if(notificationsEnabled)assert.equal(data.notification_test,true);assert.equal(data.origin,BASE.origin);assert.equal(data.ready,true);
    const spec=await(await fetch(new URL('/openapi.json',BASE))).json();
    for(const endpoint of ['/api/loads/','/api/transport/','/api/responses/load/{load_id}','/api/transport-requests/{req_id}/accept'])
     assert.ok(spec.paths[endpoint]?.post,'Opt-in real trade router required: '+endpoint);
@@ -68,14 +72,16 @@ async function register(page,role,label,number){
   await page.locator('#regTruckType').selectOption('tent');
   await page.locator('#regTonnage').fill('10');
  }
- await page.locator('#regPass').fill('PublicationBrowser39!');
+ await page.locator('#regPass').fill(TEST_PASSWORD);
  assert.equal(new URL(page.url()).origin,BASE.origin);
  await page.locator('#regAgree').check();
  const data=await clickRequest(page,'#formRegister button[onclick="doRegister()"]','/api/auth/register','POST',200);
  await page.locator('#authOverlay').waitFor({state:'hidden'});
  const profile=await readApi(page,'/api/users/me');
  assert.equal(profile.id,data.user_id);
- return{...profile,email};
+ const account={...profile,email};
+ if(notificationsEnabled)await notificationSteps.linkChannels(page,account);
+ return account;
 }
 async function tab(page,configuration,name){
  const selector=(configuration.mobile?'.bitem':'.nav-tab')+'[onclick*="showSection(\''+name+'\'"]';
@@ -150,12 +156,14 @@ async function dealContactCheck(page,configuration,dealId,counterparty){
 async function cargoPath(shipper,carrier,configuration,accounts,label){
  const load=await publishLoad(shipper,configuration,label);
  const response=await searchLoadAndRespond(carrier,configuration,load,label);
+ if(notificationsEnabled)await notificationSteps.afterRequest({owner:shipper,actor:carrier,source:'cargo',requestId:response.response_id,accounts,ownerRole:'shipper',actorRole:'carrier'});
  await cabinetTab(shipper,configuration,'loads');
  const card=shipper.locator('#myLoadsList .cab-load-card').first();
  await card.locator('.cab-accept-btn').waitFor({state:'visible'});
  assert.equal(await card.locator('a[href^="tel:"]:visible').count(),0,'No phone before acceptance');
  const accepted=await clickRequest(shipper,'#myLoadsList .cab-accept-btn','/api/responses/accept/'+response.response_id,'POST',200);
  assert.ok(accepted.deal_id);
+ if(notificationsEnabled)await notificationSteps.afterAccept({shipper,carrier,source:'cargo',dealId:accepted.deal_id,accounts});
  // Existing accepted-response path also exposes the carrier phone to the shipper.
  await cabinetTab(shipper,configuration,'loads');
  await card.locator('a[href^="tel:"]').waitFor({state:'visible'});
@@ -190,12 +198,14 @@ async function transportPath(shipper,carrier,configuration,accounts,label){
  await shipper.locator('#trMsg').fill('Disposable UI request');
  const requested=await clickRequest(shipper,'#transportRequestOverlay .btn-primary','/api/transport/'+created.offer.id+'/request','POST',201);
  await shipper.locator('#transportRequestOverlay').waitFor({state:'hidden'});
+ if(notificationsEnabled)await notificationSteps.afterRequest({owner:carrier,actor:shipper,source:'transport',requestId:requested.request.id,accounts,ownerRole:'carrier',actorRole:'shipper'});
  await cabinetTab(carrier,configuration,'transport-requests-in');
  const incoming=carrier.locator('#myTransportRequestsIn > div').filter({hasText:label+' cargo'}).first();
  await incoming.locator('button[onclick^="acceptTransportReq("]').waitFor({state:'visible'});
  assert.equal(await incoming.locator('a[href^="tel:"]:visible').count(),0);
  const accepted=await clickRequest(carrier,'#myTransportRequestsIn button[onclick^="acceptTransportReq("]','/api/transport-requests/'+requested.request.id+'/accept','POST',200);
  assert.ok(accepted.deal_id);
+ if(notificationsEnabled)await notificationSteps.afterAccept({shipper,carrier,source:'transport',dealId:accepted.deal_id,accounts});
  await incoming.locator('a[href^="tel:"]').waitFor({state:'visible'});
  const contacts=[
   await dealContactCheck(shipper,configuration,accepted.deal_id,accounts.carrier),
@@ -237,13 +247,15 @@ async function run(configuration,index){
     completion.push(await complete({shipper:sh.page,carrier:ca.page,configuration,accounts,dealId:journey.contacts[0].dealId,source,first,readApi,cabinetTab,clickRequest,artifacts:ARTIFACTS}));
    }
   }
+  let notifications=null;
+  if(notificationsEnabled)notifications=await notificationSteps.finish({shipper:sh.page,carrier:ca.page,configuration,accounts,cargo,transport,password:TEST_PASSWORD,artifacts:ARTIFACTS,tab});
   for(const account of[sh,ca]){
    await account.page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-'+account.log.role+'.png'),fullPage:true});
    assert.deepEqual(account.log.pageErrors,[]);assert.deepEqual(account.log.dialogs,[]);
   }
   const contactsComplete=[...cargo.contacts,...transport.contacts].every(result=>result.phoneVisible&&result.emailVisible);
   console.log(configuration.name+': cargo and transport publication, response, acceptance and both participants contacts '+(contactsComplete?'passed':'incomplete'));
-  results.push({viewport:configuration.name,status:contactsComplete?'passed':'core-passed-contact-gap',contactsComplete,cargo,transport,completion});
+  results.push({viewport:configuration.name,status:contactsComplete?'passed':'core-passed-contact-gap',contactsComplete,cargo,transport,completion,notifications});
  }catch(error){
   for(const account of[sh,ca])await account.page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-'+account.log.role+'-failure.png'),fullPage:true}).catch(()=>{});
   results.push({viewport:configuration.name,status:'failed',error:error.message});throw error;
