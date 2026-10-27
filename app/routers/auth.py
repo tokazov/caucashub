@@ -1,17 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, ResetCode
 from app.config import settings
-from pydantic import BaseModel
+from app.services.admin_auth import admin_secret_matches
+from pydantic import BaseModel, Field
 from typing import Optional
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import threading
+import hashlib
+import hmac
+import logging
+import math
+import secrets
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 # Фикс 2: bcrypt как основной алгоритм. sha256_crypt — deprecated (postlogin upgrade).
@@ -127,52 +135,121 @@ def validate_password(password: str) -> None:
             status_code=422,
             detail="Пароль слишком короткий — минимум 8 символов"
         )
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(status_code=422, detail="Пароль должен занимать не больше 72 байт UTF-8")
     if password.lower() in _WEAK_PASSWORDS:
         raise HTTPException(
             status_code=422,
             detail="Пароль слишком простой — выберите более надёжный"
         )
 
-def create_token(user_id: int):
-    now = datetime.utcnow()
-    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    # Фикс 3: iat (issued at) — используется для инвалидации после смены пароля
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def _password_version(value: datetime | None) -> str:
+    return _as_utc(value).isoformat(timespec="microseconds") if value is not None else ""
+
+
+def _verify_password(password: str, encoded: str | None) -> bool:
+    try:
+        return bool(encoded) and pwd_context.verify(password, encoded)
+    except (ValueError, TypeError):
+        return False
+
+
+def create_token(user_id: int, password_changed_at: datetime | None = None, password_version: int = 0):
+    now = _utcnow()
     return jwt.encode(
-        {"sub": str(user_id), "exp": expire, "iat": int(now.timestamp())},
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM
+        {"sub": str(user_id), "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+         "iat": int(now.timestamp()), "pwdv": _password_version(password_changed_at),
+         "ver": password_version},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM,
     )
+
 
 async def require_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> User:
-    token = credentials.credentials
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = int(payload.get("sub"))
+        issued = payload.get("iat")
+        if isinstance(issued, bool) or not isinstance(issued, (int, float)) or not math.isfinite(issued):
+            raise ValueError("Missing issuance time")
     except (JWTError, ValueError, TypeError):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if user is None:
         raise HTTPException(status_code=401, detail="User not found")
-    # ADR-010: удалённый пользователь — инвалидируем любую активную сессию
-    if getattr(user, 'is_deleted', False):
+    if user.is_deleted:
         raise HTTPException(status_code=401, detail="Аккаунт удалён")
-    # 2.4.2: заблокированный пользователь не может действовать
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Аккаунт заблокирован. Обратитесь в поддержку.")
-    # Фикс 3 (OQ-008): Проверяем что токен выпущен ПОСЛЕ последней смены пароля
-    # Если password_changed_at > iat токена — токен устарел (выпущен до смены пароля)
-    token_iat = payload.get("iat")
-    pca = getattr(user, 'password_changed_at', None)
-    if token_iat and pca:
-        import calendar
-        pca_ts = calendar.timegm(pca.timetuple()) if pca.tzinfo is None else int(pca.timestamp())
-        if pca_ts > token_iat:
-            raise HTTPException(status_code=401, detail="Сессия устарела — войдите заново")
+    changed = user.password_changed_at
+    if "pwdv" in payload:
+        valid = (type(payload.get("ver")) is int and payload["ver"] == (user.password_version or 0)
+                 and isinstance(payload["pwdv"], str) and hmac.compare_digest(
+            payload["pwdv"].encode(), _password_version(changed).encode()))
+    else:
+        # Preserve existing legacy sessions until an actual new password change.
+        # The additive counter then revokes every legacy token, even in the same second.
+        changed_second = int(_as_utc(changed).timestamp()) if changed is not None else None
+        valid = (user.password_version or 0) == 0 and (changed_second is None or issued >= changed_second)
+    if not valid:
+        raise HTTPException(status_code=401, detail="Сессия устарела — войдите заново")
     return user
+
+
+async def _locked_password_user(db, *, user_id=None, email=None):
+    query = select(User).where(User.id == user_id) if user_id is not None else select(User).where(User.email == email)
+    return (await db.execute(query.with_for_update()
+                             .execution_options(populate_existing=True))).scalar_one_or_none()
+
+
+async def _revoke_password_state(db, user):
+    now = _utcnow()
+    previous = user.password_changed_at
+    if previous is not None and now <= _as_utc(previous):
+        now = _as_utc(previous) + timedelta(microseconds=1)
+    user.password_changed_at = now
+    user.password_version = (user.password_version or 0) + 1
+    if user.telegram_id and user.telegram_id.startswith("pending:"):
+        user.telegram_id = None
+    await db.execute(delete(ResetCode).where(ResetCode.email == user.email))
+    from app.routers.users import _phone_change_codes
+    _phone_change_codes.pop(user.id, None)
+
+
+async def _send_password_email(to, subject, html, *, idempotency_key):
+    from app.services import notification_channels
+    try:
+        result = await notification_channels.send_email(to, subject, html, idempotency_key=idempotency_key)
+        if result.status != "sent":
+            logger.warning("Password email delivery was not confirmed (status=%s)", result.status)
+        return result.status == "sent"
+    except Exception:
+        logger.warning("Password email delivery raised an error")
+        return False
+
+
+def _password_text(lang, ge, ru):
+    return ge if lang in ("ge", "ka") else ru
+
+
+async def _notify_password_changed(user):
+    title = _password_text(user.lang, "CaucasHub — პაროლი შეიცვალა", "CaucasHub — пароль изменён")
+    body = _password_text(user.lang,
+        "თქვენი ანგარიშის პაროლი შეიცვალა. წინა სესიები გაუქმებულია. თუ ეს თქვენ არ იყავით, აღადგინეთ წვდომა საიტზე.",
+        "Пароль вашего аккаунта изменён. Предыдущие сессии завершены. Если это были не вы, восстановите доступ на сайте.")
+    await _send_password_email(user.email, title, f"<p>{body}</p>",
+        idempotency_key=f"password-changed:{user.id}:{_password_version(user.password_changed_at)}")
+
 
 @router.post("/register")
 async def register(data: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
@@ -181,6 +258,7 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
     _check_brute_force_generic(client_ip, "register", max_attempts=10, window=60, block=300)
     # Фикс 4: Валидация пароля
     validate_password(data.password)
+    data.email = data.email.strip().lower()
     existing = await db.execute(select(User).where(User.email == data.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -246,7 +324,7 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
         ))
     except Exception:
         pass  # не ломаем регистрацию если уведомление не отправилось
-    return {"token": create_token(user.id), "user_id": user.id,
+    return {"token": create_token(user.id, user.password_changed_at, user.password_version), "user_id": user.id,
             "truck_type": user.truck_type, "tonnage": user.tonnage}
 
 @router.post("/login")
@@ -255,27 +333,28 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
     client_ip = request.client.host if request.client else "unknown"
     _check_brute_force(client_ip)
 
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
+    user = await _locked_password_user(db, email=data.email.strip().lower())
     # ADR-010: удалённый аккаунт — 401 без подсказки о пароле
     if user and getattr(user, 'is_deleted', False):
         raise HTTPException(status_code=401, detail="Аккаунт не найден или удалён")
-    if not user or not user.hashed_password or not pwd_context.verify(data.password, user.hashed_password):
+    if not user or not user.hashed_password or not _verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Аккаунт заблокирован. Обратитесь в поддержку.")
+
     # Фикс 2: Postlogin bcrypt upgrade — если хеш sha256_crypt, перехешируем в bcrypt
-    if pwd_context.needs_update(user.hashed_password):
+    if len(data.password.encode("utf-8")) <= 72 and pwd_context.needs_update(user.hashed_password):
         user.hashed_password = pwd_context.hash(data.password)
-        await db.commit()
+    await db.commit()
 
     # Успешный логин — сбрасываем счётчик
     _reset_brute_force(client_ip)
-    return {"token": create_token(user.id), "user_id": user.id, "role": user.role}
+    return {"token": create_token(user.id, user.password_changed_at, user.password_version), "user_id": user.id, "role": user.role}
 
 @router.get("/admin/users")
 async def admin_list_users(secret: str, db: AsyncSession = Depends(get_db)):
-    import os
-    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(secret):
         raise HTTPException(status_code=403, detail="Forbidden")
     result = await db.execute(select(User).order_by(User.id.desc()).limit(30))
     users = result.scalars().all()
@@ -288,119 +367,143 @@ async def admin_reset_password(
     secret: str,
     db: AsyncSession = Depends(get_db)
 ):
-    import os
-    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(secret):
         raise HTTPException(status_code=403, detail="Forbidden")
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    if not user:
+    validate_password(new_password)
+    user = await _locked_password_user(db, email=email.strip().lower())
+    if user is None or user.is_deleted:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = hash_password(new_password)
-    user.password_changed_at = datetime.utcnow()  # Фикс 3: инвалидируем старые токены
+    await _revoke_password_state(db, user)
     await db.commit()
-    return {"ok": True, "email": email}
+    await _notify_password_changed(user)
+    return {"ok": True, "email": user.email}
+
 
 
 class ForgotRequest(BaseModel):
-    email: str
+    email: str = Field(min_length=3, max_length=254)
 
-class ResetRequest(BaseModel):
-    email: str
-    code: str
+
+class ResetRequest(ForgotRequest):
+    code: str = Field(pattern=r"^[0-9]{6}$")
     new_password: str
+
+
+_RESET_WINDOW = timedelta(minutes=15)
+_RESET_COOLDOWN = timedelta(seconds=60)
+_RESET_MAX_ATTEMPTS = 5
+_RESET_MAX_REQUESTS = 3
+_FORGOT_MESSAGE = "Если адрес зарегистрирован, инструкция по восстановлению будет отправлена на почту"
+
+
+def _reset_digest(email, code, salt):
+    value = f"{email}:{salt}:{code}".encode()
+    digest = hmac.new(settings.SECRET_KEY.encode(), value, hashlib.sha256).hexdigest()
+    return f"h1.{salt}.{digest}"
+
+
+def _reset_matches(email, supplied, stored):
+    if not isinstance(stored, str):
+        return False
+    if stored.startswith("h1."):
+        parts = stored.split(".")
+        return len(parts) == 3 and hmac.compare_digest(_reset_digest(email, supplied, parts[1]), stored)
+    # Codes issued before this additive release retain their original short TTL.
+    return len(stored) == 6 and stored.isascii() and stored.isdigit() and hmac.compare_digest(supplied, stored)
+
+
+async def _latest_reset(db, email):
+    return (await db.execute(select(ResetCode).where(ResetCode.email == email)
+        .order_by(ResetCode.id.desc()).limit(1).with_for_update()
+        .execution_options(populate_existing=True))).scalar_one_or_none()
+
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    # 5.5.4: Rate limit — 3 запроса кода в 10 минут с одного IP
     client_ip = request.client.host if request.client else "unknown"
     _check_brute_force_generic(client_ip, "forgot", max_attempts=3, window=600, block=600)
-    import secrets
-    from datetime import datetime, timedelta
-    from app.models.user import ResetCode
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
-
-    code = str(secrets.randbelow(900000) + 100000)
-    if user:
-        # Удаляем старые коды для этого email
-        from sqlalchemy import delete as sa_delete
-        await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
-        # Сохраняем новый код в БД
-        rc = ResetCode(email=data.email, code=code, expires_at=datetime.utcnow() + timedelta(minutes=15))
-        db.add(rc)
-        await db.commit()
-        
-        html = f"""<div style="font-family:Arial;padding:20px;max-width:480px;margin:0 auto">
-            <div style="background:#1a1a2e;padding:20px;text-align:center;border-radius:12px 12px 0 0">
-              <span style="color:#fff;font-weight:900;font-size:22px">Caucas<span style="color:#f7b731">Hub</span></span>
-            </div>
-            <div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;border:1px solid #eee">
-              <p style="margin:0 0 16px;font-size:16px;color:#333">Сброс пароля на <strong>CaucasHub.ge</strong></p>
-              <p style="margin:0 0 12px;font-size:14px;color:#666">Ваш код подтверждения:</p>
-              <div style="background:#f8f9fa;border:2px solid #f7b731;border-radius:10px;padding:20px;text-align:center;margin-bottom:20px">
-                <div style="font-size:40px;font-weight:900;letter-spacing:12px;color:#1a1a2e">{code}</div>
-              </div>
-              <p style="margin:0;font-size:13px;color:#888">⏱ Код действует <strong>15 минут</strong></p>
-            </div>
-        </div>"""
-
-                # Отправка через Resend API
-        RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-        try:
-            import httpx
-            async with httpx.AsyncClient() as client:
-                r = await client.post("https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-                    json={
-                        "from": "CaucasHub <onboarding@resend.dev>",
-                        "to": [data.email],
-                        "subject": "CaucasHub — код сброса пароля",
-                        "html": html,
-                    },
-                    timeout=15)
-                if r.status_code not in (200, 201):
-                    pass  # email не отправлен — продолжаем без ошибки
-        except Exception:
-            pass
-
-    # 4.3.2: НЕ раскрываем существование email (anti info-leak)
-    # Одинаковый ответ независимо от того, найден ли пользователь
-    return {"message": "Если такой email зарегистрирован — мы отправили код подтверждения"}
+    email = data.email.strip().lower()
+    user = await _locked_password_user(db, email=email)
+    if user is None or user.is_deleted or not user.is_active:
+        return {"message": _FORGOT_MESSAGE}
+    now = _utcnow()
+    previous = await _latest_reset(db, email)
+    active = previous is not None and previous.expires_at is not None and _as_utc(previous.expires_at) > now
+    if active and (
+        (previous.attempts or 0) >= _RESET_MAX_ATTEMPTS
+        or (previous.request_count or 0) >= _RESET_MAX_REQUESTS
+        or (previous.created_at is not None and _as_utc(previous.created_at) + _RESET_COOLDOWN > now)
+    ):
+        return {"message": _FORGOT_MESSAGE}
+    expires = _as_utc(previous.expires_at) if active else now + _RESET_WINDOW
+    attempts = (previous.attempts or 0) if active else 0
+    requests = (previous.request_count or 0) + 1 if active else 1
+    code = f"{secrets.randbelow(1000000):06d}"
+    salt = secrets.token_urlsafe(16)
+    await db.execute(delete(ResetCode).where(ResetCode.email == email))
+    db.add(ResetCode(email=email, code=_reset_digest(email, code, salt),
+                     expires_at=expires.replace(tzinfo=None), created_at=now,
+                     attempts=attempts, request_count=requests))
+    await db.commit()
+    title = _password_text(user.lang, "CaucasHub — პაროლის აღდგენა", "CaucasHub — восстановление пароля")
+    intro = _password_text(user.lang, "პაროლის აღდგენის კოდი", "Код восстановления пароля")
+    expiry = _password_text(user.lang,
+        "კოდი მოქმედებს 15 წუთამდე. თუ აღდგენა არ მოგითხოვიათ, უგულებელყავით წერილი.",
+        "Код действует до 15 минут. Если вы не запрашивали восстановление, проигнорируйте письмо.")
+    await _send_password_email(email, title,
+        f"<p>{intro}:</p><p style='font-size:32px;font-weight:bold;letter-spacing:8px'>{code}</p><p>{expiry}</p>",
+        idempotency_key=f"password-reset:{user.id}:{salt}")
+    return {"message": _FORGOT_MESSAGE}
 
 
 @router.post("/reset-password")
-async def reset_password(data: ResetRequest, db: AsyncSession = Depends(get_db)):
-    from datetime import datetime
-    from app.models.user import ResetCode
-    from sqlalchemy import delete as sa_delete
-    # Проверяем код в БД
-    rc_result = await db.execute(select(ResetCode).where(ResetCode.email == data.email, ResetCode.code == data.code))
-    rc = rc_result.scalar_one_or_none()
-    if not rc or datetime.utcnow() > rc.expires_at:
-        raise HTTPException(status_code=400, detail="Неверный или просроченный код")
-    # Фикс 4: Валидация нового пароля при сбросе
+async def reset_password(data: ResetRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_brute_force_generic(client_ip, "reset", max_attempts=10, window=600, block=600)
+    email = data.email.strip().lower()
+    user = await _locked_password_user(db, email=email)
+    invalid = HTTPException(status_code=400, detail="Неверный или просроченный код")
+    if user is None or user.is_deleted or not user.is_active:
+        raise invalid
+    code = await _latest_reset(db, email)
+    if code is None or code.expires_at is None or _as_utc(code.expires_at) <= _utcnow():
+        raise invalid
+    if (code.attempts or 0) >= _RESET_MAX_ATTEMPTS:
+        raise invalid
+    if not _reset_matches(email, data.code, code.code):
+        code.attempts = (code.attempts or 0) + 1
+        await db.commit()
+        raise invalid
     validate_password(data.new_password)
-    # Меняем пароль
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
     user.hashed_password = hash_password(data.new_password)
-    user.password_changed_at = datetime.utcnow()  # Фикс 3
-    await db.execute(sa_delete(ResetCode).where(ResetCode.email == data.email))
+    await _revoke_password_state(db, user)
     await db.commit()
+    await _notify_password_changed(user)
     return {"message": "Пароль успешно изменён"}
+
 
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+
 @router.post("/change-password")
-async def change_password(data: ChangePasswordRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(require_user)):
-    if not pwd_context.verify(data.old_password, current_user.hashed_password):
+async def change_password(
+    data: ChangePasswordRequest, request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(require_user),
+):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_brute_force_generic(client_ip, "change_password", max_attempts=10, window=600, block=600)
+    user = await _locked_password_user(db, user_id=current_user.id)
+    # The token may have been revoked while this request waited for the row.
+    await require_user(credentials=credentials, db=db)
+    if not _verify_password(data.old_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Неверный текущий пароль")
     validate_password(data.new_password)
-    current_user.hashed_password = hash_password(data.new_password)
-    current_user.password_changed_at = datetime.utcnow()  # Фикс 3
+    user.hashed_password = hash_password(data.new_password)
+    await _revoke_password_state(db, user)
     await db.commit()
+    await _notify_password_changed(user)
     return {"message": "Пароль успешно изменён"}

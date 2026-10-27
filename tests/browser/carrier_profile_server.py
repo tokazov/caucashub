@@ -21,7 +21,10 @@ SITE = TEMP_ROOT / "frontend"
 DATABASE = TEMP_ROOT / "carrier-browser.sqlite"
 ORIGIN = "http://127.0.0.1:8765"
 PRODUCTION_API_ORIGIN = "https://api-production-f3ea.up.railway.app"
+AUTH_ENABLED = os.environ.get("CARRIER_BROWSER_AUTH") == "1"
 NOTIFICATIONS_ENABLED = os.environ.get("CARRIER_BROWSER_NOTIFICATIONS") == "1"
+if AUTH_ENABLED and NOTIFICATIONS_ENABLED:
+    raise RuntimeError("Authentication and notification sinks run in separate jobs")
 if NOTIFICATIONS_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
     raise RuntimeError("Notification browser tests require actual publication routes")
 
@@ -32,6 +35,9 @@ os.environ["ALGORITHM"] = "HS256"
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["TG_BOT_TOKEN"] = ""
 os.environ["RESEND_API_KEY"] = ""
+os.environ["BREVO_API_KEY"] = ""
+os.environ["CAUCASHUB_TG_BOT_TOKEN"] = ""
+os.environ["NOTIFICATIONS_WORKER_ENABLED"] = "0"
 if NOTIFICATIONS_ENABLED:
     # These are intentionally unusable provider credentials, intercepted below.
     os.environ["CAUCASHUB_TG_BOT_TOKEN"] = "123456:isolated-browser-test"
@@ -211,6 +217,31 @@ if NOTIFICATIONS_ENABLED:
                 "unexpected_provider_requests": len(provider_sink.unexpected)}
 
 
+
+# Local-only password recovery mailbox. It records the real email body produced
+# by the real auth route and rejects any recipient outside disposable accounts.
+if AUTH_ENABLED:
+    from app.services import notification_channels
+
+    auth_emails = []
+
+    async def capture_auth_email(to, subject, html, *, idempotency_key=None):
+        if not isinstance(to, str) or not to.endswith("@example.test"):
+            raise RuntimeError("Only synthetic fixture recipients are allowed")
+        auth_emails.append({"to": to, "subject": subject, "html": html})
+        return notification_channels.DeliveryResult("sent", provider_id="isolated-auth-mail")
+
+    notification_channels.send_email = capture_auth_email
+
+    @app.get("/__test__/emails")
+    async def test_auth_emails(recipient: str):
+        if not recipient.endswith("@example.test"):
+            raise HTTPException(404, "Disposable fixture recipient required")
+        return {"test_only": True, "emails": [
+            row for row in auth_emails if row["to"] == recipient
+        ]}
+
+
 @app.get("/__test__/ready")
 async def ready():
     return {
@@ -218,6 +249,7 @@ async def ready():
         "isolated_sqlite": True,
         "actual_profile_routers": True,
         "notification_test": NOTIFICATIONS_ENABLED,
+        "auth_test": AUTH_ENABLED,
         "ready": app.state.ready,
         "origin": ORIGIN,
     }

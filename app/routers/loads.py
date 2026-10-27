@@ -1,3 +1,4 @@
+from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -392,7 +393,7 @@ async def admin_bulk_delete(
 ):
     """Admin: удалить несколько грузов"""
     import os
-    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(secret):
         raise HTTPException(status_code=403, detail="Forbidden")
     from sqlalchemy import delete as sql_delete
     await db.execute(sql_delete(Load).where(Load.id.in_(ids)))
@@ -409,7 +410,7 @@ async def admin_set_status(
 ):
     """Admin: изменить статус грузов. status: active|taken|expired|canceled"""
     import os
-    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(secret):
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
         new_status = LoadStatus(status)

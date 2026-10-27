@@ -2,6 +2,7 @@
 Роутер городов — автокомплит и справочник (ADR-007).
 """
 import os
+from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -60,7 +61,7 @@ async def seed_cities_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin: заполнить таблицу городов начальными данными."""
-    if secret != os.getenv("ADMIN_SECRET", "caucashub-admin-2026"):
+    if not admin_secret_matches(secret):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     from app.services.cities_seed import seed_cities
