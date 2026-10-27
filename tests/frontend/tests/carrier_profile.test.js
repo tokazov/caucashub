@@ -19,7 +19,7 @@ function app(path,profile={id:7,truck_type:'ref',tonnage:3.5}){
   fields[id]={value,style:{}};
  fields.regAgree={checked:true};fields.loginSuccess={style:{}};fields.regSuccess={style:{}};
  const saved={name:'Saved',truckType:'tent',tonnage:20};
- const context={user:null,currentUserId:null,lang:'ru',TRANSLATIONS:{ru:{}},API_BASE:'https://api.test',
+ const context={window:{},user:null,currentUserId:null,lang:'ru',TRANSLATIONS:{ru:{}},API_BASE:'https://api.test',
   document:{getElementById:id=>fields[id]||null,querySelector:()=>button},getToken:()=> 'token',setToken:()=>{},
   fetch:async()=>({ok:true,status:200,json:async()=>profile}),AbortSignal,
   CaucasAPI:{login:async()=>({ok:true,user_id:7,token:'token',role:'carrier'}),
