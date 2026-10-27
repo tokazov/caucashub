@@ -1428,6 +1428,7 @@ function doRespond(){
         document.getElementById('respondSuccess').style.display='block';btn.textContent='✅ Заявка отправлена';
       }
       addToOrders(serverResponseId,_d);
+      if(typeof refreshNotifications==='function')refreshNotifications();
       if(typeof renderLoads === 'function') renderLoads();
     }).catch(()=>{
       // Сетевая ошибка — не показываем "успех", честно сообщаем об ошибке
@@ -1521,7 +1522,7 @@ async function acceptResponse(loadId, respId){
     const dealLabel = _dNum ? (' ' + _dNum) : '';
     const msg = (T.deal_created_msg || '✅ Сделка создана') + dealLabel + '. ' + (T.deal_contacts_hint || 'Контакты перевозчика — в разделе «Сделки».');
     showToastWarn(msg.replace('⚠️ ', '✅ '));
-    pushNotif((T.deal_created_notif || '✅ Сделка') + dealLabel, (T.deal_contacts_hint || 'Контакты в разделе Сделки'), []);
+    if(typeof refreshNotifications==='function')refreshNotifications();
     // Auto-navigate to cabinet → Deals tab so carrier contacts are immediately visible
     if(typeof showSection === 'function') showSection('orders', null);
     if(typeof loadCabinetData === 'function') loadCabinetData();
@@ -1575,11 +1576,29 @@ async function cancelMyResponse(orderId, serverId){
   pushNotif('✅ Заявка отменена', 'Вы можете откликнуться на другой груз', []);
 }
 
-function rejectResponse(loadId, respId){
-  const resps = _loadResponses[loadId]||[];
-  const r = resps.find(x=>x.id===respId);
-  if(r) r.status='rejected';
-  _renderOrders();
+async function rejectResponse(loadId,respId){
+  const token=typeof getToken==='function'?getToken():null,owner=user;
+  if(!owner||!token)return;
+  const pending=rejectResponse.pending||(rejectResponse.pending=new Set()),key=token+':'+respId;
+  if(pending.has(key))return;
+  pending.add(key);
+  const current=()=>user===owner&&getToken()===token;
+  try{
+    const response=await fetch(API_BASE+'/api/responses/reject/'+respId,{
+      method:'POST',headers:{Authorization:'Bearer '+token}
+    });
+    const data=await response.json().catch(()=>null);
+    if(!current())return;
+    if(!response.ok||data?.ok!==true){
+      showToastWarn(typeof data?.detail==='string'?data.detail:(lang==='ge'?'გამოხმაურების უარყოფა ვერ მოხერხდა':'Не удалось отклонить отклик'));return;
+    }
+    const record=(_loadResponses[loadId]||[]).find(row=>row.id===respId);
+    if(record)record.status='rejected';
+    if(typeof renderCabLoads==='function')renderCabLoads();
+    else if(typeof _renderOrders==='function')_renderOrders();
+    if(typeof refreshNotifications==='function')refreshNotifications();
+  }catch(e){if(current())showToastWarn(lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');}
+  finally{pending.delete(key);}
 }
 
 function updateRespondCount(){
@@ -1960,6 +1979,8 @@ async function doLogin(){
   }
 
   user=userData;
+  if(typeof resetNotifications==='function')resetNotifications();
+  if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
   _lsSet('ch_user',JSON.stringify(user));
   document.getElementById('loginSuccess').style.display='block';
   setTimeout(()=>{
@@ -2053,6 +2074,8 @@ async function doRegister(){
   }
 
   user=userData;
+  if(typeof resetNotifications==='function')resetNotifications();
+  if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
   _lsSet('ch_user',JSON.stringify(user));
   document.getElementById('regSuccess').style.display='block';
   setTimeout(()=>{
@@ -2093,13 +2116,17 @@ function showUserState(){
   if(pb) pb.innerHTML=getPlanBadge();
   // показываем заказы
   document.getElementById('ordersEmpty').innerHTML='<div class="icon">📋</div><div style="font-size:18px;font-weight:700;color:#555;margin-bottom:8px">'+(TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_orders||'Нет активных заказов'+'</div><div style="font-size:14px">Откликайтесь на грузы — они появятся здесь</div>';
-  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='';
+  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='inline-flex';
+  if(typeof startNotificationPolling==='function')startNotificationPolling();
   const od=document.getElementById('onlineDot');if(od)od.style.display='inline-block';
 }
 function doLogout(){
+  if(typeof resetNotifications==='function')resetNotifications();
+  if(typeof _stopTelegramPolling==='function')_stopTelegramPolling();
   if(typeof setToken==='function') setToken(null);
   currentUserId=null;
   user=null;
+  const nb=document.getElementById('notifBtn');if(nb)nb.style.display='none';
   _lsDel('ch_user');
   const od2=document.getElementById('onlineDot');
   if(od2)od2.style.display='none';
@@ -2461,7 +2488,7 @@ async function dealAction(dealId, status){
       const idx = _deals.findIndex(x=>x.id===dealId);
       if(idx>-1) Object.assign(_deals[idx], d);
       _renderOrders();
-      pushNotif('✅ Статус обновлён', DEAL_STATUS[status]?.label || status, []);
+      if(typeof refreshNotifications==='function')refreshNotifications();
     }
   }catch(e){ alert('Ошибка: '+e.message); }
 }
@@ -2486,13 +2513,14 @@ async function confirmDelivery(dealId){
       const idx = _deals.findIndex(x=>x.id===dealId);
       if(idx>-1) _deals[idx] = Object.assign({}, _deals[idx], d);
       if(d.status==='completed'||d.status==='rated'){
-        pushNotif('🎉 ' + (_T.deal_completed||'Сделка завершена!'), _T.deal_completed_sub||'Акт выполненных работ доступен для скачивания', []);
+
         showToastWarn('🎉 ' + (_T.deal_completed||'Сделка завершена!'));
       } else {
-        pushNotif('✅ ' + (_T.deal_confirmed||'Подтверждено'), _T.deal_confirmed_sub||'Ожидаем подтверждения второй стороны', []);
+
         showToastWarn('✅ ' + (_T.deal_confirmed||'Подтверждено'));
       }
       if(typeof renderCabDeals==='function') renderCabDeals();
+      if(typeof refreshNotifications==='function')refreshNotifications();
       setTimeout(function(){
         if(!current()) return;
         fetch('https://api-production-f3ea.up.railway.app/api/deals/my', {headers:{'Authorization':'Bearer '+tk}})
@@ -4621,6 +4649,7 @@ function setLang(l, btn) {
   try { if(typeof renderCabLoads === 'function' && document.getElementById('myLoadsList')) renderCabLoads(); } catch(e) {}
   try { if(typeof renderCabResponses === 'function' && document.getElementById('myResponsesList')) renderCabResponses(); } catch(e) {}
   try { if(typeof renderCabDeals === 'function' && document.getElementById('myDealsList')) renderCabDeals(); } catch(e) {}
+  if(typeof renderNotifs==='function')renderNotifs();
   // Перерисовываем активную вкладку кабинета при смене языка
   try {
     var _tab = _currentCabTab || 'loads';
@@ -5501,44 +5530,227 @@ try {
 } catch(e){}
 const _STATUS={pending:{l:'⏳ Ожидание',c:'s-pending'},accepted:{l:'✅ Принят',c:'s-accepted'},transit:{l:'🚛 В пути',c:'s-transit'},done:{l:'✔️ Завершён',c:'s-done'},rated:{l:'⭐ Оценён',c:'s-rated'}};
 
-// XSS-4: global action registry — no fn-code in DOM attributes
-window._notifActions = window._notifActions || {};
+// ── AUTHENTICATED NOTIFICATIONS ─────────────────────────────
+let _notificationOwner=null, _notificationToken=null, _notificationUserId=null;
+let _notificationGeneration=0, _notificationTimer=null, _notificationPending=null;
+let _notificationServerUnread=0, _notificationReadRevision=0, _notificationLocalId=0;
+let _notificationReadQueue=Promise.resolve(), _notificationReads=new Map();
+window._notifActions=window._notifActions||{};
 
-// NOTIF-DEDUP: single pushNotif — delegates to renderNotifs (the surviving render function below)
-function pushNotif(title,body,actions){
-  const n={id:Date.now()+(Math.random()*99|0),title,body,actions:actions||[],unread:true,time:new Date(),read:false};
-  _notifs.unshift(n);
-  if(_notifs.length > 20) _notifs = _notifs.slice(0,20);
-  try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){}
-  renderNotifs(); // NOTIF-DEDUP: was _renderNotifs(), now unified
-  _updateBadge();
+function _notificationIdentity(){
+  const token=typeof getToken==='function'?getToken():null;
+  const id=Number(user?.userId??user?.id??currentUserId);
+  return user&&token&&Number.isSafeInteger(id)&&id>0?{owner:user,token,id}:null;
 }
-// _renderNotifs REMOVED — consolidated into renderNotifs() below (NOTIF-DEDUP 2)
-// XSS-4: single event delegate for notif action buttons
-document.addEventListener('click', function(e){
-  const btn = e.target.closest('.ni-actions button[data-action]');
-  if(!btn) return;
-  e.stopPropagation();
-  const actionId = btn.dataset.action;
-  const notifId = btn.dataset.notif;
-  const fn = window._notifActions[actionId];
-  if(typeof fn === 'function') fn(notifId);
-});
-function _markRead(id){const n=_notifs.find(x=>x.id===id);if(n){n.unread=false;n.read=true;}renderNotifs();_updateBadge();} // NOTIF-DEDUP
-function clearNotifs(){_notifs.forEach(n=>n.unread=false);renderNotifs();_updateBadge();} // NOTIF-DEDUP
-function _updateBadge(){
-  const c=_notifs.filter(n=>n.unread).length;
-  const b=document.getElementById('notifBadge');
-  if(b){b.textContent=c||'';b.classList.toggle('has',c>0);}
+function _notificationSnapshot(){
+  return{owner:_notificationOwner,token:_notificationToken,id:_notificationUserId,generation:_notificationGeneration};
+}
+function _notificationCurrent(snapshot){
+  const identity=_notificationIdentity();
+  return !!identity&&identity.owner===snapshot.owner&&identity.token===snapshot.token&&identity.id===snapshot.id&&
+    snapshot.generation===_notificationGeneration;
+}
+function resetNotifications(){
+  _notificationGeneration++;
+  if(_notificationTimer!==null) clearInterval(_notificationTimer);
+  _notificationTimer=null;_notificationPending=null;
+  _notificationOwner=null;_notificationToken=null;_notificationUserId=null;
+  _notificationServerUnread=0;_notificationReadRevision++;
+  _notificationReadQueue=Promise.resolve();_notificationReads=new Map();_notifs=[];
+  window._notifActions={};
+  const panel=document.getElementById('notifPanel');
+  if(panel){panel.classList.remove('open');panel.style.display='';}
+  renderNotifs();
+}
+function _ensureNotificationOwner(){
+  const identity=_notificationIdentity();
+  if(!identity){if(_notificationOwner||_notifs.length)resetNotifications();return null;}
+  if(identity.owner!==_notificationOwner||identity.token!==_notificationToken||identity.id!==_notificationUserId){
+    resetNotifications();
+    _notificationOwner=identity.owner;_notificationToken=identity.token;_notificationUserId=identity.id;
+  }
+  return _notificationSnapshot();
+}
+function startNotificationPolling(){
+  const snapshot=_ensureNotificationOwner();
+  if(!snapshot)return;
+  if(document.visibilityState==='hidden'){
+    if(_notificationTimer!==null)clearInterval(_notificationTimer);
+    _notificationTimer=null;return;
+  }
+  if(_notificationTimer===null)_notificationTimer=setInterval(()=>refreshNotifications(),30000);
+  refreshNotifications();
+}
+async function refreshNotifications(force=false){
+  const snapshot=_ensureNotificationOwner();
+  if(!snapshot||(!force&&document.visibilityState==='hidden'))return;
+  if(_notificationPending)return _notificationPending;
+  const revision=_notificationReadRevision;
+  const request=(async()=>{
+    try{
+      const response=await fetch(API_BASE+'/api/notifications?limit=50&offset=0',{
+        headers:{Authorization:'Bearer '+snapshot.token}
+      });
+      const payload=response.ok?await response.json():null;
+      if(!_notificationCurrent(snapshot)||revision!==_notificationReadRevision||!Array.isArray(payload?.notifications))return;
+      const records=new Map();
+      for(const row of payload.notifications){
+        if(!row||!Number.isSafeInteger(row.id)||row.id<=0)continue;
+        records.set('server:'+row.id,{id:row.id,key:'server:'+row.id,server:true,
+          type:typeof row.type==='string'?row.type:'',
+          created_at:typeof row.created_at==='string'?row.created_at:'',
+          read_at:typeof row.read_at==='string'?row.read_at:null,
+          data:row.data&&typeof row.data==='object'&&!Array.isArray(row.data)?row.data:{}});
+      }
+      const local=_notifs.filter(n=>!n.server);
+      _notifs=[...records.values(),...local].sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+      _notificationServerUnread=Number.isSafeInteger(payload.unread_count)&&payload.unread_count>=0?payload.unread_count:0;
+      renderNotifs();
+    }catch(e){}
+  })();
+  _notificationPending=request;
+  try{await request;}finally{if(_notificationPending===request)_notificationPending=null;}
+}
+function pushNotif(title,body,actions){
+  if(!_ensureNotificationOwner())return;
+  const key='local:'+Date.now()+':'+(++_notificationLocalId);
+  _notifs.unshift({id:key,key,server:false,title:String(title||''),body:String(body||''),actions:actions||[],
+    created_at:new Date().toISOString(),read_at:null});
+  const local=_notifs.filter(n=>!n.server).slice(0,20);
+  _notifs=[..._notifs.filter(n=>n.server),...local].sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0));
+  renderNotifs();
+}
+function _notificationText(notification){
+  if(!notification.server)return{title:notification.title,body:notification.body};
+  const labels=lang==='ge'?{
+    new_response:'ახალი გამოხმაურება ტვირთზე',new_transport_request:'ახალი მოთხოვნა ტრანსპორტზე',
+    deal_created:'გარიგება შეიქმნა',delivery_waiting:'დადასტურება გაგზავნილია',
+    delivery_confirmation_required:'დაადასტურეთ მიწოდება',deal_completed:'გარიგება დასრულებულია',
+    response_rejected:'გამოხმაურება უარყოფილია',transport_request_rejected:'ტრანსპორტის მოთხოვნა უარყოფილია'
+  }:{
+    new_response:'Новый отклик на груз',new_transport_request:'Новый запрос на транспорт',
+    deal_created:'Сделка создана',delivery_waiting:'Подтверждение отправлено',
+    delivery_confirmation_required:'Подтвердите доставку',deal_completed:'Сделка завершена',
+    response_rejected:'Отклик отклонён',transport_request_rejected:'Запрос на транспорт отклонён'
+  };
+  const data=notification.data;
+  const city=value=>typeof translateCity==='function'?translateCity(String(value||'')):String(value||'');
+  const route=data.from_city&&data.to_city?city(data.from_city)+' → '+city(data.to_city):'';
+  const parts=[route,data.deal_number?String(data.deal_number):'',data.actor_name?String(data.actor_name):''].filter(Boolean);
+  return{title:labels[notification.type]||(lang==='ge'?'შეტყობინება':'Уведомление'),body:parts.join(' · ')};
+}
+function _notificationTarget(notification){
+  if(!notification.server)return null;
+  if(notification.type==='new_response'&&notification.data.source==='cargo')return 'loads';
+  if(notification.type==='new_transport_request'&&notification.data.source==='transport')return 'transport-requests-in';
+  if(notification.type==='response_rejected'&&notification.data.source==='cargo')return 'responses';
+  if(notification.type==='transport_request_rejected'&&notification.data.source==='transport')return 'transport-requests-out';
+  if(['deal_created','delivery_waiting','delivery_confirmation_required','deal_completed'].includes(notification.type)&&
+    ['cargo','transport'].includes(notification.data.source)&&Number.isSafeInteger(notification.data.deal_id)&&notification.data.deal_id>0)return 'deals';
+  return null;
+}
+function renderNotifs(){
+  const list=document.getElementById('notifList');
+  const current=_notificationOwner&&_notificationCurrent(_notificationSnapshot());
+  const records=current?_notifs:[];
+  const unread=current?_notificationServerUnread+records.filter(n=>!n.server&&!n.read_at).length:0;
+  const badge=document.getElementById('notifBadge');
+  if(badge){badge.textContent=unread>9?'9+':(unread?String(unread):'');badge.classList.toggle('has',unread>0);}
+  if(!list)return;
+  if(!records.length){list.innerHTML='<div class="notif-empty">'+esc((TRANSLATIONS[lang]||TRANSLATIONS.ru).no_notifs||(lang==='ge'?'შეტყობინება არ არის':'Уведомлений нет'))+'</div>';return;}
+  list.innerHTML=records.slice(0,10).map(n=>{
+    const text=_notificationText(n);
+    const date=new Date(n.created_at);
+    const time=Number.isFinite(date.getTime())?date.toLocaleString(lang==='ge'?'ka-GE':'ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    return '<div class="notif-item'+(!n.read_at?' unread':'')+'" data-notification-key="'+esc(n.key)+'" data-notification-type="'+esc(n.type||'local')+'">'
+      +'<div style="font-weight:600;font-size:13px">'+esc(text.title)+'</div>'
+      +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(text.body)+'</div>'
+      +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+esc(time)+'</div>'
+      +(n.actions?.length?'<div class="ni-actions" style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button data-action="'+esc(a.actionId||'')+'" data-notif="'+esc(n.key)+'" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+esc(a.label||a.l||'')+'</button>').join('')+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+function _updateBadge(){renderNotifs();}
+function _notificationRead(key,all=false){
+  const snapshot=_ensureNotificationOwner();
+  if(!snapshot)return Promise.resolve(false);
+  const record=all?null:_notifs.find(n=>n.key===key||n.id===key);
+  if(!all&&!record)return Promise.resolve(false);
+  if(record&&!record.server){record.read_at=new Date().toISOString();renderNotifs();return Promise.resolve(true);}
+  if(record?.read_at)return Promise.resolve(true);
+  const pendingKey=all?'all':record.key;
+  if(_notificationReads.has(pendingKey))return _notificationReads.get(pendingKey);
+  const task=_notificationReadQueue.then(async()=>{
+    if(!_notificationCurrent(snapshot))return false;
+    _notificationReadRevision++;_notificationPending=null;
+    try{
+      const endpoint=all?'/api/notifications/read-all':'/api/notifications/'+record.id+'/read';
+      const response=await fetch(API_BASE+endpoint,{method:'POST',headers:{Authorization:'Bearer '+snapshot.token}});
+      const payload=response.ok?await response.json():null;
+      if(!_notificationCurrent(snapshot))return false;
+      if(!payload?.ok||typeof payload.read_at!=='string'||(!all&&payload.id!==record.id)){
+        showToastWarn(lang==='ge'?'შეტყობინების წაკითხვის შენახვა ვერ მოხერხდა':'Не удалось отметить уведомление прочитанным');return false;
+      }
+      if(all){
+        const readTime=Date.parse(payload.read_at);
+        for(const row of _notifs)if(!row.server||((Date.parse(row.created_at)||0)<=readTime))row.read_at=payload.read_at;
+      } else {
+        const existing=_notifs.find(n=>n.key===record.key);if(existing)existing.read_at=payload.read_at;
+      }
+      _notificationServerUnread=Number.isSafeInteger(payload.unread_count)&&payload.unread_count>=0?payload.unread_count:_notificationServerUnread;
+      renderNotifs();return true;
+    }catch(e){
+      if(_notificationCurrent(snapshot))showToastWarn(lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');
+      return false;
+    }finally{
+      if(_notificationCurrent(snapshot))_notificationReadRevision++;
+    }
+  });
+  _notificationReadQueue=task.catch(()=>false);
+  _notificationReads.set(pendingKey,task);
+  task.finally(()=>{if(_notificationCurrent(snapshot)&&_notificationReads.get(pendingKey)===task)_notificationReads.delete(pendingKey);});
+  return task;
+}
+function markRead(id){return _notificationRead(id);}
+function _markRead(id){return markRead(id);}
+function clearNotifs(){return _notificationRead(null,true);}
+async function openNotification(key){
+  const snapshot=_ensureNotificationOwner();
+  const record=_notifs.find(n=>n.key===key);
+  if(!snapshot||!record)return;
+  const target=_notificationTarget(record);
+  await markRead(key);
+  if(!_notificationCurrent(snapshot)||!target)return;
+  const panel=document.getElementById('notifPanel');if(panel)panel.classList.remove('open');
+  if(typeof showSection==='function')showSection('orders',null);
+  if(typeof switchCabTab==='function'){
+    const button=document.querySelector('.cab-tab[onclick*="switchCabTab(\''+target+'\'"]');
+    switchCabTab(target,button||null);
+  }
 }
 function toggleNotifs(){
-  const p=document.getElementById('notifPanel');
-  if(p){p.classList.toggle('open');if(p.classList.contains('open'))clearNotifs();}
+  const panel=document.getElementById('notifPanel');
+  if(!panel)return;
+  if(!_ensureNotificationOwner()){panel.classList.remove('open');return;}
+  panel.style.display='';panel.classList.toggle('open');
+  if(panel.classList.contains('open'))refreshNotifications(true);
 }
-document.addEventListener('click',function(e){
-  const p=document.getElementById('notifPanel'),b=document.getElementById('notifBtn');
-  if(p&&b&&!p.contains(e.target)&&!b.contains(e.target))p.classList.remove('open');
+function toggleNotifPanel(){toggleNotifs();}
+document.addEventListener('click',function(event){
+  const action=event.target.closest('.ni-actions button[data-action]');
+  if(action){event.stopPropagation();const fn=window._notifActions[action.dataset.action];if(typeof fn==='function')fn(action.dataset.notif);return;}
+  const item=event.target.closest('[data-notification-key]');
+  if(item){openNotification(item.dataset.notificationKey);return;}
+  const panel=document.getElementById('notifPanel'),button=document.getElementById('notifBtn');
+  if(panel&&button&&!panel.contains(event.target)&&!button.contains(event.target))panel.classList.remove('open');
 });
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){
+    if(_notificationTimer!==null)clearInterval(_notificationTimer);_notificationTimer=null;
+  }else if(_notificationIdentity())startNotificationPolling();
+});
+setTimeout(renderNotifs,100);
+// ── END AUTHENTICATED NOTIFICATIONS ─────────────────────────
 
 // Статусы заявок
 function _renderOrders(){
@@ -5922,42 +6134,6 @@ async function exportDealsData(fmt){
 
 // Восстановление вкладки теперь в api.js → syncLoadsFromServer finally блок
 
-// ═══ УВЕДОМЛЕНИЯ ═══
-// _notifs already declared above
-try { _notifs = JSON.parse(localStorage.getItem('ch_notifs')||'[]'); } catch(e){}
-
-// NOTIF-DEDUP: duplicate pushNotif removed — see single pushNotif above (~line 4061)
-
-function renderNotifs(){
-  const list = document.getElementById('notifList');
-  const count = document.getElementById('bellCount');
-  if(!list) return;
-  const unread = _notifs.filter(n=>!n.read).length;
-  if(count){ count.style.display = unread ? 'block' : 'none'; count.textContent = unread > 9 ? '9+' : unread; }
-  if(!_notifs.length){ list.innerHTML='<div style="text-align:center;padding:20px;color:#aaa;font-size:13px">Уведомлений нет</div>'; return; }
-  list.innerHTML = _notifs.slice(0,10).map(n=>
-    '<div style="padding:12px 16px;border-bottom:1px solid #f9f9f9;cursor:pointer" onclick="markRead('+n.id+')">'
-    +'<div style="font-weight:600;font-size:13px">'+esc(n.title)+'</div>'
-    +'<div style="font-size:12px;color:#888;margin-top:2px">'+esc(n.body)+'</div>'
-    +'<div style="font-size:11px;color:#bbb;margin-top:4px">'+n.time+'</div>'
-    // XSS-4: use data-action instead of inline fn code
-    +(n.actions&&n.actions.length?'<div style="display:flex;gap:6px;margin-top:6px">'+n.actions.map(a=>'<button data-action="'+esc(a.actionId||'')+'\" data-notif="'+esc(String(n.id))+'" style="background:#f7b731;color:#1a1a2e;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">'+esc(a.label||'')+'</button>').join('')+'</div>':'')
-    +'</div>'
-  ).join('');
-}
-
-function markRead(id){ _notifs.forEach(n=>{ if(n.id===id) n.read=true; }); try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){} renderNotifs(); }
-function clearNotifs(){ _notifs=[]; try{localStorage.removeItem('ch_notifs');}catch(e){} renderNotifs(); document.getElementById('notifPanel').style.display='none'; }
-function toggleNotifPanel(){ 
-  const p=document.getElementById('notifPanel'); 
-  p.style.display=p.style.display==='none'?'block':'none';
-  if(p.style.display==='block'){ _notifs.forEach(n=>n.read=true); try{localStorage.setItem('ch_notifs',JSON.stringify(_notifs));}catch(e){} renderNotifs(); }
-}
-// Закрытие при клике вне панели
-document.addEventListener('click', function(e){ const p=document.getElementById('notifPanel'); const b=document.getElementById('bellBtn'); if(p&&b&&!p.contains(e.target)&&!b.contains(e.target)) p.style.display='none'; });
-// Инициализация
-setTimeout(renderNotifs, 100);
-
 // ═══ ЯНДЕКС КАРТА В МОДАЛЕ ═══
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
@@ -6137,66 +6313,90 @@ window.confirmDelivery = confirmDelivery;
 window.exportDealsData = typeof exportDealsData !== 'undefined' ? exportDealsData : function(){};
 
 // ── TELEGRAM CONNECT ──────────────────────────────────
-async function connectTelegram(){
-  const btn = document.getElementById('tgConnectBtn');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Генерируем ссылку...'; }
-  try {
-    const resp = await apiFetch('/api/tg/generate-link', {method:'POST'});
-    if(resp && resp.link){
-      window.open(resp.link, '_blank');
-      if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
-      // Запускаем проверку статуса каждые 3 сек (до 60 сек)
-      let attempts = 0;
-      const check = setInterval(async () => {
-        attempts++;
-        const st = await apiFetch('/api/tg/status');
-        if(st && st.linked){
-          clearInterval(check);
-          _renderTgStatus(true);
-          pushNotif('✅ Telegram подключён', 'Теперь вы получаете уведомления в Telegram', []);
-        }
-        if(attempts > 20) clearInterval(check);
-      }, 3000);
-    } else {
-      if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
-      showToastWarn('❌ Ошибка. Попробуйте ещё раз.');
-    }
-  } catch(e) {
-    if(btn){ btn.disabled=false; btn.textContent='📲 Подключить Telegram'; }
-  }
-}
-
-async function unlinkTelegram(){
-  if(!confirm('Отключить Telegram-уведомления?')) return;
-  await apiFetch('/api/tg/unlink', {method:'DELETE'});
-  _renderTgStatus(false);
-  pushNotif('ℹ️ Telegram отключён', 'Уведомления в Telegram отключены', []);
-}
-
-function _renderTgStatus(linked){
-  const btn = document.getElementById('tgConnectBtn');
-  const linked_block = document.getElementById('tgLinkedBlock');
-  if(!btn || !linked_block) return;
-  if(linked){
-    btn.style.display = 'none';
-    linked_block.style.display = 'flex';
-  } else {
-    btn.style.display = 'block';
-    linked_block.style.display = 'none';
-  }
-}
-
-async function _initTgStatus(){
+let _telegramPoll=null, _telegramRevision=0, _telegramConnecting=null;
+function _telegramSession(){
   const token=typeof getToken==='function'?getToken():null;
-  if(!token) return;
-  try {
-    const st = await apiFetch('/api/tg/status');
-    if(st) _renderTgStatus(st.linked);
-  } catch(e){}
+  return user&&token?{owner:user,token,revision:_telegramRevision}:null;
 }
-
-window.connectTelegram = connectTelegram;
-window.unlinkTelegram = unlinkTelegram;
+function _telegramCurrent(session){
+  return !!session&&user===session.owner&&getToken()===session.token&&_telegramRevision===session.revision;
+}
+function _clearTelegramPoll(){if(_telegramPoll!==null)clearInterval(_telegramPoll);_telegramPoll=null;}
+function _stopTelegramPolling(){
+  _telegramRevision++;_clearTelegramPoll();_telegramConnecting=null;
+  const button=document.getElementById('tgConnectBtn');
+  if(button){button.disabled=false;button.textContent=lang==='ge'?'📲 Telegram-ის დაკავშირება':'📲 Подключить Telegram';}
+}
+async function _telegramRequest(route,method,session){
+  if(!_telegramCurrent(session))return null;
+  const response=await fetch(API_BASE+route,{method,headers:{Authorization:'Bearer '+session.token}});
+  const payload=response.ok?await response.json():null;
+  return _telegramCurrent(session)?payload:null;
+}
+async function connectTelegram(){
+  if(_telegramConnecting&&_telegramCurrent(_telegramConnecting))return;
+  if(!_telegramSession())return;
+  _stopTelegramPolling();
+  const session=_telegramSession(),button=document.getElementById('tgConnectBtn');
+  _telegramConnecting=session;
+  if(button){button.disabled=true;button.textContent=lang==='ge'?'⏳ ბმულის შექმნა...':'⏳ Генерируем ссылку...';}
+  try{
+    const payload=await _telegramRequest('/api/tg/generate-link','POST',session);
+    if(!_telegramCurrent(session))return;
+    let link=null;
+    try{
+      const parsed=new URL(payload?.link);
+      if(parsed.protocol==='https:'&&parsed.hostname==='t.me'&&!parsed.username&&!parsed.password&&/^\/[A-Za-z0-9_]+$/.test(parsed.pathname)&&parsed.searchParams.get('start'))link=parsed.href;
+    }catch(e){}
+    if(!link){showToastWarn(lang==='ge'?'ბმულის შექმნა ვერ მოხერხდა':'Не удалось создать ссылку Telegram');return;}
+    window.open(link,'_blank');
+    let attempts=0,checking=false;
+    _telegramPoll=setInterval(async()=>{
+      if(!_telegramCurrent(session)||++attempts>20){_stopTelegramPolling();return;}
+      if(checking)return;
+      checking=true;
+      try{
+        const status=await _telegramRequest('/api/tg/status','GET',session);
+        if(_telegramCurrent(session)&&status?.linked===true){
+          _clearTelegramPoll();_renderTgStatus(true);
+          pushNotif(lang==='ge'?'✅ Telegram დაკავშირებულია':'✅ Telegram подключён',
+            lang==='ge'?'შეტყობინებებს მიიღებთ Telegram-ში':'Теперь вы получаете уведомления в Telegram',[]);
+        }
+      }catch(e){}finally{checking=false;}
+    },3000);
+  }catch(e){
+    if(_telegramCurrent(session))showToastWarn(lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');
+  }finally{
+    if(_telegramConnecting===session)_telegramConnecting=null;
+    if(_telegramCurrent(session)&&button){button.disabled=false;button.textContent=lang==='ge'?'📲 Telegram-ის დაკავშირება':'📲 Подключить Telegram';}
+  }
+}
+async function unlinkTelegram(){
+  if(!_telegramSession()||!confirm(lang==='ge'?'გამორთოთ Telegram შეტყობინებები?':'Отключить Telegram-уведомления?'))return;
+  _stopTelegramPolling();const session=_telegramSession();
+  try{
+    const payload=await _telegramRequest('/api/tg/unlink','DELETE',session);
+    if(!_telegramCurrent(session))return;
+    if(payload?.ok!==true){showToastWarn(lang==='ge'?'Telegram-ის გათიშვა ვერ მოხერხდა':'Не удалось отключить Telegram');return;}
+    _renderTgStatus(false);
+    pushNotif(lang==='ge'?'ℹ️ Telegram გამორთულია':'ℹ️ Telegram отключён',
+      lang==='ge'?'Telegram შეტყობინებები გამორთულია':'Уведомления в Telegram отключены',[]);
+  }catch(e){if(_telegramCurrent(session))showToastWarn(lang==='ge'?'კავშირის შეცდომა':'Ошибка соединения');}
+}
+function _renderTgStatus(linked){
+  const button=document.getElementById('tgConnectBtn'),block=document.getElementById('tgLinkedBlock');
+  if(!button||!block)return;
+  button.style.display=linked?'none':'block';block.style.display=linked?'flex':'none';
+}
+async function _initTgStatus(){
+  const session=_telegramSession();if(!session)return;
+  try{
+    const status=await _telegramRequest('/api/tg/status','GET',session);
+    if(_telegramCurrent(session)&&typeof status?.linked==='boolean')_renderTgStatus(status.linked);
+  }catch(e){}
+}
+window.connectTelegram=connectTelegram;
+window.unlinkTelegram=unlinkTelegram;
 
 // Язык восстанавливается раньше — см. блок перед syncLoadsFromServer
 
@@ -6928,7 +7128,8 @@ window.submitTransportRequest = async function() {
     var d = await r.json();
     if(r.ok && d.ok && d.request?.id) {
       closeModal('transportRequestOverlay');
-      pushNotif('✅ Отклик отправлен', 'Перевозчик рассмотрит ваш запрос', []);
+      showToastWarn(lang==='ge'?'გამოხმაურება გაგზავნილია':'✅ Отклик отправлен');
+      if(typeof refreshNotifications==='function')refreshNotifications();
     } else {
       if(errEl){ errEl.textContent = typeof d.detail==='string'?d.detail:((TRANSLATIONS[lang]||TRANSLATIONS.ru).err_transport_request||'Не удалось отправить запрос'); errEl.style.display = 'block'; }
     }
@@ -7165,7 +7366,8 @@ window.acceptTransportReq = async function(reqId) {
     var d = await r.json();
     if(r.ok) {
       await loadIncomingTransportRequests();
-      pushNotif('✅ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_req_status_accepted||'Принято') + '!', ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).deal_created_hint||'Сделка #') + d.act_number + ' создана. Перейдите в «Сделки»', []);
+      showToastWarn(lang==='ge'?'გარიგება შეიქმნა. გახსენით «გარიგებები».':'✅ Сделка создана. Откройте «Сделки».');
+      if(typeof refreshNotifications==='function')refreshNotifications();
     }
   } catch(e) {}
 };
@@ -7177,6 +7379,7 @@ window.rejectTransportReq = async function(reqId) {
   try {
     await fetch(API_BASE + '/api/transport-requests/' + reqId + '/reject', {method:'POST', headers:{'Authorization':'Bearer '+tk}});
     await loadIncomingTransportRequests();
+    if(typeof refreshNotifications==='function')refreshNotifications();
   } catch(e) {}
 };
 
