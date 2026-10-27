@@ -8,7 +8,59 @@
   var _aiLoading = false;
   var _chatHistory = []; // {role, text}
   var _aiState = {}; // state от бэкенда (роль, маршрут, etc)
+  var _request = null, _generation = 0, _draft = null, _pendingDraft = null;
   var _welcomeShown = false; // флаг чтобы приветствие показывалось только 1 раз
+
+  // ── текущий язык ──────────────────────────────────
+  function _getLang(){ return typeof lang !== 'undefined' && lang === 'ge' ? 'ge' : 'ru'; }
+  function _account(){ return typeof getToken === 'function' ? getToken() : null; }
+  function _user(){ return typeof user !== 'undefined' ? user : null; }
+
+  // ── тексты по языкам ──────────────────────────────
+  var _i18n = {
+    ru: {
+      welcome: 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!',
+      placeholder: 'Напишите о грузе...',
+      loading: '⏳ Думаю...',
+      error: 'Ошибка связи. Попробуйте позже.',
+      name: 'Мари — AI Диспетчер',
+      status: 'Помощь с перевозками', view: 'Посмотреть →', draft: 'Проверить черновик →', kg: 'кг', tooLong: 'Сократите сообщение до 2000 символов.'
+    },
+    ge: {
+      welcome: 'გამარჯობა! მე ვარ მარი — თქვენი AI დისპეჩერი 🚛\n\nდაგეხმარებით ტვირთის პოვნაში, მანქანის შერჩევაში ან გადაზიდვასთან დაკავშირებულ ნებისმიერ კითხვაზე. დაწერეთ რა გჭირდებათ!',
+      placeholder: 'დაწერეთ ტვირთის შესახებ...',
+      loading: '⏳ ვფიქრობ...',
+      error: 'კავშირის შეცდომა. სცადეთ მოგვიანებით.',
+      name: 'მარი — AI დისპეჩერი',
+      status: 'გადაზიდვაში დახმარება', view: 'ნახვა →', draft: 'მონახაზის შემოწმება →', kg: 'კგ', tooLong: 'შეამცირეთ შეტყობინება 2000 სიმბოლომდე.'
+    },
+    en: {
+      welcome: 'Hi! I\'m Mari — your AI dispatcher 🚛\n\nI can help you find cargo, match a truck, or answer any shipping questions. What do you need?',
+      placeholder: 'Describe your cargo...',
+      loading: '⏳ Thinking...',
+      error: 'Connection error. Please try again later.',
+      name: 'Mari — AI Dispatcher',
+      status: '● Online 24/7'
+    }
+  };
+
+  function _t(key){ var l=_getLang(); return (_i18n[l]||_i18n['ru'])[key]; }
+
+  // Обновляем шапку чата и placeholder при смене языка
+  function _updateChatLang(){
+    var labels = _getLang()==='ge' ? {from:'საიდან',to:'სად',desc:'ტვირთი',weight:'წონა / ტევადობა',date:'თარიღი',truck:'ძარა',price:'ფასი',pay:'გადახდა'}
+      : {from:'Откуда',to:'Куда',desc:'Груз',weight:'Вес / вместимость',date:'Дата',truck:'Кузов',price:'Ставка',pay:'Оплата'};
+    var keys=['from','to','desc','weight','date','truck','price','pay'];
+    document.querySelectorAll('#aiTemplate .ai-field-label').forEach(function(el,index){el.textContent=labels[keys[index]]||'';});
+    var title=document.querySelector('.ai-template-title');
+    if(title) title.textContent=_getLang()==='ge'?'📋 განცხადების მონახაზი':'📋 Черновик объявления';
+    var nameEl = document.querySelector('.ai-name');
+    var statusEl = document.querySelector('.ai-status');
+    var inp = document.getElementById('aiInput');
+    if(nameEl) nameEl.textContent = _t('name');
+    if(statusEl) statusEl.textContent = _t('status');
+    if(inp) inp.placeholder = _t('placeholder');
+  }
 
   // ── toggle чата ───────────────────────────────────
   window.toggleAI = function(){
@@ -40,9 +92,10 @@
     }
     if(_aiOpen){
       // Показываем приветствие только один раз
+      _updateChatLang();
       if(_chatHistory.length === 0 && !_welcomeShown){
         _welcomeShown = true;
-        var welcome = 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!';
+        var welcome = _t('welcome');
         _appendMsg('ai', welcome);
         _chatHistory.push({role:'ai', text: welcome});
       }
@@ -54,72 +107,52 @@
   };
 
   // ── отправка сообщения ────────────────────────────
-  window.aiSend = function(){
+  window.aiSend = async function(){
     if(_aiLoading) return;
     var inp = document.getElementById('aiInput');
-    if(!inp) return;
-    var text = (inp.value || '').trim();
+    var text = inp && (inp.value || '').trim();
     if(!text) return;
-    inp.value = '';
-    inp.style.height = 'auto';
-
+    if(text.length > 2000){ _appendMsg('ai', _t('tooLong')); return; }
+    var history = _chatHistory.slice(-8).map(function(m){
+      return {role:m.role === 'user' ? 'user' : 'assistant', text:m.text};
+    });
+    var account = _account(), language = _getLang(), generation = _generation;
+    var requestScope = typeof scope !== 'undefined' && scope === 'intl' ? 'intl' : 'local';
+    var owner = _user(), controller = new AbortController();
+    _request = controller;
+    var current = function(){ return generation === _generation && account === _account() && language === _getLang(); };
+    inp.value = ''; inp.style.height = 'auto';
     _appendMsg('user', text);
     _chatHistory.push({role:'user', text:text});
     _setLoading(true);
-
-    // Контекст: текущие грузы на экране
-    var loadsCtx = '';
+    var timeout = setTimeout(function(){ controller.abort(); }, 25000);
     try {
-      var visible = (window.LOCAL || []).slice(0,5).map(function(l){
-        return (l.from||'?') + ' → ' + (l.to||'?') + ', ' + (l.kg||0) + 'кг, ' + (l.cur||'₾') + (l.price||0);
+      var response = await fetch(API + '/api/ai/dispatcher', {
+        method:'POST', headers:{'Content-Type':'application/json'}, signal:controller.signal,
+        body:JSON.stringify({message:text, history:history, state:_aiState,
+          user_role:owner && owner.role || null, lang:language, scope:requestScope})
       });
-      if(visible.length) loadsCtx = 'Грузы на экране: ' + visible.join('; ');
-    } catch(e){}
-
-    var payload = {
-      message: text,
-      session_id: _sessionId,
-      context: loadsCtx || undefined,
-      history: _chatHistory.slice(-8).map(function(m){ return {role: m.role==='user'?'user':'assistant', text: m.text}; }),
-      state: _aiState || {}
-    };
-
-    fetch(API + '/api/ai/dispatcher', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      _setLoading(false);
-      var reply = d.reply || 'Не смог обработать запрос, попробуйте ещё раз.';
-      _appendMsg('ai', reply);
-      _chatHistory.push({role:'ai', text:reply});
-      // Сохраняем state для следующего запроса
-      if(d.state) _aiState = d.state;
-
-      // Если диспетчер нашёл фильтры — применяем поиск
-      if(d.search_filters && typeof window.applyAIFilters === 'function'){
-        window.applyAIFilters(d.search_filters);
+      var data = await response.json();
+      if(!current()) return;
+      if(!response.ok || !data || typeof data.reply !== 'string' || !data.reply.trim()) throw new Error('Mari unavailable');
+      _appendMsg('ai', data.reply);
+      _chatHistory.push({role:'ai', text:data.reply});
+      _chatHistory = _chatHistory.slice(-12);
+      _aiState = data.state && typeof data.state === 'object' ? data.state : {};
+      _showDraft(data.draft);
+      _showLoadsInChat(Array.isArray(data.loads) ? data.loads : []);
+      _showLoadsInChat(Array.isArray(data.offers) ? data.offers : [], true);
+    } catch(error) {
+      if(current()){
+        _appendMsg('ai', _t('error'));
+        if(!inp.value) inp.value = text;
+        // A retry must not send the unsuccessful message twice in the history.
+        if(_chatHistory[_chatHistory.length-1]?.role === 'user') _chatHistory.pop();
       }
-
-      // Если диспетчер нашёл грузы — показываем их
-      if(d.loads && d.loads.length > 0){
-        _showLoadsInChat(d.loads);
-      }
-    })
-    .catch(function(){
-      _setLoading(false);
-      // Офлайн fallback — простой локальный ответ
-      var fallback = 'Нет связи с сервером. ';
-      var lower = text.toLowerCase();
-      if(lower.includes('батуми') || lower.includes('тбилис') || lower.includes('кутаис') || lower.includes('боржом')){
-        fallback += 'Попробуйте поискать груз через фильтры выше 👆';
-      } else {
-        fallback += 'Попробуйте позже или используйте поиск выше.';
-      }
-      _appendMsg('ai', fallback);
-    });
+    } finally {
+      clearTimeout(timeout);
+      if(current()){ _request = null; _setLoading(false); }
+    }
   };
 
   // ── вспомогательные функции ───────────────────────
@@ -137,7 +170,7 @@
         ? 'background:#f7b731;color:#1a1a2e;font-weight:700;'
         : 'background:transparent;overflow:hidden;');
     if(role === 'user'){
-      var u = window.user;
+      var u = _user();
       avatar.textContent = (u && u.name) ? u.name[0].toUpperCase() : 'Я';
     } else {
       var img = document.createElement('img');
@@ -163,27 +196,75 @@
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  function _showLoadsInChat(loads){
+  function _city(value){
+    if(typeof translateCity==='function') return translateCity(String(value || '—'));
+    return value || '—';
+  }
+  function _truck(value){
+    var keys={tent:'truck_tent',ref:'truck_ref_full',reftent:'truck_reftent',megatent:'truck_megatent',bort:'truck_bort_full',
+      termos:'truck_termos_full',gazel:'truck_gazel_full',container:'truck_container_full',auto:'truck_auto_full',
+      evacuator:'truck_evac',cistern:'truck_cistern',grain:'truck_grain',dump:'truck_dump',other:'truck_other'};
+    var translations=typeof TRANSLATIONS!=='undefined' ? (TRANSLATIONS[_getLang()] || TRANSLATIONS.ru) : {};
+    return translations[keys[value]] || '—';
+  }
+
+  function _showDraft(draft){
+    _draft = draft && ['post_load','post_transport'].includes(draft.intent) ? draft : null;
+    var template = document.getElementById('aiTemplate'), button = document.getElementById('aiPostBtn');
+    if(template) template.style.display = _draft ? 'block' : 'none';
+    if(button){ button.style.display = _draft ? 'block' : 'none'; button.textContent = _t('draft'); }
+    if(!_draft) return;
+    var fields = {aiTFrom:_city(draft.from), aiTTo:_city(draft.to), tDesc:draft.cargo_desc,
+      tWeight:(draft.capacity_kg || draft.weight_cap) ? (draft.capacity_kg || draft.weight_cap)+' '+_t('kg') : null,
+      aiTDate:draft.date, tTruck:_truck(draft.truck), tPrice:draft.price ? draft.price+' '+draft.currency : null, tPay:null};
+    Object.keys(fields).forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent=fields[id] || '—'; });
+  }
+
+  function _showLoadsInChat(loads, transport){
     var msgs = document.getElementById('aiMessages');
     if(!msgs) return;
-
-    var div = document.createElement('div');
-    div.style.cssText = 'margin-bottom:12px;';
-    var inner = loads.map(function(l){
-      var price = l.price ? (l.cur||'₾') + l.price.toLocaleString() : '—';
-      return '<div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px;">' +
-        '<div style="font-weight:700;font-size:14px;color:#1a1a2e;">' + (l.from||'?') + ' → ' + (l.to||'?') + '</div>' +
-        '<div style="font-size:12px;color:#888;margin-top:3px;">' + (l.kg||0).toLocaleString() + ' кг · ' + price + (l.company && l.company!=='—' ? ' · '+l.company : '') + '</div>' +
-        '<button onclick="closeAI()" style="margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">Посмотреть и откликнуться →</button>' +
-        '</div>';
-    }).join('');
-    div.innerHTML = inner;
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
+    loads.slice(0,5).forEach(function(record){
+      if(!record || !Number.isSafeInteger(record.id) || record.id <= 0) return;
+      var card=document.createElement('div'), route=document.createElement('div'), detail=document.createElement('div'), button=document.createElement('button');
+      card.className='ai-result-card';
+      card.style.cssText='background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:8px';
+      route.style.cssText='font-weight:700;font-size:14px;color:#1a1a2e';
+      // Listing text is untrusted. Never interpolate it into HTML or handlers.
+      route.textContent=_city(record.from)+' → '+_city(record.to);
+      detail.textContent=(Number(record.kg)||0).toLocaleString()+' '+_t('kg')+' · '+(record.price == null ? '—' : (record.cur || '')+Number(record.price).toLocaleString());
+      button.textContent=_t('view');
+      button.style.cssText='margin-top:8px;width:100%;background:#f7b731;color:#1a1a2e;border:none;padding:7px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer';
+      button.onclick=async function(){
+        if(button.disabled) return;
+        var account=_account(), generation=_generation;
+        button.disabled=true;
+        try {
+          var response=await fetch(API+'/api/ai/listing/'+(transport?'transport/':'load/')+record.id, {signal:AbortSignal.timeout(10000)});
+          var data=await response.json();
+          if(account!==_account() || generation!==_generation) return;
+          if(!response.ok || !data || data.id!==record.id || data.error) throw new Error('Listing unavailable');
+          if(transport){
+            if(data.status!=='active' || data.dates_expired) throw new Error('Listing unavailable');
+            if(typeof _transportOffers!=='undefined'){
+              _transportOffers=_transportOffers.filter(function(o){return o.id!==data.id;});_transportOffers.push(data);
+            }
+            window.closeAI();
+            if(typeof openTransportRequest==='function') openTransportRequest(data.id);
+          }else{
+            window.closeAI();
+            if(typeof openCargo==='function' && typeof mapServerLoad==='function') openCargo(mapServerLoad(data));
+          }
+        }catch(error){ if(account===_account() && generation===_generation) _appendMsg('ai',_t('error')); }
+        finally{button.disabled=false;}
+      };
+      card.appendChild(route);card.appendChild(detail);card.appendChild(button);msgs.appendChild(card);
+    });
+    msgs.scrollTop=msgs.scrollHeight;
   }
 
   function _setLoading(on){
     _aiLoading = on;
+    var status=document.querySelector('.ai-status'); if(status) status.textContent=on?_t('loading'):_t('status');
     var btn = document.querySelector('.ai-send');
     var inp = document.getElementById('aiInput');
     var loader = document.getElementById('aiLoader');
@@ -218,28 +299,91 @@
 
   // ── aiReset ───────────────────────────────────────
   window.aiReset = function(){
+    _generation++;
+    if(_request) _request.abort();
+    _request=null; _draft=null; _pendingDraft=null;
+    _setLoading(false);
     _chatHistory = [];
     _aiState = {};
     _welcomeShown = false;
     _sessionId = 'sess_' + Math.random().toString(36).slice(2);
+    _updateChatLang();
     var msgs = document.getElementById('aiMessages');
     if(msgs) msgs.innerHTML = '';
     var tpl = document.getElementById('aiTemplate');
     if(tpl) tpl.style.display = 'none';
     var btn = document.getElementById('aiPostBtn');
     if(btn) btn.style.display = 'none';
-    _appendMsg('ai', 'Привет! Я Мари — ваш AI диспетчер 🚛\n\nМогу помочь найти груз, подобрать машину или ответить на вопросы по перевозкам. Напишите что нужно!');
+    var _w = _t('welcome');
+    _appendMsg('ai', _w);
+    _chatHistory.push({role:'ai', text: _w});
+    _welcomeShown = true;
   };
 
-  // ── aiPostLoad ────────────────────────────────────
-  window.aiPostLoad = function(){
-    if(typeof openPostLoad === 'function'){
+  // A guest draft stays in memory only after an explicit request to open its form.
+  window.resetAISession = function(clearGuestDraft){
+    var pending = !clearGuestDraft && !_user() ? _pendingDraft : null;
+    window.aiReset(); _pendingDraft=pending;
+  };
+  function _fill(id, value){ var el=document.getElementById(id); if(el) el.value=value == null ? '' : String(value); }
+  function _openDraft(draft){
+    if(draft.intent==='post_transport'){
+      if(typeof openPostTransportOffer!=='function') return;
+      openPostTransportOffer();
+      _fill('ptFrom',draft.from);_fill('ptTo',draft.to);
+      var types={bort:'open',auto:'autovoz',evacuator:'lowboy'};
+      var typeSelect=document.getElementById('ptTruckType');
+      var supported=typeSelect && Array.from(typeSelect.options).some(function(option){return option.value===draft.truck;});
+      _fill('ptTruckType',supported?draft.truck:(types[draft.truck]||draft.truck));
+      _fill('ptCapacity',draft.capacity_kg||draft.weight_cap);_fill('ptDateFrom',draft.date);
+      _fill('ptDateTo',draft.date_end);_fill('ptPrice',draft.currency==='USD'?null:draft.price);_fill('ptNotes',draft.cargo_desc);
+    }else{
+      if(typeof openPostLoad!=='function') return;
+      if(typeof setScope==='function' && typeof scope!=='undefined' && draft.scope!==scope){
+        setScope(draft.scope,document.getElementById(draft.scope==='intl'?'sIntl':'sLocal'));
+      }
       openPostLoad();
-    } else {
-      var btn = document.querySelector('[onclick*="showPost"]') || document.querySelector('.btn-post');
-      if(btn) btn.click();
+      _fill('pFromAddr',draft.from);_fill('pToAddr',draft.to);_fill('pDesc',draft.cargo_desc);
+      _fill('pWeight',draft.weight_cap);_fill('pPrice',draft.currency===(draft.scope==='intl'?'USD':'GEL')?draft.price:null);_fill('pDate',draft.date);_fill('pDate2',draft.date_end);
+      if(draft.truck) _fill('pTruck',draft.truck);
+      if(draft.from_country) _fill('pFromCountry',draft.from_country);
+      if(draft.to_country) _fill('pToCountry',draft.to_country);
+      if(typeof addrSelected!=='undefined'){addrSelected.pFrom=null;addrSelected.pTo=null;}
+    }
+    var formCurrency=draft.intent==='post_transport'?'GEL':(draft.scope==='intl'?'USD':'GEL');
+    if(draft.price && draft.currency!==formCurrency && typeof showToastWarn==='function'){
+      showToastWarn(_getLang()==='ge'?'ფასი სხვა ვალუტაშია. გამოქვეყნებამდე მიუთითეთ ფასი '+formCurrency+'-ში.':'Цена указана в другой валюте. Перед публикацией укажите ставку в '+formCurrency+'.');
     }
     window.closeAI();
+  }
+  window.resumeAIDraft = function(){
+    if(!_pendingDraft || !_account() || !_user()) return;
+    var draft=_pendingDraft;_pendingDraft=null;_openDraft(draft);
+  };
+  window.aiPostLoad = function(){
+    if(!_draft) return;
+    if(!_account() || !_user()){
+      _pendingDraft=JSON.parse(JSON.stringify(_draft));
+      window.closeAI();
+      if(typeof openAuth==='function') openAuth('register');
+      return;
+    }
+    _openDraft(_draft);
+  };
+
+  // Integrate with the existing page lifecycle without rewriting the shared app.
+  var pageReset=window.resetCabinetState;
+  if(typeof pageReset==='function') window.resetCabinetState=function(clearDraft){
+    window.resetAISession(clearDraft);return pageReset.apply(this,arguments);
+  };
+  var pageUserState=window.showUserState;
+  if(typeof pageUserState==='function') window.showUserState=function(){
+    var result=pageUserState.apply(this,arguments);window.resumeAIDraft();return result;
+  };
+  var pageScope=window.setScope;
+  if(typeof pageScope==='function') window.setScope=function(next){
+    if(typeof scope!=='undefined' && next!==scope) window.resetAISession(true);
+    return pageScope.apply(this,arguments);
   };
 
   // ── aiStartVoice ──────────────────────────────────
@@ -250,7 +394,8 @@
     }
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = new SR();
-    rec.lang = 'ru-RU';
+    var _cur = _getLang();
+    rec.lang = _cur === 'ge' ? 'ka-GE' : (_cur === 'en' ? 'en-US' : 'ru-RU');
     rec.interimResults = false;
     var micBtn = document.querySelector('.ai-mic');
     if(micBtn){ micBtn.textContent = '🔴'; micBtn.disabled = true; }
@@ -275,10 +420,35 @@
     if(!fab) return;
 
     // Восстанавливаем позицию
-    try {
-      var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
-      if(saved && saved.bottom && saved.right){ fab.style.bottom = saved.bottom; fab.style.right = saved.right; }
-    } catch(e){}
+    function clampFab(){
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      if(w <= 600){
+        // Мобиль — всегда дефолт, убираем localStorage
+        localStorage.removeItem('ch_fab_pos');
+        fab.style.bottom = '80px';
+        fab.style.right = '16px';
+      } else {
+        try {
+          var saved = JSON.parse(localStorage.getItem('ch_fab_pos'));
+          if(saved && saved.bottom && saved.right){
+            var rightVal = parseInt(saved.right);
+            var bottomVal = parseInt(saved.bottom);
+            // Проверяем что кнопка в пределах экрана
+            if(rightVal >= 8 && rightVal <= w - 60 && bottomVal >= 60 && bottomVal <= h - 60){
+              fab.style.bottom = saved.bottom; fab.style.right = saved.right;
+            } else {
+              localStorage.removeItem('ch_fab_pos');
+              fab.style.bottom = '80px'; fab.style.right = '16px';
+            }
+          }
+        } catch(e){}
+      }
+    }
+    clampFab();
+    // При изменении ориентации/размера — пересчитываем позицию
+    window.addEventListener('resize', clampFab);
+    window.addEventListener('orientationchange', function(){ setTimeout(clampFab, 300); });
 
     var dragging = false, moved = false, startX, startY, startBottom, startRight, dragTarget = null;
 

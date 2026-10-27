@@ -240,6 +240,7 @@ async function journey(configuration, index) {
       await checkSettings(page,'tent',12.5);
       await saveSettings(page,null,null);
     }
+    await require('./mari_steps.cjs')(page,{name:configuration.name,artifacts:ARTIFACTS,logout,login,email,password});
     assert.equal(diagnostics.productionApiAttempts, 0, 'All production API origins must be rewritten in the temporary copy');
     assert.deepEqual(pageLog.dialogs, [], 'Unexpected UI alert/confirm');
     assert.deepEqual(pageLog.pageErrors, [], 'Browser JavaScript errors must be fixed, not hidden by this fixture');
