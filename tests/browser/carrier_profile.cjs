@@ -176,6 +176,7 @@ async function journey(configuration, index) {
   try {
     await page.goto(BASE.href, { waitUntil: 'domcontentloaded' });
     assert.equal(new URL(page.url()).origin, BASE.origin);
+    await require('./tariff_steps.cjs')(page, { name: configuration.name, artifacts: ARTIFACTS });
     await page.locator('#btnReg').click();
     await page.locator('#rtCarrier').click();
     await page.locator('#regName').fill('Isolated carrier ' + configuration.name);
