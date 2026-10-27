@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from app.database import get_db
 from app.models.user import User, UserRole, ResetCode
 from app.config import settings
@@ -207,9 +207,13 @@ async def require_user(
 
 
 async def _locked_password_user(db, *, user_id=None, email=None):
-    query = select(User).where(User.id == user_id) if user_id is not None else select(User).where(User.email == email)
-    return (await db.execute(query.with_for_update()
-                             .execution_options(populate_existing=True))).scalar_one_or_none()
+    criterion = (User.id == user_id if user_id is not None
+                 else func.lower(func.trim(User.email)) == email.strip().lower())
+    result = await db.execute(select(User).where(criterion).order_by(User.id).limit(2)
+                              .with_for_update().execution_options(populate_existing=True))
+    matches = list(result.scalars().all())
+    # Ambiguous legacy case variants must never select an arbitrary account.
+    return matches[0] if len(matches) == 1 else None
 
 
 async def _revoke_password_state(db, user):
@@ -221,7 +225,7 @@ async def _revoke_password_state(db, user):
     user.password_version = (user.password_version or 0) + 1
     if user.telegram_id and user.telegram_id.startswith("pending:"):
         user.telegram_id = None
-    await db.execute(delete(ResetCode).where(ResetCode.email == user.email))
+    await db.execute(delete(ResetCode).where(func.lower(func.trim(ResetCode.email)) == user.email.strip().lower()))
     from app.routers.users import _phone_change_codes
     _phone_change_codes.pop(user.id, None)
 
@@ -247,7 +251,7 @@ async def _notify_password_changed(user):
     body = _password_text(user.lang,
         "თქვენი ანგარიშის პაროლი შეიცვალა. წინა სესიები გაუქმებულია. თუ ეს თქვენ არ იყავით, აღადგინეთ წვდომა საიტზე.",
         "Пароль вашего аккаунта изменён. Предыдущие сессии завершены. Если это были не вы, восстановите доступ на сайте.")
-    await _send_password_email(user.email, title, f"<p>{body}</p>",
+    await _send_password_email(user.email.strip().lower(), title, f"<p>{body}</p>",
         idempotency_key=f"password-changed:{user.id}:{_password_version(user.password_changed_at)}")
 
 
@@ -259,8 +263,8 @@ async def register(data: RegisterRequest, request: Request, db: AsyncSession = D
     # Фикс 4: Валидация пароля
     validate_password(data.password)
     data.email = data.email.strip().lower()
-    existing = await db.execute(select(User).where(User.email == data.email))
-    if existing.scalar_one_or_none():
+    existing = await db.execute(select(User.id).where(func.lower(func.trim(User.email)) == data.email))
+    if existing.first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if data.phone:
         phone_check = await db.execute(select(User).where(User.phone == data.phone))
@@ -414,7 +418,7 @@ def _reset_matches(email, supplied, stored):
 
 
 async def _latest_reset(db, email):
-    return (await db.execute(select(ResetCode).where(ResetCode.email == email)
+    return (await db.execute(select(ResetCode).where(func.lower(func.trim(ResetCode.email)) == email)
         .order_by(ResetCode.id.desc()).limit(1).with_for_update()
         .execution_options(populate_existing=True))).scalar_one_or_none()
 
@@ -441,7 +445,7 @@ async def forgot_password(data: ForgotRequest, request: Request, db: AsyncSessio
     requests = (previous.request_count or 0) + 1 if active else 1
     code = f"{secrets.randbelow(1000000):06d}"
     salt = secrets.token_urlsafe(16)
-    await db.execute(delete(ResetCode).where(ResetCode.email == email))
+    await db.execute(delete(ResetCode).where(func.lower(func.trim(ResetCode.email)) == email))
     db.add(ResetCode(email=email, code=_reset_digest(email, code, salt),
                      expires_at=expires.replace(tzinfo=None), created_at=now,
                      attempts=attempts, request_count=requests))

@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.truck import Truck
 from app.models.user import User
 from app.routers.auth import require_user
+from app.services.user_display import display_name
 from pydantic import BaseModel
 from typing import Optional
 
@@ -40,8 +41,9 @@ async def get_trucks(
         trucks.append({
             "id": truck.id,
             "user_id": truck.user_id,
-            "company": user.company_name or user.email,
-            "phone": user.phone,
+            "company": display_name(user),
+            # Public catalogue contacts follow the accepted-deal policy (ADR-013).
+            "phone": None,
             "rating": round(user.rating / 10, 1) if user.rating else 5.0,
             "trips": user.trips_count or 0,
             "truck_type": truck.truck_type,

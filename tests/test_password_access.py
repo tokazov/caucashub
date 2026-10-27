@@ -351,3 +351,46 @@ async def test_legacy_long_sha256_password_login_does_not_truncate_or_upgrade_to
     assert unchanged.hashed_password == encoded and unchanged.password_version == 0
     assert (await login(access, original[:20])).status_code == 401
     access["mail"].assert_not_awaited()
+
+
+async def test_legacy_uppercase_email_remains_usable_and_consumes_mixed_case_code(access):
+    account = await get_user(access)
+    async with access["sessions"]() as db:
+        await db.execute(update(User).where(User.id == account.id).values(email="SHIPPER@EXAMPLE.TEST"))
+        await db.commit()
+    code = await request_code(access, " ShIpPeR@example.test ")
+    # Previously issued rows may retain a differently cased email spelling.
+    async with access["sessions"]() as db:
+        await db.execute(update(ResetCode).values(email="SHIPPER@EXAMPLE.TEST"))
+        await db.commit()
+    changed = await reset(access, code)
+    assert changed.status_code == 200, changed.text
+    assert await reset_rows(access) == []
+    assert (await reset(access, code, OTHER)).status_code == 400
+    assert (await login(access, CHANGED)).status_code == 200
+    async with access["sessions"]() as db:
+        stored = await db.get(User, account.id)
+        assert stored.email == "SHIPPER@EXAMPLE.TEST" and stored.password_version == 1
+    assert access["mail"].await_args.args[0] == "shipper@example.test"
+
+
+async def test_ambiguous_legacy_email_variants_fail_closed_and_registration_does_not_add_more(access):
+    async with access["sessions"]() as db:
+        db.add(User(email="SHIPPER@EXAMPLE.TEST", hashed_password=auth.hash_password(OTHER),
+                    company_name="Synthetic legacy duplicate", role="shipper"))
+        await db.commit()
+    invalid_login = await login(access)
+    assert invalid_login.status_code == 401, invalid_login.text
+    unknown = await access["client"].post("/api/auth/forgot-password", json={"email": "unknown@example.test"})
+    ambiguous = await access["client"].post("/api/auth/forgot-password", json={"email": "shipper@example.test"})
+    assert unknown.status_code == ambiguous.status_code == 200 and unknown.json() == ambiguous.json()
+    assert (await reset(access, "123456")).status_code == 400
+    registration = await access["client"].post("/api/auth/register", json={
+        "email": " ShIpPeR@EXAMPLE.TEST ", "password": CHANGED,
+        "company_name": "Synthetic rejected registration", "phone": "+995599555555",
+        "role": "carrier", "inn": "404123456"})
+    assert registration.status_code == 400, registration.text
+    assert await reset_rows(access) == []
+    access["mail"].assert_not_awaited()
+    # Existing authenticated users retain their own ID-based access.
+    assert (await protected_me(access, access["headers"]["shipper"])).status_code == 200

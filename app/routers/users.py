@@ -25,6 +25,7 @@ class UpdateProfileRequest(CarrierProfileFields):
     org_type:     Optional[str] = None
     city:         Optional[str] = None
     lang:         Optional[str] = None
+    # Compatibility input only; linking/unlinking uses the verified Telegram flow.
     telegram_id:  Optional[str] = None
 
     @field_validator("inn")
@@ -108,6 +109,9 @@ async def update_me(
     if not user:
         raise HTTPException(404, "User not found")
 
+    if data.telegram_id is not None and data.telegram_id != user.telegram_id:
+        raise HTTPException(403, "Telegram подключается только через подтверждённую ссылку; используйте раздел Telegram")
+
     if data.company_name is not None:
         user.company_name = data.company_name
     if data.inn is not None:
@@ -118,8 +122,6 @@ async def update_me(
         user.city = data.city
     if data.lang is not None:
         user.lang = data.lang
-    if data.telegram_id is not None:
-        user.telegram_id = data.telegram_id
 
     # Absent defaults preserve prior values; explicit null clears them.
     if "truck_type" in data.model_fields_set:

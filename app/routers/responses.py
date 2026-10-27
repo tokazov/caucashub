@@ -255,6 +255,10 @@ async def accept_response(
     previous = resp.status.value if hasattr(resp.status, "value") else str(resp.status)
     validate_transition("response", previous, "accepted")
 
+    carrier = await db.get(User, resp.user_id)
+    if carrier is None or carrier.is_deleted or not carrier.is_active:
+        raise HTTPException(400, "Перевозчик недоступен")
+
     deal_rate = await get_usd_gel_rate()
     agreed_gel = resp.price_gel or load.price_gel
     agreed_usd = resp.price_usd or load.price_usd

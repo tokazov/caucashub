@@ -72,7 +72,7 @@ async def test_invalid_admin_credentials_are_denied_before_any_database_access(
         response = await guarded_client.request(
             method, urlsplit(path).path,
             params=dict(parse_qsl(urlsplit(path).query), secret=supplied), json=payload,
-            headers={"X-Admin-Secret": supplied},
+            headers=[(b"x-admin-secret", supplied.encode("utf-8"))],
         )
         assert response.status_code == 403, (method, path, response.status_code)
 

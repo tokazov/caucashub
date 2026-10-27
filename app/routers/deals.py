@@ -226,16 +226,24 @@ async def create_deal(
     if load.status != LoadStatus.active or getattr(load, "is_demo", False):
         raise HTTPException(400, "Груз недоступен")
     carrier = await db.get(User, data.carrier_id)
-    if carrier is None or carrier.id == user_id or carrier.role not in (UserRole.carrier, UserRole.both):
+    if (carrier is None or carrier.id == user_id or carrier.is_deleted or not carrier.is_active
+            or carrier.role not in (UserRole.carrier, UserRole.both)):
         raise HTTPException(400, "Выберите существующего перевозчика")
     if data.response_id is not None:
-        resp = (await db.execute(select(LoadResponse).where(LoadResponse.id == data.response_id)
-                                 .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
-        if resp is None or resp.load_id != load.id or resp.user_id != carrier.id:
-            raise HTTPException(400, "Отклик не принадлежит этому грузу и перевозчику")
-        if resp.status != ResponseStatus.pending:
-            raise HTTPException(400, "Отклик уже обработан")
-        resp.status = ResponseStatus.accepted
+        query = select(LoadResponse).where(LoadResponse.id == data.response_id)
+    else:
+        # Legacy callers may omit the identifier, but cannot invent carrier consent.
+        query = select(LoadResponse).where(
+            LoadResponse.load_id == load.id, LoadResponse.user_id == carrier.id,
+            LoadResponse.status == ResponseStatus.pending,
+        ).order_by(LoadResponse.id).limit(1)
+    resp = (await db.execute(query.with_for_update()
+                             .execution_options(populate_existing=True))).scalar_one_or_none()
+    if resp is None or resp.load_id != load.id or resp.user_id != carrier.id:
+        raise HTTPException(400, "Выберите существующий отклик этого перевозчика на ваш груз")
+    if resp.status != ResponseStatus.pending:
+        raise HTTPException(400, "Отклик уже обработан")
+    resp.status = ResponseStatus.accepted
     others = (await db.execute(select(LoadResponse).where(
         LoadResponse.load_id == load.id, LoadResponse.status == ResponseStatus.pending)
         .order_by(LoadResponse.id).with_for_update()
@@ -246,7 +254,7 @@ async def create_deal(
         await _enqueue_response_rejected(db, other, load, user_id)
     load.status = LoadStatus.taken
     deal = Deal(load_id=load.id, shipper_id=user_id, carrier_id=carrier.id,
-                response_id=data.response_id,
+                response_id=resp.id,
                 agreed_price=data.agreed_price or (load.price_gel or load.price_usd),
                 currency=data.currency, notes=data.notes, status=DealStatus.confirmed)
     db.add(deal)
