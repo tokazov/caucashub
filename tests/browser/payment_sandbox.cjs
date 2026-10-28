@@ -102,6 +102,8 @@ function assertPeriod(grant, milliseconds) {
 }
 async function screenshot(name) {
   await idle();
+  await page.evaluate(() => window.scrollTo({top: 0, left: 0, behavior: 'instant'}));
+  await page.waitForFunction(() => window.scrollY === 0);
   await page.screenshot({ path: path.join(ARTIFACTS, name), fullPage: true });
 }
 
