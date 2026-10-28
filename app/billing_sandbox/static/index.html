@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CaucasHub — тестовая оплата</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="sticky-header">
+    <header class="site-header"><div class="page-width brand-line"><div class="brand">Caucas<span>Hub</span><small>.ge</small></div><span class="header-caption">Песочница оплаты</span></div></header>
+    <div class="test-banner"><div class="page-width"><strong>Тестовый режим — реальные деньги не списываются</strong><span>Ответы банка имитируются. Права выдаются только в тестовой базе.</span></div></div>
+  </div>
+  <main class="page-width">
+    <section class="account-bar" aria-label="Демонстрационный аккаунт">
+      <div><label for="customer-select">Демонстрационный аккаунт</label><select id="customer-select" data-busy-control><option value="alice">Алиса · демо</option><option value="bob">Борис · демо</option></select></div>
+      <div class="account-caption"><p>Это демонстрационные аккаунты, не вход в рабочий сайт.</p><p id="server-time" class="muted">Подключение к тестовому серверу…</p></div>
+      <button id="start-session-button" type="button" class="button primary" data-busy-control>Открыть демоаккаунт</button>
+      <button id="refresh-button" type="button" class="button secondary" data-busy-control>Обновить</button>
+    </section>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div class="checkout-grid">
+      <section class="panel" aria-labelledby="checkout-title">
+        <div class="panel-heading"><span class="eyebrow">CaucasHub</span><h1 id="checkout-title">Создать тестовый заказ</h1><p class="muted">Цены и состав пакетов проверяются в песочнице. Это не предложение реальной покупки.</p></div>
+        <form id="checkout-form">
+          <label for="product-select">Услуга</label>
+          <select id="product-select" required data-busy-control disabled><option value="">Загружаем услуги…</option></select>
+          <div id="target-field" hidden><label for="target-select">Демонстрационный груз</label><select id="target-select" data-busy-control></select><p class="field-note">Продвижение доступно только для своего актуального груза.</p></div>
+          <div class="purchase-summary"><div><span class="muted">Тестовая сумма</span><strong id="product-price">—</strong></div><div><span class="muted">Срок услуги</span><strong id="product-duration">—</strong></div></div>
+          <p id="product-note" class="field-note">Услуга начнёт действовать после подтверждения тестового платежа.</p>
+          <button id="create-button" type="submit" class="button primary full-width" data-busy-control disabled>Создать тестовый заказ</button>
+          <p id="retry-note" class="field-note" hidden>Результат запроса неизвестен. Повтор использует тот же ключ и не создаёт второй заказ.</p>
+        </form>
+      </section>
+      <section class="panel" aria-labelledby="current-order-title">
+        <div class="panel-heading"><span class="eyebrow">Имитация банка</span><h2 id="current-order-title">Проверка платежа</h2><p class="muted">Создайте заказ или выберите его в истории. Ни один из этих сценариев не обращается к банку.</p></div>
+        <div id="order-empty" class="empty-state">Тестовый заказ ещё не выбран.</div>
+        <div id="current-order" hidden>
+          <div class="order-title-line"><strong id="order-product">—</strong><span id="order-status" class="status">—</span></div>
+          <dl class="order-details"><div><dt>Заказ</dt><dd id="order-id">—</dd></div><div><dt>Сумма</dt><dd id="order-amount">—</dd></div><div><dt>Создан</dt><dd id="order-created">—</dd></div><div><dt>Выдача услуги</dt><dd id="order-fulfillment">—</dd></div><div id="order-period-row" hidden><dt>Период</dt><dd id="order-period">—</dd></div></dl>
+          <p id="fulfillment-warning" class="inline-warning" hidden></p>
+          <div id="simulation-actions" class="action-grid" aria-label="Варианты ответа тестового банка"></div>
+          <p id="simulation-note" class="field-note"></p>
+        </div>
+      </section>
+    </div>
+    <section class="panel ledger-panel" aria-labelledby="grants-title"><div class="section-heading"><div><h2 id="grants-title">Выданные тестовые услуги</h2><p class="muted">Начало и окончание проверяются сервером. Будущие периоды и возвраты видны отдельно.</p></div></div><div id="grants-empty" class="empty-state">Подтверждённых тестовых услуг пока нет.</div><div id="grants-wrap" class="table-wrap" hidden><table><thead><tr><th>Услуга</th><th>Объект</th><th>Начало</th><th>Окончание</th><th>Состояние</th></tr></thead><tbody id="grants-body"></tbody></table></div></section>
+    <section class="panel ledger-panel" aria-labelledby="history-title"><div class="section-heading"><div><h2 id="history-title">История тестовых заказов</h2><p class="muted">Здесь только заказы выбранного демонстрационного аккаунта и проекта.</p></div></div><div id="orders-empty" class="empty-state">Заказов пока нет.</div><div id="orders-wrap" class="table-wrap" hidden><table><thead><tr><th>Услуга / заказ</th><th>Сумма</th><th>Статус</th><th>Создан</th><th>Действие</th></tr></thead><tbody id="orders-body"></tbody></table></div></section>
+    <aside class="project-note"><strong>CaucasHub + TechRent</strong><p>Общая фирма; отдельные тарифы TechRent ещё не настроены. Эта песочница проверяет продукты CaucasHub и не принимает оплату перевозки, аренды или залога.</p></aside>
+  </main>
+  <footer class="page-width footer">Только демонстрационные данные · Время отображается по Тбилиси · Рабочий сайт не изменяется</footer>
+</body>
+</html>

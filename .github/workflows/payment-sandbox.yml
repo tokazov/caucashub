@@ -1,0 +1,88 @@
+name: Payment sandbox regression
+
+on:
+  pull_request:
+    paths:
+      - "app/billing_sandbox/**"
+      - "app/routers/payments.py"
+      - "scripts/payment_sandbox.py"
+      - "tests/test_billing_sandbox.py"
+      - "tests/browser/payment_sandbox.cjs"
+      - "tests/test_payment_callbacks_disabled.py"
+      - "docs/payment-sandbox.md"
+      - ".github/workflows/payment-sandbox.yml"
+  push:
+    branches: [master]
+    paths:
+      - "app/billing_sandbox/**"
+      - "app/routers/payments.py"
+      - "scripts/payment_sandbox.py"
+      - "tests/test_billing_sandbox.py"
+      - "tests/browser/payment_sandbox.cjs"
+      - "tests/test_payment_callbacks_disabled.py"
+      - ".github/workflows/payment-sandbox.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-payments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SECRET_KEY: isolated-payment-regression-not-production
+      GEMINI_API_KEY: test
+      BREVO_API_KEY: test
+      TG_BOT_TOKEN: test:test
+      NOTIFICATIONS_WORKER_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite
+      - name: Sandbox state and HTTP isolation without production fixtures
+        run: python -m pytest --noconftest tests/test_billing_sandbox.py -q
+      - name: Disabled real gateways and existing admin access regressions
+        run: python -m pytest tests/test_payment_callbacks_disabled.py tests/test_admin_credentials_http.py -q
+      - name: Simulator JavaScript syntax
+        run: node --check app/billing_sandbox/static/app.js
+
+  payment-sandbox-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated simulator and browser dependencies
+        run: |
+          python -m pip install fastapi==0.115.0 pydantic==2.9.2 uvicorn==0.30.6
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify fake checkout, renewal, refund and account separation in browser
+        run: |
+          mkdir -p artifacts/payment-sandbox
+          python -m scripts.payment_sandbox --enable-sandbox --port 8878 > artifacts/payment-sandbox/server.log 2>&1 &
+          sandbox_pid=$!
+          trap 'kill "$sandbox_pid" 2>/dev/null || true' EXIT
+          node tests/browser/payment_sandbox.cjs
+      - name: Upload test screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-sandbox-browser
+          path: artifacts/payment-sandbox/
+          if-no-files-found: warn
