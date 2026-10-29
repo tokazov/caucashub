@@ -7,6 +7,7 @@
  const reverseFails=__REVERSE_FAILS__;
  const mapScale=__MAP_SCALE__;
  const reverseAddress=__REVERSE_ADDRESS__;
+ const roadMeters=__ROAD_METERS__,roadFails=__ROAD_FAILS__;
  const props=data=>({get:key=>key.split('.').reduce((obj,part)=>obj?.[part],data),getAll:()=>data,set:(key,value)=>{data[key]=value;}});
  // Names and coordinates are feature data, not branches in the app integration.
  // The first feature's public properties were observed on the real Yandex SDK.
@@ -55,5 +56,12 @@
   else if(/батуми|batumi|ბათუმი/i.test(String(query))){rows=[object([41.6424,41.6355],'Батуми','Батуми','Грузия, Батуми')];}
   resolve({geoObjects:new GeoCollection(rows)});
  },60));}
- window.ymaps={ready:cb=>cb(),Map:TestMap,Placemark,geocode,GeoObjectCollection:GeoCollection,Polyline:class{},util:{bounds:{fromPoints:points=>[points[0],points.at(-1)]}}};
+ function route(points,options){
+  const root=document.documentElement;root.dataset.testRoadCalls=String(Number(root.dataset.testRoadCalls||0)+1);root.dataset.testRoadLastPoints=JSON.stringify(points);root.dataset.testRoadLastOptions=JSON.stringify(options);
+  return new Promise((resolve,reject)=>setTimeout(()=>{
+   if(roadFails){reject(Error('Isolated road provider unavailable'));return;}
+   resolve({getActiveRoute:()=>({properties:props({distance:{value:roadMeters,text:'167 км'}})}),getBounds:()=>[points[0],points[1]],model:{events:new Events()},options:props({})});
+  },60));
+ }
+ window.ymaps={ready:cb=>cb(),Map:TestMap,Placemark,geocode,route,GeoObjectCollection:GeoCollection,Polyline:class{},util:{bounds:{fromPoints:points=>[points[0],points.at(-1)]}}};
 })();

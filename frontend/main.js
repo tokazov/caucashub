@@ -759,8 +759,11 @@ function showRouteMap(){
     });
     ymap.geoObjects.add(pmA).add(pmB);
 
-    // Маршрут: сначала пробуем OSRM (реальные дороги), потом Яндекс route
+    // Existing road-route provider; never substitute a straight-line estimate.
+    const mapForRoute=ymap,controller=new AbortController(),routeTimer=setTimeout(()=>controller.abort(),8000);
+    const current=()=>ymap===mapForRoute&&selectedFrom===f&&selectedTo===t;
     const drawLine=(coords,dist,time)=>{
+      if(!current())return;
       const poly=new ymaps.Polyline(coords,{},{
         strokeColor:'#f7b731', strokeWidth:5, strokeOpacity:.9
       });
@@ -771,10 +774,10 @@ function showRouteMap(){
     };
 
     // OSRM — реальные дороги
-    fetch(`https://router.project-osrm.org/route/v1/driving/${f.lng},${f.lat};${t.lng},${t.lat}?overview=full&geometries=geojson`)
+    fetch(`https://router.project-osrm.org/route/v1/driving/${f.lng},${f.lat};${t.lng},${t.lat}?overview=full&geometries=geojson`,{signal:controller.signal})
       .then(r=>r.json())
       .then(data=>{
-        if(data.routes&&data.routes[0]){
+        if(data.routes&&data.routes[0]&&Number.isFinite(data.routes[0].distance)&&data.routes[0].distance>=0){
           const route=data.routes[0];
           const dist=Math.round(route.distance/1000);
           const time=Math.round(route.duration/3600*10)/10;
@@ -783,12 +786,8 @@ function showRouteMap(){
         } else { throw new Error('no route'); }
       })
       .catch(()=>{
-        // fallback — прямая линия
-        const dist=Math.round(Math.sqrt(Math.pow((f.lat-t.lat)*111,2)+Math.pow((f.lng-t.lng)*111*Math.cos(f.lat*Math.PI/180),2)));
-        const approxDist=Math.round(dist*1.3); // коэффициент дорог
-        const approxTime=Math.round(approxDist/70*10)/10;
-        drawLine([[f.lat,f.lng],[t.lat,t.lng]],approxDist,approxTime);
-      });
+        if(current())document.getElementById('mapDist').textContent=lang==='ge'?'საავტომობილო მარშრუტი მიუწვდომელია':'Дорожный маршрут недоступен';
+      }).finally(()=>clearTimeout(routeTimer));
   }); }); // ymaps.ready + loadYmapsLazy
 }
 
@@ -967,6 +966,49 @@ function _insertAdSlot(container, placement) {
   });
 }
 
+function cargoEndpointLabel(load,side){
+  const location=load[side+'_location'];
+  if(location?.label&&(location.kind==='point'||location.label_mode==='custom'))return location.label;
+  return translateCity(load[side]||load[side+'2']||'',location);
+}
+function cargoEndpointDetails(load,side){
+  const label=cargoEndpointLabel(load,side),address=load[side+'_location']?.address||load[side+'2']||'';
+  return '<div data-cargo-endpoint-label style="font-size:14px;font-weight:700">'+esc(label)+'</div>'+
+    (address&&String(address).trim()!==String(label).trim()?'<div style="font-size:11px;color:#777;margin-top:3px">'+esc(address)+'</div>':'');
+}
+let _cargoRoadObserver=null,_cargoRoadSequence=0;
+const _cargoRoadWaiting=new Map();
+function resetCargoRoadObserver(){_cargoRoadObserver?.disconnect();_cargoRoadWaiting.clear();}
+function bindCargoRoadDistance(load,elements,lazyTarget){
+  const nodes=elements.filter(Boolean),api=window.CaucasRouteDistance,routeKey=api?.key(load),ticket=String(++_cargoRoadSequence);
+  for(const element of nodes){element.dataset.roadDistanceRequest=ticket;element.dataset.roadDistanceKey=routeKey||'';}
+  function paint(result,pending){
+    const ge=typeof lang!=='undefined'&&lang==='ge';
+    for(const element of nodes){
+      if(!element.isConnected||element.dataset.roadDistanceRequest!==ticket)continue;
+      const compact=element.hasAttribute('data-road-distance');
+      const km=result?result.km.toLocaleString(ge?'ka-GE':'ru-RU',{maximumFractionDigits:result.km<1?1:0}):'';
+      element.textContent=result?'≈'+km+' '+(ge?'კმ':'км'):pending?(compact?(ge?'კმ…':'Км…'):(ge?'ვითვლით…':'Считаем…')):(compact?(ge?'კმ: —':'Км: —'):(ge?'ვერ გამოითვალა':'Не рассчитано'));
+      element.title=pending?(ge?'საავტომობილო მარშრუტის გამოთვლა':'Расчёт автомобильного маршрута'):result?(result.precision==='settlement'?(ge?'საავტომობილო მარშრუტი დასახლებების ცენტრებს შორის':'Автомобильный маршрут между центрами населённых пунктов'):(ge?'მანძილი საავტომობილო გზით':'Расстояние по автомобильному маршруту')):(routeKey?(ge?'საავტომობილო მარშრუტი მიუწვდომელია':'Автомобильный маршрут недоступен'):(ge?'მონიშნეთ მარშრუტის ზუსტი წერტილები':'Для расчёта нужны точные точки маршрута'));
+      element.dataset.roadDistanceStatus=pending?'loading':result?'ready':'unavailable';
+      if(result)element.dataset.roadDistanceMeters=String(result.meters);else delete element.dataset.roadDistanceMeters;
+    }
+  }
+  if(!routeKey||!api){paint(null,false);return;}
+  const cached=api.peek(load);if(cached){paint(cached,false);return;}
+  paint(null,true);
+  const start=()=>{
+    if(!nodes.some(element=>element.isConnected&&element.dataset.roadDistanceRequest===ticket))return;
+    api.getDistance(load).then(result=>paint(result,false)).catch(()=>paint(null,false));
+  };
+  if(lazyTarget&&typeof IntersectionObserver==='function'){
+    if(!_cargoRoadObserver)_cargoRoadObserver=new IntersectionObserver(entries=>{
+      for(const entry of entries)if(entry.isIntersecting){const run=_cargoRoadWaiting.get(entry.target);_cargoRoadWaiting.delete(entry.target);_cargoRoadObserver.unobserve(entry.target);run?.();}
+    },{rootMargin:'100px'});
+    _cargoRoadWaiting.set(lazyTarget,start);_cargoRoadObserver.observe(lazyTarget);
+  }else start();
+}
+
 function renderLoads(data){
   // Если data не передан — берём текущий список по scope
   if (!data) data = (scope === 'intl' ? INTL : LOCAL);
@@ -978,6 +1020,7 @@ function renderLoads(data){
   const _l = (typeof lang !== 'undefined' && lang) || 'ru'; const T = (typeof TRANSLATIONS !== 'undefined' && (TRANSLATIONS[_l] || TRANSLATIONS['ru'])) || {};
   document.getElementById('fcount').textContent = data.length + ' ' + (T.fcount_suffix || 'грузов');
   const list=document.getElementById('cargoList');
+  resetCargoRoadObserver();
   list.innerHTML='';
   if(!data.length){
     if(window._loadsLoading){
@@ -1036,9 +1079,9 @@ function renderLoads(data){
     const desktopHtml = `
       <div class="row-desktop">
         <div>
-          <div class="route">${esc(translateCity(d.from,d.from_location))} <span class="arrow">→</span> ${esc(translateCity(d.to,d.to_location))}</div>
+          <div class="route">${esc(cargoEndpointLabel(d,'from'))} <span class="arrow">→</span> ${esc(cargoEndpointLabel(d,'to'))}</div>
           <div class="sub">${esc(d.co)} ${esc(publicRatingLabel(d))}</div>
-          <div style="margin-top:3px">${badgeHtml}</div>
+          <div style="margin-top:3px">${badgeHtml}<span class="road-distance-badge" data-road-distance></span></div>
         </div>
         <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
         <div><span class="tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span></div>
@@ -1053,7 +1096,7 @@ function renderLoads(data){
       <div class="row-mobile">
         <div class="card-main-row">
           <div class="card-left">
-            <div class="card-route-new">${esc(translateCity(d.from,d.from_location))} <span class="arr">→</span> ${esc(translateCity(d.to,d.to_location))}</div>
+            <div class="card-route-new">${esc(cargoEndpointLabel(d,'from'))} <span class="arr">→</span> ${esc(cargoEndpointLabel(d,'to'))}</div>
             <div class="card-meta-row">
               ${badgeHtml}
               <span class="card-co-new">${esc(d.co)} ${esc(publicRatingLabel(d))}</span>
@@ -1068,12 +1111,14 @@ function renderLoads(data){
           <span class="card-type-tag" style="background:${tc.bg};color:${tc.t}">${typeof getTypeLabel==="function"?getTypeLabel(d.type||"tent"):d.typeLabel}</span>
           <span>${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</span>
           ${dateStr ? `<span>${dateStr}</span>` : ''}
+          <span class="road-distance-badge" data-road-distance></span>
         </div>
       </div>
     `;
 
     row.innerHTML = desktopHtml + mobileHtml;
     list.appendChild(row);
+    bindCargoRoadDistance(d,[...row.querySelectorAll('[data-road-distance]')],row);
 
     // ── Рекламный блок каждые 6 грузов (Блок 1) ──
     // Используем _dataIdx (индекс в массиве данных), не list.children.length
@@ -1276,7 +1321,7 @@ function openCargo(d){
     }
   }
 
-  document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from),d.from_location)} → ${translateCity(_cityShort(d.to2,d.to),d.to_location)}`;
+  document.getElementById('mTitle').textContent=`${cargoEndpointLabel(d,'from')} → ${cargoEndpointLabel(d,'to')}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен') + ' —';
   const _scope = (d.scope||'local').toUpperCase();
@@ -1301,8 +1346,8 @@ function openCargo(d){
   _statsStr += _verifiedStr + respondTxt;
   document.getElementById('mStats').textContent = _statsStr;
   document.getElementById('mGrid').innerHTML=`
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.from2))}</div></div>
-    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div><div style="font-size:14px;font-weight:700">${esc(translateCity(d.to2))}</div></div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_from||'Откуда'}</div>${cargoEndpointDetails(d,'from')}</div>
+    <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_to||'Куда'}</div>${cargoEndpointDetails(d,'to')}</div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_date||'Дата загрузки'}</div><div style="font-size:14px;font-weight:700;color:#2ecc71">${esc(formatDateRange(d.date,d.date2))}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_weight||'Вес'}</div><div style="font-size:14px;font-weight:700">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div></div>
     <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).modal_truck||'Кузов'}</div><div style="font-size:14px;font-weight:700">${typeof getTypeLabel==='function'?getTypeLabel(d.type):esc(d.typeLabel)}</div></div>
@@ -1331,10 +1376,9 @@ function openCargo(d){
   }
 
   document.getElementById('mPrice').textContent=`${d.cur||'\$'}${d.price.toLocaleString()}`;
-  const _kmVal = d.km && d.km !== '—' ? d.km : null;
   const _kmBlock = document.getElementById('mKmBlock');
-  if(_kmBlock) _kmBlock.style.display = _kmVal ? '' : 'none';
-  document.getElementById('mKm').textContent = _kmVal || '';
+  if(_kmBlock) _kmBlock.style.display = '';
+  bindCargoRoadDistance(d,[document.getElementById('mKm')]);
   document.getElementById('respondSuccess').style.display='none';
   // Блок 5: реклама в модале груза (только для чужих грузов)
   var _modalAdSlot = document.getElementById('adSlotModal');
@@ -2422,18 +2466,9 @@ async function doPostLoad(){
   const loadDate=toDisplay(rawDate);
   const loadDate2=rawDate2?toDisplay(rawDate2):null;
   const cur = scope==='intl' ? '$' : '₾';
-  // БАГ-FORM-3 fix: считаем расстояние по прямой если есть координаты обоих городов
-  let kmVal = '~уточните';
-  const _aFrom = fromEndpoint, _aTo = toEndpoint;
-  if(_aFrom?.lat && _aTo?.lat){
-    const _dLat=(_aTo.lat-_aFrom.lat)*Math.PI/180, _dLng=(_aTo.lng-_aFrom.lng)*Math.PI/180;
-    const _a=Math.sin(_dLat/2)*Math.sin(_dLat/2)+Math.cos(_aFrom.lat*Math.PI/180)*Math.cos(_aTo.lat*Math.PI/180)*Math.sin(_dLng/2)*Math.sin(_dLng/2);
-    const _dist=Math.round(6371*2*Math.atan2(Math.sqrt(_a),Math.sqrt(1-_a)));
-    kmVal = '~' + _dist + ' км';
-  }
   const submittedScope=scope==='intl'?'intl':'local';
   const submittedUserId=currentUserId;
-  const newLoad={from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:submittedScope,desc,co:user.name,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:submittedUserId};
+  const newLoad={from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:submittedScope,desc,co:user.name,pay,from2:fromAddr,to2:toAddr,badge:urgent?'urgent':'new',ownerId:user.email,userId:submittedUserId};
   for(const [side,endpoint] of [['from',fromEndpoint],['to',toEndpoint]]){
     if(endpoint.location)newLoad[side+'_location']=endpoint.location;
     if(endpoint.address)newLoad[side+'2']=endpoint.address;
@@ -4075,7 +4110,7 @@ const TRANSLATIONS = {
     pricing_per_month: '/мес',
     pricing_current: '✓ Ваш текущий план',
     lbl_rate_modal: 'Ставка',
-    lbl_distance: 'Расстояние',
+    lbl_distance: 'По дороге',
     pay_cash_short: 'Наличные',
     pay_cashless: 'Безнал',
     modal_post_title: 'Разместить груз',
@@ -4585,7 +4620,7 @@ const TRANSLATIONS = {
     pricing_per_month: '/თვე',
     pricing_current: '✓ თქვენი მიმდინარე გეგმა',
     lbl_rate_modal: 'ტარიფი',
-    lbl_distance: 'მანძილი',
+    lbl_distance: 'საავტომობილო მანძილი',
     pay_cash_short: 'ნაღდი',
     pay_cashless: 'უნაღდო',
     pay_board: 'დაფა',
@@ -5471,6 +5506,10 @@ function closeModal(id){
   el.classList.remove('on');
   // Сбрасываем инлайн стили (которые мы ставим для мобиля)
   el.style.cssText = '';
+  if(id==='cargoOverlay'){
+    const km=document.getElementById('mKm');if(km)km.dataset.roadDistanceRequest=String(++_cargoRoadSequence);
+    if(typeof _routeMap!=='undefined'&&_routeMap){try{_routeMap.destroy();}catch{} _routeMap=null;}
+  }
   var modal = el.querySelector('.modal');
   if(modal) modal.style.cssText = '';
   // Сбрасываем danger zone в настройках
@@ -6397,13 +6436,11 @@ async function exportDealsData(fmt){
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
   let from = '', to = '',fromLocation=null,toLocation=null;
-  if(window.currentCargoId && window.allLoads){
-    const d = window.allLoads.find(l=>l.id===window.currentCargoId);
-    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||'';fromLocation=d.from_location;toLocation=d.to_location; }
-  }
+  const cargo=window.currentCargoData||(window.allLoads&&window.allLoads.find(l=>l.id===(typeof currentCargoId!=='undefined'?currentCargoId:window.currentCargoId)));
+  if(cargo){from=cargo.from2||cargo.from||'';to=cargo.to2||cargo.to||'';fromLocation=cargo.from_location;toLocation=cargo.to_location;}
   // fallback: читаем из mGrid
   if(!from || !to){
-    const cells = document.querySelectorAll('#mGrid > div > div:last-child');
+    const cells = document.querySelectorAll('#mGrid [data-cargo-endpoint-label]');
     if(cells.length >= 2){ from = cells[0].textContent.trim(); to = cells[1].textContent.trim(); }
   }
   if(!from || !to){ alert('Не указан маршрут'); return; }
@@ -6431,16 +6468,19 @@ window.openRouteMap = function(){
     ymaps.ready(function(){
       mapEl.innerHTML='';
       _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
+      const selectedMap=_routeMap;
+      const current=()=>_routeMap===selectedMap&&block.style.display!=='none'&&(!cargo||window.currentCargoData===cargo||!window.currentCargoData);
       const locate=(location,text)=>location&&Number.isFinite(Number(location.lat))&&Number.isFinite(Number(location.lon))
         ?Promise.resolve([Number(location.lat),Number(location.lon)])
         :ymaps.geocode(text,{results:1}).then(result=>result.geoObjects.get(0)?.geometry?.getCoordinates());
       locate(fromLocation,from).then(fromCoords=>locate(toLocation,to).then(toCoords=>{
-        if(!fromCoords||!toCoords)return;
+        if(!current()||!fromCoords||!toCoords)return;
         const route=new ymaps.multiRouter.MultiRoute({referencePoints:[fromCoords,toCoords],params:{routingMode:'auto'}},
           {wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
-        _routeMap.geoObjects.add(route);
-        route.model.events.add('requestsuccess',()=>_routeMap.setBounds(route.getBounds(),{checkZoomRange:true,zoomMargin:40}));
-      })).catch(()=>{mapEl.innerHTML='<div style="padding:24px">Не удалось построить маршрут</div>';});
+        selectedMap.geoObjects.add(route);
+        route.model.events.add('requestsuccess',()=>{if(current())selectedMap.setBounds(route.getBounds(),{checkZoomRange:true,zoomMargin:40});});
+        route.model.events.add('requestfail',()=>{if(current())mapEl.innerHTML='<div style="padding:24px">'+(lang==='ge'?'საავტომობილო მარშრუტი მიუწვდომელია':'Дорожный маршрут недоступен')+'</div>';});
+      })).catch(()=>{if(current())mapEl.innerHTML='<div style="padding:24px">Не удалось построить маршрут</div>';});
     });
   }, function(errMsg) {
     // Яндекс недоступен (макс 6 сек ожидания) — показываем сообщение

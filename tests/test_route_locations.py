@@ -174,7 +174,7 @@ async def test_checkpoint_is_not_faked_as_city_and_alias_filter_matches(context,
 @pytest.mark.parametrize('change',[{'lat':41.8},{'country_iso':'RU'},{'resolution_token':'forged'}])
 async def test_forged_map_point_cannot_be_published(context,change):
     client,sessions=context
-    location={**await point(client),**change}
+    location={**await point(client),'label_mode':'custom',**change}
     response=await client.post('/api/loads/',json=load_data(location))
     assert response.status_code==422,response.text
     async with sessions() as db:
@@ -342,3 +342,92 @@ async def test_unknown_location_key_cannot_be_masked_by_matching_text(context,so
     response=await client.get('/api/'+source+'/',params={
         'from_location_key':'ge:invented-checkpoint','from_city':'Дарьял'})
     assert response.status_code==422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('source',['loads','transport'])
+@pytest.mark.parametrize('kind',['point','settlement','border_checkpoint'])
+async def test_label_provenance_survives_create_update_and_public_owned_serialization(context,source,kind):
+    client,sessions=context
+    if kind=='point':
+        location=await point(client,label='Dariali monastery',label_mode='auto')
+        assert location['label_mode']=='auto'
+    else:
+        rows=(await client.get('/api/locations/suggest',params={'q':'Tbilisi' if kind=='settlement' else 'Dar'})).json()['results']
+        location={**next(row for row in rows if row['kind']==kind),'label_mode':'auto'}
+    body=load_data(location) if source=='loads' else offer_data(location)
+    created=await client.post('/api/'+source+'/',json=body)
+    assert created.status_code in(200,201),created.text
+    saved=created.json() if source=='loads' else created.json()['offer']
+    auto=saved['from_location']
+    assert auto['label_mode']=='auto'
+    assert auto['lat']==location['lat'] and auto['lon']==location['lon']
+    update_url='/api/'+source+'/'+str(saved['id'])
+    custom={**auto,'label':'My loading gate','label_mode':'custom'}
+    updated=await(client.put(update_url,json={'from_location':custom}) if source=='loads'
+                  else client.patch(update_url,json={'from_location':custom}))
+    assert updated.status_code==200,updated.text
+    updated_row=updated.json() if source=='loads' else updated.json()['offer']
+    expected=updated_row['from_location']
+    assert expected['label_mode']=='custom' and expected['label']=='My loading gate'
+    for key in ('lat','lon','key','country_iso','settlement_id','settlement_key'):
+        assert expected.get(key)==auto.get(key)
+    assert 'resolution_token' not in expected
+    unrelated=await(client.put(update_url,json={'description':'Updated loading instructions'}) if source=='loads'
+                    else client.patch(update_url,json={'description':'Updated loading instructions'}))
+    assert unrelated.status_code==200,unrelated.text
+    collection='loads' if source=='loads' else 'offers'
+    mine=await client.get('/api/loads/my/loads' if source=='loads' else '/api/transport/my')
+    public=await client.get('/api/'+source+'/',params={'scope':'local'})
+    assert mine.json()[collection][0]['from_location']==expected
+    assert public.json()[collection][0]['from_location']==expected
+    model=Load if source=='loads' else TransportOffer
+    async with sessions() as db:
+        assert (await db.get(model,saved['id'])).from_location==expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('source',['loads','transport'])
+async def test_old_location_callers_do_not_get_invented_label_provenance(context,source):
+    client,_=context
+    location=await point(client)
+    assert 'label_mode' not in location
+    body=load_data(location) if source=='loads' else offer_data(location)
+    created=await client.post('/api/'+source+'/',json=body)
+    assert created.status_code in(200,201),created.text
+    row=created.json() if source=='loads' else created.json()['offer']
+    assert 'label_mode' not in row['from_location']
+    url='/api/'+source+'/'+str(row['id'])
+    updated=await(client.put(url,json={'description':'Old client unchanged point'}) if source=='loads'
+                  else client.patch(url,json={'description':'Old client unchanged point'}))
+    assert updated.status_code==200,updated.text
+    final=updated.json() if source=='loads' else updated.json()['offer']
+    assert final['from_location']==row['from_location']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('source',['loads','transport'])
+async def test_moving_saved_automatic_poi_uses_fresh_signed_point_and_new_label(context,source):
+    client,_=context
+    old=await point(client,lat=42.735488913518935,lon=44.63132098317131,
+                    label='Dariali monastery',address='Kazbegi municipality',label_mode='auto')
+    created=await client.post('/api/'+source+'/',json=load_data(old) if source=='loads' else offer_data(old))
+    assert created.status_code in(200,201),created.text
+    row=created.json() if source=='loads' else created.json()['offer']
+    moved=await point(client,lat=41.904737,lon=44.600335,label='Dzveli Kanda, street 1',label_mode='auto')
+    url='/api/'+source+'/'+str(row['id'])
+    updated=await(client.put(url,json={'from_location':moved}) if source=='loads'
+                  else client.patch(url,json={'from_location':moved}))
+    assert updated.status_code==200,updated.text
+    final=updated.json() if source=='loads' else updated.json()['offer']
+    assert final['from_location']['label']=='Dzveli Kanda, street 1'
+    assert final['from_location']['label_mode']=='auto'
+    assert final['from_location']['lat']==41.904737 and final['from_location']['lon']==44.600335
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode',['manual',True,{}])
+async def test_invalid_label_provenance_is_rejected(context,mode):
+    client,_=context
+    resolved=await client.post('/api/locations/resolve',json={'lat':41.7,'lon':44.8,'label_mode':mode})
+    assert resolved.status_code==422,resolved.text

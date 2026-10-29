@@ -721,3 +721,4 @@ body:not(:has(#sec-loads.active)) #mapWrap {
 .location-catalog-attribution{font-size:10px;color:#738091}.location-catalog-attribution a{color:inherit}
 
 .location-picker-nearby{display:flex;flex-direction:column;gap:6px}.location-picker-nearby[hidden]{display:none}.location-picker-nearby button{padding:9px 11px;border:1px solid #c9d6b6;border-radius:8px;background:#f2f7e9;color:#315027;text-align:left;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}.location-picker-nearby button:focus-visible{outline:3px solid #3971c2;outline-offset:1px}
+.road-distance-badge{font-size:11px;font-weight:600;color:#637087;white-space:nowrap}

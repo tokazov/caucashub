@@ -149,8 +149,8 @@ test('older reverse reply cannot replace newer automatic address or name',async 
  pending[1].finish('Новый адрес B');await tick();pending[0].finish('Старый адрес A');await tick();assert.equal(h.node('locationPickerAddress').textContent,'Новый адрес B');assert.equal(h.node('locationPickerLabel').value,'Новый адрес B');
  h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom','Новый адрес B');assert.equal(endpoint.location.lat,41.72);assert.equal(endpoint.location.lon,44.82);
 });
-test('restored custom point name stays intact when moved and reverse address changes',async t=>{
- const h=harness(t,{mobile:true,reverseAddress:resolvedRu});h.api.restore('pFrom',{kind:'point',label:'Ворота склада Ираклия',lat:41.7,lon:44.8,country_iso:'GE',address:'Старый почтовый адрес'});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.72,44.82]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Ворота склада Ираклия');
+test('restored explicit custom point name stays intact when moved and reverse address changes',async t=>{
+ const h=harness(t,{mobile:true,reverseAddress:resolvedRu});h.api.restore('pFrom',{kind:'point',label:'Ворота склада Ираклия',label_mode:'custom',lat:41.7,lon:44.8,country_iso:'GE',address:'Старый почтовый адрес'});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.72,44.82]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Ворота склада Ираклия');
 });
 test('verified checkpoint name and key are never replaced by reverse road address',async t=>{
  const h=harness(t,{reverseAddress:resolvedRu});await h.api.preload();await h.api.choose('pFrom',catalog[0]);await h.api.open('pFrom');await new Promise(resolve=>setTimeout(resolve,360));assert.equal(h.node('locationPickerLabel').value,'КПП Дарьял');assert.equal(h.calls.geocodes.length,0);h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom','КПП Дарьял');assert.equal(endpoint.location.key,catalog[0].key);assert.equal(endpoint.location.kind,'border_checkpoint');
@@ -172,7 +172,7 @@ test('automatic names respect100characters while retaining full address and rema
 
 
 test('a custom renamed settlement remains custom when its picker is reopened',async t=>{
- const h=harness(t,{reverseAddress:resolvedRu});await h.api.preload();const city=catalog.find(row=>row.kind==='settlement');await h.api.choose('pFrom',{...city,label:'Моя площадка у Тбилиси',address:'Тбилиси'});await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Моя площадка у Тбилиси');
+ const h=harness(t,{reverseAddress:resolvedRu});await h.api.preload();const city=catalog.find(row=>row.kind==='settlement');await h.api.choose('pFrom',{...city,label:'Моя площадка у Тбилиси',label_mode:'custom',address:'Тбилиси'});await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Моя площадка у Тбилиси');
 });
 
 
@@ -253,4 +253,45 @@ test('a canonical checkpoint used as the viewport seed yields its default name a
  const h=harness(t);await h.api.preload();await h.api.choose('pFrom',catalog[0]);await h.api.open('pFrom');assert.equal(h.node('locationPickerLabel').value,catalog[0].label);
  const place=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,address:place.description}});assert.equal(h.node('locationPickerLabel').value,place.name);h.node('locationPickerConfirm').click();await tick();
  const location=h.api.read('pFrom',place.name).location;assert.equal(location.kind,'point');assert.equal(location.key??null,null);assert.equal(location.label,place.name);assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);assert.equal(h.calls.requests.filter(row=>row.url.includes('/resolve')).length,1);
+});
+
+for(const labelMode of [undefined,'auto'])test('restored POI preserves its name until explicitly moved, then takes the new address: '+(labelMode||'legacy'),async t=>{
+ const address='Грузия, Мцхетский муниципалитет, Дзвели Канда, улица 1',h=harness(t,{mobile:true,reverseAddress:address});
+ const place=nativePlaces[0],saved={kind:'point',label:place.name,address:place.description,lat:place.coords[0],lon:place.coords[1],country_iso:'GE'};
+ if(labelMode)saved.label_mode=labelMode;
+ h.api.restore('pFrom',JSON.parse(JSON.stringify(saved)));await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===address);
+ assert.equal(h.node('locationPickerLabel').value,place.name,'Opening must not silently rename the saved object');
+ h.calls.maps[0].setCenter([41.904737,44.600335]);await until(()=>h.node('locationPickerLabel').value===address);
+ h.node('locationPickerConfirm').click();await tick();const moved=h.api.read('pFrom',address).location;
+ assert.equal(moved.lat,41.904737);assert.equal(moved.lon,44.600335);assert.equal(moved.label_mode,'auto');assert.equal(moved.key??null,null);assert.equal(moved.country_iso,'GE');
+ assert.equal(h.calls.requests.find(row=>row.url.includes('/resolve')).body.label_mode,'auto');
+});
+
+test('automatic native POI provenance survives confirmation, server restore and selection of another POI',async t=>{
+ const h=harness(t);await h.api.open('pFrom');const first=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:first.coords,properties:{name:first.name,address:first.description}});
+ h.node('locationPickerConfirm').click();await tick();const saved=JSON.parse(JSON.stringify(h.api.read('pFrom',first.name).location));assert.equal(saved.label_mode,'auto');
+ h.api.restore('pFrom',saved);await h.api.open('pFrom');const next=nativePlaces[1];h.calls.maps[1].openNativePoi({coords:next.coords,properties:{name:next.name,address:next.description}});
+ assert.equal(h.node('locationPickerLabel').value,next.name);h.node('locationPickerConfirm').click();await tick();const changed=h.api.read('pFrom',next.name).location;
+ assert.equal(changed.label_mode,'auto');assert.equal(changed.lat,next.coords[0]);assert.equal(changed.lon,next.coords[1]);
+});
+
+test('manual provenance survives save, restore and moving even when the custom name equals the old address',async t=>{
+ const h=harness(t,{mobile:true,reverseAddress:resolvedRu});await h.api.open('pFrom');await until(()=>h.node('locationPickerLabel').value===resolvedRu);
+ h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));h.node('locationPickerConfirm').click();await tick();
+ const saved=JSON.parse(JSON.stringify(h.api.read('pFrom',resolvedRu).location));assert.equal(saved.label_mode,'custom');assert.equal(saved.label,saved.address);
+ h.api.restore('pFrom',saved);await h.api.open('pFrom');h.calls.maps[1].setCenter([41.904737,44.600335]);await until(()=>h.calls.geocodes.some(coords=>coords[0]===41.904737));await tick();
+ assert.equal(h.node('locationPickerLabel').value,resolvedRu);h.node('locationPickerConfirm').click();await tick();const moved=h.api.read('pFrom',resolvedRu).location;
+ assert.equal(moved.label_mode,'custom');assert.equal(moved.lat,41.904737);assert.equal(moved.lon,44.600335);
+});
+
+test('legacy name has no invented provenance when reopened and confirmed without moving',async t=>{
+ const h=harness(t,{reverseAddress:resolvedRu}),place=nativePlaces[0];h.api.restore('pFrom',{kind:'point',label:place.name,address:place.description,lat:place.coords[0],lon:place.coords[1],country_iso:'GE'});
+ await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);h.node('locationPickerConfirm').click();await tick();const saved=h.api.read('pFrom',place.name).location;
+ assert.equal(saved.label_mode,undefined);assert.equal(saved.lat,place.coords[0]);assert.equal(saved.lon,place.coords[1]);
+});
+
+test('manual editing in a legacy picker before moving opts into preserving the name',async t=>{
+ const h=harness(t,{mobile:true,reverseAddress:resolvedRu}),place=nativePlaces[0];h.api.restore('pFrom',{kind:'point',label:place.name,address:place.description,lat:place.coords[0],lon:place.coords[1],country_iso:'GE'});
+ await h.api.open('pFrom');h.node('locationPickerLabel').value='Мои ворота у монастыря';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));h.calls.maps[0].setCenter([41.904737,44.600335]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);
+ h.node('locationPickerConfirm').click();await tick();const saved=h.api.read('pFrom','Мои ворота у монастыря').location;assert.equal(saved.label_mode,'custom');assert.equal(saved.lat,41.904737);assert.equal(saved.lon,44.600335);
 });

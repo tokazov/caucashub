@@ -25,6 +25,7 @@ class RouteLocationInput(BaseModel):
     kind: Literal['settlement', 'border_checkpoint', 'point']
     key: str | None = Field(None, max_length=150)
     label: str = Field(min_length=1, max_length=200)
+    label_mode: Literal['auto', 'custom'] | None = None
     country_iso: str | None = Field(None, pattern=r'^[A-Za-z]{2}$')
     lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
@@ -56,6 +57,11 @@ class RouteLocationInput(BaseModel):
 
 def _payload(value):
     return value.model_dump() if isinstance(value, BaseModel) else dict(value)
+
+
+def _label_metadata(data):
+    # Omitted provenance stays unknown for old callers and saved legacy points.
+    return {'label_mode': data.label_mode} if data.label_mode is not None else {}
 
 
 @lru_cache(maxsize=1)
@@ -187,6 +193,7 @@ async def resolve_map_location(data, registry=None):
         raise ValueError('Страна точки не совпадает с координатами / ქვეყანა არ ემთხვევა კოორდინატებს')
     city = declared_settlement(data, registry, country)
     return {'kind': 'point', 'key': None, 'label': data.label,
+            **_label_metadata(data),
             'lat': data.lat, 'lon': data.lon, 'country_iso': country,
             'address': data.address or data.label, 'settlement_id': city.id if city else None,
             'settlement_key': city.key if city else None,
@@ -215,7 +222,9 @@ async def normalize_location(db, registry, raw, existing=None):
             raise ValueError('Для точного адреса выберите точку на карте')
         name, city_id = await resolve_publication_city(db, registry, city.name_ru, city_key=city.key)
         out = _canonical_city_location(city)
-        out.update(label=name, settlement_id=city_id, address=data.address or name)
+        label = data.label if data.label_mode == 'custom' else name
+        out.update(label=label, settlement_id=city_id, address=data.address or name,
+                   **_label_metadata(data))
         return out
     if data.kind == 'border_checkpoint' or (data.key and catalogue_identity(data.key)):
         out = catalogue_identity(data.key)
@@ -225,7 +234,8 @@ async def normalize_location(db, registry, raw, existing=None):
                 math.isclose(data.lat, out['lat'], abs_tol=0.00001)
                 and math.isclose(data.lon, out['lon'], abs_tol=0.00001)):
             raise ValueError('Выбранная точка и координаты КПП не совпадают')
-        out.update(label=data.label, address=data.address or out['address'])
+        out.update(label=data.label, address=data.address or out['address'],
+                   **_label_metadata(data))
         out['aliases'] = list(dict.fromkeys([data.label, *out['aliases']]))
         return out
     if _same_saved_point(data, existing):
@@ -237,6 +247,7 @@ async def normalize_location(db, registry, raw, existing=None):
     if city:
         _, city_id = await resolve_publication_city(db, registry, city.name_ru, city_key=city.key)
     return {'kind': 'point', 'key': None, 'label': data.label, 'lat': data.lat,
+            **_label_metadata(data),
             'lon': data.lon, 'country_iso': country, 'address': data.address or data.label,
             'settlement_id': city_id, 'settlement_key': city.key if city else None,
             'aliases': list(dict.fromkeys([data.label, *(city.public_aliases() if city else [])]))}

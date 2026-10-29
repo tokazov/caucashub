@@ -1,5 +1,6 @@
 """Read-only own-place suggestions and server country resolution for map pins."""
 from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, field_validator
 from app.database import get_db
@@ -12,6 +13,7 @@ class MapPointRequest(BaseModel):
     lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
     label: str = Field(default='Точка на карте', min_length=1, max_length=200)
+    label_mode: Literal['auto', 'custom'] | None = None
     address: str | None = Field(None, max_length=500)
     country_iso: str | None = Field(None, pattern=r'^[A-Za-z]{2}$')
     settlement_id: int | None = Field(None, ge=1, strict=True)
