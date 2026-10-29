@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.city import City
+from app.services.city_identity import city_registry
 
 router = APIRouter()
 
@@ -20,39 +21,11 @@ async def get_cities(
     limit: int = Query(15, le=50),
     db: AsyncSession = Depends(get_db),
 ):
-    """Автокомплит городов. При q='' возвращает популярные."""
-    query = select(City)
-
-    if q:
-        query = query.where(City.name_ru.ilike(f"{q}%"))
-    else:
-        query = query.where(City.is_popular == True)  # noqa: E712
-
-    if country:
-        query = query.where(City.country_iso == country.upper())
-    elif popular_only:
-        query = query.where(City.is_popular == True)  # noqa: E712
-
-    query = query.order_by(City.is_popular.desc(), City.name_ru).limit(limit)
-    result = await db.execute(query)
-    cities = result.scalars().all()
-
-    return {
-        "cities": [
-            {
-                "id": c.id,
-                "name_ru": c.name_ru,
-                "name_ge": c.name_ge,
-                "country_iso": c.country_iso,
-                "lat": c.lat,
-                "lon": c.lon,
-                "is_popular": c.is_popular,
-            }
-            for c in cities
-        ],
-        "total": len(cities),
-        "yandex_available": False,  # будет True после ADR-007Б
-    }
+    """RU/EN/KA autocomplete sharing canonical IDs with listing search."""
+    registry = await city_registry(db)
+    cities = registry.search(q, country=country, popular_only=popular_only or not q)[:limit]
+    return {"cities": [c.public() for c in cities], "total": len(cities),
+            "yandex_available": False}
 
 
 @router.post("/seed")

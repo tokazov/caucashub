@@ -125,15 +125,38 @@ const CaucasAPI = {
   },
 
   // ── LOADS ───────────────────────────────────────────
-  async getLoads({ scope, from_city, to_city, truck_type } = {}){
+  async getLoads({ scope, from_city, to_city, from_city_id, to_city_id, from_city_key, to_city_key, truck_type } = {}){
     const params = new URLSearchParams();
     if(scope) params.set('scope', scope);
     if(from_city) params.set('from_city', from_city);
     if(to_city) params.set('to_city', to_city);
+    if(from_city_id) params.set('from_city_id', from_city_id);
+    if(to_city_id) params.set('to_city_id', to_city_id);
+    if(from_city_key) params.set('from_city_key', from_city_key);
+    if(to_city_key) params.set('to_city_key', to_city_key);
     if(truck_type) params.set('truck_type', truck_type);
     params.set('limit', '100');
-    const r = await apiRequest('GET', '/api/loads/?' + params.toString());
-    return r.ok ? r.data?.loads || [] : [];
+    const loads=[],seen=new Set();
+    // Keep local filtering complete beyond the first page without a request on each keystroke.
+    // A broken/changing pagination response must never become a false empty/partial result.
+    for(let page=0,offset=0;page<50;page++){
+      if(offset) params.set('offset',String(offset));
+      const r = await apiRequest('GET', '/api/loads/?' + params.toString());
+      if(!r.ok||!Array.isArray(r.data?.loads)) throw new Error('Loads are temporarily unavailable');
+      const rows=r.data.loads;
+      const total=Number.isSafeInteger(r.data.total)&&r.data.total>=0?r.data.total:null;
+      const before=loads.length;
+      for(const row of rows){
+        if(row?.id==null) throw new Error('Invalid loads response');
+        const id=String(row.id);
+        if(!seen.has(id)){seen.add(id);loads.push(row);}
+      }
+      if(total!==null&&loads.length>=total) return loads;
+      if(total===null&&rows.length<100) return loads;
+      if(!rows.length||loads.length===before) throw new Error('Incomplete loads response; please retry');
+      offset+=rows.length;
+    }
+    throw new Error('Too many loads to synchronize; please retry later');
   },
 
   async getMyLoads(){
@@ -161,6 +184,9 @@ const CaucasAPI = {
       company_name: load.co,
       ...dates,
     };
+    for(const field of ['from_city_id','to_city_id','from_city_key','to_city_key','from_location','to_location']){
+      if(load[field]!=null)body[field]=load[field];
+    }
     const extraH=idempotencyKey?{'Idempotency-Key':idempotencyKey}:{};
     const r=await apiRequest('POST','/api/loads/',body,extraH);
     if(r.ok && r.data?.id){
@@ -181,6 +207,8 @@ const CaucasAPI = {
     catch(e) { return {ok:false,error:e.message}; }
     const body={...dates};
     const fields={from:'from_city',to:'to_city',from2:'from_address',to2:'to_address',
+      from_city_id:'from_city_id',to_city_id:'to_city_id',from_city_key:'from_city_key',to_city_key:'to_city_key',
+      from_location:'from_location',to_location:'to_location',
       kg:'weight_kg',desc:'cargo_desc',type:'truck_type',pay:'payment_type',urgent:'is_urgent'};
     for(const [key,apiKey] of Object.entries(fields))
       if(Object.prototype.hasOwnProperty.call(updates,key)) body[apiKey]=updates[key];
@@ -239,6 +267,10 @@ function decodeJwtUserId(token){
 
 // ── SYNC: загружаем грузы с сервера при старте ────────
 async function syncLoadsFromServer(){
+  const requestedScope=scope;
+  const syncSequence=(window._loadsSyncSequence||0)+1;
+  window._loadsSyncSequence=syncSequence;
+  const current=()=>syncSequence===window._loadsSyncSequence&&scope===requestedScope;
   var syncFailed=false;
   window._loadsLoading = true;
   try {
@@ -251,34 +283,21 @@ async function syncLoadsFromServer(){
     }
 
     // Загружаем публичные грузы с сервера (для всех, не только залогиненных)
-    const serverLoads = await CaucasAPI.getLoads({ scope: scope });
-    if(serverLoads && serverLoads.length > 0){
-      const mapped = serverLoads.map(l => mapServerLoad(l));
-      if(scope === 'local'){
-        // Сохраняем локальные грузы (без serverId) которые ещё не попали на сервер
-        const localOnly = LOCAL.filter(l => !l.fromServer && !l.serverId);
-        LOCAL.length = 0;
-        mapped.forEach(l => LOCAL.push(l));
-        // Восстанавливаем локальные грузы (дедуп по id)
-        localOnly.forEach(l => { if(!LOCAL.find(x => x.id === l.id)) LOCAL.unshift(l); });
-      } else {
-        const localOnly = INTL.filter(l => !l.fromServer && !l.serverId);
-        INTL.length = 0;
-        mapped.forEach(l => INTL.push(l));
-        localOnly.forEach(l => { if(!INTL.find(x => x.id === l.id)) INTL.unshift(l); });
-      }
-      window.allLoads = [...LOCAL, ...INTL];
-      window._serverTotal = serverLoads.length;
-      if(typeof renderLoads === 'function') renderLoads(scope === 'local' ? LOCAL : INTL);
-      // Обновляем счётчик реальными данными
-      const _statEl = document.getElementById('statLoads');
-      if(_statEl) _statEl.textContent = serverLoads.length;
-      // removed console.log
-    }
+    const serverLoads = await CaucasAPI.getLoads({ scope: requestedScope });
+    if(!current()) return;
+    if(!Array.isArray(serverLoads)) throw new Error('Invalid loads response');
+    // Public results are authoritative, including an empty response. Drafts stay private.
+    const mapped=serverLoads.map(l=>mapServerLoad(l));
+    const target=requestedScope==='local'?LOCAL:INTL;
+    target.splice(0,target.length,...mapped);
+    window.allLoads=[...LOCAL,...INTL];
+    window._serverTotal=serverLoads.length;
+    if(typeof renderLoads==='function') renderLoads(target);
 
     // Загружаем свои грузы если залогинен
     if(tok && currentUserId){
       const myLoads = await CaucasAPI.getMyLoads();
+      if(!current()) return;
       if(myLoads && myLoads.length){
         // Очищаем серверные грузы из _myLoads (оставляем только локальные)
         _myLoads = _myLoads.filter(l => !l.fromServer);
@@ -298,12 +317,14 @@ async function syncLoadsFromServer(){
       }
     }
   } catch(e) {
+    if(!current()) return;
     syncFailed=true;
     console.warn('[syncLoads]', e);
     // БАГ-7: показываем сообщение вместо вечного спиннера
     var _errList = document.getElementById('cargoList');
     if(_errList) _errList.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">Нет данных. Попробуйте позже.</div>';
   } finally {
+    if(!current()) return;
     window._loadsLoading = false;
     // A successful empty search must finish with an empty state, not a spinner.
     var currentLoads=scope==='local'?LOCAL:INTL;
@@ -353,7 +374,18 @@ function mapServerLoad(l){
     from2:     l.from2 || l.from || '',
     to:        l.to    || '',
     to2:       l.to2   || l.to || '',
-    scope:     l.scope || 'local',
+    from_location:l.from_location||null,
+    to_location:l.to_location||null,
+    scope:     l.route_scope || l.scope || 'unverified',
+    route_scope:l.route_scope || l.scope || 'unverified',
+    from_city_id:l.from_city_id ?? null,
+    to_city_id:l.to_city_id ?? null,
+    from_city_key:l.from_city_key || null,
+    to_city_key:l.to_city_key || null,
+    from_city_aliases:Array.isArray(l.from_city_aliases)?l.from_city_aliases:[],
+    to_city_aliases:Array.isArray(l.to_city_aliases)?l.to_city_aliases:[],
+    from_country_iso:l.from_country_iso || null,
+    to_country_iso:l.to_country_iso || null,
     kg:        l.kg    || 0,
     type:      l.type  || 'tent',
     ...tc,
@@ -368,7 +400,9 @@ function mapServerLoad(l){
     load_date_end: l.load_date_end || loadDateISO(l.date2),
     km:        '—',
     co:        l.co    || 'CaucasHub',
-    rat:       l.rat   || '5.0',
+    rat:       l.rating ?? l.rat ?? null,
+    review_count: l.review_count ?? l.ratings_received ?? 0,
+    rating_verified: l.rating_verified === true,
     trips:     l.trips || 0,
     badge:     l.urgent ? 'urgent' : (l.badge || null),
     created_at: l.created_at || null,
@@ -448,39 +482,38 @@ window.setToken = setToken;
 window.decodeJwtUserId = decodeJwtUserId;
 window.openRouteMap = function(){ if(typeof openRouteMap_==='function') openRouteMap_(); };
 
-// ── Загрузка реальных счётчиков из API ───────────────────────────────────────
+// ── Public counters: unknown is not zero; never fabricate a successful snapshot. ──
 (function loadStatsCounters(){
-  // Сразу показываем 0 вместо "—" не дожидаясь API
-  var _initZero = function() {
-    var trEl = document.getElementById('statTrucks');
-    var coEl = document.getElementById('statCompanies');
-    var ldEl = document.getElementById('statLoads');
-    if(trEl) trEl.textContent = '0';
-    if(coEl) coEl.textContent = '0';
-    if(ldEl) ldEl.textContent = '0';
-  };
-  _initZero(); // сразу при загрузке
-  function _applyCounters(d) {
-    var trEl = document.getElementById('statTrucks');
-    var coEl = document.getElementById('statCompanies');
-    var ldEl = document.getElementById('statLoads');
-    var usEl = document.getElementById('statUsers');
-    var olEl = document.getElementById('statOnlineUsers');
-    if(trEl) trEl.textContent = (d.online_trucks != null ? d.online_trucks : 0).toLocaleString();
-    if(coEl) coEl.textContent = (d.companies != null ? d.companies : 0).toLocaleString();
-    if(ldEl) ldEl.textContent = (d.active_loads != null ? d.active_loads : 0).toLocaleString();
-    if(usEl && d.total_users != null) usEl.textContent = d.total_users.toLocaleString();
-    if(olEl && d.online_users != null) olEl.textContent = d.online_users.toLocaleString();
+  var ids=['statTrucks','statCompanies','statLoads','statUsers','statOnlineUsers'];
+  function unavailable(){
+    ids.forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+    var status=document.getElementById('statsDataStatus');
+    if(status)status.textContent=typeof lang!=='undefined'&&lang==='ge'?'მონაცემები დროებით მიუწვდომელია':'Данные временно недоступны';
   }
-  fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
-    .then(function(r){ return r.json(); })
-    .then(_applyCounters)
-    .catch(function(){ _initZero(); });
-  // Обновление онлайн каждые 30 секунд
-  setInterval(function(){
-    fetch(API_BASE + '/api/stats/counters', {signal: AbortSignal.timeout(10000)})
-      .then(function(r){ return r.json(); })
-      .then(_applyCounters)
-      .catch(function(){});
-  }, 30000);
+  function counter(value){
+    return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0?value.toLocaleString():'—';
+  }
+  function applyCounters(d){
+    if(!d||typeof d!=='object'||Array.isArray(d))throw new Error('Invalid counters response');
+    [['statTrucks','online_trucks'],['statCompanies','registered_profiles'],['statLoads','active_loads'],['statUsers','total_users'],['statOnlineUsers','online_users']].forEach(function(pair){
+      var el=document.getElementById(pair[0]);if(el)el.textContent=counter(d[pair[1]]);
+    });
+    var status=document.getElementById('statsDataStatus');
+    if(status){
+      var ge=typeof lang!=='undefined'&&lang==='ge';
+      var snapshot=d.as_of?new Date(d.as_of):null;
+      var hasSnapshot=snapshot&&Number.isFinite(snapshot.getTime());
+      var received=new Intl.DateTimeFormat(ge?'ka-GE':'ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tbilisi'}).format(hasSnapshot?snapshot:new Date());
+      status.textContent=(hasSnapshot?(ge?'API · მონაცემები ':'API · данные на '):(ge?'API · მიღებულია ':'API · получено '))+received;
+      status.title=ge?'რეგისტრირებული პროფილები და განცხადებები — არა გადამოწმებული იურიდიული პირების რაოდენობა':'Зарегистрированные профили и объявления; это не число проверенных юридических лиц';
+    }
+  }
+  function refresh(){
+    return fetch(API_BASE+'/api/stats/counters',{signal:AbortSignal.timeout(10000)})
+      .then(function(r){if(!r.ok)throw new Error('Counters unavailable');return r.json();})
+      .then(applyCounters).catch(unavailable);
+  }
+  unavailable();
+  refresh();
+  setInterval(refresh,30000);
 })();

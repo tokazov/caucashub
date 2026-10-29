@@ -1,153 +1,85 @@
 /**
- * Cloudflare Pages Worker — SEO multilang injection
- *
- * Маршруты:
- *   GET /ka/          → грузинская версия (чистый URL, хорошо для SEO)
- *   GET /?lang=ge     → 301 редирект на /ka/ (старые ссылки не ломаются)
- *   GET /             → русская версия (без изменений)
- *   Все остальные     → статика из Pages
+ * Cloudflare Pages Worker: locale HTML and root-resolved static assets.
+ * Canonical SEO URLs stay on production; redirects preserve the request origin.
  */
-
 const BASE = 'https://www.caucashub.ge';
-
-const RU = {
-  title:    'CaucasHub.ge \u2014 \u0411\u0438\u0440\u0436\u0430 \u0433\u0440\u0443\u0437\u043e\u0432 \u041a\u0430\u0432\u043a\u0430\u0437\u0430',
-  desc:     'CaucasHub.ge \u2014 \u043f\u0435\u0440\u0432\u0430\u044f \u0431\u0438\u0440\u0436\u0430 \u0433\u0440\u0443\u0437\u043e\u0432 \u041a\u0430\u0432\u043a\u0430\u0437\u0430. \u041d\u0430\u0439\u0434\u0438\u0442\u0435 \u043f\u0435\u0440\u0435\u0432\u043e\u0437\u0447\u0438\u043a\u043e\u0432 \u0438 \u0433\u0440\u0443\u0437\u044b \u043f\u043e \u0413\u0440\u0443\u0437\u0438\u0438, \u0421\u041d\u0413, \u0422\u0443\u0440\u0446\u0438\u0438. 120+ \u0433\u043e\u0440\u043e\u0434\u043e\u0432.',
-  canonical: BASE + '/',
+const META = {
+  ru: {
+    title:'CaucasHub.ge — Биржа грузов Кавказа',
+    desc:'Платформа для поиска грузов и перевозчиков в Грузии и на международных направлениях. Разместите заявку с маршрутом, датой и параметрами груза.',
+    canonical:BASE+'/',
+  },
+  ge: {
+    title:'CaucasHub.ge — კავკასიის სატვირთო ბირჟა',
+    desc:'ტვირთებისა და გადამზიდველების საძიებო პლატფორმა საქართველოში და საერთაშორისო მიმართულებებზე. განათავსეთ განაცხადი მარშრუტით, თარიღითა და ტვირთის მონაცემებით.',
+    canonical:BASE+'/ka/',
+  },
 };
-
-const GE_NOSCRIPT = `<noscript>
-<div style="max-width:900px;margin:0 auto;padding:20px;font-family:sans-serif">
-  <h1>CaucasHub.ge — კავკასიის სატვირთო ბირჟა</h1>
-  <p>კავკასიის პირველი ონლაინ სატვირთო ბირჟა. იპოვეთ გადამზიდველები და ტვირთები საქართველოში, რუსეთში, აზერბაიჯანში, სომხეთში და დსთ-ს ქვეყნებში. აქტუალური ტარიფები, სწრაფი გარიგებები. თბილისი, ბათუმი, ქუთაისი, რუსთავი და 120+ ქალაქი.</p>
-  <h2>ტვირთგადაზიდვები საქართველოში</h2>
-  <p>თბილისი — ბათუმი, თბილისი — ქუთაისი, თბილისი — ფოთი, თბილისი — ზუგდიდი. სასწრაფო და დაგეგმილი გადაზიდვები. ფურგონები, ფურები, რეფრიჯერატორები.</p>
-  <h2>საერთაშორისო მარშრუტები</h2>
-  <p>საქართველო — რუსეთი, საქართველო — აზერბაიჯანი, საქართველო — სომხეთი, საქართველო — თურქეთი. საბაჟო გაფორმება, კონსოლიდირებული ტვირთები, FTL/LTL.</p>
-  <p><a href="https://www.caucashub.ge/ka/">caucashub.ge</a></p>
-</div>
-</noscript>`;
-
-const GE = {
-  title:    'CaucasHub.ge \u2014 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d8\u10e1 \u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0',
-  desc:     'CaucasHub.ge \u2014 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d8\u10e1 \u10de\u10d8\u10e0\u10d5\u10d4\u10da\u10d8 \u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0. \u10d8\u10de\u10dd\u10d5\u10d4\u10d7 \u10d2\u10d0\u10d3\u10d0\u10db\u10d6\u10d8\u10d3\u10d5\u10d4\u10da\u10d4\u10d1\u10d8 \u10d3\u10d0 \u10e2\u10d5\u10d8\u10e0\u10d7\u10d4\u10d1\u10d8 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd\u10e8\u10d8, \u10e1\u10dd\u10db\u10ee\u10d4\u10d7\u10e1\u10d0, \u10d0\u10d6\u10d4\u10e0\u10d1\u10d0\u10d8\u10ef\u10d0\u10dc\u10e8\u10d8. 120+ \u10e5\u10d0\u10da\u10d0\u10e5\u10d8.',
-  keywords: '\u10e1\u10d0\u10e2\u10d5\u10d8\u10e0\u10d7\u10dd \u10d1\u10d8\u10e0\u10df\u10d0 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd, \u10d2\u10d0\u10d3\u10d0\u10db\u10d6\u10d8\u10d3\u10d5\u10d4\u10da\u10d4\u10d1\u10d8 \u10d7\u10d1\u10d8\u10da\u10d8\u10e1\u10d8, \u10e2\u10d5\u10d8\u10e0\u10d7\u10d4\u10d1\u10d8 \u10d9\u10d0\u10d5\u10d9\u10d0\u10e1\u10d8\u10d0, \u10da\u10dd\u10ef\u10d8\u10e1\u10e2\u10d8\u10d9\u10d0 \u10e1\u10d0\u10e5\u10d0\u10e0\u10d7\u10d5\u10d4\u10da\u10dd',
-  canonical: BASE + '/ka/',
-  noscript: GE_NOSCRIPT,
-};
-
-
-
-// hreflang теги — одинаковые для обеих версий
-const HREFLANG = `
-  <link rel="alternate" hreflang="ru" href="${BASE}/" />
-  <link rel="alternate" hreflang="ka" href="${BASE}/ka/" />
-  <link rel="alternate" hreflang="x-default" href="${BASE}/" />`;
-
-function injectSEO(html, meta) {
-  // title
-  html = html.replace(/<title[^>]*>[\s\S]*?<\/title>/, `<title>${meta.title}</title>`);
-  // description
-  html = html.replace(/(<meta\s+name="description"\s+content=")[^"]*(")/i, `$1${meta.desc}$2`);
-  // keywords
-  if (meta.keywords) {
-    html = html.replace(/(<meta\s+name="keywords"\s+content=")[^"]*(")/i, `$1${meta.keywords}$2`);
-  }
-  // og:title
-  html = html.replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/i, `$1${meta.title}$2`);
-  // og:description
-  html = html.replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/i, `$1${meta.desc}$2`);
-  // og:url
-  html = html.replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/i, `$1${meta.canonical}$2`);
-  // canonical
-  html = html.replace(/(<link\s+rel="canonical"\s+href=")[^"]*(")/i, `$1${meta.canonical}$2`);
-  // hreflang — заменяем существующий блок или вставляем после canonical
-  html = html.replace(
-    /(\s*<link\s+rel="alternate"\s+hreflang[^>]+>\s*)+/g,
-    HREFLANG + '\n'
-  );
-  // twitter:description
-  if (meta.desc) {
-    html = html.replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/i, `$1${meta.desc}$2`);
-    html = html.replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/i, `$1${meta.title}$2`);
-  }
-  // noscript (если передан)
-  if (meta.noscript) {
-    html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, meta.noscript);
+const HREFLANG = [
+  '<link rel="alternate" hreflang="ru" href="'+BASE+'/" />',
+  '<link rel="alternate" hreflang="ka" href="'+BASE+'/ka/" />',
+  '<link rel="alternate" hreflang="x-default" href="'+BASE+'/" />',
+].join('\n');
+const LEGACY_LOCALE_ASSETS = new Set([
+  'styles.css','api.js','main.js','translations.js','ai-dispatcher.js','locations.js',
+  'sw.js','manifest.json','dispatcher.jpg','mari-avatar-v2.webp',
+  'icon-192.png','icon-512.png','og-image.jpg','robots.txt','sitemap.xml',
+]);
+function rewriteMeta(html, selector, value) {
+  return html.replace(selector, (_whole, before, after)=>before+value+after);
+}
+export function injectSEO(html, locale) {
+  const meta=META[locale];
+  html=html.replace(/<html\b[^>]*>/i, '<html lang="'+(locale==='ge'?'ka':'ru')+'">');
+  html=html.replace(/<title[^>]*>[\s\S]*?<\/title>/i, '<title>'+meta.title+'</title>');
+  html=rewriteMeta(html, /(<meta\s+name="description"\s+content=")[^"]*(")/i, meta.desc);
+  html=rewriteMeta(html, /(<meta\s+property="og:title"\s+content=")[^"]*(")/i, meta.title);
+  html=rewriteMeta(html, /(<meta\s+property="og:description"\s+content=")[^"]*(")/i, meta.desc);
+  html=rewriteMeta(html, /(<meta\s+property="og:url"\s+content=")[^"]*(")/i, meta.canonical);
+  html=rewriteMeta(html, /(<meta\s+name="twitter:title"\s+content=")[^"]*(")/i, meta.title);
+  html=rewriteMeta(html, /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/i, meta.desc);
+  html=rewriteMeta(html, /(<link\s+rel="canonical"\s+href=")[^"]*(")/i, meta.canonical);
+  html=html.replace(/(\s*<link\s+rel="alternate"\s+hreflang[^>]+>\s*)+/g, '\n'+HREFLANG+'\n');
+  // One base resolves stylesheet, scripts, images AND dynamically added avatar URLs.
+  if (/<base\b/i.test(html)) html=html.replace(/<base\b[^>]*>/i, '<base href="/">');
+  else html=html.replace(/<head[^>]*>/i, '$&\n<base href="/">');
+  if(locale==='ge') {
+    html=html.replace(/<noscript>[\s\S]*?<\/noscript>/g, (block)=>
+      block.includes('<h1>') ? '<noscript><div style="max-width:900px;margin:auto;padding:20px;font-family:sans-serif"><h1>'+meta.title+'</h1><p>'+meta.desc+'</p><p><a href="'+meta.canonical+'">CaucasHub.ge</a></p></div></noscript>' : block);
   }
   return html;
 }
-
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const { pathname, searchParams } = url;
-
-    // ── 301: ?lang=ge → /ka/ (старые ссылки) ────────────────────────────────
-    if (pathname === '/' && searchParams.get('lang') === 'ge') {
-      return Response.redirect(BASE + '/ka/', 301);
+    const url=new URL(request.url);
+    const read=request.method==='GET'||request.method==='HEAD';
+    if(!read) return env.ASSETS.fetch(request);
+    if(url.pathname==='/'&&url.searchParams.get('lang')==='ge') {
+      url.pathname='/ka/';
+      url.searchParams.delete('lang');
+      return Response.redirect(url.toString(),301);
     }
-
-    // ── /ka/ — грузинская SEO-версия ─────────────────────────────────────────
-    if (pathname === '/ka/' || pathname === '/ka') {
-      // Берём index.html из корня (Pages отдаёт его как SPA fallback)
-      const rootReq = new Request(new URL('/', url).toString(), request);
-      const response = await env.ASSETS.fetch(rootReq);
-      let html = await response.text();
-
-      // Устанавливаем lang=ge для клиентского JS
-      html = html.replace(
-        'window._initLang = _lang;',
-        "window._initLang = 'ge'; _lang = 'ge';"
-      );
-      // Форсируем localStorage при загрузке
-      // Форсируем ge язык: пишем в localStorage
-      html = html.replace(
-        '</head>',
-        `<script>try{localStorage.setItem('ch_lang','ge');}catch(e){}</script></head>`
-      );
-      // Вызываем setLang ПОСЛЕ загрузки всех скриптов (перед </body>)
-      html = html.replace(
-        '</body>',
-        `<script>
-        (function _forceLangGe(){
-          if(typeof setLang==='function'){
-            var _btn=document.querySelector('.lang-btn[onclick*=\"ge\"]');
-            setLang('ge',_btn||null);
-          } else {
-            // main.js ещё не загружен — ждём
-            setTimeout(_forceLangGe, 100);
-          }
-        })();
-        </script></body>`
-      );
-
-      html = injectSEO(html, GE);
-
-      return new Response(html, {
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'public, max-age=300',
-        },
-        status: 200,
-      });
+    if(url.pathname==='/ka') {
+      url.pathname='/ka/';
+      return Response.redirect(url.toString(),301);
     }
-
-    // ── Главная / — русская версия, обновляем hreflang ───────────────────────
-    if (pathname === '/' && !searchParams.get('lang')) {
-      const response = await env.ASSETS.fetch(request);
-      let html = await response.text();
-      html = injectSEO(html, RU);
-      return new Response(html, {
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'public, max-age=300',
-        },
-        status: 200,
-      });
+    // Compatibility for previous /ka HTML already held by a browser/cache.
+    if(url.pathname.startsWith('/ka/')&&LEGACY_LOCALE_ASSETS.has(url.pathname.slice(4))) {
+      url.pathname='/'+url.pathname.slice(4);
+      return env.ASSETS.fetch(new Request(url.toString(),request));
     }
-
-    // ── Всё остальное — статика ───────────────────────────────────────────────
-    return env.ASSETS.fetch(request);
+    const locale=url.pathname==='/ka/'?'ge':url.pathname==='/'?'ru':null;
+    if(!locale) return env.ASSETS.fetch(request);
+    const root=new URL(request.url);
+    root.pathname='/';
+    const response=await env.ASSETS.fetch(new Request(root.toString(),request));
+    if(!response.ok||!(response.headers.get('content-type')||'').includes('text/html')) return response;
+    const html=injectSEO(await response.text(),locale);
+    const headers=new Headers(response.headers);
+    headers.set('content-type','text/html; charset=utf-8');
+    headers.set('cache-control','no-store, no-cache, must-revalidate, max-age=0');
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    return new Response(request.method==='HEAD'?null:html,{status:response.status,headers});
   },
 };

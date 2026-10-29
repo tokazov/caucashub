@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <base href="/">
   <meta charset="UTF-8">
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
@@ -16,7 +17,7 @@
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap&subset=latin,latin-ext,currency" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+Georgian:wght@400;700;900&display=swap&subset=latin,latin-ext,currency" rel="stylesheet"></noscript>
 <style>
-:lang(ka){font-family:'Noto Sans Georgian',sans-serif;}
+/* One shared font stack avoids locale-wide font restyling. */
 
 /* FORCE: cargo table full width — override cached styles.css */
 .thead {
@@ -63,14 +64,16 @@
     var _urlLang = (location.search.match(/[?&]lang=([a-z]+)/) || [])[1];
     var _storedLang = null;
     try { _storedLang = localStorage.getItem('ch_lang'); } catch(e){}
-    var _lang = _urlLang || _storedLang || 'ru';
+    var _pathLang = /^\/ka(?:\/|$)/.test(location.pathname) ? 'ge' : null;
+    var _lang = _pathLang || _urlLang || _storedLang || 'ru';
     window._initLang = _lang;
-    try { if(_urlLang) localStorage.setItem('ch_lang', _urlLang); } catch(e){}
+    document.documentElement.lang = _lang === 'ge' ? 'ka' : 'ru';
+    try { if(_pathLang || _urlLang) localStorage.setItem('ch_lang', _lang); } catch(e){}
     if(_lang === 'ge') {
       document.addEventListener('DOMContentLoaded', function(){
         document.title = 'CaucasHub.ge — კავკასიის სატვირთო ბირჟა';
         var desc = document.querySelector('meta[name="description"]');
-        if(desc) desc.setAttribute('content', 'CaucasHub.ge — კავკასიის პირველი სატვირთო ბირჟა. იპოვეთ გადამზიდველები და ტვირთები საქართველოში, სომხეთსა, აზერბაიჯანში, საქართველოს 120+ ქალაქში.');
+        if(desc) desc.setAttribute('content', 'ტვირთებისა და გადამზიდველების საძიებო პლატფორმა საქართველოში და საერთაშორისო მიმართულებებზე.');
         var kw = document.querySelector('meta[name="keywords"]');
         if(kw) kw.setAttribute('content', 'სატვირთო ბირჟა საქართველო, გადამზიდველები თბილისი, ტვირთები კავკასია, ლოჯისტიკა საქართველო, სატვირთო გადაზიდვა თბილისი, ბათუმი, ქუთაისი');
       });
@@ -79,7 +82,7 @@
   </script>
 
   <!-- ═══ SEO & Open Graph ═══ -->
-  <meta name="description" content="CaucasHub.ge — первая биржа грузов Кавказа. Найдите перевозчиков и грузы по Грузии, СНГ, Турции. Тбилиси, Батуми, Кутаиси и 120+ городов.">
+  <meta name="description" content="Платформа для поиска грузов и перевозчиков в Грузии и на международных направлениях.">
   <meta name="keywords" content="биржа грузов Грузия, грузоперевозки Тбилиси, грузоперевозки Батуми, транспорт Грузия, логистика Кавказ, фрахт Грузия, перевозчики Грузия, грузы Тбилиси, сатვирthо биржа">
   <meta name="robots" content="index, follow">
   <meta name="author" content="CaucasHub.ge">
@@ -94,7 +97,7 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.caucashub.ge/">
   <meta property="og:title" content="CaucasHub.ge — Биржа грузов Кавказа">
-  <meta property="og:description" content="Первая грузовая биржа Кавказа. Перевозчики и грузы по Грузии, СНГ, Турции. Бесплатная регистрация.">
+  <meta property="og:description" content="Поиск грузов и перевозчиков в Грузии и на международных направлениях.">
   <meta property="og:image" content="https://www.caucashub.ge/og-image.jpg">
   <meta property="og:locale" content="ru_RU">
   <meta property="og:locale:alternate" content="ka_GE">
@@ -103,7 +106,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="CaucasHub.ge — Биржа грузов Кавказа">
-  <meta name="twitter:description" content="Первая грузовая биржа Кавказа. Перевозчики и грузы по Грузии, СНГ, Турции.">
+  <meta name="twitter:description" content="Поиск грузов и перевозчиков в Грузии и на международных направлениях.">
   <meta name="twitter:image" content="https://www.caucashub.ge/og-image.jpg">
 
   <!-- Геолокация для Яндекс -->
@@ -118,7 +121,7 @@
     "name": "CaucasHub.ge",
     "alternateName": "კავკასიის სატვირthო ბირжა",
     "url": "https://caucashub.ge",
-    "description": "Первая биржа грузов Кавказа — грузоперевозки по Грузии, СНГ, Турции",
+    "description": "Поиск грузов и перевозчиков в Грузии и на международных направлениях",
     "potentialAction": {
       "@type": "SearchAction",
       "target": "https://caucashub.ge/?from={from_city}&to={to_city}",
@@ -185,7 +188,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=20261029-mari-avatar">
+<link rel="stylesheet" href="styles.css?v=20261029-exact-locations">
 </head>
 <body>
 
@@ -193,11 +196,11 @@ window.loadYmapsLazy = function(cb, onError) {
 <noscript>
 <div style="max-width:900px;margin:0 auto;padding:20px;font-family:sans-serif">
   <h1>CaucasHub.ge — Биржа грузов Кавказа</h1>
-  <p>Первая онлайн-биржа грузоперевозок Кавказа. Найдите перевозчиков и грузы по Грузии, России, Азербайджану, Армении и СНГ. Актуальные ставки, быстрые сделки. Тбилиси, Батуми, Кутаиси, Рустави и 120+ городов.</p>
+  <p>Платформа соединяет отправителей грузов и перевозчиков. Укажите маршрут, дату и параметры груза, чтобы разместить заявку.</p>
   <h2>Грузоперевозки по Грузии</h2>
   <p>Тбилиси — Батуми, Тбилиси — Кутаиси, Тбилиси — Поти, Тбилиси — Зугдиди. Срочные и плановые перевозки. Газели, фуры, рефрижераторы.</p>
   <h2>Международные маршруты</h2>
-  <p>Грузия — Россия, Грузия — Азербайджан, Грузия — Армения, Грузия — Турция. Таможенное оформление, сборные грузы, FTL/LTL.</p>
+  <p>Международные заявки показываются отдельно от внутренних. Условия перевозки и документы согласуются с выбранным перевозчиком.</p>
   <p><a href="https://www.caucashub.ge/">caucashub.ge</a></p>
 </div>
 </noscript>
@@ -306,10 +309,11 @@ window.loadYmapsLazy = function(cb, onError) {
 <div style="width:100%;max-width:100vw;overflow:hidden;box-sizing:border-box">
   <div class="stats-bar" id="statsBar">
     <span><span class="dot"></span><strong id="statLoads">—</strong> <span data-i18n="stat_loads">грузов</span></span>
-    <span class="stat-hide-mobile"><strong id="statTrucks">—</strong> <span data-i18n="stat_trucks">машин онлайн</span></span>
-    <span><strong id="statCompanies">—</strong> <span data-i18n="stat_companies">компаний</span></span>
+    <span class="stat-hide-mobile"><strong id="statTrucks">—</strong> <span data-i18n="stat_trucks">публикаций транспорта за 24ч</span></span>
+    <span><strong id="statCompanies">—</strong> <span data-i18n="stat_companies">профилей</span></span>
     <span class="stat-hide-mobile"><strong id="statUsers">—</strong> <span data-i18n="stat_users">пользователей</span></span>
     <span><span class="dot dot-green"></span><strong id="statOnlineUsers">—</strong> <span data-i18n="stat_online">онлайн</span></span>
+    <span id="statsDataStatus" class="stats-data-status" role="status"></span>
   </div>
 </div>
 
@@ -354,7 +358,7 @@ window.loadYmapsLazy = function(cb, onError) {
         <option value="grain" data-i18n="truck_grain">Зерновоз</option>
         <option value="dump" data-i18n="truck_dump">Самосвал</option>
       </select>
-      <button type="button" onclick="filterAndLoadTransport()" class="transport-find-btn" id="btnFindTransport" data-i18n="btn_find_transport">🔍 Найти</button>
+      <button type="button" onclick="filterAndLoadTransport()" class="transport-find-btn" id="btnFindTransport" data-i18n="btn_find_transport">🔍 Найти транспорт</button>
       <button type="button" onclick="openPostTransportOffer()" class="transport-post-btn" id="btnOfferTransport" data-i18n="btn_offer_transport">+ Предложить транспорт</button>
     </div>
     <div style="font-size:12px;color:#888" id="transportCount">Загрузка...</div>
@@ -381,11 +385,11 @@ window.loadYmapsLazy = function(cb, onError) {
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <div class="form-group" style="flex:1">
         <label data-i18n="post_transport_lbl_from">Откуда</label>
-        <input class="form-input" id="ptFrom" placeholder="Тбилиси">
+        <div class="addr-wrap"><input class="form-input" id="ptFrom" placeholder="Тбилиси" autocomplete="off" oninput="CaucasLocations.search('ptFrom',this.value)" onblur="setTimeout(()=>CaucasLocations.hide('ptFrom'),200)"><button type="button" class="address-map-button" data-location-field="ptFrom" title="Выбрать на карте" aria-label="Выбрать место отправления на карте">🗺️</button><div class="addr-drop" id="dropPtFrom"></div><div class="addr-coords" id="coordsPtFrom"></div></div>
       </div>
       <div class="form-group" style="flex:1">
         <label data-i18n="post_transport_lbl_to">Куда</label>
-        <input class="form-input" id="ptTo" placeholder="Батуми">
+        <div class="addr-wrap"><input class="form-input" id="ptTo" placeholder="Батуми" autocomplete="off" oninput="CaucasLocations.search('ptTo',this.value)" onblur="setTimeout(()=>CaucasLocations.hide('ptTo'),200)"><button type="button" class="address-map-button" data-location-field="ptTo" title="Выбрать на карте" aria-label="Выбрать место доставки на карте">🗺️</button><div class="addr-drop" id="dropPtTo"></div><div class="addr-coords" id="coordsPtTo"></div></div>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -523,20 +527,11 @@ window.loadYmapsLazy = function(cb, onError) {
 <!-- ═══ SECTION: RATES ═══ -->
 <div class="section" id="sec-rates">
   <div style="padding:16px;background:#fff;border-bottom:1px solid #eee">
-    <div style="font-size:13px;color:#888;margin-bottom:4px"><span data-i18n="rates_subtitle">Средние ставки на маршрутах · обновлено сегодня</span></div>
+    <div style="font-size:13px;color:#888;margin-bottom:4px"><span data-i18n="rates_subtitle">Ставки публикуются только с источником и датой обновления</span></div>
   </div>
   <table class="rates-table">
     <thead><tr><th data-i18n="th_route2">МАРШРУТ</th><th data-i18n="th_tent_rate">ТЕНТ $/км</th><th data-i18n="th_ref_rate">РЕФРИЖ $/км</th><th data-i18n="th_trend">ТРЕНД</th><th data-i18n="th_volume">ОБЪЁМ/НЕД</th></tr></thead>
-    <tbody>
-      <tr><td><strong data-i18n-city="Тбилиси → Батуми">Тбилиси → Батуми</strong></td><td>$0.85–1.10</td><td>$1.20–1.50</td><td class="rate-up">↑ +8%</td><td><span data-i18n-trips="47">47 рейсов</span></td></tr>
-      <tr><td><strong data-i18n-city="Поти → Тбилиси">Поти → Тбилиси</strong></td><td>$0.90–1.15</td><td>$1.30–1.60</td><td class="rate-down">↓ -3%</td><td><span data-i18n-trips="38">38 рейсов</span></td></tr>
-      <tr><td><strong data-i18n-city="Тбилиси → Ереван">Тбилиси → Ереван</strong></td><td>$2.80–3.50</td><td>$3.80–4.50</td><td class="rate-up">↑ +12%</td><td><span data-i18n-trips="29">29 рейсов</span></td></tr>
-      <tr><td><strong data-i18n-city="Тбилиси → Стамбул">Тбилиси → Стамбул</strong></td><td>$0.95–1.20</td><td>$1.40–1.80</td><td>→ 0%</td><td><span data-i18n-trips="22">22 рейса</span></td></tr>
-      <tr><td><strong data-i18n-city="Батуми → Стамбул">Батуми → Стамбул</strong></td><td>$0.90–1.15</td><td>$1.35–1.70</td><td class="rate-up">↑ +5%</td><td><span data-i18n-trips="18"><span data-i18n-trips="18">18 рейсов</span></span></td></tr>
-      <tr><td><strong data-i18n-city="Тбилиси → Баку">Тбилиси → Баку</strong></td><td>$1.80–2.20</td><td>$2.50–3.00</td><td class="rate-down">↓ -5%</td><td><span data-i18n-trips="14">14 рейсов</span></td></tr>
-      <tr><td><strong data-i18n-city="Кутаиси → Тбилиси">Кутаиси → Тбилиси</strong></td><td>$0.70–0.90</td><td>$1.00–1.30</td><td>→ 0%</td><td><span data-i18n-trips="31">31 рейс</span></td></tr>
-      <tr><td><strong data-i18n-city="Тбилиси → Москва">Тбилиси → Москва</strong></td><td>$0.95–1.10</td><td>$1.40–1.70</td><td class="rate-up">↑ +3%</td><td><span data-i18n-trips="11">11 рейсов</span></td></tr>
-    </tbody>
+    <tbody><tr><td colspan="5" style="text-align:center;padding:28px 16px" data-i18n="rates_unavailable">Проверенных данных о ставках и объёмах пока нет. Запросите предложения по своему маршруту.</td></tr></tbody>
   </table>
   <!-- Блок 4: реклама под таблицей ставок -->
   <div id="adSlotRates" style="padding:0 16px 12px"></div>
@@ -1076,7 +1071,7 @@ window.loadYmapsLazy = function(cb, onError) {
         <input class="addr-input" id="pFromAddr" placeholder="Введите адрес, склад, район..." data-i18n-ph="ph_addr_from" autocomplete="off"
           oninput="addrSearch('pFrom',this.value)"
           onblur="setTimeout(()=>closeAddrDrop('pFrom'),200)">
-        <div class="addr-drop" id="dropPFrom"></div>
+        <button type="button" class="address-map-button" data-location-field="pFrom" title="Выбрать на карте" aria-label="Выбрать место отправления на карте">🗺️</button><div class="addr-drop" id="dropPFrom"></div>
         <div class="addr-coords" id="coordsPFrom"></div>
       </div>
     </div>
@@ -1087,7 +1082,7 @@ window.loadYmapsLazy = function(cb, onError) {
         <input class="addr-input" id="pToAddr" placeholder="Введите адрес, склад, район..." data-i18n-ph="ph_addr_to" autocomplete="off"
           oninput="addrSearch('pTo',this.value)"
           onblur="setTimeout(()=>closeAddrDrop('pTo'),200)">
-        <div class="addr-drop" id="dropPTo"></div>
+        <button type="button" class="address-map-button" data-location-field="pTo" title="Выбрать на карте" aria-label="Выбрать место доставки на карте">🗺️</button><div class="addr-drop" id="dropPTo"></div>
         <div class="addr-coords" id="coordsPTo"></div>
       </div>
     </div>
@@ -1183,8 +1178,8 @@ window.loadYmapsLazy = function(cb, onError) {
 
     </div>
     <div style="text-align:center;font-size:12px;color:#aaa;margin-top:14px">
-      <span data-i18n="pw_free_now">Сейчас все функции бесплатны 🎉</span><br>
-      <span data-i18n="pw_coming_soon">Подписки откроются позже</span>
+      <span data-i18n="pw_free_now">Просмотр объявлений и регистрация доступны без подписки.</span><br>
+      <span data-i18n="pw_coming_soon">Перед оплатой уточните условия подключения платного плана у поддержки.</span>
     </div>
   </div>
 </div>
@@ -1492,20 +1487,7 @@ window.loadYmapsLazy = function(cb, onError) {
     </div>
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:700;margin-bottom:12px"><span data-i18n="pop_routes">🗺️ Популярные маршруты</span></div>
-    <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes">
-      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
-        <span style="font-size:13px">Тбилиси → Батуми</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="18">18 рейсов</span></span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
-        <span style="font-size:13px">Поти → Тбилиси</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="12">12 рейсов</span></span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:#f8f9fa;border-radius:8px">
-        <span style="font-size:13px">Кутаиси → Тбилиси</span>
-        <span style="font-size:13px;font-weight:700;color:#f7b731"><span data-i18n-trips="9">9 рейсов</span></span>
-      </div>
-    </div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="aRoutes"><div data-i18n="analytics_note">Полная аналитика будет доступна после первых реальных сделок на платформе</div></div>
     <div class="divider"></div>
     <div style="font-size:13px;color:#aaa;text-align:center" data-i18n="analytics_note">Полная аналитика будет доступна после первых реальных сделок на платформе</div>
   </div>
@@ -1615,7 +1597,7 @@ window.loadYmapsLazy = function(cb, onError) {
   <div style="margin-bottom:6px">
     <span style="color:#f7b731;font-weight:700">CaucasHub</span><span style="color:#fff">.ge</span>
     <span style="margin:0 8px;color:#444">·</span>
-    <span data-i18n="footer_slogan">Первая биржа грузов Кавказа</span>
+    <span data-i18n="footer_slogan">Биржа грузов и транспорта</span>
   </div>
   <div>
     <a href="#" onclick="document.getElementById('rulesOverlay').classList.add('on');return false" style="color:#888;text-decoration:none;margin:0 8px" data-i18n="footer_rules">📋 Правила и ответственность</a>
@@ -1643,8 +1625,9 @@ window.loadYmapsLazy = function(cb, onError) {
   </div>
 </div>
 
-<script src="api.js?v=20261028-translations"></script>
-<script src="main.js?v=20261028-translations"></script>
+<script src="api.js?v=20261029-exact-locations"></script>
+<script src="main.js?v=20261029-exact-locations"></script>
+<script src="locations.js?v=20261029-location-picker"></script>
 <script src="ai-dispatcher.js?v=20261029-mari-avatar"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->
@@ -2058,5 +2041,13 @@ window.loadYmapsLazy = function(cb, onError) {
 </div>
 
 
+<div class="location-picker-overlay" id="locationPickerOverlay" hidden>
+ <section class="location-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="locationPickerTitle">
+  <header class="location-picker-header"><h2 id="locationPickerTitle">Выберите место</h2><button type="button" id="locationPickerCancel">Отмена</button></header>
+  <p class="location-picker-instruction" id="locationPickerInstruction">Передвиньте карту или метку и подтвердите точку.</p>
+  <div class="location-picker-canvas"><div id="locationPickerMap"></div><div id="locationPickerPin" class="location-picker-pin" hidden aria-hidden="true">📍</div></div>
+  <footer class="location-picker-footer"><label for="locationPickerLabel" id="locationPickerLabelCaption">Название места</label><input id="locationPickerLabel" maxlength="100" autocomplete="off"><div id="locationPickerAddress" class="location-picker-address" aria-live="polite"></div><div id="locationPickerCoordinates" class="location-picker-coordinates"></div><small class="location-catalog-attribution">Каталог КПП: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a></small><div id="locationPickerError" class="location-picker-error" role="alert" hidden></div><button type="button" id="locationPickerConfirm">Выбрать эту точку</button></footer>
+ </section>
+</div>
 </body>
 </html>

@@ -6,6 +6,7 @@ No production database, customer accounts, or external notifications are used.
 """
 import atexit
 from contextlib import asynccontextmanager
+from hashlib import sha256
 import os
 from pathlib import Path
 import shutil
@@ -14,15 +15,28 @@ from tempfile import TemporaryDirectory
 
 REPOSITORY = Path(os.environ.get("CARRIER_PROFILE_REPO_ROOT", Path(__file__).resolve().parents[2])).resolve()
 sys.path.insert(0, str(REPOSITORY))
-WORKSPACE = TemporaryDirectory(prefix="caucashub-carrier-browser-")
+fixture_parent = os.environ.get("CARRIER_BROWSER_TEMP_ROOT")
+if fixture_parent:
+    fixture_parent = Path(fixture_parent).resolve()
+    fixture_parent.mkdir(parents=True, exist_ok=True)
+WORKSPACE = TemporaryDirectory(prefix="caucashub-carrier-browser-", dir=fixture_parent)
 atexit.register(WORKSPACE.cleanup)
 TEMP_ROOT = Path(WORKSPACE.name)
 SITE = TEMP_ROOT / "frontend"
 DATABASE = TEMP_ROOT / "carrier-browser.sqlite"
-ORIGIN = "http://127.0.0.1:8765"
+PORT = int(os.environ.get("CARRIER_BROWSER_PORT", "8765"))
+if not 1024 <= PORT <= 65535:
+    raise RuntimeError("Local fixture port must be between1024 and65535")
+ORIGIN = f"http://127.0.0.1:{PORT}"
 PRODUCTION_API_ORIGIN = "https://api-production-f3ea.up.railway.app"
 AUTH_ENABLED = os.environ.get("CARRIER_BROWSER_AUTH") == "1"
 NOTIFICATIONS_ENABLED = os.environ.get("CARRIER_BROWSER_NOTIFICATIONS") == "1"
+PILOT_ENABLED = os.environ.get("CARRIER_BROWSER_PILOT") == "1"
+ADDRESS_ENABLED = os.environ.get("CARRIER_BROWSER_ADDRESS") == "1"
+if ADDRESS_ENABLED and not PILOT_ENABLED:
+    raise RuntimeError("Address browser tests require the real pilot routes")
+if PILOT_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
+    raise RuntimeError("Pilot browser tests require the real publication routes")
 if AUTH_ENABLED and NOTIFICATIONS_ENABLED:
     raise RuntimeError("Authentication and notification sinks run in separate jobs")
 if NOTIFICATIONS_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
@@ -55,6 +69,27 @@ for asset in SITE.rglob("*"):
         if PRODUCTION_API_ORIGIN in contents:
             # This covers API_BASE AND hardcoded settings/hydration origins.
             asset.write_text(contents.replace(PRODUCTION_API_ORIGIN, ORIGIN), encoding="utf-8")
+if PILOT_ENABLED:
+    print("Pilot fixture: copied isolated frontend", flush=True)
+SOURCE_DIGESTS = {name: sha256((SITE / name).read_bytes()).hexdigest()
+                  for name in sorted(item.name for item in SITE.iterdir()
+                                     if item.is_file() and item.suffix in {".html", ".js", ".css"})}
+
+ORIGINAL_SOURCE_DIGESTS = {name: sha256((frontend / name).read_bytes()).hexdigest()
+                           for name in SOURCE_DIGESTS}
+
+APPLICATION_DIGESTS = {}
+if ADDRESS_ENABLED:
+    application_paths = [
+        'app/routers/locations.py', 'app/routers/loads.py', 'app/routers/transport.py',
+        'app/models/load.py', 'app/models/transport_offer.py',
+        'app/services/route_locations.py', 'app/services/city_identity.py',
+        'app/services/location_country.py', 'app/services/location_catalog.json',
+    ]
+    application_paths += [item.relative_to(REPOSITORY).as_posix()
+                          for item in (REPOSITORY / 'app/data').glob('*') if item.is_file()]
+    APPLICATION_DIGESTS = {name: sha256((REPOSITORY / name).read_bytes()).hexdigest()
+                           for name in application_paths if (REPOSITORY / name).is_file()}
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,9 +115,20 @@ if not hasattr(User, "truck_type") or not hasattr(User, "tonnage"):
 
 @asynccontextmanager
 async def lifespan(application):
+    if PILOT_ENABLED:
+        print("Pilot fixture: initializing disposable SQLite", flush=True)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+    if PILOT_ENABLED:
+        # Canonical cities belong only to this disposable SQLite fixture.
+        # The seed is a local constant catalog and never invokes a geocoder.
+        from app.database import AsyncSessionLocal
+        from app.services.cities_seed import seed_cities
+        async with AsyncSessionLocal() as session:
+            await seed_cities(session)
     application.state.ready = True
+    if PILOT_ENABLED:
+        print("Pilot fixture: ready with real city/stats/trade routers", flush=True)
     try:
         yield
     finally:
@@ -92,7 +138,7 @@ async def lifespan(application):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ORIGIN, "http://localhost:8765"],
+    allow_origins=[ORIGIN, f"http://localhost:{PORT}"],
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
@@ -110,6 +156,17 @@ async def local_fixture_headers(request, call_next):
 # They use app.database.engine, which was forced to disposable SQLite above.
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(users.router, prefix="/api/users")
+
+# Opt in before the generic boot-data catchall. These are the actual search
+# dictionary and dated counter endpoints, backed by the same isolated database.
+if PILOT_ENABLED:
+    from app.routers import cities, stats
+    app.include_router(cities.router, prefix="/api/cities")
+    app.include_router(stats.router, prefix="/api/stats")
+
+if ADDRESS_ENABLED:
+    from app.routers import locations
+    app.include_router(locations.router)
 
 # A separate later publication-browser job may opt into the real trade routes.
 # Profile regression remains independent of that wider journey.
@@ -246,10 +303,18 @@ if AUTH_ENABLED:
 async def ready():
     return {
         "test_only": True,
-        "isolated_sqlite": True,
+        "isolated_sqlite": (engine.url.drivername == "sqlite+aiosqlite"
+                            and Path(engine.url.database).resolve() == DATABASE.resolve()),
         "actual_profile_routers": True,
         "notification_test": NOTIFICATIONS_ENABLED,
         "auth_test": AUTH_ENABLED,
+        "pilot_test": PILOT_ENABLED,
+        "actual_city_stats_routers": PILOT_ENABLED,
+        "address_test": ADDRESS_ENABLED,
+        "actual_location_routers": ADDRESS_ENABLED,
+        "source_sha256": SOURCE_DIGESTS,
+        "original_source_sha256": ORIGINAL_SOURCE_DIGESTS,
+        "backend_sha256": APPLICATION_DIGESTS,
         "ready": app.state.ready,
         "origin": ORIGIN,
     }
@@ -290,4 +355,4 @@ app.mount("/", StaticFiles(directory=SITE, html=True), name="test_frontend")
 
 if __name__ == "__main__":
     # Do not expose this test fixture beyond the local runner.
-    uvicorn.run(app, host="127.0.0.1", port=8765, log_level="warning")
+    uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="warning")

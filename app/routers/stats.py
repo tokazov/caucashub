@@ -68,6 +68,7 @@ async def get_counters(db: AsyncSession = Depends(get_db)):
         companies_res = await db.execute(
             select(func.count(User.id)).where(
                 User.company_name.isnot(None),
+                func.length(func.trim(User.company_name)) > 0,
                 User.is_demo.is_(False),
                 User.is_deleted.is_(False)
             )
@@ -90,6 +91,7 @@ async def get_counters(db: AsyncSession = Depends(get_db)):
         online_users_res = await db.execute(
             select(func.count(UserModel.id)).where(
                 UserModel.is_deleted.is_(False),
+                UserModel.is_demo.is_(False),
                 UserModel.last_seen.isnot(None),
                 UserModel.last_seen >= online_cutoff
             )
@@ -100,9 +102,14 @@ async def get_counters(db: AsyncSession = Depends(get_db)):
             "active_loads":   active_loads,
             "online_trucks":  online_trucks,
             "companies":      companies,
+            "named_profiles": companies,
+            "registered_profiles": total_users,
+            "companies_metric": "named_user_profiles_not_verified_legal_entities",
+            "online_trucks_metric": "available_truck_posts_created_last_24h",
             "total_users":    total_users,
             "online_users":   online_users,
             "cached_at":      now.isoformat(),
+            "as_of":          now.isoformat(),
             "cache_ttl_min":  10,
         }
         _stats_cache["data"] = data

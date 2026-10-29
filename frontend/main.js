@@ -67,10 +67,36 @@ let _myLoads = [];
 let _deals   = []; // сделки из API
 // ── ADDRESS AUTOCOMPLETE (Nominatim) ─────────────────
 let addrTimers={};
+let addrRequests={};
 let addrSelected={pFrom:null, pTo:null};
 
+function geocodedPublicationAddress(obj){
+  const get=path=>typeof obj.properties?.get==='function'?obj.properties.get(path):undefined;
+  const metadata=get('metaDataProperty.GeocoderMetaData')||{};
+  const address=obj.address||metadata.address||{};
+  const localities=typeof obj.getLocalities==='function'?obj.getLocalities():[];
+  const components=metadata.Address?.Components||[];
+  const locality=components.find(part=>part.kind==='locality');
+  const city=String(address.city||address.town||address.village||
+    localities?.[0]||locality?.name||'').trim();
+  const addr=String(typeof obj.getAddressLine==='function'?obj.getAddressLine():obj.display_name||'').trim();
+  const rawId=obj.city_id??(obj.canonical_key?obj.id:null);
+  return {addr,city,
+    city_id:Number.isSafeInteger(Number(rawId))&&Number(rawId)>0?Number(rawId):null,
+    canonical_key:typeof obj.canonical_key==='string'?obj.canonical_key:null};
+}
+
 function addrSearch(field, val){
+  if(window.CaucasLocations){addrSelected[field]=null;return window.CaucasLocations.search(field,val);}
   clearTimeout(addrTimers[field]);
+  addrSelected[field]=null;
+  const revision=(addrRequests[field]||0)+1;
+  addrRequests[field]=revision;
+  const requestedScope=scope;
+  const current=()=>addrRequests[field]===revision&&scope===requestedScope&&
+    document.getElementById(field+'Addr')?.value.trim()===val.trim();
+  const coordEl=document.getElementById('coordsP'+(field==='pFrom'?'From':'To'));
+  if(coordEl)coordEl.style.display='none';
   const dropId='dropP'+field.slice(1,2).toUpperCase()+field.slice(2);
   const drop=document.getElementById('drop'+field.slice(0,1).toUpperCase()+field.slice(1).replace('p','P'));
   const dropEl=document.getElementById('dropP'+(field==='pFrom'?'From':'To'));
@@ -80,7 +106,8 @@ function addrSearch(field, val){
   dropEl.classList.add('open');
   addrTimers[field]=setTimeout(()=>{
     loadYmapsLazy(()=>{ ymaps.ready(()=>{
-      ymaps.geocode(val+', Грузия',{results:6,lang:'ru_RU'}).then(res=>{
+      ymaps.geocode(requestedScope==='intl'?val:val+', Грузия',{results:6,lang:'ru_RU'}).then(res=>{
+        if(!current())return;
         const objs=res.geoObjects;
         if(!objs.getLength()){
           dropEl.innerHTML='<div class="addr-loading">Ничего не найдено</div>';
@@ -96,11 +123,12 @@ function addrSearch(field, val){
           const coords=obj.geometry.getCoordinates();
           // XSS-2 fix: store data in cache, pass only key to onmousedown
           const key = field + '_' + Date.now() + '_' + (_addrIdx++);
-          window._addrCache[key] = { name, lat: coords[0], lng: coords[1] };
+          window._addrCache[key] = {name,...geocodedPublicationAddress(obj),lat:coords[0],lng:coords[1]};
           html+=`<div class="addr-item" data-key="${esc(key)}" onmousedown="selectAddrByKey('${esc(field)}',this.dataset.key)"><div class="addr-main">${esc(name)}</div><div class="addr-sub">${esc(sub)}</div></div>`;
         });
         dropEl.innerHTML=html;
       }).catch(()=>{
+        if(!current())return;
         dropEl.innerHTML='<div class="addr-loading">Ошибка геокодера</div>';
       });
     }); }); // ymaps.ready + loadYmapsLazy
@@ -111,11 +139,11 @@ function addrSearch(field, val){
 function selectAddrByKey(field, key) {
   const a = window._addrCache && window._addrCache[key];
   if (!a) return;
-  selectAddr(field, a.name, a.lat, a.lng);
+  selectAddr(field, a.addr||a.name, a.lat, a.lng, a);
 }
 window.selectAddrByKey = selectAddrByKey;
 
-function selectAddr(field, addr, lat, lng){
+function selectAddr(field, addr, lat, lng, metadata){
   const inputId=field+'Addr';
   const dropId='dropP'+(field==='pFrom'?'From':'To');
   const coordId='coordsP'+(field==='pFrom'?'From':'To');
@@ -124,18 +152,19 @@ function selectAddr(field, addr, lat, lng){
   const coordEl=document.getElementById(coordId);
   coordEl.textContent=`✅ Координаты: ${parseFloat(lat).toFixed(4)}, ${parseFloat(lng).toFixed(4)}`;
   coordEl.style.display='block';
-  // Извлекаем название города из адреса (последний значимый компонент до запятой)
+  // Street/road names are display labels, never a populated locality.
   const parts=addr.replace(/`/g,"'").split(',').map(s=>s.trim());
   // Ищем известные города Грузии в адресе
   // Расширенный список городов — используем CITIES если доступны
   const knownCities = typeof CITIES !== 'undefined'
     ? CITIES.map(c => c.name)
     : ['Тбилиси','Батуми','Кутаиси','Рустави','Зугдиди','Гори','Поти','Мцхета','Сенаки','Боржоми','Ахалцихе','Телави','Сигнахи','Хашури','Кобулети','Озургети','Марнеули','Самтредиа','Ткибули','Сагареджо','Гурджаани','Кварели','Лагодехи','Дедоплисцкаро','Цхинвали','Каспи','Мцхета','Ахмета'];
-  let cityName=parts[0];
-  for(const p of parts){
-    if(knownCities.some(c=>p.includes(c))){cityName=p;break;}
+  let cityName=metadata?.city||'';
+  if(!metadata){
+    cityName=parts.find(p=>knownCities.some(c=>p.toLowerCase()===c.toLowerCase()))||'';
   }
-  addrSelected[field]={addr:addr.replace(/`/g,"'"),city:cityName,lat:parseFloat(lat),lng:parseFloat(lng)};
+  addrSelected[field]={addr:addr.replace(/`/g,"'"),city:cityName,lat:parseFloat(lat),lng:parseFloat(lng),
+    city_id:metadata?.city_id??null,canonical_key:metadata?.canonical_key||null};
 
   // Если оба адреса выбраны — показываем мини-карту
   if(addrSelected.pFrom&&addrSelected.pTo){
@@ -486,7 +515,13 @@ function translatePay(pay) {
 
 function _capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-function translateCity(name) {
+function translateCity(name, location) {
+  if(location?.kind==='border_checkpoint'){
+    const canonical=[location.name_ru,location.name_ge,location.name_en].filter(Boolean);
+    if(location.label&&!canonical.includes(location.label))return location.label;
+    return (typeof lang!=='undefined'&&lang==='ge'?location.name_ge:location.name_ru)||location.label||name;
+  }
+  if(location?.kind==='point'&&!location.settlement_key)return location.label||name;
   if (!name) return name;
   // Нормализуем: если всё lowercase (из БД) — капитализируем первую букву
   if (name === name.toLowerCase() && /^[a-zа-яё]/.test(name)) name = _capitalize(name);
@@ -529,6 +564,8 @@ function translateCity(name) {
 // Получить наиболее конкретный город из полного адреса
 // "край Имеретия, Зестафони" → "Зестафони"
 function _cityShort(addr2, addr){
+  // The API's locality is authoritative; the full address may end with a house number.
+  if(addr&&String(addr).trim()) return String(addr).trim();
   const src = addr2 || addr || '';
   const parts = src.split(',').map(s=>s.trim()).filter(Boolean);
   return parts[parts.length-1] || addr || '';
@@ -536,6 +573,7 @@ function _cityShort(addr2, addr){
 
 // ── Q-014: filterCity debounce timers ─────────────────
 const _filterCityTimers = {};
+const _filterCityRequests = {};
 // Allowed OSM types for city autocomplete (Q-014 §2)
 const _CITY_TYPES = new Set(['city','town','village','suburb','administrative','hamlet','locality']);
 
@@ -547,6 +585,15 @@ function filterCity(dir, val){
   const q=val.trim();
   const id=_dirToDropId(dir);
   const drop=document.getElementById(id);
+  const input=document.getElementById(_dirToInputId(dir));
+  const request=(_filterCityRequests[dir]||0)+1;
+  _filterCityRequests[dir]=request;
+  clearTimeout(_filterCityTimers[dir]);
+  if(input?.dataset&&input.dataset.cityLabel!==q){
+    delete input.dataset.cityId;delete input.dataset.cityKey;delete input.dataset.cityLabel;
+  }
+  if(dir==='from'&&selectedFrom?.inputLabel!==q) selectedFrom=null;
+  if(dir==='to'&&selectedTo?.inputLabel!==q) selectedTo=null;
   if(q.length<1){if(drop) drop.classList.remove('open');return;}
   if(!drop) return;
 
@@ -564,9 +611,10 @@ function filterCity(dir, val){
   if(q.length<2){drop.classList.remove('open');return;}
 
   // Debounce 300 мс (Q-014 §1)
-  clearTimeout(_filterCityTimers[dir]);
+  const requestedScope=scope;
   _filterCityTimers[dir]=setTimeout(function(){
     _fetchCitySuggestionsFiltered(q, lang||'ru', function(results){
+      if(_filterCityRequests[dir]!==request||scope!==requestedScope||input?.value.trim()!==q) return;
       if(!results.length){
         // Нет результатов — fallback на CITIES
         const qLo=q.toLowerCase();
@@ -591,7 +639,10 @@ function filterCity(dir, val){
         const safeNameRu=nameRu.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,"\\'").replace(/</g,'&lt;');
         const safeLat=r.lat!=null?r.lat:'null';
         const safeLon=r.lon!=null?r.lon:'null';
-        return `<div class="city-option" onmousedown="selectCity('${dir}','${safeNameRu}',${safeLat},${safeLon},'','${safeNameRu}')">` +
+        const cityKey=typeof r.canonical_key==='string'?r.canonical_key:'';
+        const rawId=r.city_id??(cityKey?r.id:null);
+        const cityId=Number.isSafeInteger(Number(rawId))&&Number(rawId)>0?String(rawId):'';
+        return `<div class="city-option" data-city-id="${esc(cityId)}" data-city-key="${esc(cityKey)}" onmousedown="selectCity('${dir}','${safeNameRu}',${safeLat},${safeLon},'','${safeNameRu}',this.dataset.cityId,this.dataset.cityKey)">` +
           `${nameRu}` +
           (nameLocal&&nameLocal!==nameRu?` <span class="region">${nameLocal}</span>`:'') +
           `</div>`;
@@ -641,7 +692,7 @@ function openDrop(dir){
 }
 function closeDrop(dir){ const el=document.getElementById(_dirToDropId(dir)); if(el) el.classList.remove('open'); }
 // Q-014 §3: nameRu — нормализованное имя из API (для матчинга подписок)
-function selectCity(dir, name, lat, lng, isCountry, nameRu){
+function selectCity(dir, name, lat, lng, isCountry, nameRu, cityId, cityKey){
   // Приоритет: nameRu (из API) > name из CITIES > сырое имя
   const normalizedName = nameRu || name;
   const cityFromArr=CITIES.find(c=>c.name===name);
@@ -651,7 +702,18 @@ function selectCity(dir, name, lat, lng, isCountry, nameRu){
   const inputEl = document.getElementById(_dirToInputId(dir));
   const dropEl  = document.getElementById(_dirToDropId(dir));
   const displayName = (lang==='ge'&&cityFromArr?.nameGe) ? cityFromArr.nameGe : normalizedName;
-  if(inputEl) inputEl.value = displayName;
+  city.inputLabel=displayName.trim();
+  if(Number.isSafeInteger(Number(cityId))&&Number(cityId)>0) city.city_id=Number(cityId);
+  if(typeof cityKey==='string'&&cityKey) city.canonical_key=cityKey;
+  if(inputEl){
+    inputEl.value = displayName;
+    if(inputEl.dataset){
+      delete inputEl.dataset.cityId;delete inputEl.dataset.cityKey;
+      if(city.city_id)inputEl.dataset.cityId=String(city.city_id);
+      if(city.canonical_key)inputEl.dataset.cityKey=city.canonical_key;
+      inputEl.dataset.cityLabel=city.inputLabel;
+    }
+  }
   if(dropEl)  dropEl.classList.remove('open');
   if(dir==='from'){ selectedFrom=city; }
   else if(dir==='to'){ selectedTo=city; }
@@ -745,12 +807,7 @@ Object.defineProperty(window, 'LOCAL', { get: ()=>LOCAL, set: (v)=>{ LOCAL.lengt
 Object.defineProperty(window, 'INTL', { get: ()=>INTL, set: (v)=>{ INTL.length=0; v.forEach(x=>INTL.push(x)); } });
 
 const INTL = [];
-const TRUCKS = [
-  {id:1,from:'Тбилиси',to:'Любое направление',kg:20000,type:'tent',date:'Сегодня',co:'Саба Транс',rat:'4.9',trips:87,plate:'GE-123-AB'},
-  {id:2,from:'Батуми',to:'Тбилиси / Поти',kg:5000,type:'gazel',date:'Сегодня',co:'БатумиЭкс',rat:'4.7',trips:234,plate:'GE-456-BC'},
-  {id:3,from:'Поти',to:'Тбилиси',kg:12000,type:'ref',date:'Завтра',co:'КолдЧейн',rat:'5.0',trips:156,plate:'GE-789-CD'},
-  {id:4,from:'Кутаиси',to:'Любое',kg:15000,type:'bort',date:'Сегодня',co:'КутТранс',rat:'4.6',trips:43,plate:'GE-321-DE'},
-];
+const TRUCKS = []; // Public empty states must not fall back to sample carriers.
 
 // ══════════════════════════════════════════════════════
 // ПОДПИСКИ — переключить в true когда наберём базу
@@ -926,7 +983,7 @@ function renderLoads(data){
     if(window._loadsLoading){
       list.innerHTML='<div id="cargoLoader" style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">⏳ Загружаем грузы...</div>';
     } else {
-      list.innerHTML='<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:14px">'+(T.load_search_empty||'Грузов не найдено')+'</div>';
+      list.innerHTML=publicListingEmpty('loads');
     }
     return;
   }
@@ -979,8 +1036,8 @@ function renderLoads(data){
     const desktopHtml = `
       <div class="row-desktop">
         <div>
-          <div class="route">${esc(translateCity(d.from))} <span class="arrow">→</span> ${esc(translateCity(d.to))}</div>
-          <div class="sub">${esc(d.co)} ⭐${esc(d.rat)}</div>
+          <div class="route">${esc(translateCity(d.from,d.from_location))} <span class="arrow">→</span> ${esc(translateCity(d.to,d.to_location))}</div>
+          <div class="sub">${esc(d.co)} ${esc(publicRatingLabel(d))}</div>
           <div style="margin-top:3px">${badgeHtml}</div>
         </div>
         <div style="font-size:13px;color:#333">${d.kg.toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
@@ -996,10 +1053,10 @@ function renderLoads(data){
       <div class="row-mobile">
         <div class="card-main-row">
           <div class="card-left">
-            <div class="card-route-new">${esc(translateCity(d.from))} <span class="arr">→</span> ${esc(translateCity(d.to))}</div>
+            <div class="card-route-new">${esc(translateCity(d.from,d.from_location))} <span class="arr">→</span> ${esc(translateCity(d.to,d.to_location))}</div>
             <div class="card-meta-row">
               ${badgeHtml}
-              <span class="card-co-new">${esc(d.co)} ⭐${esc(d.rat)}</span>
+              <span class="card-co-new">${esc(d.co)} ${esc(publicRatingLabel(d))}</span>
             </div>
           </div>
           <div class="card-right-col">
@@ -1063,7 +1120,7 @@ function renderTrucks(){
       </div>
       <div>
         <div style="font-size:13px;font-weight:600">${esc(t.co)}</div>
-        <div class="sub">★ ${esc(t.rat)}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
+        <div class="sub">${esc(publicRatingLabel(t))}${t.trips ? ' · ' + t.trips + ' ' + tripsWord(t.trips, lang) : ''}</div>
       </div>
       <div style="font-size:13px">${(t.kg||0).toLocaleString()} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг'}</div>
       <div style="font-size:12px;color:#555">${typeof getTypeLabel==='function'?getTypeLabel(t.type||'tent'):t.type}</div>
@@ -1116,7 +1173,7 @@ function doPostTruck(){
     id: 't_' + Date.now(),
     from, to, type, kg, plate, date, phone,
     co: user.name || user.email?.split('@')[0] || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
-    rat: '5.0', trips: 0, isOwn: true,
+    rat: null, review_count:0, rating_verified:false, trips: 0, isOwn: true,
   };
   const _tk = getToken ? getToken() : localStorage.getItem('ch_token');
   // Добавляем машину для каждого выбранного типа
@@ -1152,7 +1209,7 @@ async function syncTrucksFromServer(){
       const all = (d.trucks||[]).map(t=>({
         id:'srv_'+t.id,from:t.available_from||'Тбилиси',to:t.available_to||'Любое',
         type:t.truck_type,kg:t.capacity_kg,plate:t.plate||'—',phone:t.phone||'',
-        co:t.company||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',rat:t.rating||'5.0',trips:t.trips||0,
+        co:t.company||(TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',rat:t.rating??null,review_count:t.review_count??0,rating_verified:t.rating_verified===true,trips:t.trips||0,
         isOwn:(t.user_id==uid),date:t.available_date||''
       }));
       _myTrucks = all.filter(t=>t.isOwn);
@@ -1219,7 +1276,7 @@ function openCargo(d){
     }
   }
 
-  document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from))} → ${translateCity(_cityShort(d.to2,d.to))}`;
+  document.getElementById('mTitle').textContent=`${translateCity(_cityShort(d.from2,d.from),d.from_location)} → ${translateCity(_cityShort(d.to2,d.to),d.to_location)}`;
   const _loadCreated = d.created_at ? new Date(d.created_at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const _addedStr = _loadCreated ? `${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен'} ${_loadCreated}` : ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).added||'Добавлен') + ' —';
   const _scope = (d.scope||'local').toUpperCase();
@@ -1235,14 +1292,11 @@ function openCargo(d){
     ? ` · ${(TRANSLATIONS[lang]||TRANSLATIONS["ru"]).verified||"Верифицирован"} ✅`
     : '';
   // 3.1: новый формат «10 сделок · 8 оценок · 4.9★» если есть новые поля
-  let _statsStr = `★ ${esc(d.rat)}`;
+  let _statsStr = publicRatingLabel(d);
   if(d.completed_deals != null && d.completed_deals > 0){
     _statsStr += ` · ${d.completed_deals} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_deals||'сделок'}`;
   } else if(d.trips){
     _statsStr += ` · ${d.trips} ${tripsWord(d.trips, lang)}`;
-  }
-  if(d.ratings_received != null && d.ratings_received > 0){
-    _statsStr += ` · ${d.ratings_received} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_ratings||'оценок'}`;
   }
   _statsStr += _verifiedStr + respondTxt;
   document.getElementById('mStats').textContent = _statsStr;
@@ -1474,7 +1528,8 @@ function addToOrders(serverResponseId,cargoData=null){
       name: user?.name || (TRANSLATIONS[lang]||TRANSLATIONS['ru']).role_carrier||'Перевозчик',
       truck: user?.truckType || 'Тент',
       tonnage: user?.tonnage || '?',
-      rating: user?.rat || '5.0',
+      rating: user?.rating??user?.rat??null,
+      review_count:user?.review_count??0,rating_verified:user?.rating_verified===true,
       status: 'pending',
       userId: user?.email
     });
@@ -1611,7 +1666,7 @@ function updateRespondCount(){
   if(pr && user){
     const _Tru = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
     const role = user.role==='shipper' ? _Tru.role_shipper||'Грузовладелец' : user.role==='both' ? _Tru.role_both||'Перевозчик и грузовладелец' : _Tru.role_carrier||'Перевозчик';
-    pr.innerHTML = `${role} · ⭐ ${user.rat||'5.0'} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
+    pr.innerHTML = `${role} · ${esc(publicRatingLabel(user))} · ${user.trips||0} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_trips||'рейсов'}${count>0?` · <span style="color:#f7b731;font-weight:700">${count} ${(TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_respond||'отклик'}</span>`:''}`;
   }
   // Бейдж на кнопке "Мои заказы"
   const navTabs = document.querySelectorAll('.nav-tab');
@@ -1688,9 +1743,9 @@ function _applyPaywallLang() {
 
   // Нижний текст
   var freeNow = pw.querySelector('[data-i18n="pw_free_now"]');
-  if(freeNow) freeNow.textContent = isGe ? 'ახლა ყველა ფუნქცია უფასოა 🎉' : 'Сейчас все функции бесплатны 🎉';
+  if(freeNow) freeNow.textContent = isGe ? 'განცხადებების ნახვა და რეგისტრაცია ხელმისაწვდომია გამოწერის გარეშე.' : 'Просмотр объявлений и регистрация доступны без подписки.';
   var comingSoon = pw.querySelector('[data-i18n="pw_coming_soon"]');
-  if(comingSoon) comingSoon.textContent = isGe ? 'გამოწერა მოგვიანებით გაიხსნება' : 'Подписки откроются позже';
+  if(comingSoon) comingSoon.textContent = isGe ? 'გადახდამდე მხარდაჭერასთან დააზუსტეთ ფასიანი გეგმის ჩართვის პირობები.' : 'Перед оплатой уточните условия подключения платного плана у поддержки.';
 }
 function choosePlan(plan){
   if(!user || !getToken()){ openAuth('login'); return; }
@@ -2268,6 +2323,29 @@ function readPostLoadingDates() {
   return dates;
 }
 
+function readPublicationEndpoint(field,raw){
+  const text=String(raw||'').trim();
+  const picked=window.CaucasLocations?.read(field,text);
+  if(picked)return picked;
+  const selected=addrSelected[field];
+  // A typed edit must never inherit the prior address's locality, coordinates or ID.
+  const current=selected&&selected.addr===text;
+  const city=current?String(selected.city||'').trim():text.split(',')[0].trim();
+  if(current&&!city){
+    throw new Error(typeof lang!=='undefined'&&lang==='ge'
+      ?'მისამართის ქალაქი ვერ განისაზღვრა. მიუთითეთ დასახლება ან აირჩიეთ სხვა მისამართი.'
+      :'Не удалось определить город адреса. Укажите населённый пункт или выберите другой адрес.');
+  }
+  const endpoint={city};
+  if(current){
+    const id=Number(selected.city_id);
+    if(Number.isSafeInteger(id)&&id>0)endpoint.city_id=id;
+    if(selected.canonical_key)endpoint.canonical_key=selected.canonical_key;
+    endpoint.lat=selected.lat;endpoint.lng=selected.lng;
+  }
+  return endpoint;
+}
+
 function openPostLoad(){
   if(_postLoadSubmitting) return;
   if(!user){openAuth('register');return;}
@@ -2287,6 +2365,7 @@ function openPostLoad(){
   if(cl){const _T=TRANSLATIONS[lang]||TRANSLATIONS['ru']; cl.textContent=scope==='intl'?(_T.lbl_rate_intl||'Ставка ($)'):(_T.lbl_rate_form||'Ставка (₾)');}
   if(typeof updateFormForIntl==='function') updateFormForIntl();
   var _postOvr = document.getElementById('postOverlay'); _postOvr.classList.add('on'); var _postMdl = _postOvr.querySelector('.modal'); if(_postMdl) trapFocus(_postMdl);
+  if(window.CaucasLocations)window.CaucasLocations.warm();
   // Q-014: fFrom/fTo autocomplete теперь в filterCity() — _setupCityAutocomplete здесь не нужен
 }
 async function doPostLoad(){
@@ -2306,9 +2385,10 @@ async function doPostLoad(){
   const fromAddr=document.getElementById('pFromAddr').value.trim();
   const toAddr=document.getElementById('pToAddr').value.trim();
   if(!fromAddr || !toAddr){showToastWarn(T.err_load_route||'Укажите маршрут груза');return;}
-  // Город — первое слово из адреса
-  const from=(addrSelected.pFrom?.city||fromAddr.split(',')[0]).trim();
-  const to=(addrSelected.pTo?.city||toAddr.split(',')[0]).trim();
+  let fromEndpoint,toEndpoint;
+  try{fromEndpoint=readPublicationEndpoint('pFrom',fromAddr);toEndpoint=readPublicationEndpoint('pTo',toAddr);}
+  catch(error){showToastWarn(error.message);return;}
+  const from=fromEndpoint.city,to=toEndpoint.city;
   if(!from || !to){showToastWarn(T.err_load_route||'Укажите маршрут груза');return;}
   const kg=Number(document.getElementById('pWeight').value);
   if(!Number.isFinite(kg) || kg<1 || kg>50000){
@@ -2344,7 +2424,7 @@ async function doPostLoad(){
   const cur = scope==='intl' ? '$' : '₾';
   // БАГ-FORM-3 fix: считаем расстояние по прямой если есть координаты обоих городов
   let kmVal = '~уточните';
-  const _aFrom = addrSelected.pFrom, _aTo = addrSelected.pTo;
+  const _aFrom = fromEndpoint, _aTo = toEndpoint;
   if(_aFrom?.lat && _aTo?.lat){
     const _dLat=(_aTo.lat-_aFrom.lat)*Math.PI/180, _dLng=(_aTo.lng-_aFrom.lng)*Math.PI/180;
     const _a=Math.sin(_dLat/2)*Math.sin(_dLat/2)+Math.cos(_aFrom.lat*Math.PI/180)*Math.cos(_aTo.lat*Math.PI/180)*Math.sin(_dLng/2)*Math.sin(_dLng/2);
@@ -2354,6 +2434,12 @@ async function doPostLoad(){
   const submittedScope=scope==='intl'?'intl':'local';
   const submittedUserId=currentUserId;
   const newLoad={from,to,kg,type:truckTypeApi,typeLabel:truck,...tc,price,cur,date:loadDate,date2:loadDate2,...loadingDates,urgent,scope:submittedScope,desc,co:user.name,pay,from2:fromAddr,to2:toAddr,km:kmVal,badge:urgent?'urgent':'new',ownerId:user.email,userId:submittedUserId};
+  for(const [side,endpoint] of [['from',fromEndpoint],['to',toEndpoint]]){
+    if(endpoint.location)newLoad[side+'_location']=endpoint.location;
+    if(endpoint.address)newLoad[side+'2']=endpoint.address;
+    if(endpoint.city_id)newLoad[side+'_city_id']=endpoint.city_id;
+    if(endpoint.canonical_key)newLoad[side+'_city_key']=endpoint.canonical_key;
+  }
   _postLoadSubmitting=true;
   if(!_postLoadIdempotencyKey) _postLoadIdempotencyKey=_genUUID();
   if(_submitBtn){_submitBtn.disabled=true;_submitBtn.textContent=T.lbl_sending||'Отправляем...';}
@@ -2377,7 +2463,8 @@ async function doPostLoad(){
       return;
     }
     const confirmed={...newLoad,...r.load,id:r.load.serverId,fromServer:true,userId:submittedUserId};
-    const target=submittedScope==='intl'?INTL:LOCAL;
+    const confirmedScope=confirmed.route_scope||confirmed.scope||submittedScope;
+    const target=confirmedScope==='intl'?INTL:LOCAL;
     const index=target.findIndex(l=>(l.serverId||l.id)===confirmed.serverId);
     if(index<0) target.unshift(confirmed); else target[index]=confirmed;
     window.allLoads=[...LOCAL,...INTL];
@@ -2716,8 +2803,10 @@ function editMyLoad(id){
 
   setTimeout(()=>{
     const fill = (elId, val) => { const el=document.getElementById(elId); if(el&&val!=null) el.value=val; };
-    fill('pFromAddr', _cityShort(load.from2,load.from));
-    fill('pToAddr',   _cityShort(load.to2,load.to));
+    fill('pFromAddr', load.from2||load.from);
+    fill('pToAddr',   load.to2||load.to);
+    window.CaucasLocations?.restore('pFrom',load.from_location);
+    window.CaucasLocations?.restore('pTo',load.to_location);
     fill('pWeight',   load.kg);
     fill('pPrice',    load.price);
     fill('pDesc',     load.desc);
@@ -2726,8 +2815,10 @@ function editMyLoad(id){
     fill('pDate',     load.load_date || loadDateISO(load.date));
     fill('pDate2',    load.load_date_end || loadDateISO(load.date2) || '');
     document.getElementById('pDate').min=load.load_date || loadDateISO(load.date) || loadingDayToday();
-    addrSelected.pFrom={city:load.from};
-    addrSelected.pTo={city:load.to};
+    addrSelected.pFrom={city:load.from,addr:load.from2||load.from,
+      city_id:load.from_city_id??null,canonical_key:load.from_city_key||null};
+    addrSelected.pTo={city:load.to,addr:load.to2||load.to,
+      city_id:load.to_city_id??null,canonical_key:load.to_city_key||null};
     document.getElementById('pUrgent').checked=!!load.urgent;
 
     // Меняем заголовок и кнопку
@@ -2756,9 +2847,12 @@ async function saveEditedLoad(){
   catch(e) { showToastWarn(e.message); return; }
   const fromAddr=document.getElementById('pFromAddr').value.trim();
   const toAddr=document.getElementById('pToAddr').value.trim();
+  let fromEndpoint,toEndpoint;
+  try{fromEndpoint=readPublicationEndpoint('pFrom',fromAddr);toEndpoint=readPublicationEndpoint('pTo',toAddr);}
+  catch(error){showToastWarn(error.message);return;}
   const updates={
-    from:addrSelected.pFrom?.city || fromAddr.split(',')[0].trim(),
-    to:addrSelected.pTo?.city || toAddr.split(',')[0].trim(),
+    from:fromEndpoint.city,
+    to:toEndpoint.city,
     from2:fromAddr,to2:toAddr,
     kg:Number(document.getElementById('pWeight').value),
     price:Number(document.getElementById('pPrice').value),cur:original.cur || '₾',
@@ -2767,6 +2861,13 @@ async function saveEditedLoad(){
     pay:document.getElementById('pPay').value,
     urgent:document.getElementById('pUrgent').checked,...dates
   };
+  for(const [side,endpoint] of [['from',fromEndpoint],['to',toEndpoint]]){
+    // An edited route explicitly clears the old identity if no new ID was selected.
+    updates[side+'_location']=endpoint.location||null;
+    if(endpoint.address)updates[side+'2']=endpoint.address;
+    updates[side+'_city_id']=endpoint.city_id??null;
+    if(endpoint.canonical_key)updates[side+'_city_key']=endpoint.canonical_key;
+  }
   if(!updates.from || !updates.to || !Number.isFinite(updates.kg) || updates.kg<=0
       || !Number.isFinite(updates.price) || updates.price<=0){
     showToastWarn('Проверьте маршрут, вес и цену');return;
@@ -2798,6 +2899,8 @@ async function saveEditedLoad(){
 function clearLoadRouteSelection(direction){
   if(direction==='from') selectedFrom=null;
   if(direction==='to') selectedTo=null;
+  const input=document.getElementById(direction==='from'?'fFrom':'fTo');
+  if(input?.dataset){delete input.dataset.cityId;delete input.dataset.cityKey;delete input.dataset.cityLabel;}
   var wrap=document.getElementById('mapWrap');
   if(wrap) wrap.classList.remove('open');
   if(typeof ymap!=='undefined'&&ymap&&ymap.geoObjects) ymap.geoObjects.removeAll();
@@ -2873,6 +2976,28 @@ function filterByCountryCode(data,code,field){
   };
   return data.filter(d=>field?matches(d[field]):matches(d.from)||matches(d.to));
 }
+function _loadCityMatches(row,field,query,selected){
+  const expected=_loadFilterKey(query);
+  if(!expected) return true;
+  if(!_loadSelectionMatches(selected,query)) selected=null;
+  const rowKey=row[field+'_city_key'];
+  const selectedKey=selected&&(selected.canonical_key||selected.canonicalKey);
+  if(selectedKey&&rowKey) return selectedKey===rowKey;
+  const rowId=row[field+'_city_id'];
+  const selectedId=selected&&(selected.city_id||selected.cityId);
+  if(selectedId!=null&&rowId!=null) return Number(selectedId)===Number(rowId);
+  const aliases=Array.isArray(row[field+'_city_aliases'])?row[field+'_city_aliases']:[];
+  if(aliases.some(alias=>_loadFilterKey(alias).includes(expected))) return true;
+  const normalized=_loadRouteText(query);
+  return !!normalized&&_loadRouteText(row[field]).includes(normalized);
+}
+function _loadSelectionMatches(selected,query){
+  if(!selected) return false;
+  const expected=_loadFilterKey(query);
+  const names=[selected.inputLabel,selected.name,selected.nameGe,selected.name_ru,selected.name_local,
+    ...(Array.isArray(selected.aliases)?selected.aliases:[])];
+  return names.some(name=>name&&_loadFilterKey(String(name).split(',')[0])===expected);
+}
 function filterLoadData(data,countryCode){
   const value=id=>document.getElementById(id)?.value||'';
   const from=value('fFrom').split(',')[0].trim(),to=value('fTo').split(',')[0].trim();
@@ -2881,9 +3006,8 @@ function filterLoadData(data,countryCode){
   for(const [field,query] of [['from',from],['to',to]]){
     if(!query) continue;
     const code=scope==='intl'?findCountryCode(query):null;
-    const normalized=_loadRouteText(query);
     result=code?filterByCountryCode(result,code,field)
-      :result.filter(d=>normalized&&_loadRouteText(d[field]).includes(normalized));
+      :result.filter(d=>_loadCityMatches(d,field,query,field==='from'?selectedFrom:selectedTo));
   }
   if(scope==='intl'){
     const country=countryCode===undefined?value('fCountry'):countryCode;
@@ -2920,17 +3044,19 @@ function filterLoads(){
   if(fromVal&&toVal){
     const fromCity=fromVal.split(',')[0].trim();
     const toCity=toVal.split(',')[0].trim();
-    var cf=CITIES.find(c=>c.name.toLowerCase().includes(fromCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(fromCity.toLowerCase())))||selectedFrom;
-    var ct=CITIES.find(c=>c.name.toLowerCase().includes(toCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(toCity.toLowerCase())))||selectedTo;
+    var cf=(_loadSelectionMatches(selectedFrom,fromCity)?selectedFrom:null)||CITIES.find(c=>c.name.toLowerCase().includes(fromCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(fromCity.toLowerCase())));
+    var ct=(_loadSelectionMatches(selectedTo,toCity)?selectedTo:null)||CITIES.find(c=>c.name.toLowerCase().includes(toCity.toLowerCase())||(c.nameGe&&c.nameGe.toLowerCase().includes(toCity.toLowerCase())));
     if(cf&&ct){ selectedFrom=cf; selectedTo=ct; showRouteMap(); }
     else if(fromCity&&toCity){
       // Город не в CITIES (например Натахтари) — геокодируем через LocationIQ
       _fetchCitySuggestions(fromCity,'ru',function(rf){
         if(!sameRoute()) return;
-        if(rf&&rf[0]){ selectedFrom={name:fromCity,lat:rf[0].lat,lng:rf[0].lon}; }
+        if(rf&&rf[0]){ selectedFrom={name:fromCity,inputLabel:fromCity,lat:rf[0].lat,lng:rf[0].lon,
+          city_id:rf[0].city_id??null,canonical_key:rf[0].canonical_key||null}; }
         _fetchCitySuggestions(toCity,'ru',function(rt){
           if(!sameRoute()) return;
-          if(rt&&rt[0]){ selectedTo={name:toCity,lat:rt[0].lat,lng:rt[0].lon}; }
+          if(rt&&rt[0]){ selectedTo={name:toCity,inputLabel:toCity,lat:rt[0].lat,lng:rt[0].lon,
+            city_id:rt[0].city_id??null,canonical_key:rt[0].canonical_key||null}; }
           if(selectedFrom&&selectedTo&&selectedFrom.lat&&selectedTo.lat) showRouteMap();
         });
       });
@@ -3379,15 +3505,33 @@ function setScope(s, el){
   // Очищаем поля при смене scope
   if(pfrom) pfrom.value='';
   if(pto) pto.value='';
+  for(const input of [pfrom,pto]){
+    if(input?.dataset){delete input.dataset.cityId;delete input.dataset.cityKey;delete input.dataset.cityLabel;}
+  }
   selectedFrom=null; selectedTo=null;
   document.getElementById('mapWrap').classList.remove('open');
   renderLoads(data);
   syncLoadsFromServer(); // Reload after clearing the previous scope route.
+  ['tFilterFrom','tFilterTo'].forEach(function(id){var input=document.getElementById(id);if(input){input.value='';if(input.dataset){delete input.dataset.cityId;delete input.dataset.cityKey;delete input.dataset.cityLabel;}}});
+  var transportSection=document.getElementById('sec-trucks');
+  if(transportSection&&transportSection.classList.contains('active')&&typeof filterAndLoadTransport==='function')filterAndLoadTransport();
 }
 
 // ── LANG / i18n ───────────────────────────────────────
 const TRANSLATIONS = {
   ru: {
+    public_new_carrier: "Новый перевозчик",
+    public_reviews: "отзывов",
+    load_empty_help: "По выбранным фильтрам пока нет грузов. Предложите свой транспорт или запросите помощь.",
+    empty_post_request: "Оставить заявку на перевозку",
+    empty_ask_help: "Помощь Мари",
+    transport_expired: "Срок доступности истёк",
+    transport_stale: "Доступность давно не подтверждалась",
+    transport_unconfirmed: "Доступность не подтверждена",
+    transport_confirmed: "Доступность подтверждена",
+    transport_last_confirmed: "Подтверждено",
+    transport_capacity_review: "Параметры транспорта требуют проверки",
+    rates_unavailable: "Проверенных данных о ставках и объёмах пока нет. Запросите предложения по своему маршруту.",
     sub_created: 'Подписка создана',
     sub_deleted: 'Подписка удалена',
     err_create_sub: 'Не удалось создать подписку',
@@ -3484,8 +3628,8 @@ const TRANSLATIONS = {
     nav_rates2: '📊 Ставки',
     nav_cabinet: '📋 Кабинет',
     stat_loads: 'грузов',
-    stat_trucks: 'машин онлайн',
-    stat_companies: 'компаний',
+    stat_trucks: 'публикаций транспорта за 24ч',
+    stat_companies: 'профилей',
     stat_users: 'пользователей',
     stat_online: 'онлайн',
     type_tent: 'Тент',
@@ -3541,7 +3685,7 @@ const TRANSLATIONS = {
     empty_deals: 'Нет сделок',
     empty_deals_sub: 'Примите отклик на груз чтобы создать сделку',
     login_for_deals: 'Войдите чтобы увидеть сделки',
-    rates_subtitle: 'Средние ставки на маршрутах · обновлено сегодня',
+    rates_subtitle: 'Ставки публикуются только с источником и датой обновления',
     map_choose_route: 'Выберите маршрут',
     pop_routes: '🗺️ Популярные маршруты',
     loading_loads: '⏳ Загружаем грузы...',
@@ -3643,8 +3787,8 @@ const TRANSLATIONS = {
     pw_standard_features: '✅ 50 откликов/мес\n✅ Контакты грузовладельца\n✅ Верификация компании\n❌ Приоритет\n❌ Мари бот',
     pw_pro_features: '✅ Безлимит откликов\n✅ Контакты грузовладельца\n✅ Приоритет в выдаче\n✅ Срочные грузы первым\n✅ AI диспетчер Мари',
     pw_proplus_features: '✅ Всё из Про\n✅ Мари мониторит биржу\n✅ Уведомления по маршрутам\n✅ AI менеджер Мари 24/7',
-    pw_free_now: 'Сейчас все функции бесплатны 🎉',
-    pw_coming_soon: 'Подписки откроются позже',
+    pw_free_now: 'Просмотр объявлений и регистрация доступны без подписки.',
+    pw_coming_soon: 'Перед оплатой уточните условия подключения платного плана у поддержки.',
     ad_label: 'Реклама',
     contacts_locked: 'Контакты доступны от',
     details_link: 'Подробнее →',
@@ -3674,7 +3818,7 @@ const TRANSLATIONS = {
     rules_p7: 'Данные пользователей не передаются третьим лицам. Контакты участников видны только в рамках активной сделки. Платформа использует данные исключительно для обеспечения работы сервиса.',
     rules_p8: 'CaucasHub оставляет за собой право изменять правила. Продолжение использования платформы после изменений означает согласие с новой редакцией.',
     rules_contact: 'По вопросам: caucashub.ge · @caucashub_bot',
-    footer_slogan: 'Первая биржа грузов Кавказа',
+    footer_slogan: 'Биржа грузов и транспорта',
     footer_rules: '📋 Правила и ответственность',
     reg_agree: 'Регистрируясь, я соглашаюсь с',
     reg_agree_link: 'правилами использования',
@@ -3713,7 +3857,7 @@ const TRANSLATIONS = {
     transport_confirm_availability: 'Уточнить доступность',
     transport_count_suffix: 'предложений транспорта',
     transport_empty_title: 'Предложений нет',
-    transport_empty_sub: 'Попробуйте изменить фильтры',
+    transport_empty_sub: 'По выбранному маршруту пока нет транспорта. Оставьте заявку на перевозку или запросите помощь.',
     transport_interested: 'Интересует',
     transport_capacity: 'Грузопод.',
     my_transport_title: 'Мои предложения транспорта',
@@ -3885,7 +4029,7 @@ const TRANSLATIONS = {
     respond_sent: '✅ Заявка отправлена',
     btn_cancel: '✕ Отменить',
     opt_any_body: 'Любой кузов',
-    btn_find_transport: '🔍 Найти',
+    btn_find_transport: '🔍 Найти транспорт',
     btn_offer_transport: '+ Предложить транспорт',
     th_route_transport: 'МАРШРУТ',
     th_carrier: 'ПЕРЕВОЗЧИК',
@@ -4010,6 +4154,18 @@ const TRANSLATIONS = {
     lbl_enter_open: 'Откройте доступ',
   },
   ge: {
+    public_new_carrier: "ახალი გადამზიდველი",
+    public_reviews: "შეფასება",
+    load_empty_help: "არჩეული ფილტრებით ტვირთები ჯერ არ არის. განათავსეთ თქვენი ტრანსპორტი ან ითხოვეთ დახმარება.",
+    empty_post_request: "გადაზიდვის განაცხადის დატოვება",
+    empty_ask_help: "მარის დახმარება",
+    transport_expired: "ხელმისაწვდომობის ვადა ამოიწურა",
+    transport_stale: "ხელმისაწვდომობა დიდი ხანია არ დადასტურებულა",
+    transport_unconfirmed: "ხელმისაწვდომობა არ არის დადასტურებული",
+    transport_confirmed: "ხელმისაწვდომობა დადასტურებულია",
+    transport_last_confirmed: "დადასტურებულია",
+    transport_capacity_review: "ტრანსპორტის პარამეტრები შესამოწმებელია",
+    rates_unavailable: "ტარიფებისა და მოცულობების გადამოწმებული მონაცემები ჯერ არ არის. მოითხოვეთ შეთავაზებები თქვენს მარშრუტზე.",
     nav_exchange: 'ბირჟა',
     nav_orders: 'ჩემი შეკვეთები',
     nav_transport: 'ტრანსპორტი',
@@ -4082,8 +4238,8 @@ const TRANSLATIONS = {
     nav_rates2: '📊 ტარიფები',
     nav_cabinet: '📋 კაბინეტი',
     stat_loads: 'ტვირთი',
-    stat_trucks: 'მანქანა ონლაინ',
-    stat_companies: 'კომპანია',
+    stat_trucks: 'ტრანსპორტის განცხადება 24სთ-ში',
+    stat_companies: 'პროფილი',
     stat_users: 'მომხმარებელი',
     stat_online: 'ონლაინ',
     type_tent: 'ტენტი',
@@ -4155,7 +4311,7 @@ const TRANSLATIONS = {
     truck_container: 'კონტეინერი',
     empty_deals_sub: 'მიიღეთ გამოხმაურება ტვირთზე გარიგების შესაქმნელად',
     login_for_deals: 'შედით გარიგებების სანახავად',
-    rates_subtitle: 'საშუალო ტარიფები მარშრუტებზე · განახლდა დღეს',
+    rates_subtitle: 'ტარიფები ქვეყნდება წყაროსა და განახლების თარიღით',
     map_choose_route: 'აირჩიეთ მარშრუტი',
     pop_routes: '🗺️ პოპულარული მარშრუტები',
     loading_loads: '⏳ იტვირთება...',
@@ -4273,8 +4429,8 @@ const TRANSLATIONS = {
     pw_standard_features: '✅ 50 გამოხმაურება/თვეში\n✅ დამქირავებლის კონტაქტები\n✅ კომპანიის ვერიფიკაცია\n❌ პრიორიტეტი\n❌ მარი ბოტი',
     pw_pro_features: '✅ შეუზღუდავი გამოხმაურება\n✅ დამქირავებლის კონტაქტები\n✅ პრიორიტეტი გამოცემაში\n✅ სასწრაფო ტვირთები პირველი\n✅ AI დისპეჩერი მარი',
     pw_proplus_features: '✅ პრო-ს ყველაფერი\n✅ მარი მონიტორინგს უწევს ბირჟას\n✅ შეტყობინებები მარშრუტებზე\n✅ AI მენეჯერი მარი 24/7',
-    pw_free_now: 'ახლა ყველა ფუნქცია უფასოა 🎉',
-    pw_coming_soon: 'გამოწერა მოგვიანებით გაიხსნება',
+    pw_free_now: 'განცხადებების ნახვა და რეგისტრაცია ხელმისაწვდომია გამოწერის გარეშე.',
+    pw_coming_soon: 'გადახდამდე მხარდაჭერასთან დააზუსტეთ ფასიანი გეგმის ჩართვის პირობები.',
     ad_label: 'რეკლამა',
     contacts_locked: 'კონტაქტები ხელმისაწვდომია',
     details_link: 'დეტალურად →',
@@ -4304,7 +4460,7 @@ const TRANSLATIONS = {
     rules_p7: 'მომხმარებლის მონაცემები არ გადაეცემა მესამე პირებს. მონაწილეთა კონტაქტები ხილულია მხოლოდ აქტიური გარიგების ფარგლებში. პლატფორმა იყენებს მონაცემებს მხოლოდ სერვისის ფუნქციონირების უზრუნველსაყოფად.',
     rules_p8: 'CaucasHub იტოვებს წესების შეცვლის უფლებას. პლატფორმის გამოყენების გაგრძელება ცვლილებების შემდეგ ნიშნავს ახალ რედაქციაზე თანხმობას.',
     rules_contact: 'კითხვებისთვის: caucashub.ge · @caucashub_bot',
-    footer_slogan: 'კავკასიის პირველი სატვირთო ბირჟა',
+    footer_slogan: 'ტვირთებისა და ტრანსპორტის ბირჟა',
     footer_rules: '📋 წესები და პასუხისმგებლობა',
     reg_agree: 'რეგისტრაციით ვეთანხმები',
     reg_agree_link: 'გამოყენების წესებს',
@@ -4523,7 +4679,7 @@ const TRANSLATIONS = {
     transport_confirm_availability: 'დააზუსტეთ ხელმისაწვდომობა',
     transport_count_suffix: 'ტრანსპორტის შეთავაზება',
     transport_empty_title: 'შეთავაზებები არ არის',
-    transport_empty_sub: 'სცადეთ ფილტრების შეცვლა',
+    transport_empty_sub: 'არჩეულ მარშრუტზე ტრანსპორტი ჯერ არ არის. დატოვეთ გადაზიდვის განაცხადი ან ითხოვეთ დახმარება.',
     transport_interested: 'მაინტერესებს',
     transport_capacity: 'ტვირთამწ.',
     // ტრანსპორტის კაბინეტი
@@ -4567,7 +4723,7 @@ const TRANSLATIONS = {
     empty_responses: 'აქტიური გამოხმაურებები არ არის',
     empty_deals: 'გარიგებები არ არის',
     opt_any_body: 'ნებისმიერი კუზოვი',
-    btn_find_transport: '🔍 ძიება',
+    btn_find_transport: '🔍 ტრანსპორტის ძიება',
     btn_offer_transport: '+ ტრანსპორტის შეთავაზება',
     th_route_transport: 'მარშრუტი',
     th_carrier: 'გადამზიდველი',
@@ -4706,8 +4862,7 @@ function applyLang(l) {
     const m = fcount.textContent.match(/^(\d+)/);
     if (m) fcount.textContent = m[1] + ' ' + (T.fcount_suffix || 'грузов');
   }
-  // fix: убрана смена documentElement.lang — вызывала font reflow всего документа (8.5s freeze GE→RU)
-  // :lang(ka) CSS rule меняет font-family для всех элементов → massive layout recalculation
+  // Semantic document language is synchronized in setLang; both languages share one font stack.
   // Локализация alert для paywall кнопок
   window._pwSoon = T['pw_coming_soon'] || 'Скоро!';
   // БАГ-8: переключение опций формы организации по языку (полная замена innerHTML)
@@ -4740,7 +4895,9 @@ function applyLang(l) {
 
 function setLang(l, btn) {
   var _t0 = performance.now();
+  l=l==='ge'?'ge':'ru';
   lang = l;
+  if(document.documentElement&&document.documentElement.lang!==(l==='ge'?'ka':'ru'))document.documentElement.lang=l==='ge'?'ka':'ru';
   window.__currentLang = l;
   localStorage.setItem('ch_lang', l);
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
@@ -5615,7 +5772,7 @@ function openAnalytics(){
     const _displayRevenue = _revenue || user.revenue || user.earned || 0;
     if(_s3) _s3.textContent='₾'+_displayRevenue.toLocaleString();
     const _s4=document.getElementById('aStat4');
-    if(_s4) _s4.textContent=(user.rat?Math.round(parseFloat(user.rat)):5)+' ⭐';
+    if(_s4) _s4.textContent=publicRatingLabel(user);
     // Популярные маршруты
     const _routes={};
     _allDeals.forEach(function(d){
@@ -5931,7 +6088,7 @@ function _renderOrders(){
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8f9fa;border-radius:8px;margin-bottom:6px">
             <div>
               <div style="font-weight:600;font-size:13px">${r.name}</div>
-              <div style="font-size:11px;color:#888">${r.truck} · ${r.tonnage}т · ⭐${r.rating}</div>
+              <div style="font-size:11px;color:#888">${r.truck} · ${r.tonnage}т · ${esc(publicRatingLabel(r))}</div>
             </div>
             <div style="display:flex;gap:6px">
               ${r.status==='pending'?`
@@ -6098,7 +6255,8 @@ if(_dateInput){
 (function() {
   const saved = localStorage.getItem('ch_lang');
   const device = (navigator.language || navigator.userLanguage || '').toLowerCase();
-  const initial = saved === 'ru' || saved === 'ge' ? saved : (device.startsWith('ka') ? 'ge' : 'ru');
+  const pathIsGe=typeof location!=='undefined'&&/^\/ka\/?$/.test(location.pathname);
+  const initial = pathIsGe ? 'ge' : (saved === 'ru' || saved === 'ge' ? saved : (device.startsWith('ka') ? 'ge' : 'ru'));
   const button = document.querySelector('.lang-btn[onclick*="' + initial + '"]');
   setLang(initial, button || null);
 })();
@@ -6238,10 +6396,10 @@ async function exportDealsData(fmt){
 // ═══ ЯНДЕКС КАРТА В МОДАЛЕ ═══
 window.openRouteMap = function(){
   // Берём from/to из текущего открытого груза
-  let from = '', to = '';
+  let from = '', to = '',fromLocation=null,toLocation=null;
   if(window.currentCargoId && window.allLoads){
     const d = window.allLoads.find(l=>l.id===window.currentCargoId);
-    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||''; }
+    if(d){ from = d.from2||d.from||''; to = d.to2||d.to||'';fromLocation=d.from_location;toLocation=d.to_location; }
   }
   // fallback: читаем из mGrid
   if(!from || !to){
@@ -6273,21 +6431,16 @@ window.openRouteMap = function(){
     ymaps.ready(function(){
       mapEl.innerHTML='';
       _routeMap = new ymaps.Map('routeMapModal', {center:[41.7151,44.8271],zoom:7});
-      ymaps.geocode(from+', Грузия',{results:1}).then(function(res){
-        const fromCoords = res.geoObjects.get(0)?.geometry?.getCoordinates();
-        ymaps.geocode(to+', Грузия',{results:1}).then(function(res2){
-          const toCoords = res2.geoObjects.get(0)?.geometry?.getCoordinates();
-          if(!fromCoords||!toCoords) return;
-          const route = new ymaps.multiRouter.MultiRoute({
-            referencePoints: [fromCoords, toCoords],
-            params: {routingMode:'auto'}
-          },{wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
-          _routeMap.geoObjects.add(route);
-          route.model.events.add('requestsuccess', function(){
-            _routeMap.setBounds(route.getBounds(), {checkZoomRange:true, zoomMargin:40});
-          });
-        });
-      });
+      const locate=(location,text)=>location&&Number.isFinite(Number(location.lat))&&Number.isFinite(Number(location.lon))
+        ?Promise.resolve([Number(location.lat),Number(location.lon)])
+        :ymaps.geocode(text,{results:1}).then(result=>result.geoObjects.get(0)?.geometry?.getCoordinates());
+      locate(fromLocation,from).then(fromCoords=>locate(toLocation,to).then(toCoords=>{
+        if(!fromCoords||!toCoords)return;
+        const route=new ymaps.multiRouter.MultiRoute({referencePoints:[fromCoords,toCoords],params:{routingMode:'auto'}},
+          {wayPointFinishIconColor:'#e74c3c',routeActiveStrokeWidth:5,routeActiveStrokeColor:'#f7b731'});
+        _routeMap.geoObjects.add(route);
+        route.model.events.add('requestsuccess',()=>_routeMap.setBounds(route.getBounds(),{checkZoomRange:true,zoomMargin:40}));
+      })).catch(()=>{mapEl.innerHTML='<div style="padding:24px">Не удалось построить маршрут</div>';});
     });
   }, function(errMsg) {
     // Яндекс недоступен (макс 6 сек ожидания) — показываем сообщение
@@ -7005,9 +7158,18 @@ window.loadTransportOffers = async function(fromCity, toCity, truckType, offset)
   var list=document.getElementById('transportList');
   var cnt=document.getElementById('transportCount');
   if(list&&isVisible()) list.innerHTML='<div style="text-align:center;padding:40px;color:#aaa">⏳ Загружаем...</div>';
-  var params=new URLSearchParams({limit:50,offset:offset||0});
-  if(fromCity) params.set('from_city',fromCity);
-  if(toCity) params.set('to_city',toCity);
+  var params=new URLSearchParams({limit:50,offset:offset||0,scope:typeof scope!=='undefined'&&scope==='intl'?'intl':'local'});
+  function addCityFilter(side,value){
+    var input=document.getElementById(side==='from'?'tFilterFrom':'tFilterTo');
+    var cityText=value!=null?String(value):(input?.value||'');
+    var identity=input?.dataset;
+    var same=identity&&identity.cityLabel===cityText.trim();
+    if(same&&/^\d+$/.test(identity.cityId||''))params.set(side+'_city_id',identity.cityId);
+    else if(same&&identity.cityKey)params.set(side+'_city_key',identity.cityKey);
+    else if(cityText)params.set(side+'_city',cityText);
+  }
+  addCityFilter('from',fromCity);
+  addCityFilter('to',toCity);
   if(truckType) params.set('truck_type',truckType);
   var timer;
   function showError(message){
@@ -7068,14 +7230,18 @@ function renderTransportOffers() {
   var list = document.getElementById('transportList');
   if(!list) return;
   if(!_transportOffers.length) {
-    list.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🚛</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_title||'Нет предложений') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).transport_empty_sub||'Попробуйте изменить фильтры') + '</div></div>';
+    list.innerHTML = publicListingEmpty('transport');
     return;
   }
   var tk   = typeof getToken === 'function' ? getToken() : null;
   var html = _transportOffers.map(function(o) {
     var datesExpired = o.dates_expired === true;
+    var freshness = transportAvailabilityLabel(o);
+    var status = o.availability_status||(datesExpired?'expired':'unconfirmed');
+    var needsReview = o.capacity_valid===false;
+    var qualityWarning = (TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_capacity_review||'Параметры транспорта требуют проверки';
     var availabilityText = (TRANSLATIONS[lang]||TRANSLATIONS.ru).transport_confirm_availability || 'Уточнить доступность';
-    var urgBadge = o.urgent && !datesExpired ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
+    var urgBadge = o.urgent && !datesExpired && status==='confirmed' ? '<span class="badge-urgent-new">⚡ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).badge_urgent||'СРОЧНО') + '</span>' : '';
     var cap = o.capacity_kg ? Math.round(o.capacity_kg/1000) + ' т' : '';
     var price = o.price ? o.price.toLocaleString() + ' ₾' : (o.price_usd ? '$' + o.price_usd : '');
     var dateFrom = o.available_from ? formatDate(o.available_from) : '';
@@ -7086,10 +7252,10 @@ function renderTransportOffers() {
       : '<button onclick="openAuth(\'login\')" class="card-btn-resp">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_login_short||'Войти') + '</button>';
 
     // null-guard: from_city/to_city/truck_type могут быть null
-    var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city||''):o.from_city||'—');
-    var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city||''):o.to_city||'—');
+    var fromCity = esc(typeof translateCity==='function'?translateCity(o.from_city||'',o.from_location):o.from_city||'—');
+    var toCity   = esc(typeof translateCity==='function'?translateCity(o.to_city||'',o.to_location):o.to_city||'—');
     var carrier  = esc(o.company_name || ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).carrier_default||'Перевозчик'));
-    var rating   = '⭐' + (o.rating || '5.0');
+    var rating   = esc(publicRatingLabel(o));
     var capLabel = cap ? cap + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_capacity||'вмест.') : '—';
 
     // Цвет тега типа кузова — как в грузах
@@ -7104,20 +7270,20 @@ function renderTransportOffers() {
     var typeTag = '<span class="card-type-tag" style="background:' + tc.bg + ';color:' + tc.t + '">' + esc(getTypeLabel(o.truck_type || 'other')) + '</span>';
 
     var cardClick = tk ? 'onclick="openTransportRequest(' + o.id + ')"' : 'onclick="openAuth(\'login\')"';
-    return '<div class="card-load transport-card" style="border-left:3px solid #2ecc71;cursor:pointer" ' + cardClick + '>' +
+    return '<div class="card-load transport-card transport-status-'+esc(status)+'" style="border-left:3px solid '+(status==='confirmed'&&!needsReview?'#2ecc71':'#d69c28')+';cursor:pointer" ' + cardClick + '>' +
 
       // ── ДЕСКТОП: grid по колонкам заголовка ──
       '<div class="row-desktop" style="grid-template-columns:2fr 1.5fr 0.8fr 0.8fr 1fr 1fr 100px">' +
         '<div>' +
           '<div class="route">' + fromCity + ' <span class="arrow">→</span> ' + toCity + '</div>' +
-          '<div style="margin-top:3px">' + urgBadge + '</div>' +
+          '<div style="margin-top:3px">' + urgBadge + (needsReview?'<span class="listing-warning">⚠ '+esc(qualityWarning)+'</span>':'') + '</div>' +
           (o.notes ? '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(String(o.notes).slice(0,60)) + '</div>' : '') +
         '</div>' +
         '<div style="font-size:13px;color:#333">' + carrier + '<br><span style="color:#888;font-size:11px">' + rating + '</span></div>' +
         '<div style="font-size:13px;color:#333">' + (cap || '—') + '</div>' +
         '<div>' + typeTag + '</div>' +
         '<div class="price">' + (price || '—') + '</div>' +
-        '<div style="font-size:12px;font-weight:600;color:#555">' + availability + '</div>' +
+        '<div style="font-size:12px;font-weight:600;color:#555">' + availability + '<div class="transport-confirmation">'+esc(freshness)+'</div></div>' +
         '<div onclick="event.stopPropagation()">' + actionBtn + '</div>' +
       '</div>' +
 
@@ -7140,6 +7306,8 @@ function renderTransportOffers() {
           typeTag +
           '<span>' + capLabel + '</span>' +
           (availability ? '<span>' + availability + '</span>' : '') +
+          '<span class="transport-confirmation">'+esc(freshness)+'</span>' +
+          (needsReview?'<span class="listing-warning">⚠ '+esc(qualityWarning)+'</span>':'') +
         '</div>' +
       '</div>' +
 
@@ -7161,6 +7329,57 @@ function _cancelTransportRender(){
     renderTransportOffers._frame=null;
   }
   return renderTransportOffers._revision;
+}
+
+
+/* Public reputation is based on an explicit review count, never a legacy default. */
+function publicRatingLabel(record) {
+  var T=(typeof TRANSLATIONS!=='undefined'&&(TRANSLATIONS[lang]||TRANSLATIONS.ru))||{};
+  var r=record||{};
+  var count=Number(r.review_count!=null?r.review_count:r.ratings_received);
+  var score=Number(r.rating!=null?r.rating:r.rat);
+  if(Number.isInteger(count)&&count>0&&Number.isFinite(score)&&score>=1&&score<=5&&r.rating_verified===true){
+    return '⭐ '+score.toFixed(1)+' · '+count+' '+(T.public_reviews||'отзывов');
+  }
+  return T.public_new_carrier||'Новый перевозчик';
+}
+
+function publicListingEmpty(kind) {
+  var T=(TRANSLATIONS[lang]||TRANSLATIONS.ru)||{};
+  var transport=kind==='transport';
+  var title=transport?(T.transport_empty_title||'Нет предложений'):(T.load_search_empty||'Грузов не найдено');
+  var text=transport?(T.transport_empty_sub||'По выбранному маршруту пока нет транспорта. Оставьте заявку на перевозку или запросите помощь.')
+    :(T.load_empty_help||'По выбранным фильтрам пока нет грузов. Предложите свой транспорт или запросите помощь.');
+  var action=transport?'openPostLoad()':'openPostTransportOffer()';
+  var label=transport?(T.empty_post_request||'Оставить заявку на перевозку'):(T.btn_offer_transport||'+ Предложить транспорт');
+  return '<div class="cab-empty listing-empty"><div class="cab-empty-icon">'+(transport?'🚛':'📦')+'</div>'+
+    '<div class="cab-empty-title">'+esc(title)+'</div><div class="cab-empty-sub">'+esc(text)+'</div>'+
+    '<div class="listing-empty-actions"><button type="button" class="listing-empty-action" onclick="'+action+'">'+esc(label)+'</button>'+
+    '<button type="button" class="listing-empty-action secondary" onclick="toggleAI()">'+esc(T.empty_ask_help||'Помощь Мари')+'</button></div></div>';
+}
+
+function transportAvailabilityLabel(offer) {
+  var T=(TRANSLATIONS[lang]||TRANSLATIONS.ru)||{};
+  var o=offer||{};
+  var status=o.availability_status||(o.dates_expired===true?'expired':'unconfirmed');
+  var texts={
+    expired:T.transport_expired||'Срок доступности истёк',
+    stale:T.transport_stale||'Доступность давно не подтверждалась',
+    unconfirmed:T.transport_unconfirmed||'Доступность не подтверждена',
+    confirmed:T.transport_confirmed||'Доступность подтверждена'
+  };
+  var text=texts[status]||texts.unconfirmed;
+  if(o.last_confirmed_at){
+    var date=new Date(o.last_confirmed_at);
+    if(Number.isFinite(date.getTime())){
+      var locale=lang==='ge'?'ka-GE':'ru-RU';
+      var formats=transportAvailabilityLabel._formats||(transportAvailabilityLabel._formats={});
+      var formatter=formats[locale]||(formats[locale]=new Intl.DateTimeFormat(locale,
+        {day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Asia/Tbilisi'}));
+      text+=' · '+(T.transport_last_confirmed||'Подтверждено')+' '+formatter.format(date);
+    }
+  }
+  return text;
 }
 
 // Открыть модалку отклика на транспортное предложение
@@ -7265,8 +7484,8 @@ window.openPostTransportOffer = function() {
       var m=overlay.querySelector('.modal'); if(m){ m.style.width='100%'; m.style.maxWidth='100%'; m.style.borderRadius='20px 20px 0 0'; m.style.maxHeight='92vh'; m.style.overflowY='auto'; }
     }
   }
-  _setupCityAutocomplete('ptFrom', {lang: 'ru'});
-  _setupCityAutocomplete('ptTo', {lang: 'ru'});
+  if(window.CaucasLocations)window.CaucasLocations.warm();
+  else{_setupCityAutocomplete('ptFrom', {lang: 'ru'});_setupCityAutocomplete('ptTo', {lang: 'ru'});}
 };
 
 window.submitTransportOffer = async function() {
@@ -7301,6 +7520,12 @@ window.submitTransportOffer = async function() {
     notes: notes.trim() || null,
   };
 
+  if(window.CaucasLocations){
+    try{for(const [side,field]of [['from','ptFrom'],['to','ptTo']]){
+      const endpoint=window.CaucasLocations.read(field,side==='from'?from.trim():to.trim());
+      if(endpoint){payload[side+'_city']=endpoint.city;if(endpoint.location)payload[side+'_location']=endpoint.location;}
+    }}catch(error){if(errEl){errEl.textContent=error.message;errEl.style.display='block';}return;}
+  }
   _transportOfferSubmitting=true;
   if(submitButton) submitButton.disabled=true;
   var confirmed=false;
@@ -7319,7 +7544,7 @@ window.submitTransportOffer = async function() {
       return;
     }
     if(r.status === 422){
-      var msg422 = (d.detail && d.detail[0] && d.detail[0].msg) ? d.detail[0].msg : 'Проверьте поля формы';
+      var msg422 = typeof d.detail==='string'?d.detail:((d.detail && d.detail[0] && d.detail[0].msg) ? d.detail[0].msg : 'Проверьте поля формы');
       if(errEl){ errEl.textContent = msg422; errEl.style.display = 'block'; }
       return;
     }
@@ -7392,7 +7617,7 @@ function renderMyTransportOffers(offers) {
     var dateFrom = o.available_from ? new Date(o.available_from).toLocaleDateString('ru',{day:'2-digit',month:'2-digit'}) : '';
     return '<div style="padding:14px 16px;background:#fff;border-bottom:1px solid #f2f2f2;border-left:3px solid #2ecc71">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
-        '<div><div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(o.from_city):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city):o.to_city) + '</div>' +
+        '<div><div style="font-weight:700">' + esc(typeof translateCity==='function'?translateCity(o.from_city,o.from_location):o.from_city) + ' → ' + esc(typeof translateCity==='function'?translateCity(o.to_city,o.to_location):o.to_city) + '</div>' +
           '<div style="font-size:12px;color:#888;margin-top:2px">' + esc(typeof getTypeLabel==="function"?getTypeLabel(o.truck_type||''):o.truck_type||'') + (cap?' · '+cap:'') + (price?' · '+price:'') + (dateFrom?' · '+dateFrom:'') + '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">' +
@@ -7640,33 +7865,40 @@ function _setupCityAutocomplete(inputId, options) {
 
   input.addEventListener('input', function() {
     var q = this.value.trim();
+    delete input.dataset.cityId;delete input.dataset.cityKey;delete input.dataset.cityLabel;
     if(q === lastValue) return;
     lastValue = q;
     clearTimeout(debounceTimer);
     if(q.length < 2) { dropdown.style.display='none'; return; }
     debounceTimer = setTimeout(function() {
-      _fetchCitySuggestions(q, options.lang || 'ru', function(results) {
+      _fetchCitySuggestions(q, typeof lang!=='undefined'?lang:(options.lang||'ru'), function(results) {
+        if(input.value.trim()!==q)return;
         // БАГ-3 fix: дедупликация по name_ru
         var seen = {}; results = results.filter(function(r){ var k = r.name_ru||r.display_name; if(seen[k]) return false; seen[k]=1; return true; });
         if(!results.length) { dropdown.style.display='none'; return; }
         dropdown.innerHTML = results.map(function(r) {
-          // БАГ-3 fix: data-ru всегда русское название, data-local только для отображения подсказки
-          var nameRu = r.name_ru || r.display_name.split(',')[0];
-          var nameLocal = r.name_local || '';
-          return '<div class="city-autocomplete-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5" data-name="' + r.display_name + '" data-ru="' + nameRu + '">'
-            + '<span style="font-weight:600">' + nameRu + '</span>'
-            + (nameLocal && nameLocal !== nameRu ? '<span style="font-size:11px;color:#aaa;margin-left:6px">' + nameLocal + '</span>' : '')
-            + '</div>';
+          var nameRu=r.name_ru||r.name||String(r.display_name||'').split(',')[0];
+          var nameLocal=r.name_local||r.name_ge||'';
+          var display=r.display_name||nameRu;
+          var cityKey=typeof r.canonical_key==='string'?r.canonical_key:'';
+          var cityId=cityKey&&Number.isSafeInteger(Number(r.city_id||r.id))&&Number(r.city_id||r.id)>0?String(r.city_id||r.id):'';
+          return '<div class="city-autocomplete-item" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5" data-name="'+esc(display)+'" data-ru="'+esc(nameRu)+'" data-city-id="'+esc(cityId)+'" data-city-key="'+esc(cityKey)+'">'+
+            '<span style="font-weight:600">'+esc(nameRu)+'</span>'+
+            (nameLocal&&nameLocal!==nameRu?'<span style="font-size:11px;color:#aaa;margin-left:6px">'+esc(nameLocal)+'</span>':'')+'</div>';
         }).join('');
         dropdown.querySelectorAll('.city-autocomplete-item').forEach(function(item) {
           item.addEventListener('click', function() {
-            var name = this.getAttribute('data-ru') || this.getAttribute('data-name').split(',')[0];
-            input.value = name;
-            dropdown.style.display = 'none';
-            if(options.onSelect) options.onSelect({name: name, display: this.getAttribute('data-name')});
+            var name=this.getAttribute('data-ru')||this.getAttribute('data-name').split(',')[0];
+            input.value=name;
+            var id=this.getAttribute('data-city-id'),key=this.getAttribute('data-city-key');
+            if(id)input.dataset.cityId=id;
+            if(key)input.dataset.cityKey=key;
+            input.dataset.cityLabel=name.trim();
+            dropdown.style.display='none';
+            if(options.onSelect)options.onSelect({name:name,display:this.getAttribute('data-name'),city_id:id?Number(id):null,canonical_key:key||null});
           });
-          item.addEventListener('mouseover', function() { this.style.background='#f8f9fa'; });
-          item.addEventListener('mouseout',  function() { this.style.background=''; });
+          item.addEventListener('mouseover', function(){this.style.background='#f8f9fa';});
+          item.addEventListener('mouseout', function(){this.style.background='';});
         });
         dropdown.style.display = 'block';
       });

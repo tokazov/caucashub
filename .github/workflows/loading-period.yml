@@ -56,14 +56,17 @@ jobs:
           node-version: "22"
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite pypdf
+      - name: Install frontend test dependencies
+        run: npm install --prefix tests/frontend --no-package-lock --ignore-scripts
       - name: Backend and PostgreSQL migration regressions
-        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py -q
+        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py -q
       - name: JavaScript syntax
         run: |
           node --check api.js
           node --check frontend/api.js
           node --check main.js
           node --check frontend/main.js
+          node --check frontend/locations.js
       - name: Frontend regression (UTC)
         run: node --test tests/frontend/tests/*.test.js
         env:
@@ -310,4 +313,34 @@ jobs:
         with:
           name: auth-recovery-browser
           path: artifacts/auth-recovery/
+          if-no-files-found: warn
+
+  address-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated browser dependencies
+        run: |
+          python -m pip install -r requirements.txt aiosqlite
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Verify exact address and checkpoint UI on disposable SQLite
+        run: node tests/browser/address_journey.cjs --spawn-server
+      - name: Upload address screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: address-browser
+          path: artifacts/address-journey/
           if-no-files-found: warn

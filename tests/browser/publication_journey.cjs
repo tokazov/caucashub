@@ -14,10 +14,11 @@ const ARTIFACTS=path.resolve(process.env.CARRIER_PUBLICATION_ARTIFACTS||path.joi
 const auditContacts=process.argv.includes('--audit-contacts');
 const completionEnabled=process.env.CARRIER_BROWSER_COMPLETION==='1';
 const notificationsEnabled=process.env.CARRIER_BROWSER_NOTIFICATIONS==='1';
+const pilotEnabled=process.env.CARRIER_BROWSER_PILOT==='1';
 const notificationSteps=notificationsEnabled?require('./notification_steps.cjs'):null;
 const TEST_PASSWORD='PublicationBrowser39!';
 if(notificationsEnabled&&!completionEnabled)throw Error('Notification browser mode requires full completion');
-const results=[],diagnostics={productionApiAttempts:0,blockedHosts:[],pages:[],mutations:[]};
+const results=[],diagnostics={productionApiAttempts:0,blockedHosts:[],pages:[],mutations:[],pilotSearchResults:[]};
 const blocked=new Set();
 let browser,server,serverError;
 fs.mkdirSync(ARTIFACTS,{recursive:true});
@@ -34,9 +35,15 @@ async function ready(){
    assert.equal(r.headers.get('x-carrier-test-only'),'1');
    assert.equal(data.test_only,true);assert.equal(data.isolated_sqlite,true);
    assert.equal(data.actual_profile_routers,true);if(notificationsEnabled)assert.equal(data.notification_test,true);assert.equal(data.origin,BASE.origin);assert.equal(data.ready,true);
+   if(pilotEnabled){assert.equal(data.pilot_test,true);assert.equal(data.actual_city_stats_routers,true);}
    const spec=await(await fetch(new URL('/openapi.json',BASE))).json();
    for(const endpoint of ['/api/loads/','/api/transport/','/api/responses/load/{load_id}','/api/transport-requests/{req_id}/accept'])
     assert.ok(spec.paths[endpoint]?.post,'Opt-in real trade router required: '+endpoint);
+   if(pilotEnabled){
+    for(const endpoint of ['/api/cities/','/api/cities/search','/api/stats/counters'])
+     assert.ok(spec.paths[endpoint]?.get,'Pilot actual router required: '+endpoint);
+   }
+   diagnostics.fixture=data;
    return;
   }catch{await delay(250);}
  }
@@ -120,6 +127,8 @@ async function publishLoad(page,configuration,label){
 async function searchLoadAndRespond(page,configuration,load,label){
  await page.reload({waitUntil:'domcontentloaded'});
  await page.locator('#userAvatar').waitFor({state:'visible'});
+ if(pilotEnabled)diagnostics.pilotSearchResults.push({viewport:configuration.name,kind:'loads',
+  aliases:await require('./pilot_search_steps.cjs').searchAliases(page,{kind:'loads',id:load.id})});
  await page.locator('#fFrom').click();
  await page.locator('#fFrom').fill('თბილისი');
  await page.locator('#fTo').click();
@@ -191,7 +200,10 @@ async function transportPath(shipper,carrier,configuration,accounts,label){
  await shipper.locator('#btnFindTransport').click();
  const card=shipper.locator('#transportList .transport-card:visible, #transportList .tr-row:visible, #transportList .tr-card:visible')
   .filter({hasText:accounts.carrier.company_name}).first();
- await card.waitFor({state:'visible'});await card.click();
+ await card.waitFor({state:'visible'});
+ if(pilotEnabled)diagnostics.pilotSearchResults.push({viewport:configuration.name,kind:'transport',
+  aliases:await require('./pilot_search_steps.cjs').searchAliases(shipper,{kind:'transport',label:accounts.carrier.company_name})});
+ await card.click();
  await shipper.locator('#transportRequestOverlay').waitFor({state:'visible'});
  await shipper.locator('#trDesc').fill(label+' cargo');
  await shipper.locator('#trWeight').fill('3000');
@@ -270,7 +282,9 @@ async function run(configuration,index){
    server.once('error',error=>{serverError=error;});server.once('close',()=>log.end());
   }
   await ready();
-  browser=await chromium.launch({headless:true,args:['--disable-background-networking','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']});
+  const executablePath=process.env.CARRIER_BROWSER_CHROMIUM_EXECUTABLE_PATH||undefined;
+  if(executablePath)assert.ok(path.isAbsolute(executablePath)&&fs.existsSync(executablePath),'Browser override must be an existing absolute executable path');
+  browser=await chromium.launch({headless:true,executablePath,args:['--disable-background-networking','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']});
   for(const[index,configuration]of[{name:'desktop',width:1280,height:900,mobile:false},{name:'mobile',width:390,height:844,mobile:true}].entries()){
    try{await run(configuration,index);}catch(error){console.error(error.stack||error);process.exitCode=1;}
   }

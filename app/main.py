@@ -1,9 +1,10 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import (loads, trucks, auth, ai, users, deals, responses,
                          tg_bot, cities, dictionaries, stats, subscriptions,
                          transport, transport_requests, transport_subscriptions,
-                         payments, ads, admin)
+                         payments, ads, admin, locations)
 from app.database import engine
 from app.models import user, load, truck, response, deal, city, status_change, payment, ad  # noqa — регистрируем модели
 from contextlib import asynccontextmanager
@@ -118,7 +119,10 @@ async def lifespan(app: FastAPI):
             views INTEGER NOT NULL DEFAULT 0,
             is_demo BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE
+            updated_at TIMESTAMP WITH TIME ZONE,
+            last_confirmed_at TIMESTAMP WITH TIME ZONE,
+            from_location JSON,
+            to_location JSON
         )""",
         "CREATE INDEX IF NOT EXISTS ix_transport_offers_user_id ON transport_offers(user_id)",
         "CREATE INDEX IF NOT EXISTS ix_transport_offers_status ON transport_offers(status)",
@@ -348,6 +352,7 @@ app.include_router(responses.router, tags=["responses"])
 from app.routers import notifications
 app.include_router(notifications.router)
 app.include_router(tg_bot.router,   prefix="/api/tg",     tags=["telegram"])
+app.include_router(locations.router)
 app.include_router(cities.router,        prefix="/api/cities",        tags=["cities"])
 app.include_router(dictionaries.router,  prefix="/api/dictionaries",  tags=["dictionaries"])
 app.include_router(stats.router,         prefix="/api/stats",         tags=["stats"])
@@ -405,7 +410,8 @@ async def health():
             "failed_checks": failed,
             "checks": checks,
         })
-    return {"status": "healthy", "checks": checks}
+    return {"status": "healthy", "checks": checks,
+            "release": os.environ.get("RAILWAY_GIT_COMMIT_SHA")}
 
 
 @app.get("/health_legacy")

@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.models.subscription import RouteSubscription
 from app.models.user import User
+from app.services.city_identity import endpoint_match_value
 from app.models.load import Load
 
 logger = logging.getLogger(__name__)
@@ -49,9 +50,8 @@ def _normalize(city: str) -> str:
 
 
 def _cities_match(sub_city: str, load_city: str) -> bool:
-    """Матч по городу — точное совпадение нормализованных строк."""
-    return _normalize(sub_city) == _normalize(load_city)
-
+    from app.services.city_identity import same_city
+    return same_city(sub_city, load_city)
 
 def _truck_type_match(sub_type: Optional[str], load_type: Optional[str]) -> bool:
     """Если в подписке не задан тип — подходит любой. Иначе точное совпадение."""
@@ -89,9 +89,9 @@ async def find_matching_subscriptions(
 
     matched = []
     for sub in subs:
-        if not _cities_match(sub.from_city, load.from_city or ""):
+        if not _cities_match(sub.from_city, endpoint_match_value(load, "from")):
             continue
-        if not _cities_match(sub.to_city, load.to_city or ""):
+        if not _cities_match(sub.to_city, endpoint_match_value(load, "to")):
             continue
         if not _truck_type_match(sub.truck_type, load.truck_type):
             continue

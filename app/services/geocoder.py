@@ -2,7 +2,7 @@
 LocationIQ геокодер (ADR-015).
 search_city(query, lang) → список городов с координатами.
 Для русских запросов — транслит через словарь GEO_MAPPING_RU_EN.
-Fallback: при пустом LOCATIONIQ_KEY — поиск по таблице cities (LIKE).
+Known RU/EN/KA cities use the canonical local registry before any external call.
 """
 import os
 import httpx
@@ -31,9 +31,14 @@ async def search_city(
     lang="ru" → транслит через словарь → запрос на английском
     lang="ka"/"en" → прямой запрос
 
-    Fallback при пустом LOCATIONIQ_KEY: поиск в таблице cities через LIKE.
+    Fallback при пустом LOCATIONIQ_KEY: единый локальный справочник городов.
     Возвращает список: [{name_ru, name_local, lat, lon, display_name, type}]
     """
+    # Known cities must keep one internal identity regardless of the geocoder.
+    if db is not None:
+        local = await _search_city_db(query, lang=lang, limit=limit, db=db)
+        if local:
+            return local
     key = LOCATIONIQ_KEY or os.getenv("LOCATIONIQ_KEY", "")
 
     if not key:
@@ -99,28 +104,22 @@ async def _search_city_db(
     limit: int = 5,
     db: AsyncSession | None = None,
 ) -> list[dict]:
-    """Поиск в локальной таблице cities (fallback без API-ключа)."""
+    """Canonical RU/EN/KA autocomplete, including stored dictionary identities."""
     from app.models.city import City
 
     if db is None:
         return []
 
-    # Транслит для поиска по name_ru
-    stmt = select(City).where(City.name_ru.ilike(f"%{query}%")).limit(limit)
-    result = await db.execute(stmt)
-    cities = result.scalars().all()
+    from app.services.city_identity import city_registry
 
+    registry = await city_registry(db)
+    cities = registry.search(query)[:limit]
     return [
         {
-            "name_ru": c.name_ru,
-            "name_local": c.name_ge or c.name_ru,
-            "name_en": c.name_ru,
-            "lat": float(c.lat) if c.lat else None,
-            "lon": float(c.lon) if c.lon else None,
-            "display_name": f"{c.name_ru}, Georgia",
-            "type": "city",
-            "osm_id": "",
-            "source": "db_fallback",
+            **c.public(),
+            "name_local": c.name_ge or c.name_en,
+            "display_name": f"{c.name_ru}, {c.country_iso}",
+            "type": "city", "osm_id": "", "source": "db_fallback",
         }
         for c in cities
     ]
