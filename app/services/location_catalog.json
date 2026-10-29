@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "checked_on": "2026-10-29",
+  "attribution": "Contains OpenStreetMap data © OpenStreetMap contributors, ODbL. Catalogue coordinates identify a mapped checkpoint location, not an instruction for choosing a traffic lane.",
+  "license_url": "https://www.openstreetmap.org/copyright",
+  "locations": [
+    {
+      "kind": "border_checkpoint",
+      "key": "ge:dariali-checkpoint",
+      "label_ru": "КПП Дарьял / Дариали — Грузия",
+      "label_ge": "დარიალის გამშვები პუნქტი — საქართველო",
+      "label_en": "Dariali border checkpoint — Georgia",
+      "aliases": [
+        "Дарьял",
+        "Дарьяли",
+        "Дариали",
+        "КПП Дарьял",
+        "Дариал",
+        "Dariali",
+        "Daryal",
+        "დარიალი",
+        "დარიალის გამშვები პუნქტი",
+        "ყაზბეგის საბაჟო",
+        "Kazbegi checkpoint"
+      ],
+      "country_iso": "GE",
+      "lat": 42.7403055,
+      "lon": 44.6266141,
+      "address": "КПП Дариали (Казбеги), Грузия",
+      "sources": [
+        "https://api.openstreetmap.org/api/0.6/node/2657369371",
+        "https://www.openstreetmap.org/node/2657369371",
+        "https://www.matsne.gov.ge/ka/document/view/6398289"
+      ]
+    },
+    {
+      "kind": "border_checkpoint",
+      "key": "ru:upper-lars-checkpoint",
+      "label_ru": "КПП Верхний Ларс — Россия",
+      "label_ge": "ზემო ლარსის გამშვები პუნქტი — რუსეთი",
+      "label_en": "Upper Lars border checkpoint — Russia",
+      "aliases": [
+        "Верхний Ларс",
+        "ВерхнийЛарс",
+        "МАПП Верхний Ларс",
+        "Upper Lars",
+        "Verkhniy Lars",
+        "ზემო ლარსი"
+      ],
+      "country_iso": "RU",
+      "lat": 42.7681775,
+      "lon": 44.6316296,
+      "address": "МАПП Верхний Ларс, Россия",
+      "sources": [
+        "https://api.openstreetmap.org/api/0.6/node/557701226",
+        "https://www.openstreetmap.org/node/557701226",
+        "https://rosgranstroy.ru/checkpoints/the-list-of-checkpoints/477/"
+      ]
+    },
+    {
+      "kind": "border_checkpoint",
+      "key": "ge:sarpi-checkpoint",
+      "label_ru": "КПП Сарпи — Грузия",
+      "label_ge": "სარფის გამშვები პუნქტი — საქართველო",
+      "label_en": "Sarpi border checkpoint — Georgia",
+      "aliases": [
+        "Сарпи",
+        "КПП Сарпи",
+        "Sarpi",
+        "Sarpi customs",
+        "სარფი",
+        "სარფის საბაჟო"
+      ],
+      "country_iso": "GE",
+      "lat": 41.5209873,
+      "lon": 41.5483829,
+      "address": "КПП Сарпи, Грузия",
+      "sources": [
+        "https://www.openstreetmap.org/node/1844021669",
+        "https://api.openstreetmap.org/api/0.6/node/1844021669",
+        "https://www.matsne.gov.ge/ka/document/view/6398289"
+      ]
+    },
+    {
+      "kind": "border_checkpoint",
+      "key": "ge:sadakhlo-checkpoint",
+      "label_ru": "КПП Садахло — Грузия",
+      "label_ge": "სადახლოს გამშვები პუნქტი — საქართველო",
+      "label_en": "Sadakhlo border checkpoint — Georgia",
+      "aliases": [
+        "Садахло",
+        "КПП Садахло",
+        "Sadakhlo",
+        "Sadakhlo customs",
+        "სადახლო",
+        "სადახლოს საბაჟო"
+      ],
+      "country_iso": "GE",
+      "lat": 41.2278166,
+      "lon": 44.8308888,
+      "address": "Автомобильный КПП Садахло, Грузия",
+      "sources": [
+        "https://www.openstreetmap.org/node/557849494",
+        "https://api.openstreetmap.org/api/0.6/node/557849494",
+        "https://www.matsne.gov.ge/ka/document/view/6398289"
+      ]
+    }
+  ]
+}

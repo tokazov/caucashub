@@ -1,0 +1,61 @@
+{
+  "checked_at": "2026-10-29",
+  "public_url": "https://www.caucashub.ge/",
+  "base_commit": "70c8987b5c6f6efef1e4cef477dbf3a3fd0930a0",
+  "observed_before_changes": [
+    {
+      "item": 6,
+      "source": "frontend/main.js renderTransportOffers; frontend/api.js mapServerLoad",
+      "finding": "Missing ratings fell back to 5.0; sample carriers had preset ratings/trips."
+    },
+    {
+      "item": 7,
+      "source": "Public homepage rates table and frontend/index.html rates tbody",
+      "finding": "Rates were labelled updated today, but hardcoded route prices, trends and weekly trip volumes had no source/date."
+    },
+    {
+      "item": 7,
+      "source": "frontend/api.js loadStatsCounters and frontend/index.html stats-bar",
+      "finding": "Fetch failures appeared as zero; named user profiles were labelled companies; truck posts created in last 24h were labelled online trucks."
+    },
+    {
+      "item": 8,
+      "source": "Public tariff modal; frontend/main.js _applyPaywallLang",
+      "finding": "Buy buttons 49/149 GEL appeared together with all-functions-free and subscriptions-later copy."
+    },
+    {
+      "item": 9,
+      "source": "frontend/main.js renderLoads/renderTransportOffers",
+      "finding": "Empty lists lacked helpful own-posting/support actions."
+    }
+  ],
+  "local_only_changes": [
+    "Require verified review aggregate plus count or label new carrier.",
+    "Expose confirmed/unconfirmed/stale/expired transport availability with dated confirmation; flag invalid legacy capacity without deleting listings.",
+    "Remove sample carriers, unsourced route prices, trends and weekly trip examples.",
+    "Use dated API counters; unknown values are em dash and profile/post metrics are labelled literally.",
+    "Keep price values and payment handlers; narrow subscription-free copy to browsing/registration and require commercial clarification before production.",
+    "Preserve existing button positions; clarify search labels and add posting/help actions inside empty states.",
+    "Carry selected transport scope and stable city identity; direct /ka initial language is Georgian."
+  ],
+  "validation": {
+    "frontend_tests": 552,
+    "passed": 552,
+    "syntax": [
+      "frontend/main.js",
+      "frontend/api.js",
+      "frontend/translations.js"
+    ],
+    "production_writes": false,
+    "publication": false
+  },
+  "pending_owner_decisions": [
+    "49/149 GEL commercial conditions and paid-plan activation policy.",
+    "Seven-day stale mark-only policy before production."
+  ],
+  "integration_notes": [
+    "Parent owns Worker/head SEO and replaces unsupported first-Caucasus, 120 cities/customs claims.",
+    "Parent integrates load filter IDs, scope and empty server-response reconciliation.",
+    "Backend agent supplies verified rating, availability and stats snapshot contracts."
+  ]
+}

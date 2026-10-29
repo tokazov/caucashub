@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Wait for matching healthy API before publishing frontend
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.sha }}
+        run: python scripts/wait_for_api_release.py --commit "$EXPECTED_RELEASE_SHA" --timeout 600
+
       - name: Deploy to Cloudflare Pages
         run: npx wrangler@4.80.0 pages deploy frontend/ --project-name caucashub --branch master
         env:

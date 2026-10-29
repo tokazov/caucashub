@@ -14,6 +14,8 @@ from typing import Optional
 import re as _re
 
 from app.carrier_profile import CarrierProfileFields
+from app.services.transport_capacity import validate_transport_capacity
+from app.services.public_ratings import public_ratings, public_rating_fields
 
 router = APIRouter()
 
@@ -73,6 +75,7 @@ async def get_me(
     user.last_seen = _dt.utcnow()
     await db.commit()
     plan_val = user.plan.value if hasattr(user.plan, "value") else str(user.plan)
+    ratings = public_rating_fields((await public_ratings(db, [user.id])).get(user.id))
     return {
         "id":                    user.id,
         "email":                 user.email,
@@ -82,10 +85,10 @@ async def get_me(
         "plan":                  plan_val,
         "responses_this_month":  user.responses_this_month or 0,
         "responses_limit":       PLAN_LIMITS.get(plan_val, 0),
-        "rating":                round((user.rating or 50) / 10, 1),
+        **ratings,
         "trips_count":           user.trips_count or 0,
         "completed_deals_count": getattr(user, 'completed_deals_count', 0) or 0,   # 3.1
-        "ratings_received_count": getattr(user, 'ratings_received_count', 0) or 0, # 3.1
+        "ratings_received_count": ratings["review_count"],
         "is_verified":           user.is_verified,
         "inn":                   user.inn,
         "org_type":              user.org_type,
@@ -108,6 +111,17 @@ async def update_me(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(404, "User not found")
+
+    # Profile edits can supply body or capacity separately; validate their merged
+    # state before mutating even unrelated fields in this request.
+    if {"truck_type", "tonnage"} & data.model_fields_set:
+        merged_body = data.truck_type if "truck_type" in data.model_fields_set else user.truck_type
+        merged_tonnage = data.tonnage if "tonnage" in data.model_fields_set else user.tonnage
+        if merged_body is not None and merged_tonnage is not None:
+            try:
+                validate_transport_capacity(merged_body, merged_tonnage * 1000)
+            except ValueError as error:
+                raise HTTPException(422, str(error)) from error
 
     if data.telegram_id is not None and data.telegram_id != user.telegram_id:
         raise HTTPException(403, "Telegram подключается только через подтверждённую ссылку; используйте раздел Telegram")
@@ -574,15 +588,16 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         return {"error": "Not found"}
+    ratings = public_rating_fields((await public_ratings(db, [user.id])).get(user.id))
     # 5.2.5: Публичный профиль — минимум. ИНН, email, phone НЕ раскрываются.
     return {
         "id":                    user.id,
         "company_name":          user.company_name,
         "role":                  user.role,
-        "rating":                round((user.rating or 50) / 10, 1),
+        **ratings,
         "trips_count":           user.trips_count or 0,
         "completed_deals_count": getattr(user, 'completed_deals_count', 0) or 0,   # 3.1
-        "ratings_received_count": getattr(user, 'ratings_received_count', 0) or 0, # 3.1
+        "ratings_received_count": ratings["review_count"],
         "is_verified":           user.is_verified,
         "org_type":              user.org_type,
         "city":                  user.city,

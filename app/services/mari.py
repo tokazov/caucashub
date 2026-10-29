@@ -30,8 +30,8 @@ for name, canonical in {
 
 
 def same_city(left, right):
-    a, b = city_key(left), city_key(right)
-    return bool(a and b) and CITY_ALIASES.get(a, a) == CITY_ALIASES.get(b, b)
+    from app.services.city_identity import same_city as canonical_same_city
+    return canonical_same_city(left, right)
 
 
 TRUCK_ALIASES = {

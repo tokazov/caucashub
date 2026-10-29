@@ -4,7 +4,7 @@ TransportOffer — предложение транспорта от перево
 Перевозчик размещает: маршрут, дату, тип кузова, вместимость, цену.
 Грузовладелец видит и откликается через TransportRequest.
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import JSON, Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -30,6 +30,9 @@ class TransportOffer(Base):
     from_city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)
     to_city_id   = Column(Integer, ForeignKey("cities.id"), nullable=True)
 
+    from_location = Column(JSON(none_as_null=True), nullable=True)
+    to_location = Column(JSON(none_as_null=True), nullable=True)
+
     # Характеристики
     truck_type   = Column(String(50), nullable=False)     # tent/gazel/ref/open/container
     capacity_kg  = Column(Float, nullable=False)          # вместимость в кг
@@ -51,6 +54,7 @@ class TransportOffer(Base):
 
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), onupdate=func.now())
+    last_confirmed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Связи
     carrier        = relationship("User", foreign_keys=[user_id])

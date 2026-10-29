@@ -39,7 +39,7 @@ for(const path of ['main.js','frontend/main.js']) {
     });
   }
   test(path+': current availability and urgency remain visible',()=>{
-    const {html}=render(path,[{...old,dates_expired:false}]);
+    const {html}=render(path,[{...old,dates_expired:false,availability_status:'confirmed'}]);
     assert.match(html,/badge-urgent-new/);
     assert.match(html,/01\.07/);
     assert.doesNotMatch(html,/Уточнить доступность/);

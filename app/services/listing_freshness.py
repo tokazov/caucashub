@@ -3,7 +3,7 @@
 Queries hide expired listings without deleting history or altering deal statuses.
 Naive database timestamps are treated as UTC, matching existing API storage.
 """
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timezone, timedelta
 import re
 from zoneinfo import ZoneInfo
 from sqlalchemy import func
@@ -36,9 +36,30 @@ def current_transport_conditions(now=None):
 
 
 def date_is_current(value, now=None):
+    if value is None:
+        return False
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value >= listing_day_start(now)
+
+
+def transport_availability_metadata(offer, now=None):
+    """Seven days is a pilot mark-only rule; no query hides listings by it.
+
+    Null legacy confirmation stays unknown. Views or ordinary metadata edits do
+    not renew availability. Date expiry remains the established calendar rule.
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    confirmed = getattr(offer, "last_confirmed_at", None)
+    if confirmed is not None and confirmed.tzinfo is None:
+        confirmed = confirmed.replace(tzinfo=timezone.utc)
+    expired = not date_is_current(offer.available_to or offer.available_from, now)
+    status = ("expired" if expired else "unconfirmed" if confirmed is None else
+              "stale" if confirmed < now - timedelta(days=7) else "confirmed")
+    return {"last_confirmed_at": confirmed.isoformat() if confirmed else None,
+            "availability_status": status, "confirmation_ttl_days": 7}
 
 
 

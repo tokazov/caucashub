@@ -6,20 +6,43 @@ from app.models.truck import Truck
 from app.models.user import User
 from app.routers.auth import require_user
 from app.services.user_display import display_name
-from pydantic import BaseModel
+from app.services.public_ratings import public_ratings, public_rating_fields
+from app.services.transport_capacity import (TRUCK_TYPES, canonical_truck_type,
+    validate_transport_capacity, capacity_metadata)
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 
 router = APIRouter()
 
 class TruckCreate(BaseModel):
     truck_type: str
-    capacity_kg: float
-    volume_m3: Optional[float] = None
+    capacity_kg: float = Field(gt=0, le=100000, allow_inf_nan=False)
+    volume_m3: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
     plate: Optional[str] = None
     phone: Optional[str] = None
     available_from: str
     available_to: Optional[str] = None
     available_date: Optional[str] = None
+
+    @field_validator("capacity_kg", mode="before")
+    @classmethod
+    def capacity_is_number(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Грузоподъёмность должна быть числом")
+        return value
+
+    @field_validator("truck_type")
+    @classmethod
+    def body_type(cls, value):
+        value = canonical_truck_type(value)
+        if value not in TRUCK_TYPES:
+            raise ValueError("Выберите допустимый тип кузова")
+        return value
+
+    @model_validator(mode="after")
+    def body_capacity(self):
+        validate_transport_capacity(self.truck_type, self.capacity_kg)
+        return self
 
 @router.get("/")
 async def get_trucks(
@@ -36,15 +59,18 @@ async def get_trucks(
         q = q.where(Truck.truck_type == truck_type)
     q = q.order_by(Truck.created_at.desc()).limit(limit).offset(offset)
     result = await db.execute(q)
+    rows = result.all()
+    ratings = await public_ratings(db, [user.id for _, user in rows])
     trucks = []
-    for truck, user in result.all():
+    for truck, user in rows:
         trucks.append({
             "id": truck.id,
             "user_id": truck.user_id,
             "company": display_name(user),
             # Public catalogue contacts follow the accepted-deal policy (ADR-013).
             "phone": None,
-            "rating": round(user.rating / 10, 1) if user.rating else 5.0,
+            **public_rating_fields(ratings.get(user.id)),
+            **capacity_metadata(truck.truck_type, truck.capacity_kg),
             "trips": user.trips_count or 0,
             "truck_type": truck.truck_type,
             "capacity_kg": truck.capacity_kg,

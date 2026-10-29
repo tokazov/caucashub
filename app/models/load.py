@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text, Numeric
+from sqlalchemy import JSON, Column, Integer, String, Float, Boolean, DateTime, Enum, ForeignKey, Text, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -44,6 +44,12 @@ class Load(Base):
     to_city       = Column(String, nullable=False, index=True)
     to_address    = Column(String, nullable=True)
     scope         = Column(Enum(LoadScope), default=LoadScope.local, index=True)
+
+    from_city_id  = Column(Integer, ForeignKey("cities.id"), nullable=True)
+    to_city_id    = Column(Integer, ForeignKey("cities.id"), nullable=True)
+
+    from_location = Column(JSON(none_as_null=True), nullable=True)
+    to_location = Column(JSON(none_as_null=True), nullable=True)
 
     # Груз
     weight_kg     = Column(Float, nullable=False)

@@ -1,28 +1,40 @@
 from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, Query, HTTPException, Header, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from app.database import get_db
 from app.models.load import Load, LoadStatus
 from app.models.user import User
-from pydantic import BaseModel, field_validator
-from typing import Optional
+from pydantic import BaseModel, field_validator, Field
+from typing import Optional, Literal, Annotated
 from datetime import datetime, timezone
 # ADR-010: require_user из auth — проверяет is_deleted, is_active, password_changed_at
 from app.routers.auth import require_user
+from app.services.city_identity import (
+    city_registry, city_filter_clause, route_scope_clause,
+    public_route_metadata, apply_publication_cities, route_scope,
+)
 
 from app.services.listing_freshness import (
     current_load_conditions, date_is_current, loading_day, parse_loading_day,
 )
+from app.services.route_locations import RouteLocationInput, location_filter_clause
+from app.services.public_ratings import public_ratings, public_rating_fields
 
 router = APIRouter()
 
 class LoadCreate(BaseModel):
+    from_location: Optional[RouteLocationInput] = None
+    to_location: Optional[RouteLocationInput] = None
     from_city: str
     from_address: Optional[str] = None
     to_city: str
+    from_city_id: Optional[int] = Field(None, ge=1, strict=True)
+    to_city_id: Optional[int] = Field(None, ge=1, strict=True)
+    from_city_key: Optional[str] = Field(None, max_length=150)
+    to_city_key: Optional[str] = Field(None, max_length=150)
     to_address: Optional[str] = None
-    scope: str = "local"
+    scope: Literal["local", "intl"] = "local"
     weight_kg: float
     volume_m3: Optional[float] = None
     truck_type: str = "tent"
@@ -49,9 +61,15 @@ class LoadCreate(BaseModel):
         return value
 
 class LoadUpdate(BaseModel):
+    from_location: Optional[RouteLocationInput] = None
+    to_location: Optional[RouteLocationInput] = None
     from_city: Optional[str] = None
     from_address: Optional[str] = None
     to_city: Optional[str] = None
+    from_city_id: Optional[int] = Field(None, ge=1, strict=True)
+    to_city_id: Optional[int] = Field(None, ge=1, strict=True)
+    from_city_key: Optional[str] = Field(None, max_length=150)
+    to_city_key: Optional[str] = Field(None, max_length=150)
     to_address: Optional[str] = None
     weight_kg: Optional[float] = None
     truck_type: Optional[str] = None
@@ -84,7 +102,7 @@ def validate_loading_period(start, end):
         raise HTTPException(status_code=400, detail="load_date cannot be in the past")
 
 
-def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False) -> dict:  # noqa: E741
+def load_to_dict(load: Load, company_name: str = None, user: object = None, show_contacts: bool = False, review_summary=None, registry=None) -> dict:  # noqa: E741
     """Конвертируем Load в dict для фронтенда."""
     # Берём company_name: явный параметр → user объект → fallback
     from app.services.user_display import display_name
@@ -95,23 +113,25 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         co = "CaucasHub"
 
     # Рейтинг и рейсы из профиля
-    rat = "5.0"
+    verified = public_rating_fields(review_summary)
+    rat = str(verified["rating"]) if verified["rating"] is not None else None
     trips = 0
     completed_deals = 0
     ratings_received = 0
     if user:
-        rat   = f"{user.rating / 10:.1f}" if user.rating else "5.0"
         trips = user.trips_count or 0
         completed_deals = getattr(user, 'completed_deals_count', 0) or 0
-        ratings_received = getattr(user, 'ratings_received_count', 0) or 0
+        ratings_received = verified["review_count"]
 
     return {
         "id": load.id,
+        **public_route_metadata(load, registry),
         "from": load.from_city,
         "from2": load.from_address or load.from_city,
         "to": load.to_city,
         "to2": load.to_address or load.to_city,
-        "scope": load.scope.value if hasattr(load.scope, 'value') else str(load.scope),
+        "declared_scope": load.scope.value if hasattr(load.scope, 'value') else str(load.scope),
+        "scope": public_route_metadata(load, registry)["route_scope"],
         "kg": load.weight_kg,
         "type": load.truck_type.value if hasattr(load.truck_type, 'value') else str(load.truck_type),
         "typeLabel": {"tent":"Тент","ref":"Рефрижератор","reftent":"Рефтент","megatent":"Мегатент","bort":"Бортовой","termos":"Термос","gazel":"Фургон","container":"Контейнер","auto":"Автовоз","evacuator":"Эвакуатор","cistern":"Цистерна","grain":"Зерновоз","dump":"Самосвал","other":"Другой"}.get(
@@ -129,6 +149,7 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
         "load_date_end": loading_day(load.load_date_end).isoformat() if load.load_date_end else None,
         "co": co,
         "rat": rat,
+        **verified,
         "trips": trips,
         "completed_deals": completed_deals,   # 3.1
         "ratings_received": ratings_received,  # 3.1
@@ -146,24 +167,47 @@ def load_to_dict(load: Load, company_name: str = None, user: object = None, show
 
 @router.get("/")
 async def get_loads(
-    scope: Optional[str] = Query(None),
+    scope: Annotated[Optional[Literal["local", "intl"]], Query()] = None,
     from_city: Optional[str] = Query(None),
     to_city: Optional[str] = Query(None),
     truck_type: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    from_city_id: Annotated[Optional[int], Query(ge=1)] = None,
+    to_city_id: Annotated[Optional[int], Query(ge=1)] = None,
+    from_city_key: Annotated[Optional[str], Query(max_length=150)] = None,
+    to_city_key: Annotated[Optional[str], Query(max_length=150)] = None,
+    from_location_key: Annotated[Optional[str], Query(max_length=150)] = None,
+    to_location_key: Annotated[Optional[str], Query(max_length=150)] = None,
 ):
+    registry = await city_registry(db)
     q = select(Load).where(*current_load_conditions())
 
-    if scope:
-        q = q.where(Load.scope == scope)
-    if from_city:
-        q = q.where(Load.from_city.ilike(f"%{from_city}%"))
-    if to_city:
-        q = q.where(Load.to_city.ilike(f"%{to_city}%"))
+    try:
+        for prefix, text, identity, key, location_key in (
+            ("from", from_city, from_city_id, from_city_key, from_location_key),
+            ("to", to_city, to_city_id, to_city_key, to_location_key),
+        ):
+            if text or identity is not None or key or location_key:
+                special = location_filter_clause(Load, prefix, text=text, key=location_key)
+                if location_key:
+                    if special is None:
+                        raise ValueError("Неизвестный идентификатор точки")
+                    q = q.where(special)
+                else:
+                    legacy = await city_filter_clause(db, registry,
+                        getattr(Load, prefix + "_city"), getattr(Load, prefix + "_city_id"),
+                        text=text, city_id=identity, city_key=key)
+                    q = q.where(or_(legacy, special) if special is not None else legacy)
+        if scope:
+            q = q.where(await route_scope_clause(db, registry, Load, scope))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     if truck_type:
         q = q.where(Load.truck_type == truck_type)
+
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar_one()
 
     # Продвинутые грузы первые, потом срочные, потом по дате
     q = q.order_by(Load.is_boosted.desc(), Load.is_urgent.desc(), Load.created_at.desc())
@@ -180,7 +224,9 @@ async def get_loads(
         for u in uq.scalars().all():
             users_map[u.id] = u
 
-    return {"loads": [load_to_dict(lo, user=users_map.get(lo.user_id)) for lo in loads], "total": len(loads)}
+    ratings = await public_ratings(db, user_ids)
+    return {"loads": [load_to_dict(lo, user=users_map.get(lo.user_id),
+                    review_summary=ratings.get(lo.user_id), registry=registry) for lo in loads], "total": total}
 
 @router.post("/")
 async def create_load(data: LoadCreate, request: Request,
@@ -245,13 +291,21 @@ async def create_load(data: LoadCreate, request: Request,
     elif load_data.get("price_usd") and not load_data.get("price_gel"):
         load_data["price_gel"] = convert_usd_to_gel(load_data["price_usd"], rate)
 
+    try:
+        registry = await apply_publication_cities(db, load_data)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    actual_scope = public_route_metadata(Load(**load_data), registry)["route_scope"]
+    if actual_scope in {"local", "intl"}:
+        load_data["scope"] = actual_scope
     load = Load(**load_data, user_id=user_id)
     db.add(load)
     # Commit the listing and its replayable response together. A cache failure
     # must not leave a saved listing behind an error shown to the user.
     await db.flush()
     await db.refresh(load)
-    response_dict = load_to_dict(load, data.company_name)
+    ratings = await public_ratings(db, [user_id])
+    response_dict = load_to_dict(load, data.company_name, review_summary=ratings.get(user_id), registry=registry)
     await save_idempotency(request, db, scope="create_load", user_id=user_id,
                            response_status=200, response_body=response_dict, strict=True)
     await db.commit()
@@ -307,15 +361,23 @@ async def update_load(load_id: int, data: LoadUpdate, db: AsyncSession = Depends
         new_usd = updates.get("price_usd", load.price_usd or 0)
         if (new_gel or 0) <= 0 and (new_usd or 0) <= 0:
             raise HTTPException(status_code=422, detail="Укажите цену груза > 0")
+    try:
+        registry = await apply_publication_cities(db, updates, existing=load)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     for k, v in updates.items():
         if hasattr(load, k):
             setattr(load, k, v)
+    actual_scope = public_route_metadata(load, registry)["route_scope"]
+    if actual_scope in {"local", "intl"}:
+        load.scope = actual_scope
     await db.commit()
     await db.refresh(load)
     # Инвалидируем кеш (статус мог измениться — Трек 11.2)
     from app.routers.stats import invalidate_counters_cache
     invalidate_counters_cache()
-    return load_to_dict(load)
+    ratings = await public_ratings(db, [load.user_id])
+    return load_to_dict(load, review_summary=ratings.get(load.user_id), registry=registry)
 
 @router.delete("/{load_id}")
 async def delete_load(load_id: int, db: AsyncSession = Depends(get_db),
@@ -358,7 +420,8 @@ async def get_my_loads(db: AsyncSession = Depends(get_db),
     )
     loads = result.scalars().all()
     owner = current_user
-    return {"loads": [load_to_dict(lo, user=owner) for lo in loads]}
+    ratings = await public_ratings(db, [user_id])
+    return {"loads": [load_to_dict(lo, user=owner, review_summary=ratings.get(user_id)) for lo in loads]}
 
 @router.get("/{load_id}")
 async def get_load(
@@ -382,7 +445,9 @@ async def get_load(
     show_contacts = False
     # get_user_id вызов убран — контакты не раскрываются независимо от авторизации (ADR-013 B)
 
-    return load_to_dict(load, user=owner, show_contacts=show_contacts)
+    ratings = await public_ratings(db, [load.user_id])
+    return load_to_dict(load, user=owner, show_contacts=show_contacts,
+                        review_summary=ratings.get(load.user_id))
 
 
 @router.delete("/admin/bulk-delete")

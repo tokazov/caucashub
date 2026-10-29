@@ -15,6 +15,7 @@ from sqlalchemy import select
 from app.models.transport_subscription import TransportSubscription
 from app.models.transport_offer import TransportOffer
 from app.models.user import User
+from app.services.city_identity import endpoint_match_value
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,8 @@ def _normalize(city: str) -> str:
 
 
 def _cities_match(sub_city: str, offer_city: str) -> bool:
-    return _normalize(sub_city) == _normalize(offer_city)
-
+    from app.services.city_identity import same_city
+    return same_city(sub_city, offer_city)
 
 def _truck_match(sub_type: Optional[str], offer_type: Optional[str]) -> bool:
     if not sub_type:
@@ -80,9 +81,9 @@ async def find_matching_transport_subscriptions(
 
     matched = []
     for sub in subs:
-        if not _cities_match(sub.from_city, offer.from_city or ""):
+        if not _cities_match(sub.from_city, endpoint_match_value(offer, "from")):
             continue
-        if not _cities_match(sub.to_city, offer.to_city or ""):
+        if not _cities_match(sub.to_city, endpoint_match_value(offer, "to")):
             continue
         if not _truck_match(sub.truck_type, offer.truck_type):
             continue

@@ -235,10 +235,53 @@ async def prepare_schema(engine):
         await connection.run_sync(prepare_notifications)
         await connection.run_sync(prepare_password_recovery)
         await connection.run_sync(prepare_idempotency)
+        await connection.run_sync(prepare_transport_confirmation)
+        await connection.run_sync(prepare_route_locations)
         await connection.execute(text(
             "SELECT key, user_id, scope, request_hash, response_status, "
             "response_body, created_at, expires_at FROM idempotency_keys LIMIT 0"
         ))
+
+
+def prepare_transport_confirmation(connection):
+    """Apply only additive availability state; never backfill confirmations."""
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/025_transport_confirmation.py"
+    spec = importlib.util.spec_from_file_location("transport_confirmation_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    inspector = inspect(connection)
+    if not inspector.has_table("transport_offers"):
+        return  # Existing fresh-install bootstrap creates the catalogue table.
+    column = next((item for item in inspector.get_columns("transport_offers")
+                   if item["name"] == "last_confirmed_at"), None)
+    if (column is None or not column["nullable"] or not isinstance(column["type"], DateTime)
+            or column.get("default") is not None
+            or (connection.dialect.name == "postgresql" and not column["type"].timezone)):
+        raise RuntimeError("Transport confirmation schema is incompatible: last_confirmed_at")
+    connection.execute(text("SELECT last_confirmed_at FROM transport_offers LIMIT 0"))
+
+
+def prepare_route_locations(connection):
+    """Add nullable JSON endpoints, never infer legacy coordinates/countries."""
+    from sqlalchemy import JSON
+    path = Path(__file__).resolve().parents[1] / "alembic/versions/026_route_locations.py"
+    spec = importlib.util.spec_from_file_location("route_locations_release_migration", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    inspector = inspect(connection)
+    for table in ("loads", "transport_offers"):
+        if not inspector.has_table(table):
+            continue
+        columns = {column["name"]: column for column in inspector.get_columns(table)}
+        for name in ("from_location", "to_location"):
+            column = columns.get(name)
+            if column is None or not isinstance(column["type"], JSON) or not column["nullable"] or column.get("default") is not None:
+                raise RuntimeError("Route location schema is incompatible: " + table + "." + name)
+        connection.execute(text("SELECT from_location, to_location FROM " + table + " LIMIT 0"))
 
 
 async def run():

@@ -13,3 +13,9 @@ frontend/out/
 *.sqlite
 *.sqlite3
 test_*.db
+
+# Local isolated browser and pilot QA output
+artifacts/
+artifacts-pilot-*.log
+
+artifacts-address-*.log
