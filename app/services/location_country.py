@@ -1,9 +1,11 @@
 """Offline country check for saved map pins; never trusts browser country labels.
 
 Natural Earth 1:10m with geoBoundaries GEO-ADM0-33476915 for Georgia.
-These are generalised maps, not a border survey. A point must be
-inside exactly one ISO-coded country and farther than 2 km from all other
-countries. Ambiguous border/offshore points require a verified catalogue place.
+These are generalised maps, not a border survey. A point must be inside
+exactly one ISO-coded country. The global 2 km neighbour guard is retained;
+unique GE points deeper than 500 m inside its higher-resolution outline can
+use that outline instead of a coarse neighbouring-country distance. Overlaps
+and ambiguous border/offshore points still require a verified catalogue place.
 No network calls, credentials, or new paid services are involved.
 """
 from functools import lru_cache
@@ -14,6 +16,7 @@ import math
 
 _DATA = Path(__file__).resolve().parents[1] / "data" / "country_boundaries_10m.json.gz"
 _BORDER_GUARD_M = 2000.0
+_GE_INTERIOR_GUARD_M = 500.0
 _METRES_PER_DEGREE = 111320.0
 
 
@@ -75,6 +78,28 @@ def _near_ring(lon, lat, ring, distance):
     return False
 
 
+def _high_resolution_georgia_interior(lat, lon):
+    """Use the independently sourced finer GE outline, never browser metadata.
+
+    Natural Earth's coarse RU edge can be hundreds of metres closer than the
+    higher-resolution GEO-ADM0-33476915 edge in Dariali. The old global guard
+    therefore refused unique GE interior points such as the monastery approach.
+    This exception requires more than 500 m of GE interior depth. The caller
+    has already rejected every foreign overlap; no coordinate is moved/snapped.
+    """
+    # A micrometre tolerance keeps an exactly-500 m floating-point boundary
+    # guarded rather than accepting it due to arithmetic rounding.
+    for iso, polygons in _countries():
+        if iso != 'GE':
+            continue
+        for box, rings in polygons:
+            if (_within(box, lon, lat) and _in_polygon(lon, lat, rings)
+                    and not any(_near_ring(lon, lat, ring, _GE_INTERIOR_GUARD_M + 1e-6)
+                                for ring in rings)):
+                return True
+    return False
+
+
 def resolve_country(lat, lon):
     """Return ISO alpha-2 or None when the point cannot be classified safely."""
     if isinstance(lat, bool) or isinstance(lon, bool):
@@ -94,6 +119,9 @@ def resolve_country(lat, lon):
     if len(matches) != 1:
         return None
     result = next(iter(matches))
+    # The unique-match check above always wins over the finer-GE exception.
+    if result == "GE" and _high_resolution_georgia_interior(lat, lon):
+        return result
     margin_lat = _BORDER_GUARD_M/_METRES_PER_DEGREE
     margin_lon = margin_lat/max(0.001, math.cos(math.radians(lat)))
     for iso, polygons in _countries():

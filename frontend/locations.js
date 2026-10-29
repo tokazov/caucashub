@@ -136,9 +136,10 @@
  function errorText(message){const error=node('locationPickerError');if(error){error.textContent=message||'';error.hidden=!message;}}
  function automaticPointLabel(location){
   const label=normalize(location?.label);
-  const city=location?.kind==='settlement'?(catalog.find(row=>row.key===location.key)||{}):{};
-  const cityNames=location?.kind==='settlement'?[location.name_ru,location.name_ge,location.name_en,city.label,city.name_ru,city.name_ge,city.name_en]:[];
-  return !label||['Точка на карте','წერტილი რუკაზე',String(location?.address||'').slice(0,100),...cityNames].some(value=>normalize(value)===label);
+  const cataloguePlace=['settlement','border_checkpoint'].includes(location?.kind);
+  const entry=cataloguePlace?(catalog.find(row=>row.key===location.key)||{}):{};
+  const catalogueNames=cataloguePlace?[location.name_ru,location.name_ge,location.name_en,entry.label,entry.name_ru,entry.name_ge,entry.name_en]:[];
+  return !label||['Точка на карте','წერტილი რუკაზე',String(location?.address||'').slice(0,100),...catalogueNames].some(value=>normalize(value)===label);
  }
 
  function distanceMeters(first,second){
@@ -178,14 +179,21 @@
   const coordinates=[Number(location.lat),Number(location.lon)];setCoordinates(coordinates);map?.setCenter(coordinates);
  }
 
- function setCoordinates(coords){
+ function setCoordinates(coords,place){
   if(!active)return;
   const lat=Number(coords[0]),lon=Number(coords[1]);if(!finitePoint({lat,lon}))return;
+  if(active.selectionError){active.selectionError=false;node('locationPickerConfirm').disabled=false;errorText('');}
   const moved=Math.abs(lat-active.location.lat)>0.000001||Math.abs(lon-active.location.lon)>0.000001;
   if(moved){
+   active.place=null;
    const label=active.labelEdited?node('locationPickerLabel').value.trim():tr('Точка на карте','წერტილი რუკაზე');
    active.location={kind:'point',key:null,lat,lon,label:label||tr('Точка на карте','წერტილი რუკაზე'),address:''};
    if(!active.labelEdited)node('locationPickerLabel').value=active.location.label;
+  }
+  if(place){
+   const label=active.labelEdited?node('locationPickerLabel').value.trim():place.label;
+   active.place=place;active.location={kind:'point',key:null,lat,lon,label:label||place.label,address:place.address||place.label};
+   node('locationPickerLabel').value=active.location.label;
   }
   marker?.geometry.setCoordinates([lat,lon]);
   node('locationPickerCoordinates').textContent=lat.toFixed(6)+', '+lon.toFixed(6);
@@ -194,6 +202,7 @@
   if(active.location.kind==='border_checkpoint'&&active.location.key){
    node('locationPickerAddress').textContent=active.location.address||active.location.label;return;
   }
+  if(active.place){node('locationPickerAddress').textContent=active.location.address||active.location.label;return;}
   node('locationPickerAddress').textContent=tr('Уточняем адрес…','მისამართის დაზუსტება…');
   reverseTimer=setTimeout(async()=>{
    try{const result=await timeout(mapsReady().then(api=>api.geocode([lat,lon],{results:1})),3500,'Reverse search timed out');
@@ -208,6 +217,25 @@
     else node('locationPickerAddress').textContent=tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
    }catch{if(active&&pickerSequence===ticket)node('locationPickerAddress').textContent=tr('Название можно указать вручную. Точка сохранится по координатам.','სახელი მიუთითეთ ხელით. წერტილი კოორდინატებით შეინახება.');}
   },300);
+ }
+ function selectNativePlace(selectionMap){
+  if(!active||map!==selectionMap)return;
+  const balloon=selectionMap.balloon,data=balloon?.getData?.(),properties=data?.properties;
+  // Native base-layer POIs expose an IDataManager through the public balloon.
+  // Their balloon position is in global pixels, not latitude/longitude.
+  if(data?.map!==selectionMap||!data.layer||typeof properties?.get!=='function')return;
+  try{
+   const name=properties.get('name'),label=typeof name==='string'?name.trim():'',position=balloon.getPosition();
+   const projection=selectionMap.options?.get?.('projection');
+   const coords=Array.isArray(position)&&position.length===2&&position.every(Number.isFinite)?projection?.fromGlobalPixels(position,selectionMap.getZoom()):null;
+   if(!label||!Array.isArray(coords)||coords.length!==2||!coords.every(Number.isFinite)||!finitePoint({lat:coords[0],lon:coords[1]}))throw Error('Invalid map object');
+   const addressValue=properties.get('address')||properties.get('description'),address=typeof addressValue==='string'?addressValue.trim():label;
+   balloon.close(true);setCoordinates(coords,{label:label.slice(0,100),address});selectionMap.setCenter(coords);
+   node('locationPickerConfirm').disabled=false;errorText('');
+  }catch{
+   active.selectionError=true;
+   node('locationPickerConfirm').disabled=true;errorText(tr('Не удалось выбрать объект. Укажите точку рядом на карте.','ობიექტი ვერ აირჩა. მონიშნეთ ახლოს მდებარე წერტილი რუკაზე.'));
+  }
  }
  async function open(field){
   const config=fields[field];if(!config)return;
@@ -228,11 +256,12 @@
   node('locationPickerMap').innerHTML='';node('locationPickerCancel').focus();
   const ticket=++pickerSequence;
   try{const api=await mapsReady();if(!active||ticket!==pickerSequence)return;
-   map=new api.Map('locationPickerMap',{center:[location.lat,location.lon],zoom:finitePoint(seed)?15:7,controls:['zoomControl']},{suppressMapOpenBlock:true});
+   map=new api.Map('locationPickerMap',{center:[location.lat,location.lon],zoom:finitePoint(seed)?15:7,controls:['zoomControl']},{suppressMapOpenBlock:true,balloonAutoPan:false});
+   const selectionMap=map;map.balloon?.events?.add('open',()=>selectNativePlace(selectionMap));
    const mobile=window.innerWidth<=768;node('locationPickerPin').hidden=!mobile;
    if(!mobile){marker=new api.Placemark([location.lat,location.lon],{}, {draggable:true,preset:'islands#redDotIcon'});map.geoObjects.add(marker);marker.events.add('dragend',()=>{const coords=marker.geometry.getCoordinates();setCoordinates(coords);map.setCenter(coords);});}
    map.events.add('click',event=>{const coords=event.get('coords');if(coords){map.setCenter(coords);setCoordinates(coords);}});
-   map.events.add('boundschange',event=>{const coords=event.get('newCenter')||map.getCenter();if(mobile&&coords)setCoordinates(coords);});
+   map.events.add('boundschange',event=>{const coords=event.get('newCenter')||map.getCenter();if(mobile&&coords&&!map.balloon?.isOpen?.())setCoordinates(coords);});
    map.container?.fitToViewport();node('locationPickerConfirm').disabled=false;
    setCoordinates([location.lat,location.lon]);
   }catch{if(active&&ticket===pickerSequence){errorText(tr('Карта недоступна. Можно выбрать место из подсказок или повторить позже.','რუკა მიუწვდომელია. აირჩიეთ ადგილი მინიშნებებიდან ან სცადეთ მოგვიანებით.'));node('locationPickerAddress').textContent='';}}
@@ -248,6 +277,7 @@
   const label=node('locationPickerLabel').value.trim();if(!label){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));node('locationPickerLabel').focus();return;}
   button.disabled=true;errorText('');
   try{const location={...owner.location,label};const selected=await resolve(location);if(active!==owner)return;
+   if(owner.selectionError)return;
    if(owner.location.lat!==location.lat||owner.location.lon!==location.lon||owner.location.kind!==location.kind||owner.location.key!==location.key){
     errorText(tr('Точка изменилась. Подтвердите её ещё раз.','წერტილი შეიცვალა. დაადასტურეთ ხელახლა.'));button.disabled=false;return;
    }
