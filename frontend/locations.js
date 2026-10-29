@@ -134,6 +134,12 @@
  }
  function restore(field,location){if(location&&finitePoint(location))apply(field,location);else delete selections[field];}
  function errorText(message){const error=node('locationPickerError');if(error){error.textContent=message||'';error.hidden=!message;}}
+ function automaticPointLabel(location){
+  const label=normalize(location?.label);
+  const city=location?.kind==='settlement'?(catalog.find(row=>row.key===location.key)||{}):{};
+  const cityNames=location?.kind==='settlement'?[location.name_ru,location.name_ge,location.name_en,city.label,city.name_ru,city.name_ge,city.name_en]:[];
+  return !label||['Точка на карте','წერტილი რუკაზე',String(location?.address||'').slice(0,100),...cityNames].some(value=>normalize(value)===label);
+ }
 
  function distanceMeters(first,second){
   const rad=value=>Number(value)*Math.PI/180;
@@ -176,7 +182,11 @@
   if(!active)return;
   const lat=Number(coords[0]),lon=Number(coords[1]);if(!finitePoint({lat,lon}))return;
   const moved=Math.abs(lat-active.location.lat)>0.000001||Math.abs(lon-active.location.lon)>0.000001;
-  if(moved){active.location={kind:'point',key:null,lat,lon,label:node('locationPickerLabel').value.trim()||tr('Точка на карте','წერტილი რუკაზე'),address:''};}
+  if(moved){
+   const label=active.labelEdited?node('locationPickerLabel').value.trim():tr('Точка на карте','წერტილი რუკაზე');
+   active.location={kind:'point',key:null,lat,lon,label:label||tr('Точка на карте','წერტილი რუკაზე'),address:''};
+   if(!active.labelEdited)node('locationPickerLabel').value=active.location.label;
+  }
   marker?.geometry.setCoordinates([lat,lon]);
   node('locationPickerCoordinates').textContent=lat.toFixed(6)+', '+lon.toFixed(6);
   clearTimeout(reverseTimer);const ticket=++pickerSequence;
@@ -189,7 +199,12 @@
    try{const result=await timeout(mapsReady().then(api=>api.geocode([lat,lon],{results:1})),3500,'Reverse search timed out');
     if(!active||pickerSequence!==ticket)return;
     const object=result.geoObjects.get(0),found=object&&objectLocation(object);
-    if(found){active.location.address=found.address;node('locationPickerAddress').textContent=found.address||tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');}
+    if(found){
+     active.location.address=found.address;node('locationPickerAddress').textContent=found.address||tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
+     if(!active.labelEdited&&found.address.trim()){
+      active.location.label=found.address.trim().slice(0,100);node('locationPickerLabel').value=active.location.label;
+     }
+    }
     else node('locationPickerAddress').textContent=tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
    }catch{if(active&&pickerSequence===ticket)node('locationPickerAddress').textContent=tr('Название можно указать вручную. Точка сохранится по координатам.','სახელი მიუთითეთ ხელით. წერტილი კოორდინატებით შეინახება.');}
   },300);
@@ -200,7 +215,7 @@
   const raw=node(config.input)?.value.trim()||'',selected=selections[field]?.input===raw?selections[field].location:null;
   const seed=selected||(raw?localMatches(raw)[0]:null);
   const location=finitePoint(seed)?copy(seed):{kind:'point',key:null,label:raw||tr('Точка на карте','წერტილი რუკაზე'),lat:42.1,lon:43.9,address:''};
-  active={field,location,labelEdited:!!selected};
+  active={field,location,labelEdited:!!selected&&!automaticPointLabel(selected)};
   const owner=active;preload().then(()=>{if(active===owner)renderNearby();});
   const overlay=node('locationPickerOverlay');overlay.hidden=false;
   node('locationPickerTitle').textContent=config.side==='from'?tr('Место отправления','გაგზავნის ადგილი'):tr('Место доставки','მიწოდების ადგილი');
@@ -232,7 +247,16 @@
   if(!active)return;const owner=active,button=node('locationPickerConfirm');if(button.disabled)return;
   const label=node('locationPickerLabel').value.trim();if(!label){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));node('locationPickerLabel').focus();return;}
   button.disabled=true;errorText('');
-  try{const location={...owner.location,label};const selected=await resolve(location);if(active!==owner)return;apply(owner.field,selected);close();}
+  try{const location={...owner.location,label};const selected=await resolve(location);if(active!==owner)return;
+   if(owner.location.lat!==location.lat||owner.location.lon!==location.lon||owner.location.kind!==location.kind||owner.location.key!==location.key){
+    errorText(tr('Точка изменилась. Подтвердите её ещё раз.','წერტილი შეიცვალა. დაადასტურეთ ხელახლა.'));button.disabled=false;return;
+   }
+   // Country tokens bind coordinates, not names. Keep the latest address or
+   // manual name if it changed while this same point was being verified.
+   const latestLabel=node('locationPickerLabel').value.trim();
+   if(!latestLabel){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));button.disabled=false;node('locationPickerLabel').focus();return;}
+   selected.label=latestLabel;selected.address=owner.location.address||selected.address;
+   apply(owner.field,selected);close();}
   catch(error){if(active===owner){errorText(error.message);button.disabled=false;}}
  }
  function bind(){

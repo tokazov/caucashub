@@ -6,6 +6,7 @@
  'use strict';
  const reverseFails=__REVERSE_FAILS__;
  const mapScale=__MAP_SCALE__;
+ const reverseAddress=__REVERSE_ADDRESS__;
  const props=data=>({get:key=>key.split('.').reduce((obj,part)=>obj?.[part],data),set:(key,value)=>{data[key]=value;}});
  class Events{constructor(){this.handlers={};}add(name,callback){(this.handlers[name]??=[]).push(callback);return this;}emit(name,data){for(const cb of this.handlers[name]||[])cb({get:key=>data[key]});}}
  class GeoCollection{constructor(rows=[]){this.rows=rows;}add(row){this.rows.push(row);return this;}removeAll(){this.rows=[];}get(i){return this.rows[i];}getLength(){return this.rows.length;}each(cb){this.rows.forEach(cb);}}
@@ -28,7 +29,7 @@
  function geocode(query){const reverse=Array.isArray(query);return new Promise((resolve,reject)=>setTimeout(()=>{
   if(reverse&&reverseFails){reject(new Error('isolated reverse provider unavailable'));return;}
   let rows=[];
-  if(reverse){rows=[object(query,'С-3','','Грузия, С-3')];}
+  if(reverse){rows=[object(query,reverseAddress?'улица Серго Закариадзе':'С-3',reverseAddress?'Тбилиси':'',reverseAddress||'Грузия, С-3')];}
   else if(/склад|warehouse|საწყობ/i.test(String(query))){rows=[object([41.708123,44.812345],'С-3','Тбилиси','Грузия, Тбилиси, улица Складская, 7')];}
   else if(/тбилиси|tbilisi|თბილისი/i.test(String(query))){rows=[object([41.6941,44.8337],'Тбилиси','Тбилиси','Грузия, Тбилиси')];}
   else if(/батуми|batumi|ბათუმი/i.test(String(query))){rows=[object([41.6424,41.6355],'Батуми','Батуми','Грузия, Батуми')];}
