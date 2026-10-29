@@ -15,9 +15,19 @@ function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null,rev
  const dom=new JSDOM(html,{url:'http://localhost/',runScripts:'outside-only'}),w=dom.window;
  t.after(()=>w.close());w.lang=locale;w.scope='local';w.API_BASE='';w.CITIES=[];w.AbortController=AbortController;
  Object.defineProperty(w,'innerWidth',{value:mobile?390:1280});
- const calls={requests:[],maps:[],geocodes:[],sdk:0};
+ const calls={requests:[],maps:[],geocodes:[],projections:[],sdk:0};
  class Emitter{constructor(){this.handlers={};}add(name,callback){(this.handlers[name]??=[]).push(callback);}emit(name,value){for(const callback of this.handlers[name]||[])callback({get:key=>value[key]});}}
- class Map{constructor(id,options){this.center=options.center;this.events=new Emitter();this.geoObjects={add(){}};this.container={fitToViewport(){}};this.destroyed=false;calls.maps.push(this);}getCenter(){return this.center;}setCenter(coords){this.center=coords;this.events.emit('boundschange',{newCenter:coords});}destroy(){this.destroyed=true;}}
+ class DataManager{constructor(data){this.data=data;}get(key){return this.data[key];}getAll(){return this.data;}}
+ class Map{constructor(id,state,options={}){this.center=state.center;this.zoom=state.zoom;this.events=new Emitter();this.geoObjects={add(){}};this.container={fitToViewport(){}};this.destroyed=false;
+   this.projection={fromGlobalPixels:(position,zoom)=>{calls.projections.push({position,zoom});return[position[1]/1000000,position[0]/1000000];}};
+   this.options={get:key=>key==='projection'?this.projection:options[key],set:(key,value)=>{options[key]=value;}};
+   this.balloon={events:new Emitter(),data:null,position:null,opened:false,getData(){return this.data;},getPosition(){return this.position;},isOpen(){return this.opened;},close(){this.opened=false;this.events.emit('close',{});return Promise.resolve();}};
+   calls.maps.push(this);
+  }getCenter(){return this.center;}getZoom(){return this.zoom;}setCenter(coords){this.center=coords;this.events.emit('boundschange',{newCenter:coords});}
+  openNativePoi({coords,properties,position=coords?[coords[1]*1000000,coords[0]*1000000]:null}){this.balloon.data={properties:new DataManager(properties),map:this,layer:{},options:{}};this.balloon.position=position;this.balloon.opened=true;this.balloon.events.emit('open',{target:this});}
+  nativeAutoPan(coords){if(this.balloon.isOpen())this.setCenter(coords);}
+  destroy(){this.destroyed=true;}
+ }
  class Placemark{constructor(coords){this.coords=coords;this.events=new Emitter();this.geometry={setCoordinates:value=>this.coords=value,getCoordinates:()=>this.coords};}}
  w.loadYmapsLazy=(ready,error)=>{calls.sdk++;if(provider)ready();else error?.('Unavailable');};
  function reverseResult(coords,address=reverseAddress){return{geoObjects:{get:()=>({getAddressLine:()=>address,getLocalities:()=>[],properties:{get:()=>address},geometry:{getCoordinates:()=>coords}}),each(){}}};}
@@ -176,4 +186,71 @@ test('manual rename during country resolution keeps the latest name for the unch
  const h=harness(t,{mobile:true}),originalFetch=h.w.fetch;let finish;h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>{finish=()=>originalFetch(url,options).then(resolve);}):originalFetch(url,options);
  await h.api.open('pFrom');const coordinates=Array.from(h.calls.maps[0].getCenter(),Number);h.node('locationPickerConfirm').click();await until(()=>!!finish);h.node('locationPickerLabel').value='Склад Серго, ворота 5';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));finish();await tick();
  assert.equal(h.node('locationPickerOverlay').hidden,true);assert.equal(h.node('pFromAddr').value,'Склад Серго, ворота 5');const selected=h.api.read('pFrom','Склад Серго, ворота 5');assert.equal(selected.location.label,'Склад Серго, ворота 5');assert.equal(selected.location.lat,coordinates[0]);assert.equal(selected.location.lon,coordinates[1]);
+});
+
+// Native basemap objects consume the ordinary Map.click. Their balloon exposes
+// a properties manager and global-pixel position; neither is a geocoder result.
+const nativePlaces=[
+ // Schema and first feature observed through the live SDK's public getters.
+ {id:'28857729343',name:'Дарьяльский монастырь',description:'край Мцхета-Мтианети, Казбегский муниципалитет',coords:[42.735488913518935,44.63132098317131]},
+ {name:'სურსათის მაღაზია',description:'საქართველო, თბილისი, საწყობის ქუჩა, 7',coords:[41.708123,44.812345]}
+];
+for(const place of nativePlaces)test('native POI balloon transfers its own name and projected exact coordinates without a map click: '+place.name,async t=>{
+ const h=harness(t);await h.api.open('pFrom');const map=h.calls.maps[0];map.openNativePoi({coords:place.coords,properties:{id:place.id,name:place.name,description:place.description,address:place.description}});
+ assert.equal(h.node('locationPickerLabel').value,place.name);assert.equal(h.node('locationPickerAddress').textContent,place.description);assert.equal(map.balloon.isOpen(),false);
+ assert.equal(h.calls.projections.length,1);assert.equal(h.calls.projections[0].zoom,map.getZoom());assert.ok(h.calls.projections[0].position.every(value=>value>180),'Balloon pixels must not be mistaken for lat/lon');
+ h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom',place.name);assert.ok(endpoint);assert.equal(endpoint.location.label,place.name);assert.equal(endpoint.location.address,place.description);assert.equal(endpoint.location.lat,place.coords[0]);assert.equal(endpoint.location.lon,place.coords[1]);
+ const body=h.calls.requests.find(row=>row.url.includes('/resolve')).body;assert.equal(body.lat,place.coords[0]);assert.equal(body.lon,place.coords[1]);assert.equal(body.label,place.name);
+ // A server round trip may recreate the endpoint object. Restore must retain
+ // the same point and display name rather than geocoding its nearest road.
+ h.api.restore('pFrom',JSON.parse(JSON.stringify(endpoint.location)));assert.equal(h.node('pFromAddr').value,place.name);assert.equal(h.api.read('pFrom',place.name).location.lat,place.coords[0]);
+});
+
+test('native POI preserves a manually entered loading-gate name while updating actual coordinates and address',async t=>{
+ const h=harness(t);await h.api.open('pFrom');h.node('locationPickerLabel').value='Ворота №2, позвонить охране';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));
+ const place=nativePlaces[1];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});assert.equal(h.node('locationPickerLabel').value,'Ворота №2, позвонить охране');assert.equal(h.node('locationPickerAddress').textContent,place.description);
+ h.node('locationPickerConfirm').click();await tick();const location=h.api.read('pFrom','Ворота №2, позвонить охране').location;assert.equal(location.label,'Ворота №2, позвонить охране');assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);
+});
+
+test('a native balloon from a closed map cannot mutate a newly opened picker',async t=>{
+ const h=harness(t);await h.api.open('pFrom');const oldMap=h.calls.maps[0];h.api.close();await h.api.open('pTo');const before=h.node('locationPickerLabel').value;
+ const place=nativePlaces[0];oldMap.openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});assert.equal(h.node('locationPickerLabel').value,before);assert.equal(h.calls.projections.length,0);assert.equal(h.node('pFromAddr').value,'');assert.equal(h.node('pToAddr').value,'');
+});
+
+test('native balloons without finite geometry do not apply a name or fabricate a point',async t=>{
+ const h=harness(t);await h.api.open('pFrom');const before=h.node('locationPickerLabel').value,map=h.calls.maps[0];
+ for(const position of[null,[Infinity,123],[NaN,123]])map.openNativePoi({position,properties:{name:'Объект без координат',description:'Неизвестное положение'}});
+ assert.equal(h.node('locationPickerLabel').value,before);assert.equal(h.node('pFromAddr').value,'');assert.equal(h.calls.projections.length,0);assert.equal(h.calls.requests.filter(row=>row.url.includes('/resolve')).length,0);
+});
+
+test('late reverse geocoding of C-3 cannot replace a selected native POI name or coordinates',async t=>{
+ const pending=[],h=harness(t,{reverseResponder:(coords,result)=>new Promise(resolve=>pending.push(()=>resolve(result(coords,'С-3'))))});await h.api.open('pFrom');await until(()=>pending.length===1);
+ const place=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});pending[0]();await tick();await new Promise(resolve=>setTimeout(resolve,330));
+ assert.equal(h.node('locationPickerLabel').value,place.name);assert.equal(h.node('locationPickerAddress').textContent,place.description);h.node('locationPickerConfirm').click();await tick();const location=h.api.read('pFrom',place.name).location;assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);assert.equal(location.address,place.description);
+});
+
+test('mobile native balloon auto-pan cannot substitute viewport center for the selected POI',async t=>{
+ const h=harness(t,{mobile:true});await h.api.open('pFrom');const map=h.calls.maps[0],place=nativePlaces[1];map.openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});
+ assert.equal(map.options.get('balloonAutoPan'),false);map.nativeAutoPan([41.723456,44.834567]);assert.equal(h.node('locationPickerLabel').value,place.name);assert.equal(map.balloon.isOpen(),false);
+ h.node('locationPickerConfirm').click();await tick();const location=h.api.read('pFrom',place.name).location;assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);assert.equal(location.label,place.name);
+});
+
+test('a valid background click recovers confirmation after a native POI has invalid pixels',async t=>{
+ const h=harness(t);await h.api.open('pFrom');const map=h.calls.maps[0];map.openNativePoi({position:[Infinity,123],properties:{name:'Нечитаемый объект'}});
+ assert.equal(h.node('locationPickerConfirm').disabled,true);assert.equal(h.node('locationPickerError').hidden,false);assert.equal(h.node('pFromAddr').value,'');
+ const coords=[41.712345,44.823456];map.events.emit('click',{coords});assert.equal(h.node('locationPickerConfirm').disabled,false);assert.equal(h.node('locationPickerError').hidden,true);
+ h.node('locationPickerLabel').value='Корректная точка рядом';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));h.node('locationPickerConfirm').click();await tick();
+ assert.equal(h.node('locationPickerOverlay').hidden,true);const location=h.api.read('pFrom','Корректная точка рядом').location;assert.equal(location.lat,coords[0]);assert.equal(location.lon,coords[1]);
+});
+
+test('an invalid native POI arriving during country resolution cannot confirm the previous point',async t=>{
+ const h=harness(t),originalFetch=h.w.fetch;let finishResolve;h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>{finishResolve=()=>originalFetch(url,options).then(resolve);}):originalFetch(url,options);
+ await h.api.open('pFrom');h.node('locationPickerConfirm').click();await until(()=>!!finishResolve);h.calls.maps[0].openNativePoi({position:[NaN,123],properties:{name:'Неопределённое место'}});finishResolve();await tick();
+ assert.equal(h.node('locationPickerOverlay').hidden,false);assert.equal(h.node('locationPickerConfirm').disabled,true);assert.equal(h.node('locationPickerError').hidden,false);assert.equal(h.node('pFromAddr').value,'');assert.equal(h.api.read('pFrom','Точка на карте'),null);
+});
+
+test('a canonical checkpoint used as the viewport seed yields its default name and key to a newly selected native POI',async t=>{
+ const h=harness(t);await h.api.preload();await h.api.choose('pFrom',catalog[0]);await h.api.open('pFrom');assert.equal(h.node('locationPickerLabel').value,catalog[0].label);
+ const place=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,address:place.description}});assert.equal(h.node('locationPickerLabel').value,place.name);h.node('locationPickerConfirm').click();await tick();
+ const location=h.api.read('pFrom',place.name).location;assert.equal(location.kind,'point');assert.equal(location.key??null,null);assert.equal(location.label,place.name);assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);assert.equal(h.calls.requests.filter(row=>row.url.includes('/resolve')).length,1);
 });

@@ -250,6 +250,45 @@ async function reverseAddressLabelJourney(configuration,storageState){
  }finally{await env.context.close();}
 }
 
+// A built-in POI consumes the map's background click and opens map.balloon.
+// Use the ordinary DOM buttons in the SDK boundary, then the actual backend,
+// offline country resolver, signed point token, publication and edit routers.
+async function nativePoiJourney(configuration,storageState){
+ const cases=[
+  {id:'monastery',name:'Дарьяльский монастырь',address:'край Мцхета-Мтианети, Казбегский муниципалитет',coords:[42.735488913518935,44.63132098317131]},
+  {id:'store',name:'სურსათის მაღაზია',address:'საქართველო, თბილისი, საწყობის ქუჩა, 7',coords:[41.708123,44.812345]},
+  {id:'store',name:'სურსათის მაღაზია',address:'საქართველო, თბილისი, საწყობის ქუჩა, 7',coords:[41.708123,44.812345],custom:true}
+ ],env=await context(configuration,{storageState}),results=[];
+ const assertPoint=(location,place,label)=>{assert.equal(location.kind,'point');assert.equal(location.key??null,null);assert.equal(location.country_iso,'GE');assert.equal(location.label,label);assert.ok(Math.abs(location.lat-place.coords[0])<1e-10);assert.ok(Math.abs(location.lon-place.coords[1])<1e-10);};
+ try{
+  const page=env.page;await page.goto(BASE.href,{waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});
+  for(const place of cases){
+   const suffix=place.id+(place.custom?'-custom':''),label=place.custom?'Мой въезд к магазину '+configuration.name:place.name,description='Native POI '+configuration.name+' '+suffix;
+   await openCargo(page,configuration);await fillCargo(page,description);await page.locator('#pFromAddr').fill('');await openPicker(page,'pFrom');
+   const map=page.locator('#locationPickerMap'),initial=JSON.parse(await map.getAttribute('data-test-map-center')),clicksBefore=await map.getAttribute('data-test-map-clicks');assert.deepEqual(initial,[42.1,43.9]);
+   if(place.custom)await page.locator('#locationPickerLabel').fill(label);
+   await page.locator('[data-test-native-poi="'+place.id+'"]').click();
+   await page.waitForFunction(expected=>document.getElementById('locationPickerLabel').value===expected,label);await delay(450);
+   assert.equal(await map.getAttribute('data-test-map-clicks'),clicksBefore,'Native POI must consume the normal background Map.click');assert.equal(await map.getAttribute('data-test-native-opens'),'1');
+   assert.equal(await map.getAttribute('data-test-projection-zoom'),await map.getAttribute('data-test-map-zoom'));
+   assert.equal(await page.locator('#locationPickerLabel').inputValue(),label,'Nearest-road reverse result must not replace a POI name');assert.equal(await page.locator('#locationPickerAddress').textContent(),place.address);
+   const selected=JSON.parse(await map.getAttribute('data-test-map-center'));assert.ok(Math.abs(selected[0]-place.coords[0])<1e-10);assert.ok(Math.abs(selected[1]-place.coords[1])<1e-10);
+   await page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-native-'+suffix+'-picker.png')});
+   const resolution=await clickRequest(page,'#locationPickerConfirm','/api/locations/resolve','POST',200);assertPoint(resolution.location,place,label);await page.locator('#locationPickerOverlay').waitFor({state:'hidden'});assert.equal(await page.locator('#pFromAddr').inputValue(),label);
+   const posting=page.waitForResponse(response=>response.url().split('?')[0]===new URL('/api/loads/',BASE).href&&response.request().method()==='POST');
+   const created=await saveCargo(page),response=await posting,payload=response.request().postDataJSON();assertPoint(payload.from_location,place,label);assertPoint(created.from_location,place,label);assert.equal(payload.from_address,place.address);assert.equal(created.route_scope||created.scope,'local');assert.equal(created.from_country_iso,'GE');
+   await page.reload({waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});const stored=await ownCargo(page,created.id);assert.deepEqual(stored.from_location,created.from_location);
+   await page.locator((configuration.mobile?'.bitem':'.nav-tab')+'[onclick*="showSection(\'orders\'"]').first().click();await page.locator('.cab-tab[onclick*="switchCabTab(\'loads\'"]').first().click();await page.locator('button[onclick="editMyLoad('+created.id+')"]').first().click();await page.locator('#postOverlay').waitFor({state:'visible'});await page.waitForFunction(expected=>document.getElementById('pFromAddr').value===expected,label);
+   await openPicker(page,'pFrom');const restored=JSON.parse(await map.getAttribute('data-test-map-center'));assert.deepEqual(restored,[stored.from_location.lat,stored.from_location.lon]);assert.equal(await page.locator('#locationPickerLabel').inputValue(),label);
+   const editedLabel=label+' — ворота 2';await page.locator('#locationPickerLabel').fill(editedLabel);await clickRequest(page,'#locationPickerConfirm','/api/locations/resolve','POST',200);await page.locator('#locationPickerOverlay').waitFor({state:'hidden'});
+   const edited=await clickRequest(page,'#postOverlay .btn-primary','/api/loads/'+created.id,'PUT',200);await page.locator('#postOverlay').waitFor({state:'hidden'});assertPoint(edited.from_location,place,editedLabel);const finalStored=await ownCargo(page,created.id);assert.deepEqual(finalStored.from_location,edited.from_location);
+   const withdrawn=await api(page,'DELETE','/api/loads/'+created.id);assert.equal(withdrawn.status,200);assert.equal(withdrawn.data.ok,true);
+   results.push({kind:'native_poi_'+suffix,id:created.id,nativeBalloonWithoutBackgroundClick:true,globalPixelConversion:true,mainFormFilled:true,postPayloadVerified:true,persisted:true,reloadedEditCoordinatesVerified:true,editedNamePreserved:true,customNamePreserved:!!place.custom,withdrawnAfterVerification:true,point:selected,label,address:place.address,location:finalStored.from_location});
+  }
+  return results;
+ }finally{await env.context.close();}
+}
+
 async function run(configuration){
  const env=await context(configuration),{page}=env;
  try{
@@ -261,7 +300,7 @@ async function run(configuration){
   await openCargo(page,configuration);const beforeCancel=await page.locator('#pFromAddr').inputValue();await openPicker(page,'pFrom');await page.locator('#locationPickerCancel').click();await page.locator('#locationPickerOverlay').waitFor({state:'hidden'});assert.equal(await page.locator('#pFromAddr').inputValue(),beforeCancel);await openPicker(page,'pFrom');const pinLabel='Isolated pin '+configuration.name;const pin=await choosePin(page,configuration,pinLabel);await fillCargo(page,pinLabel);const pointLoad=await saveCargo(page);assert.equal(pointLoad.from_location.label,pinLabel);assert.equal(pointLoad.from_location.lat,pin.lat);assert.equal(pointLoad.from_location.lon,pin.lon);assert.equal(pointLoad.from_location.settlement_id,null);assert.equal(pointLoad.route_scope||pointLoad.scope,'local');
   await page.reload({waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});const persisted=await ownCargo(page,pointLoad.id);assert.deepEqual(persisted.from_location,pointLoad.from_location);const edited=await editCargo(page,configuration,pointLoad.id,pinLabel);assert.deepEqual(edited.center,[pin.lat,pin.lon]);assert.equal(edited.result.from_location.label,pinLabel+' edited');assert.equal(edited.result.from_location.lat,edited.saved.lat);assert.equal(edited.result.from_location.lon,edited.saved.lon);out.scenarios.push({kind:'arbitrary_pin',id:pointLoad.id,persisted:true,edited:true,cancelUnchanged:true,location:edited.result.from_location});console.log(configuration.name+': map exactpoint publish, reload, cancel and edit passed');
   out.scenarios.push(await transportPoint(page,configuration));out.scenarios.push(await transportInternational(page,configuration));
-  const storage=await env.context.storageState();out.scenarios.push(...await reverseAddressLabelJourney(configuration,storage));console.log(configuration.name+': reverse-address autofill and custom-label preservation publish/reload passed');out.scenarios.push(await providerFailure(configuration,storage));out.scenarios.push(await mapUnavailable(configuration,storage));
+  const storage=await env.context.storageState();out.scenarios.push(...await nativePoiJourney(configuration,storage));console.log(configuration.name+': native monastery/store POI selection, exact persistence, reload and edit passed');out.scenarios.push(...await reverseAddressLabelJourney(configuration,storage));console.log(configuration.name+': reverse-address autofill and custom-label preservation publish/reload passed');out.scenarios.push(await providerFailure(configuration,storage));out.scenarios.push(await mapUnavailable(configuration,storage));
   await page.getByRole('button',{name:'GE',exact:true}).click();await openCargo(page,configuration);await openPicker(page,'pFrom');
   assert.equal(await page.locator('#locationPickerTitle').textContent(),'გაგზავნის ადგილი');assert.equal(await page.locator('#locationPickerConfirm').textContent(),'ამ წერტილის არჩევა');
   await page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-georgian-picker.png')});await page.locator('#locationPickerCancel').click();out.georgianPicker=true;
