@@ -188,7 +188,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=20261029-exact-locations">
+<link rel="stylesheet" href="styles.css?v=20261030-address-distance">
 </head>
 <body>
 
@@ -1217,8 +1217,8 @@ window.loadYmapsLazy = function(cb, onError) {
         <div id="mPrice" style="font-size:28px;font-weight:900"></div>
       </div>
       <div id="mKmBlock" style="text-align:right">
-        <div style="font-size:11px;color:#aaa" data-i18n="lbl_distance">Расстояние</div>
-        <div id="mKm" style="font-size:15px;font-weight:700"></div>
+        <div style="font-size:11px;color:#aaa" data-i18n="lbl_distance">По дороге</div>
+        <div id="mKm" aria-live="polite" style="font-size:15px;font-weight:700"></div>
       </div>
     </div>
     <div class="success-msg" id="respondSuccess"><span data-i18n="None"><span data-i18n="msg_respond_sent">✅ Заявка отправлена! Заказчик получит уведомление.</span></span></div>
@@ -1626,8 +1626,9 @@ window.loadYmapsLazy = function(cb, onError) {
 </div>
 
 <script src="api.js?v=20261029-exact-locations"></script>
-<script src="main.js?v=20261029-exact-locations"></script>
-<script src="locations.js?v=20261030-map-poi"></script>
+<script src="route-distance.js?v=20261030-road-distance"></script>
+<script src="main.js?v=20261030-address-distance"></script>
+<script src="locations.js?v=20261030-label-mode"></script>
 <script src="ai-dispatcher.js?v=20261029-mari-avatar"></script>
 
 <!-- ═══ PWA: баннер установки ═══ -->

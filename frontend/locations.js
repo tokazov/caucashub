@@ -44,7 +44,7 @@
    const names=[row.key,row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].filter(Boolean).map(normalize);
    const exact=names.some(name=>name===q),prefix=names.some(name=>name.startsWith(q));
    return{row,score:exact?0:prefix?1:names.some(name=>name.includes(q))?2:10};
-  }).filter(item=>item.score<10).sort((a,b)=>a.score-b.score||(a.row.kind==='border_checkpoint'?-1:1)).slice(0,7).map(item=>({...item.row,label:labelOf(item.row)}));
+  }).filter(item=>item.score<10).sort((a,b)=>a.score-b.score||(a.row.kind==='border_checkpoint'?-1:1)).slice(0,7).map(item=>({...item.row,label:labelOf(item.row),label_mode:'auto'}));
  }
  function exactLocal(query){const q=normalize(query);return localMatches(query).some(row=>[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].filter(Boolean).some(name=>normalize(name)===q));}
  function countryFromObject(object){
@@ -57,7 +57,7 @@
   const address=object.getAddressLine?.()||metadata.addr||'';
   const name=object.properties?.get?.('name')||address;
   const settlement=metadata.city&&catalog.find(row=>row.kind==='settlement'&&[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].some(alias=>normalize(alias)===normalize(metadata.city)));
-  return{kind:'point',key:null,label:String(metadata.city?address:name||address||tr('Точка на карте','წერტილი რუკაზე')).slice(0,100),address,city:metadata.city||'',settlement_key:settlement?.settlement_key||settlement?.key||null,settlement_id:settlement?.settlement_id||null,lat:Number(coords[0]),lon:Number(coords[1]),country_iso:countryFromObject(object)||undefined,source:'yandex'};
+  return{kind:'point',key:null,label:String(metadata.city?address:name||address||tr('Точка на карте','წერტილი რუკაზე')).slice(0,100),label_mode:'auto',address,city:metadata.city||'',settlement_key:settlement?.settlement_key||settlement?.key||null,settlement_id:settlement?.settlement_id||null,lat:Number(coords[0]),lon:Number(coords[1]),country_iso:countryFromObject(object)||undefined,source:'yandex'};
  }
  function searchRemote(query,whichScope){
   const key=(ge()?'ge':'ru')+'|'+whichScope+'|'+normalize(query);
@@ -110,8 +110,8 @@
  }
  async function resolve(location){
   if(location.key||location.legacy)return copy(location);
-  const {lat,lon,label,address,settlement_id,settlement_key}=location;
-  const result=await request('/api/locations/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'point',lat,lon,label,address:address||label,settlement_id,settlement_key})});
+  const {lat,lon,label,label_mode,address,settlement_id,settlement_key}=location;
+  const result=await request('/api/locations/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'point',lat,lon,label,label_mode,address:address||label,settlement_id,settlement_key})});
   if(!finitePoint(result.location)||!result.location.resolution_token)throw Error(tr('Не удалось подтвердить точку. Повторите выбор.','წერტილი ვერ დადასტურდა. სცადეთ ხელახლა.'));
   return {...result.location,city:location.city||'',label,address:result.location.address||address};
  }
@@ -119,7 +119,7 @@
   if(!location)return;
   const config=fields[field],input=node(config.input),original=input?.value,sequence=state[field]?.sequence;
   if(input)input.setAttribute('aria-busy','true');
-  try{const selected=await resolve(location);if(input?.value!==original||state[field]?.sequence!==sequence)return;apply(field,selected);}
+  try{const selected=await resolve({...location,label_mode:location.label_mode||'auto'});if(input?.value!==original||state[field]?.sequence!==sequence)return;apply(field,selected);}
   catch(error){if(input?.value!==original)return;input?.setAttribute('aria-busy','false');const note=node(config.note);if(note){note.textContent=error.message;note.style.display='block';}}
  }
  function read(field,text){
@@ -129,7 +129,7 @@
   const city=location.city||String(location.kind==='settlement'?location.name_ru||location.label:location.label).slice(0,100);
   const endpoint={city,lat:location.lat,lng:location.lon,address:location.address||location.label};
   if(location.kind==='settlement'){if(location.settlement_id)endpoint.city_id=location.settlement_id;if(location.settlement_key||location.key)endpoint.canonical_key=location.settlement_key||location.key;}
-  if(!location.legacy){endpoint.location={};for(const key of ['kind','key','label','lat','lon','address','country_iso','settlement_id','settlement_key','resolution_token'])if(location[key]!=null)endpoint.location[key]=location[key];}
+  if(!location.legacy){endpoint.location={};for(const key of ['kind','key','label','label_mode','lat','lon','address','country_iso','settlement_id','settlement_key','resolution_token'])if(location[key]!=null)endpoint.location[key]=location[key];}
   return endpoint;
  }
  function restore(field,location){if(location&&finitePoint(location))apply(field,location);else delete selections[field];}
@@ -173,8 +173,9 @@
  function selectNearby(key){
   if(!active)return;
   const location=nearbyCheckpoints().find(row=>row.key===key);if(!location){renderNearby();return;}
-  const input=node('locationPickerLabel'),custom=active.labelEdited?input.value.trim():'';
-  active.location={...copy(location),label:custom||labelOf(location)};input.value=active.location.label;
+  const input=node('locationPickerLabel'),custom=active.location.label_mode==='custom'?input.value.trim():'';
+  active.labelEdited=!!custom;
+  active.location={...copy(location),label:custom||labelOf(location),label_mode:custom?'custom':'auto'};input.value=active.location.label;
   errorText('');
   const coordinates=[Number(location.lat),Number(location.lon)];setCoordinates(coordinates);map?.setCenter(coordinates);
  }
@@ -186,13 +187,17 @@
   const moved=Math.abs(lat-active.location.lat)>0.000001||Math.abs(lon-active.location.lon)>0.000001;
   if(moved){
    active.place=null;
+   // Only explicit manual provenance survives moving. Legacy POI names may
+   // differ from postal addresses, so that difference cannot prove a custom name.
+   active.labelEdited=active.location.label_mode==='custom';
    const label=active.labelEdited?node('locationPickerLabel').value.trim():tr('Точка на карте','წერტილი რუკაზე');
-   active.location={kind:'point',key:null,lat,lon,label:label||tr('Точка на карте','წერტილი რუკაზე'),address:''};
+   active.location={kind:'point',key:null,lat,lon,label:label||tr('Точка на карте','წერტილი რუკაზე'),label_mode:active.labelEdited?'custom':'auto',address:''};
    if(!active.labelEdited)node('locationPickerLabel').value=active.location.label;
   }
   if(place){
+   active.labelEdited=active.location.label_mode==='custom';
    const label=active.labelEdited?node('locationPickerLabel').value.trim():place.label;
-   active.place=place;active.location={kind:'point',key:null,lat,lon,label:label||place.label,address:place.address||place.label};
+   active.place=place;active.location={kind:'point',key:null,lat,lon,label:label||place.label,label_mode:active.labelEdited?'custom':'auto',address:place.address||place.label};
    node('locationPickerLabel').value=active.location.label;
   }
   marker?.geometry.setCoordinates([lat,lon]);
@@ -211,7 +216,7 @@
     if(found){
      active.location.address=found.address;node('locationPickerAddress').textContent=found.address||tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
      if(!active.labelEdited&&found.address.trim()){
-      active.location.label=found.address.trim().slice(0,100);node('locationPickerLabel').value=active.location.label;
+      active.location.label=found.address.trim().slice(0,100);active.location.label_mode='auto';node('locationPickerLabel').value=active.location.label;
      }
     }
     else node('locationPickerAddress').textContent=tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
@@ -242,8 +247,10 @@
   close(false);returnFocus=node(config.input);
   const raw=node(config.input)?.value.trim()||'',selected=selections[field]?.input===raw?selections[field].location:null;
   const seed=selected||(raw?localMatches(raw)[0]:null);
-  const location=finitePoint(seed)?copy(seed):{kind:'point',key:null,label:raw||tr('Точка на карте','წერტილი რუკაზე'),lat:42.1,lon:43.9,address:''};
-  active={field,location,labelEdited:!!selected&&!automaticPointLabel(selected)};
+  const location=finitePoint(seed)?copy(seed):{kind:'point',key:null,label:raw||tr('Точка на карте','წერტილი რუკაზე'),label_mode:'auto',lat:42.1,lon:43.9,address:''};
+  // Keep a restored POI/legacy name at the same point. Its mode, rather than
+  // its difference from a postal address, decides what to keep after moving.
+  active={field,location,labelEdited:location.label_mode==='custom'||!!selected&&!automaticPointLabel(selected)};
   const owner=active;preload().then(()=>{if(active===owner)renderNearby();});
   const overlay=node('locationPickerOverlay');overlay.hidden=false;
   node('locationPickerTitle').textContent=config.side==='from'?tr('Место отправления','გაგზავნის ადგილი'):tr('Место доставки','მიწოდების ადგილი');
@@ -286,6 +293,7 @@
    const latestLabel=node('locationPickerLabel').value.trim();
    if(!latestLabel){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));button.disabled=false;node('locationPickerLabel').focus();return;}
    selected.label=latestLabel;selected.address=owner.location.address||selected.address;
+   if(owner.location.label_mode)selected.label_mode=owner.location.label_mode;
    apply(owner.field,selected);close();}
   catch(error){if(active===owner){errorText(error.message);button.disabled=false;}}
  }
@@ -295,7 +303,7 @@
    input.addEventListener('focus',warm);input.addEventListener('keydown',event=>{if(event.key==='Escape')node(config.drop)?.classList.remove('open');});
   }
   document.querySelectorAll('[data-location-field]').forEach(button=>{button.title=tr('Выбрать на карте','არჩევა რუკაზე');button.setAttribute('aria-label',tr('Выбрать место на карте','ადგილის არჩევა რუკაზე'));button.addEventListener('click',()=>open(button.dataset.locationField));});
-  node('locationPickerLabel')?.addEventListener('input',()=>{if(active)active.labelEdited=true;});
+  node('locationPickerLabel')?.addEventListener('input',()=>{if(active){active.labelEdited=true;active.location.label_mode='custom';}});
   node('locationPickerConfirm')?.addEventListener('click',confirm);node('locationPickerCancel')?.addEventListener('click',()=>close());
   node('locationPickerOverlay')?.addEventListener('click',event=>{if(event.target===node('locationPickerOverlay'))close();});
   document.addEventListener('keydown',event=>{
