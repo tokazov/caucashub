@@ -174,7 +174,8 @@
       avatar.textContent = (u && u.name) ? u.name[0].toUpperCase() : 'Я';
     } else {
       var img = document.createElement('img');
-      img.src = 'dispatcher.jpg';
+      img.src = 'mari-avatar-v2.webp';
+      img.alt = 'Mari';
       img.width = 28; img.height = 28;
       img.style.cssText = 'border-radius:50%;object-fit:cover;object-position:center top;';
       img.onerror = function(){ avatar.textContent = '🤖'; img.remove(); };
