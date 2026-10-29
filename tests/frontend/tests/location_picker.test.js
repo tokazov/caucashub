@@ -9,7 +9,7 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const catalog=[{kind:'border_checkpoint',key:'ge:checkpoint:dariali',label:'КПП Дарьял',name_ru:'КПП Дарьял',name_ge:'დარიალის გამშვები პუნქტი',name_en:'Dariali checkpoint',lat:42.735,lon:44.624,country_iso:'GE',address:'Грузия, КПП Дарьял',aliases:['Дарьял','Дариали','Dariali','დარიალი']},
 {kind:'border_checkpoint',key:'ru:checkpoint:upper-lars',label:'КПП Верхний Ларс',name_ru:'КПП Верхний Ларс',name_ge:'ზემო ლარსის პუნქტი',name_en:'Upper Lars checkpoint',lat:42.763,lon:44.628,country_iso:'RU',address:'Россия, Верхний Ларс',aliases:['Верхний Ларс','Upper Lars']},
 {kind:'settlement',key:'ge:tbilisi',settlement_key:'ge:tbilisi',settlement_id:1,label:'Тбилиси',name_ru:'Тбилиси',name_ge:'თბილისი',name_en:'Tbilisi',lat:41.6941,lon:44.8337,country_iso:'GE',aliases:['Tbilisi','თბილისი','Тбилиси']}];
-function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null}={}){
+function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null,reverseAddress='С-3',reverseResponder=null}={}){
  const html='<button data-location-field="pFrom">Map</button>'+['pFrom','pTo','ptFrom','ptTo'].map(field=>{const input=field.startsWith('pF')||field==='pTo'?field+'Addr':field;const suffix={pFrom:'PFrom',pTo:'PTo',ptFrom:'PtFrom',ptTo:'PtTo'}[field];return '<input id="'+input+'"><div id="drop'+suffix+'"></div><div id="coords'+suffix+'"></div>';}).join('')+
  '<div id="locationPickerOverlay" hidden><div><h2 id="locationPickerTitle"></h2><button id="locationPickerCancel">Cancel</button><p id="locationPickerInstruction"></p><div id="locationPickerMap"></div><div id="locationPickerPin" hidden></div><label id="locationPickerLabelCaption"></label><input id="locationPickerLabel"><div id="locationPickerAddress"></div><div id="locationPickerCoordinates"></div><div id="locationPickerError" hidden></div><button id="locationPickerConfirm"></button></div></div>';
  const dom=new JSDOM(html,{url:'http://localhost/',runScripts:'outside-only'}),w=dom.window;
@@ -20,13 +20,14 @@ function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null}={}
  class Map{constructor(id,options){this.center=options.center;this.events=new Emitter();this.geoObjects={add(){}};this.container={fitToViewport(){}};this.destroyed=false;calls.maps.push(this);}getCenter(){return this.center;}setCenter(coords){this.center=coords;this.events.emit('boundschange',{newCenter:coords});}destroy(){this.destroyed=true;}}
  class Placemark{constructor(coords){this.coords=coords;this.events=new Emitter();this.geometry={setCoordinates:value=>this.coords=value,getCoordinates:()=>this.coords};}}
  w.loadYmapsLazy=(ready,error)=>{calls.sdk++;if(provider)ready();else error?.('Unavailable');};
- w.ymaps={ready:callback=>callback(),Map,Placemark,geocode:async value=>{calls.geocodes.push(value);return{geoObjects:{get:()=>({getAddressLine:()=> 'С-3',getLocalities:()=>[],properties:{get:()=> 'С-3'},geometry:{getCoordinates:()=>Array.isArray(value)?value:[41.708123,44.812345]}}),each(){}}};}};
+ function reverseResult(coords,address=reverseAddress){return{geoObjects:{get:()=>({getAddressLine:()=>address,getLocalities:()=>[],properties:{get:()=>address},geometry:{getCoordinates:()=>coords}}),each(){}}};}
+ w.ymaps={ready:callback=>callback(),Map,Placemark,geocode:async value=>{calls.geocodes.push(value);if(Array.isArray(value)&&reverseResponder)return reverseResponder(value,reverseResult);return reverseResult(Array.isArray(value)?value:[41.708123,44.812345]);}};
  w.fetch=async(url,options={})=>{calls.requests.push({url,options,body:options.body?JSON.parse(options.body):null});
   if(url.includes('/suggest'))return{ok:true,json:async()=>({results:catalog})};
   if(resolveError)return{ok:false,json:async()=>({detail:resolveError})};
   const body=JSON.parse(options.body);return{ok:true,json:async()=>({location:{...body,country_iso:'GE',resolution_token:'signed-fixture-token'}})};
  };
- w.eval(source);w.document.dispatchEvent(new w.Event('DOMContentLoaded'));return{w,calls,api:w.CaucasLocations,node:id=>w.document.getElementById(id)};
+ w.eval(source);w.document.dispatchEvent(new w.Event('DOMContentLoaded'));return{w,calls,api:w.CaucasLocations,reverseResult,node:id=>w.document.getElementById(id)};
 }
 for(const text of ['Дарьял','Дариали','Dariali','დარიალი'])test('own checkpoint suggestion works without map provider: '+text,async t=>{
  const h=harness(t,{provider:false});await h.api.preload();h.node('pFromAddr').value=text;h.api.search('pFrom',text);
@@ -106,4 +107,73 @@ test('a point farther than500 metres does not offer to substitute a checkpoint',
 });
 test('Georgian nearby action names the actual checkpoint and country',async t=>{
  const h=harness(t,{mobile:true,locale:'ge'});await h.api.preload();await h.api.open('pFrom');h.calls.maps[0].setCenter([catalog[0].lat+0.0003,catalog[0].lon]);const text=h.w.document.querySelector('[data-nearby-location-key="ge:checkpoint:dariali"]').textContent;assert.match(text,/საქართველო/);assert.match(text,/პუნქტის არჩევა/);
+});
+
+
+async function until(predicate,message='Expected asynchronous picker state'){
+ const deadline=Date.now()+1500;while(Date.now()<deadline){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,10));}assert.fail(message);
+}
+const resolvedRu='Грузия, Тбилиси, улица Серго Закариадзе, 5';
+for(const[locale,address]of[['ru',resolvedRu],['ge','საქართველო, თბილისი, სერგო ზაქარიაძის ქუჩა, 5']])test('automatic map name follows resolved address and transfers to saved endpoint: '+locale,async t=>{
+ const h=harness(t,{mobile:true,locale,reverseAddress:address});await h.api.open('pFrom');
+ await until(()=>h.node('locationPickerAddress').textContent===address);
+ assert.equal(h.node('locationPickerLabel').value,address);h.node('locationPickerConfirm').click();await tick();
+ assert.equal(h.node('pFromAddr').value,address);const endpoint=h.api.read('pFrom',address);
+ assert.equal(endpoint.location.label,address);assert.equal(endpoint.location.address,address);assert.equal(h.calls.requests.find(x=>x.url.includes('/resolve')).body.label,address);
+});
+test('manual name typed while reverse request is pending survives its response',async t=>{
+ const pending=[],h=harness(t,{mobile:true,reverseResponder:(coords,result)=>new Promise(resolve=>pending.push(()=>resolve(result(coords,resolvedRu))))});await h.api.open('pFrom');await until(()=>pending.length===1);
+ h.node('locationPickerLabel').value='Склад Ираклия';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));pending[0]();await tick();
+ assert.equal(h.node('locationPickerLabel').value,'Склад Ираклия');assert.equal(h.node('locationPickerAddress').textContent,resolvedRu);
+ h.node('locationPickerConfirm').click();await tick();assert.equal(h.api.read('pFrom','Склад Ираклия').location.label,'Склад Ираклия');
+});
+test('restored generic point name heals from its resolved full address',async t=>{
+ const h=harness(t,{reverseAddress:resolvedRu});h.api.restore('pFrom',{kind:'point',label:'Точка на карте',lat:41.7,lon:44.8,country_iso:'GE',address:'Предыдущий адрес'});await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,resolvedRu);
+});
+test('moving a restored automatic address updates name and keeps exact new coordinates',async t=>{
+ const oldAddress='Грузия, Тбилиси, Старый адрес, 1',h=harness(t,{mobile:true,reverseAddress:resolvedRu});h.api.restore('pFrom',{kind:'point',label:oldAddress,lat:41.7,lon:44.8,country_iso:'GE',address:oldAddress});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.711234,44.822345]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,resolvedRu);
+ h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom',resolvedRu);assert.equal(endpoint.location.lat,41.711234);assert.equal(endpoint.location.lon,44.822345);assert.equal(endpoint.location.label,resolvedRu);
+});
+test('older reverse reply cannot replace newer automatic address or name',async t=>{
+ const pending=[],h=harness(t,{mobile:true,reverseResponder:(coords,result)=>new Promise(resolve=>pending.push({coords,finish:address=>resolve(result(coords,address))}))});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.71,44.81]);await until(()=>pending.length===1);h.calls.maps[0].setCenter([41.72,44.82]);await until(()=>pending.length===2);
+ pending[1].finish('Новый адрес B');await tick();pending[0].finish('Старый адрес A');await tick();assert.equal(h.node('locationPickerAddress').textContent,'Новый адрес B');assert.equal(h.node('locationPickerLabel').value,'Новый адрес B');
+ h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom','Новый адрес B');assert.equal(endpoint.location.lat,41.72);assert.equal(endpoint.location.lon,44.82);
+});
+test('restored custom point name stays intact when moved and reverse address changes',async t=>{
+ const h=harness(t,{mobile:true,reverseAddress:resolvedRu});h.api.restore('pFrom',{kind:'point',label:'Ворота склада Ираклия',lat:41.7,lon:44.8,country_iso:'GE',address:'Старый почтовый адрес'});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.72,44.82]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Ворота склада Ираклия');
+});
+test('verified checkpoint name and key are never replaced by reverse road address',async t=>{
+ const h=harness(t,{reverseAddress:resolvedRu});await h.api.preload();await h.api.choose('pFrom',catalog[0]);await h.api.open('pFrom');await new Promise(resolve=>setTimeout(resolve,360));assert.equal(h.node('locationPickerLabel').value,'КПП Дарьял');assert.equal(h.calls.geocodes.length,0);h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom','КПП Дарьял');assert.equal(endpoint.location.key,catalog[0].key);assert.equal(endpoint.location.kind,'border_checkpoint');
+});
+
+
+test('reverse address arriving during pending country resolution reaches the selected field and payload for the same point',async t=>{
+ const reverse=[],h=harness(t,{mobile:true,reverseResponder:(coords,result)=>new Promise(resolve=>reverse.push(()=>resolve(result(coords,resolvedRu))))});
+ const originalFetch=h.w.fetch;let finishResolve;h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>{finishResolve=()=>originalFetch(url,options).then(resolve);}):originalFetch(url,options);
+ await h.api.open('pFrom');const coordinates=Array.from(h.calls.maps[0].getCenter(),Number);h.node('locationPickerConfirm').click();await until(()=>!!finishResolve);await until(()=>reverse.length===1);
+ reverse[0]();await until(()=>h.node('locationPickerLabel').value===resolvedRu);assert.equal(h.node('locationPickerOverlay').hidden,false);finishResolve();await tick();
+ assert.equal(h.node('pFromAddr').value,resolvedRu);const endpoint=h.api.read('pFrom',resolvedRu);assert.equal(endpoint.location.label,resolvedRu);assert.equal(endpoint.location.address,resolvedRu);assert.equal(endpoint.location.lat,coordinates[0]);assert.equal(endpoint.location.lon,coordinates[1]);
+});
+test('automatic names respect100characters while retaining full address and remain automatic after restore',async t=>{
+ const oldAddress='Грузия, Тбилиси, Старый длинный адрес, '.repeat(4),address='Грузия, Тбилиси, улица Серго Закариадзе, дом 5, корпус 2, помещение склада у северного въезда, зона разгрузки и площадка ожидания для грузовых автомобилей';
+ const h=harness(t,{mobile:true,reverseAddress:address});h.api.restore('pFrom',{kind:'point',label:oldAddress.slice(0,100),lat:41.7,lon:44.8,country_iso:'GE',address:oldAddress});await h.api.open('pFrom');h.calls.maps[0].setCenter([41.711234,44.822345]);await until(()=>h.node('locationPickerAddress').textContent===address);
+ const label=address.slice(0,100).trim();assert.equal(h.node('locationPickerLabel').value.trim(),label);assert.ok(h.node('locationPickerLabel').value.length<=100);h.node('locationPickerConfirm').click();await tick();const endpoint=h.api.read('pFrom',label);assert.equal(endpoint.location.label,label);assert.ok(endpoint.location.label.length<=100);assert.equal(endpoint.location.address,address);assert.equal(h.calls.requests.find(row=>row.url.includes('/resolve')).body.address,address);
+});
+
+
+test('a custom renamed settlement remains custom when its picker is reopened',async t=>{
+ const h=harness(t,{reverseAddress:resolvedRu});await h.api.preload();const city=catalog.find(row=>row.kind==='settlement');await h.api.choose('pFrom',{...city,label:'Моя площадка у Тбилиси',address:'Тбилиси'});await h.api.open('pFrom');await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);assert.equal(h.node('locationPickerLabel').value,'Моя площадка у Тбилиси');
+});
+
+
+test('moving the pin during country resolution rejects the old point and requires a fresh confirmation',async t=>{
+ const h=harness(t,{mobile:true}),originalFetch=h.w.fetch,pending=[];h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>pending.push(()=>originalFetch(url,options).then(resolve))):originalFetch(url,options);
+ await h.api.open('pFrom');h.node('locationPickerConfirm').click();await until(()=>pending.length===1);h.calls.maps[0].setCenter([41.711234,44.822345]);pending[0]();await tick();
+ assert.equal(h.node('locationPickerOverlay').hidden,false);assert.equal(h.node('locationPickerConfirm').disabled,false);assert.equal(h.node('locationPickerError').hidden,false);assert.ok(h.node('locationPickerError').textContent.trim());assert.equal(h.node('pFromAddr').value,'');assert.equal(h.api.read('pFrom','Точка на карте'),null);
+ h.node('locationPickerConfirm').click();await until(()=>pending.length===2);pending[1]();await tick();assert.equal(h.node('locationPickerOverlay').hidden,true);const selected=h.api.read('pFrom',h.node('pFromAddr').value);assert.equal(selected.location.lat,41.711234);assert.equal(selected.location.lon,44.822345);
+});
+test('manual rename during country resolution keeps the latest name for the unchanged point',async t=>{
+ const h=harness(t,{mobile:true}),originalFetch=h.w.fetch;let finish;h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>{finish=()=>originalFetch(url,options).then(resolve);}):originalFetch(url,options);
+ await h.api.open('pFrom');const coordinates=Array.from(h.calls.maps[0].getCenter(),Number);h.node('locationPickerConfirm').click();await until(()=>!!finish);h.node('locationPickerLabel').value='Склад Серго, ворота 5';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));finish();await tick();
+ assert.equal(h.node('locationPickerOverlay').hidden,true);assert.equal(h.node('pFromAddr').value,'Склад Серго, ворота 5');const selected=h.api.read('pFrom','Склад Серго, ворота 5');assert.equal(selected.location.label,'Склад Серго, ворота 5');assert.equal(selected.location.lat,coordinates[0]);assert.equal(selected.location.lon,coordinates[1]);
 });

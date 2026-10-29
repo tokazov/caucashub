@@ -50,7 +50,7 @@ async function clickRequest(page,selector,endpoint,method,status){
  assert.equal(r.headers()['x-carrier-test-only'],'1');assert.equal(r.status(),status,endpoint+':'+JSON.stringify(d));return d;
 }
 function day(offset){return new Date(Date.now()+offset*86400000).toISOString().slice(0,10);}
-async function context(configuration,{sdk=true,reverseFails=false,storageState}={}){
+async function context(configuration,{sdk=true,reverseFails=false,reverseAddress=null,storageState}={}){
  const context=await browser.newContext({viewport:{width:configuration.width,height:configuration.height},isMobile:configuration.mobile,hasTouch:configuration.mobile,serviceWorkers:'block',locale:'ru-RU',storageState});
  await context.addInitScript(()=>localStorage.setItem('ch_lang','ru'));
  await context.route('**/*',async route=>{
@@ -58,7 +58,7 @@ async function context(configuration,{sdk=true,reverseFails=false,storageState}=
   if(url.origin===BASE.origin){if(['POST','PUT','PATCH','DELETE'].includes(req.method()))diagnostics.mutations.push({method:req.method(),path:url.pathname});return route.continue();}
   if(url.hostname==='api-production-f3ea.up.railway.app')diagnostics.productionApiAttempts++;
   if(url.hostname==='api-maps.yandex.ru'&&url.pathname.startsWith('/2.1/')){
-   if(sdk)return route.fulfill({status:200,contentType:'application/javascript',body:SDK.replace('__REVERSE_FAILS__',String(reverseFails)).replace('__MAP_SCALE__','0.005')});
+   if(sdk)return route.fulfill({status:200,contentType:'application/javascript',body:SDK.replace('__REVERSE_FAILS__',String(reverseFails)).replace('__MAP_SCALE__','0.005').replace('__REVERSE_ADDRESS__',JSON.stringify(reverseAddress))});
    return route.abort('blockedbyclient');
   }
   diagnostics.unexpectedExternalRequests.push(url.hostname);return route.abort('blockedbyclient');
@@ -197,6 +197,59 @@ async function mapUnavailable(configuration,storageState){
  }finally{await env.context.close();}
 }
 
+
+// Focused regression: reverse address becomes the unedited label, while a custom
+// label typed before the delayed reverse result must remain unchanged.
+async function reverseAddressLabelJourney(configuration,storageState){
+ const address='Грузия, Тбилиси, улица Серго Закариадзе, 5';
+ const env=await context(configuration,{reverseAddress:address,storageState});
+ const cases=[];
+ try{
+  const page=env.page;await page.goto(BASE.href,{waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});
+  for(const custom of [false,true]){
+   await openCargo(page,configuration);await fillCargo(page,'Reverse address label '+configuration.name+' '+custom);
+   await page.locator('#pFromAddr').fill('');await openPicker(page,'pFrom');
+   const target=[41.708123+(custom ? 0.0001 : 0),44.812345+(custom ? 0.0001 : 0)];
+   const surface=page.locator('#locationPickerMap [data-test-map-surface]'),box=await surface.boundingBox();assert.ok(box);
+   const center=JSON.parse(await page.locator('#locationPickerMap').getAttribute('data-test-map-center'));
+   const scale=Number(await page.locator('#locationPickerMap').getAttribute('data-test-map-scale'));
+   const start={x:box.x+box.width*.5,y:box.y+box.height*.25},dx=(center[1]-target[1])/scale,dy=(target[0]-center[0])/scale;
+   await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(start.x+dx,start.y+dy,{steps:12});await page.mouse.up();
+   await surface.click({position:{x:box.width*.5,y:box.height*.5}});
+   const chosen=JSON.parse(await page.locator('#locationPickerMap').getAttribute('data-test-map-center'));
+   assert.ok(Math.abs(chosen[0]-target[0])<.01&&Math.abs(chosen[1]-target[1])<.01,'Test gesture must select the intended Tbilisi area');
+   const expectedLabel=custom?'Мой въезд к складу '+configuration.name:address;
+   if(custom)await page.locator('#locationPickerLabel').fill(expectedLabel);
+   await page.waitForFunction(expected=>document.getElementById('locationPickerAddress').textContent===expected,address);
+   assert.equal(await page.locator('#locationPickerLabel').inputValue(),expectedLabel,'Reverse result must fill only an unedited label');
+   await page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-reverse-'+(custom?'custom':'automatic')+'-label.png')});
+   const resolution=await clickRequest(page,'#locationPickerConfirm','/api/locations/resolve','POST',200);
+   await page.locator('#locationPickerOverlay').waitFor({state:'hidden'});
+   assert.equal(resolution.location.label,expectedLabel);assert.equal(resolution.location.address,address);
+   assert.equal(await page.locator('#pFromAddr').inputValue(),expectedLabel,'Confirmed point must fill the main form');
+   const posting=page.waitForResponse(response=>response.url().split('?')[0]===new URL('/api/loads/',BASE).href&&response.request().method()==='POST');
+   const created=await saveCargo(page),response=await posting,payload=response.request().postDataJSON();
+   for(const location of [payload.from_location,created.from_location]){
+    assert.equal(location.label,expectedLabel);assert.equal(location.address,address);assert.ok(Math.abs(location.lat-chosen[0])<1e-8);assert.ok(Math.abs(location.lon-chosen[1])<1e-8);
+   }
+   assert.equal(payload.from_address,address);assert.equal(created.from_country_iso,'GE');
+   await page.reload({waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});
+   const stored=await ownCargo(page,created.id);assert.deepEqual(stored.from_location,created.from_location);
+   await page.locator((configuration.mobile?'.bitem':'.nav-tab')+'[onclick*="showSection(\'orders\'"]').first().click();
+   await page.locator('.cab-tab[onclick*="switchCabTab(\'loads\'"]').first().click();
+   await page.locator('button[onclick="editMyLoad('+created.id+')"]').first().click();await page.locator('#postOverlay').waitFor({state:'visible'});
+   await page.waitForFunction(expected=>document.getElementById('pFromAddr').value===expected,expectedLabel);
+   assert.equal(await page.locator('#pFromAddr').inputValue(),expectedLabel,'Reloaded edit form must retain the confirmed label');
+   await page.locator('#postOverlay .close-btn').click();await page.locator('#postOverlay').waitFor({state:'hidden'});
+   // These newly-created disposable records have no deals. Withdraw them after
+   // verifying persistence so the unchanged Free5 quota remains tested normally.
+   const withdrawn=await api(page,'DELETE','/api/loads/'+created.id);assert.equal(withdrawn.status,200);assert.equal(withdrawn.data.ok,true);
+   cases.push({kind:custom?'reverse_address_custom_label_preserved':'reverse_address_auto_label',id:created.id,persisted:true,mainFormFilled:true,postPayloadVerified:true,reloadedEditLabelVerified:true,withdrawnAfterVerification:true,selectedPoint:chosen,label:expectedLabel,address,location:stored.from_location});
+  }
+  return cases;
+ }finally{await env.context.close();}
+}
+
 async function run(configuration){
  const env=await context(configuration),{page}=env;
  try{
@@ -208,7 +261,7 @@ async function run(configuration){
   await openCargo(page,configuration);const beforeCancel=await page.locator('#pFromAddr').inputValue();await openPicker(page,'pFrom');await page.locator('#locationPickerCancel').click();await page.locator('#locationPickerOverlay').waitFor({state:'hidden'});assert.equal(await page.locator('#pFromAddr').inputValue(),beforeCancel);await openPicker(page,'pFrom');const pinLabel='Isolated pin '+configuration.name;const pin=await choosePin(page,configuration,pinLabel);await fillCargo(page,pinLabel);const pointLoad=await saveCargo(page);assert.equal(pointLoad.from_location.label,pinLabel);assert.equal(pointLoad.from_location.lat,pin.lat);assert.equal(pointLoad.from_location.lon,pin.lon);assert.equal(pointLoad.from_location.settlement_id,null);assert.equal(pointLoad.route_scope||pointLoad.scope,'local');
   await page.reload({waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});const persisted=await ownCargo(page,pointLoad.id);assert.deepEqual(persisted.from_location,pointLoad.from_location);const edited=await editCargo(page,configuration,pointLoad.id,pinLabel);assert.deepEqual(edited.center,[pin.lat,pin.lon]);assert.equal(edited.result.from_location.label,pinLabel+' edited');assert.equal(edited.result.from_location.lat,edited.saved.lat);assert.equal(edited.result.from_location.lon,edited.saved.lon);out.scenarios.push({kind:'arbitrary_pin',id:pointLoad.id,persisted:true,edited:true,cancelUnchanged:true,location:edited.result.from_location});console.log(configuration.name+': map exactpoint publish, reload, cancel and edit passed');
   out.scenarios.push(await transportPoint(page,configuration));out.scenarios.push(await transportInternational(page,configuration));
-  const storage=await env.context.storageState();out.scenarios.push(await providerFailure(configuration,storage));out.scenarios.push(await mapUnavailable(configuration,storage));
+  const storage=await env.context.storageState();out.scenarios.push(...await reverseAddressLabelJourney(configuration,storage));console.log(configuration.name+': reverse-address autofill and custom-label preservation publish/reload passed');out.scenarios.push(await providerFailure(configuration,storage));out.scenarios.push(await mapUnavailable(configuration,storage));
   await page.getByRole('button',{name:'GE',exact:true}).click();await openCargo(page,configuration);await openPicker(page,'pFrom');
   assert.equal(await page.locator('#locationPickerTitle').textContent(),'გაგზავნის ადგილი');assert.equal(await page.locator('#locationPickerConfirm').textContent(),'ამ წერტილის არჩევა');
   await page.screenshot({path:path.join(ARTIFACTS,configuration.name+'-georgian-picker.png')});await page.locator('#locationPickerCancel').click();out.georgianPicker=true;
