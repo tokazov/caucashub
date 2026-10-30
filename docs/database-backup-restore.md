@@ -104,6 +104,22 @@ safety rather than treating a safe advanced counter as corrupted data. It does
 not claim byte-for-byte equality with a source counter read at an earlier moment.
 No application writes are blocked to force this comparison to pass.
 
+PostgreSQL can also reparse an unbounded varchar-array cast into equivalent
+per-element text casts during a dump/restore. Two application CHECK constraints
+on `public.notification_deliveries` (`channel` and `status`) exhibited this exact
+round trip. The verifier recognizes only their complete approved expressions,
+literal values/order and unbounded varchar/text casts. It verifies the current
+catalog definition's hash and requires an equivalent complete expression to
+match the original manifest hash. Other constraints and every other structural
+field still compare exactly; changed allowed values, columns, types, validation
+or unrelated definitions fail verification.
+
+Reports retain `structure_raw_hash_match` and record the two hash pairs when this
+proof is needed. `structure_match` is true only for exact structure or the strict
+proven equivalence; `restore_verified` additionally requires all data, record IDs,
+sequence invariants, foreign keys and large objects to match. Existing manifests,
+archives and earlier failed reports are never rewritten to mark them successful.
+
 The tool leaves the disposable database intact for inspection. It never drops a
 database or deletes older archives. Apply an explicit retention policy separately;
 do not prune the only known-good archive before another restore has passed.

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import getpass
@@ -49,6 +50,117 @@ def utc_now() -> str:
 def digest_json(value: Any) -> str:
     payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+_NOTIFICATION_CHECKS = {
+    ("public", "notification_deliveries", "ck_notification_deliveries_channel"):
+        ("channel", ("email", "telegram")),
+    ("public", "notification_deliveries", "ck_notification_deliveries_status"):
+        ("status", ("pending", "sending", "sent", "failed", "unknown", "skipped")),
+}
+
+
+def _notification_check_candidates(definition: str, column: str, values: tuple[str, ...]) -> tuple[str, ...]:
+    """Finite PostgreSQL deparser variants, never a general SQL normalizer.
+
+    Only the two application-owned CHECKs below are eligible. Their literal
+    values and order must match exactly. Unbounded character varying -> text
+    relabels cannot truncate values; bounded casts, expressions, other types,
+    collations, comments and trailing clauses are deliberately not recognized.
+    """
+    if not isinstance(definition, str) or len(definition) > 1024:
+        return ()
+    match = re.fullmatch(
+        r"CHECK \(" + re.escape(column) + r"::text = ANY \(ARRAY\[(?P<items>[^\[\]\r\n]+)\](?:::text\[\])?\)\)",
+        definition,
+    )
+    if match is None:
+        return ()
+    parts = match["items"].split(", ")
+    if len(parts) != len(values):
+        return ()
+    for part, value in zip(parts, values):
+        if re.fullmatch(re.escape("'" + value + "'::character varying") + r"(?:::text)?", part) is None:
+            return ()
+    # At most 2**6 * 2 candidates: each literal can have its redundant text
+    # relabel, or the unbounded varchar array can have the text[] relabel.
+    candidates = []
+    for mask in range(1 << len(values)):
+        items = ", ".join("'" + value + "'::character varying" + ("::text" if mask & (1 << index) else "")
+                          for index, value in enumerate(values))
+        for array_cast in ("", "::text[]"):
+            candidates.append("CHECK (" + column + "::text = ANY (ARRAY[" + items + "]" + array_cast + "))")
+    return tuple(candidates)
+
+
+def compare_structures(expected: dict[str, Any], actual: dict[str, Any],
+                       actual_check_definitions: Mapping[tuple[str, str, str], str] | None = None) -> dict[str, Any]:
+    """Compare format-1 structures; prove only the two known cast relocations.
+
+    The raw definitions are read from the restored catalog, used in memory,
+    and never returned. A generated complete definition must hash to the
+    original manifest hash. Every other object, field and array order remains
+    exact. Originals are never mutated, including when comparison fails.
+    """
+    raw_match = isinstance(expected, dict) and isinstance(actual, dict) and digest_json(actual) == digest_json(expected)
+    result = {"structure_match": raw_match, "structure_raw_hash_match": raw_match,
+              "structure_semantic_verified": False, "structure_semantic_proofs": []}
+    if raw_match or not isinstance(expected, dict) or not isinstance(actual, dict):
+        return result
+    expected_constraints = expected.get("constraints")
+    actual_constraints = actual.get("constraints")
+    if (not isinstance(expected_constraints, list) or not isinstance(actual_constraints, list)
+            or len(expected_constraints) != len(actual_constraints)):
+        return result
+    comparable = copy.deepcopy(actual)
+    proofs = []
+    for index, (original, restored) in enumerate(zip(expected_constraints, actual_constraints)):
+        if not isinstance(original, dict) or not isinstance(restored, dict):
+            return result
+        if digest_json(original) == digest_json(restored):
+            continue
+        identity = (restored.get("schema"), restored.get("table_name"), restored.get("name"))
+        if not all(isinstance(value, str) for value in identity):
+            return result
+        allowed = _NOTIFICATION_CHECKS.get(identity)
+        if allowed is None or restored.get("type") != "c" or restored.get("validated") is not True:
+            return result
+        original_fields = {key: value for key, value in original.items() if key != "definition_hash"}
+        restored_fields = {key: value for key, value in restored.items() if key != "definition_hash"}
+        if digest_json(original_fields) != digest_json(restored_fields):
+            return result
+        expected_hash, actual_hash = original.get("definition_hash"), restored.get("definition_hash")
+        if (not isinstance(expected_hash, str) or not isinstance(actual_hash, str)
+                or re.fullmatch(r"[0-9a-f]{32}", expected_hash) is None
+                or re.fullmatch(r"[0-9a-f]{32}", actual_hash) is None):
+            return result
+        definition = (actual_check_definitions or {}).get(identity)
+        if (not isinstance(definition, str) or len(definition) > 1024
+                or hashlib.md5(definition.encode("utf-8")).hexdigest() != actual_hash):
+            return result
+        column, values = allowed
+        candidates = _notification_check_candidates(definition, column, values)
+        if not any(hashlib.md5(candidate.encode("utf-8")).hexdigest() == expected_hash for candidate in candidates):
+            return result
+        comparable["constraints"][index]["definition_hash"] = expected_hash
+        proofs.append({"schema": identity[0], "table_name": identity[1], "name": identity[2],
+                       "expected_definition_hash": expected_hash, "actual_definition_hash": actual_hash,
+                       "proof": "notification_delivery_check_array_cast_v1"})
+    if proofs and digest_json(comparable) == digest_json(expected):
+        result.update(structure_match=True, structure_semantic_verified=True, structure_semantic_proofs=proofs)
+    return result
+
+
+async def notification_check_definitions(conn: asyncpg.Connection) -> dict[tuple[str, str, str], str]:
+    """Read only the two static control CHECK definitions, never user table rows."""
+    rows = await conn.fetch("""
+        SELECT n.nspname AS schema,c.relname AS table_name,k.conname AS name,
+               pg_get_constraintdef(k.oid,true) AS definition
+        FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname='public' AND c.relname='notification_deliveries' AND k.contype='c'
+          AND k.conname IN ('ck_notification_deliveries_channel','ck_notification_deliveries_status')
+    """)
+    return {(row["schema"], row["table_name"], row["name"]): row["definition"] for row in rows}
 
 
 def quote_identifier(value: str) -> str:
@@ -455,13 +567,21 @@ async def restore_test(connection: Connection, manifest_path: Path, pg_bin: Path
         async with conn.transaction(isolation="repeatable_read", readonly=True):
             actual = await fingerprint_database(conn)
             sequence_checks = await sequence_invariants(conn, actual["sequences"])
+            check_definitions = await notification_check_definitions(conn)
         expected = metadata["database"]
         safe_sequences = all(item["safe_next_owned_id"] is not False for item in sequence_checks)
-        matches = actual == expected and safe_sequences
+        structure_comparison = compare_structures(expected["structure"], actual["structure"], check_definitions)
+        comparable = dict(actual)
+        if (structure_comparison["structure_match"]
+                and digest_json(expected["structure"]) == expected["structure_sha256"]):
+            # Comparison-only substitution after proof; the actual fingerprint,
+            # original manifest and old restore reports remain unchanged.
+            comparable.update(structure=expected["structure"], structure_sha256=expected["structure_sha256"])
+        matches = comparable == expected and safe_sequences
         report = {"format_version": FORMAT_VERSION, "verified_at": utc_now(), "restore_verified": matches,
             "archive_sha256": metadata["sha256"], "manifest": manifest_path.name,
             "target": target, "target_loopback": True, "target_created_fresh": True,
-            "structure_match": actual["structure_sha256"] == expected["structure_sha256"],
+            **structure_comparison,
             "table_counts_data_and_ids_match": actual["tables"] == expected["tables"],
             "sequence_configuration_match": actual["sequences"] == expected["sequences"],
             "owned_sequence_next_values_safe": safe_sequences,
