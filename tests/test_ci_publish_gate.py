@@ -241,8 +241,9 @@ def test_only_manual_single_publisher_checks_exact_source_and_all_gates():
 
 def test_ci_restore_has_matching_clients_and_explicit_disposable_postgres():
     source = (ROOT / WORKFLOW).read_text(encoding="utf-8").split("  carrier-profile-browser:", 1)[0]
-    assert "image: postgres:18" in source and "runs-on: ubuntu-24.04" in source
-    assert "TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres" in source
+    assert "postgres:18 -c listen_addresses=127.0.0.1 -c port=55438" in source
+    assert "runs-on: ubuntu-24.04" in source and "services:" not in source
+    assert "TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:55438/postgres" in source
     assert "PG_BIN: /usr/lib/postgresql/18/bin" in source
     assert "POSTGRES_BIN: /usr/lib/postgresql/18/bin" in source
     assert "apt-get install -y postgresql-client-18" in source
@@ -252,8 +253,18 @@ def test_ci_restore_has_matching_clients_and_explicit_disposable_postgres():
     assert source.index("Require PostgreSQL 18 archive") < source.index("python -m pytest")
     assert "PGHOST: 127.0.0.1" in source and "PGDATABASE: postgres" in source
     assert "COMMENT ON DATABASE postgres IS 'caucashub-disposable-restore-admin-v1'" in source
-    assert source.index("Mark only disposable PostgreSQL service") < source.index("python -m pytest")
+    assert source.index("Start and mark only disposable loopback PostgreSQL") < source.index("python -m pytest")
+    assert 'docker run --detach --network host --name "$CI_POSTGRES_CONTAINER"' in source
+    assert 'docker rm --force --volumes "$CI_POSTGRES_CONTAINER"' in source
+    assert "--publish" not in source and "--volume " not in source
+    assert "SELECT host(inet_server_addr())" in source and "grep -Fxq '127.0.0.1|postgres'" in source
+    cleanup = source.split("name: Remove only the owned disposable PostgreSQL container", 1)[1]
+    assert "if: always()" in cleanup
     assert "tests/test_database_backup.py" in source and "test_local_backup_connection.py" not in source
+    restore_command = "python -m pytest tests/test_database_backup.py -v"
+    assert source.count("tests/test_database_backup.py") == 1
+    assert source.index("python -m pip install") < source.index(restore_command)
+    assert source.index(restore_command) < source.index("Backend and PostgreSQL migration regressions")
 
 
 def test_aggregate_job_rejects_any_non_success():

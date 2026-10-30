@@ -175,6 +175,10 @@ async def test_postgres_wider_legacy_type_is_never_narrowed_on_start(safety_data
     async with engine.begin() as connection:
         await connection.execute(text('ALTER TABLE status_changes ALTER COLUMN entity_type TYPE VARCHAR(120)'))
         await connection.execute(text("INSERT INTO status_changes (entity_type,entity_id,to_status) VALUES (:value,1,'active')"),{'value':'x'*80})
+    # Simulate a newly started API process after an earlier schema change.
+    # asyncpg otherwise reuses provision()'s prepared SELECT with the old row
+    # type; that driver-cache failure is unrelated to legacy type preservation.
+    await engine.dispose()
     application_hooks(engine)
     async with application.lifespan(application.app):pass
     async with engine.connect() as connection:
@@ -191,6 +195,9 @@ async def test_postgres_missing_native_enum_value_is_not_silently_accepted(safet
     async with engine.begin() as connection:
         await connection.execute(text("CREATE TYPE test_short_userplan AS ENUM ('free','standard','pro')"))
         await connection.execute(text('ALTER TABLE users ALTER COLUMN plan TYPE test_short_userplan USING plan::text::test_short_userplan'))
+    # The deployment's new process has no cached SELECT for the previous enum.
+    # Close setup connections so the assertion checks native enum compatibility.
+    await engine.dispose()
     with pytest.raises(readiness.SchemaNotReady,match='users.plan'):
         await readiness.verify_application_schema(engine)
     assert await sentinels(engine)==before

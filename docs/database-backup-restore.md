@@ -108,6 +108,25 @@ The tool leaves the disposable database intact for inspection. It never drops a
 database or deletes older archives. Apply an explicit retention policy separately;
 do not prune the only known-good archive before another restore has passed.
 
+## Release checklist
+
+Before a production schema change, record the timestamp and successful status of
+a fresh native Railway volume backup. A scheduled future backup is insufficient.
+Keep an independent protected archive and its successful restore report; do not
+label an untested archive as recoverable. The native schedule and this operator
+tool do not automatically create an independent offsite copy before every deploy.
+
+Run the full regression suite against disposable data and test the intended
+additive migration on an isolated restored copy. Confirm that existing customer,
+listing, response, deal and review IDs and records are retained. Apply the release
+only after these checks pass, then verify API health and the main user journeys.
+
+If a release fails, roll back application code while retaining the current
+customer database. Never automatically replace it with an older snapshot: that
+would lose registrations, requests and other writes made after the snapshot.
+An actual production recovery requires a separate reviewed cutover plan that
+accounts for those newer writes. This utility intentionally has no such command.
+
 ## Regression proof
 
 ```text

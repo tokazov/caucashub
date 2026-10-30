@@ -395,7 +395,7 @@ def load_manifest(path: Path) -> tuple[dict[str, Any], Path]:
 
 async def assert_target(conn: asyncpg.Connection, target: str, marker: str) -> None:
     row = await conn.fetchrow("""
-        SELECT current_database() AS db,inet_server_addr()::text AS address,
+        SELECT current_database() AS db,host(inet_server_addr()) AS address,
                shobj_description(oid,'pg_database') AS marker
         FROM pg_database WHERE datname=current_database()
     """)
@@ -416,7 +416,7 @@ async def assert_target(conn: asyncpg.Connection, target: str, marker: str) -> N
 
 async def assert_restore_admin(conn: asyncpg.Connection) -> None:
     row = await conn.fetchrow("""
-        SELECT current_database() AS db,inet_server_addr()::text AS address,
+        SELECT current_database() AS db,host(inet_server_addr()) AS address,
                shobj_description(oid,'pg_database') AS marker
         FROM pg_database WHERE datname=current_database()
     """)

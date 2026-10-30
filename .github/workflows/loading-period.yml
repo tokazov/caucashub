@@ -11,29 +11,16 @@ jobs:
   regression:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_DB: caucashub_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
       SECRET_KEY: test-secret-for-loading-period
       GEMINI_API_KEY: test
       BREVO_API_KEY: test
       TG_BOT_TOKEN: test:test
       NOTIFICATIONS_WORKER_ENABLED: "0"
-      TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:55438/postgres
       PG_BIN: /usr/lib/postgresql/18/bin
       POSTGRES_BIN: /usr/lib/postgresql/18/bin
+      CI_POSTGRES_CONTAINER: caucashub-ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,22 +57,47 @@ jobs:
             test -x "$PG_BIN/$tool"
             "$PG_BIN/$tool" --version | grep -Eq 'PostgreSQL\) 18([. ]|$)'
           done
-      - name: Mark only disposable PostgreSQL service for the restore drill
+      - name: Start and mark only disposable loopback PostgreSQL for the restore drill
+        timeout-minutes: 2
         env:
           PGHOST: 127.0.0.1
-          PGPORT: '5432'
+          PGPORT: '55438'
           PGDATABASE: postgres
           PGUSER: postgres
           PGPASSWORD: postgres
         run: |
+          # On this Linux runner host networking avoids Docker port-forward NAT.
+          # The restore guard must see literal loopback on BOTH sides of TCP.
+          # No host volume is mounted; this is synthetic data on an owned container.
+          docker run --detach --network host --name "$CI_POSTGRES_CONTAINER" \
+            --env POSTGRES_DB=postgres --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD=postgres \
+            --env POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
+            postgres:18 -c listen_addresses=127.0.0.1 -c port=55438
+          ready=0
+          for attempt in $(seq 1 30); do
+            if "$PG_BIN/psql" -X --no-password --set ON_ERROR_STOP=1 --tuples-only --no-align \
+              --command "SELECT host(inet_server_addr()) || '|' || current_database();" \
+              | grep -Fxq '127.0.0.1|postgres'; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != 1 ]; then
+            docker logs "$CI_POSTGRES_CONTAINER"
+            exit 1
+          fi
           "$PG_BIN/psql" -X --no-password --set ON_ERROR_STOP=1 \
             --command "COMMENT ON DATABASE postgres IS 'caucashub-disposable-restore-admin-v1';"
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite pypdf
+      - name: Verify real custom archive and isolated restore
+        run: python -m pytest tests/test_database_backup.py -v
       - name: Install frontend test dependencies
         run: npm install --prefix tests/frontend --no-package-lock --ignore-scripts
       - name: Backend and PostgreSQL migration regressions
-        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_presentation.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py tests/test_ci_publish_gate.py tests/test_startup_schema_safety.py tests/test_database_backup.py -q
+        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_presentation.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py tests/test_ci_publish_gate.py tests/test_startup_schema_safety.py -q
       - name: JavaScript syntax
         run: |
           node --check api.js
@@ -102,6 +114,12 @@ jobs:
         run: node --test tests/frontend/tests/loading_dates.test.js
         env:
           TZ: Pacific/Kiritimati
+      - name: Remove only the owned disposable PostgreSQL container
+        if: always()
+        run: |
+          if docker container inspect "$CI_POSTGRES_CONTAINER" >/dev/null 2>&1; then
+            docker rm --force --volumes "$CI_POSTGRES_CONTAINER"
+          fi
   carrier-profile-browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
