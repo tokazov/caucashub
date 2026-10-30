@@ -250,6 +250,9 @@ def test_ci_restore_has_matching_clients_and_explicit_disposable_postgres():
     assert "for tool in pg_dump pg_restore psql" in source
     assert "grep -Eq 'PostgreSQL\\) 18([. ]|$)'" in source
     assert source.index("Require PostgreSQL 18 archive") < source.index("python -m pytest")
+    assert "PGHOST: 127.0.0.1" in source and "PGDATABASE: postgres" in source
+    assert "COMMENT ON DATABASE postgres IS 'caucashub-disposable-restore-admin-v1'" in source
+    assert source.index("Mark only disposable PostgreSQL service") < source.index("python -m pytest")
     assert "tests/test_database_backup.py" in source and "test_local_backup_connection.py" not in source
 
 
