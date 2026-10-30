@@ -2,22 +2,20 @@
 Платёжная логика CaucasHub.
 
 Эндпоинты:
-  POST /api/payments/create              — создать платёж (pending)
+  POST /api/payments/create              — выключен до проверенного адаптера
   GET  /api/payments/my                  — история своих платежей
   GET  /api/payments/status/{id}         — статус своего платежа
-  GET  /api/payments/callback/tbc        — webhook от TBC Pay
-  GET  /api/payments/callback/bog        — webhook от BOG
+  GET/POST /api/payments/callback/tbc    — отключён до проверенного адаптера
+  GET/POST /api/payments/callback/bog    — отключён до проверенного адаптера
   POST /api/payments/admin/payments/{id}/activate — ручная активация
 """
 import os
 import logging
 from datetime import datetime, timezone
-from decimal import Decimal
 
 import httpx
 from app.services.admin_auth import admin_secret_matches
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Header
-from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +28,7 @@ from app.models.user import User
 from app.routers.auth import require_user
 
 # ── Флаг включения оплат (PAYMENTS_ENABLED=false → временно отключено) ────────
-_PAYMENTS_ENABLED = os.getenv("PAYMENTS_ENABLED", "true").lower() not in ("false", "0", "no")
+_PAYMENTS_ENABLED = os.getenv("PAYMENTS_ENABLED", "false").lower() not in ("false", "0", "no")
 
 
 logger = logging.getLogger(__name__)
@@ -243,81 +241,23 @@ async def _create_bog_payment(amount: float, payment_id: int, description: str) 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/create")
-async def create_payment(
-    data: PaymentCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_user),
-):
-    # ── Проверка: оплаты временно отключены ─────────────────────────────────
+async def create_payment(data: PaymentCreate):
+    """Fail closed until a verified live provider adapter is implemented.
+
+    This endpoint deliberately has no database or account dependencies: a
+    disabled/incomplete gateway must not create pending orders or contact a bank.
+    The isolated simulator has its own application and disposable data store.
+    """
     if not _PAYMENTS_ENABLED:
         return {
             "ok": False,
             "enabled": False,
             "message": "Оплата временно недоступна. Функция скоро вернётся.",
         }
-
-    if data.type not in PRICES:
-        raise HTTPException(400, detail=f"Unknown payment type. Valid: {list(PRICES)}")
-
-    amount = PRICES[data.type]
-
-    # Валидация payload для promote
-    if data.type.startswith("promote_"):
-        load_id = data.payload.get("load_id")
-        if not load_id:
-            raise HTTPException(400, detail="payload.load_id required for promote")
-        load_res = await db.execute(
-            select(Load).where(Load.id == load_id, Load.user_id == current_user.id)
-        )
-        if not load_res.scalar_one_or_none():
-            raise HTTPException(404, detail="Load not found or not yours")
-
-    provider_name = data.provider or "tbc"
-    if provider_name not in ("tbc", "bog"):
-        provider_name = "tbc"
-
-    payment = Payment(
-        user_id=current_user.id,
-        type=data.type,
-        payload=data.payload,
-        amount_gel=Decimal(str(amount)),
-        status="pending",
-        provider=provider_name,
+    raise HTTPException(
+        status_code=503,
+        detail="Online payment provider is not configured for verified activation",
     )
-    db.add(payment)
-    await db.commit()
-    await db.refresh(payment)
-
-    pay_url = None
-    description = f"CaucasHub: {data.type.replace('_', ' ')}"
-
-    # Попытка создать платёж через выбранный провайдер
-    try:
-        if provider_name == "bog":
-            bog = await _create_bog_payment(amount, payment.id, description)
-            if bog:
-                payment.provider_tx_id = str(bog.get("bog_id", ""))
-                pay_url = bog.get("pay_url")
-        else:
-            tbc = await _create_tbc_payment(amount, payment.id, description)
-            if tbc:
-                payment.provider_tx_id = str(tbc.get("tbc_id", ""))
-                pay_url = tbc.get("pay_url")
-
-        if payment.provider_tx_id:
-            await db.commit()
-    except Exception as e:
-        logger.error(f"[PAYMENT] Provider error: {e}")
-
-    return {
-        "payment_id": payment.id,
-        "status": payment.status,
-        "amount": float(payment.amount_gel),
-        "currency": "GEL",
-        "type": data.type,
-        "pay_url": pay_url,
-        "telegram": "@timurtokazov",
-    }
 
 
 @router.get("/my")
@@ -373,62 +313,16 @@ async def payment_status(
     }
 
 
-@router.get("/callback/tbc", response_class=PlainTextResponse)
-async def tbc_callback(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Webhook от TBC Pay. Активирует платёж при status=OK."""
-    params = dict(request.query_params)
-    # TBC передаёт PaymentId и status
-    tbc_payment_id = params.get("PaymentId") or params.get("paymentId") or params.get("payId")
-    status = params.get("status", "").upper()
-
-    logger.info(f"[TBC CALLBACK] PaymentId={tbc_payment_id} status={status}")
-
-    if tbc_payment_id and status == "OK":
-        result = await db.execute(
-            select(Payment).where(Payment.provider_tx_id == tbc_payment_id)
-        )
-        payment = result.scalar_one_or_none()
-        if payment and payment.status == "pending":
-            ok = await activate_payment(payment.id, db)
-            logger.info(f"[TBC CALLBACK] activate_payment({payment.id}) = {ok}")
-
-    return "OK"
+@router.api_route("/callback/tbc", methods=["GET", "POST"])
+async def tbc_callback():
+    """Unsupported legacy callback; never trust browser-supplied paid status."""
+    raise HTTPException(status_code=503, detail="Verified TBC callback is not configured")
 
 
-@router.get("/callback/bog", response_class=PlainTextResponse)
-async def bog_callback(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """Webhook от BOG. Активирует платёж при event=payment.success."""
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-
-    event = body.get("event", "")
-    order_id = str(body.get("external_order_id", ""))
-    bog_status = body.get("status", "").lower()
-
-    logger.info(f"[BOG CALLBACK] event={event} order_id={order_id} status={bog_status}")
-
-    is_success = event == "payment.success" or bog_status in ("completed", "confirmed")
-
-    if is_success and order_id:
-        try:
-            payment_id = int(order_id)
-            result = await db.execute(select(Payment).where(Payment.id == payment_id))
-            payment = result.scalar_one_or_none()
-            if payment and payment.status == "pending":
-                ok = await activate_payment(payment.id, db)
-                logger.info(f"[BOG CALLBACK] activate_payment({payment_id}) = {ok}")
-        except Exception as e:
-            logger.error(f"[BOG CALLBACK] Error: {e}")
-
-    return "OK"
+@router.api_route("/callback/bog", methods=["GET", "POST"])
+async def bog_callback():
+    """Unsupported legacy callback; signed server verification is required."""
+    raise HTTPException(status_code=503, detail="Verified BOG callback is not configured")
 
 
 @router.get("/admin/payments/list")
