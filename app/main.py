@@ -11,233 +11,39 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    ADR-011 (Вариант A): схема поддерживается через Alembic pre-deploy (nixpacks.toml).
-    При старте — только seed городов + healthcheck соединения.
-    Автомиграции через CREATE TABLE / ALTER TABLE — УДАЛЕНЫ (источник правды — alembic/versions/).
-    """
-    from sqlalchemy import text
+    """Predeploy owns DDL. A schema failure prevents this process serving traffic."""
+    from app.services.schema_readiness import verify_application_schema, SchemaNotReady
+    app.state.schema_ready = False
+    await verify_application_schema(engine)
 
-    # Аварийные inline-миграции (ADR-011 fallback):
-    # ── emergency_migrations ──────────────────────────────────────────────────
-    # НАЗНАЧЕНИЕ: Только для случая абсолютно пустой БД при первом старте.
-    # В нормальном деплое все изменения применяются через [phases.migrate] → alembic upgrade head.
-    # Источник правды для схемы — alembic/versions/*.py.
-    # ALTER TYPE строки здесь — дубли из 011_enum_additions.py, нужны только если
-    # alembic_version таблица ещё не существует (холодный старт без миграций).
-    _emergency_migrations = [
-        # Also in: 020_load_date_end.py (ADR-019 fallback)
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS load_date_end TIMESTAMP WITH TIME ZONE",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP WITH TIME ZONE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS completed_deals_count INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS ratings_received_count INTEGER DEFAULT 0",
-        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS price_gel FLOAT",
-        "ALTER TABLE responses ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS exchange_rate_at_creation FLOAT",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS exchange_rate_snapshot FLOAT",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_gel FLOAT",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS final_price_usd FLOAT",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS from_city_id INTEGER",
-        "ALTER TABLE loads ADD COLUMN IF NOT EXISTS to_city_id INTEGER",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_this_month INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS responses_month_reset TIMESTAMP WITH TIME ZONE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE",
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE",
-        # ALTER TYPE строки перенесены в Alembic-миграцию 011_enum_additions.py
-        # Оставлены здесь только как fallback для абсолютно пустой БД без alembic_version таблицы
-        # (в нормальном деплое alembic upgrade head выполняется раньше)
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='pro_plus' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='userplan')) THEN ALTER TYPE userplan ADD VALUE 'pro_plus'; END IF; END $$ """,
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='paused' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'paused'; END IF; END $$ """,
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='completed' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='loadstatus')) THEN ALTER TYPE loadstatus ADD VALUE 'completed'; END IF; END $$ """,
-        """DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel='withdrawn' AND enumtypid=(SELECT oid FROM pg_type WHERE typname='responsestatus')) THEN ALTER TYPE responsestatus ADD VALUE 'withdrawn'; END IF; END $$ """,
-        """CREATE TABLE IF NOT EXISTS status_changes (
-            id SERIAL PRIMARY KEY,
-            entity_type VARCHAR(50) NOT NULL,
-            entity_id INTEGER NOT NULL,
-            from_status VARCHAR(30),
-            to_status VARCHAR(30) NOT NULL,
-            user_id INTEGER REFERENCES users(id),
-            changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            reason TEXT
-        )""",
-        # Расширяем entity_type с VARCHAR(20) до VARCHAR(50) для user_deletion_attempt (22 символа)
-        "ALTER TABLE status_changes ALTER COLUMN entity_type TYPE VARCHAR(50)",
-        """CREATE TABLE IF NOT EXISTS cities (
-            id SERIAL PRIMARY KEY,
-            name_ru VARCHAR(100) NOT NULL,
-            name_ge VARCHAR(100),
-            country_iso CHAR(2) NOT NULL,
-            lat FLOAT,
-            lon FLOAT,
-            is_popular BOOLEAN NOT NULL DEFAULT TRUE,
-            yandex_geo_id VARCHAR(50)
-        )""",
-        """CREATE TABLE IF NOT EXISTS reset_codes (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR NOT NULL,
-            code VARCHAR NOT NULL,
-            expires_at TIMESTAMP NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )""",
-        """CREATE TABLE IF NOT EXISTS route_subscriptions (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            from_city VARCHAR(100) NOT NULL,
-            to_city VARCHAR(100) NOT NULL,
-            notify_tg BOOLEAN NOT NULL DEFAULT TRUE,
-            notify_email BOOLEAN NOT NULL DEFAULT FALSE,
-            truck_type VARCHAR(50),
-            max_weight_t INTEGER,
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            last_notified_at TIMESTAMP WITH TIME ZONE
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_route_subscriptions_user_id ON route_subscriptions(user_id)",
-        "CREATE INDEX IF NOT EXISTS ix_route_subscriptions_is_active ON route_subscriptions(is_active)",
-        "CREATE INDEX IF NOT EXISTS ix_route_sub_route ON route_subscriptions(from_city, to_city, is_active)",
-        # ADR-016: двусторонняя биржа
-        """CREATE TABLE IF NOT EXISTS transport_offers (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id),
-            from_city VARCHAR(100) NOT NULL,
-            to_city VARCHAR(100) NOT NULL,
-            from_city_id INTEGER REFERENCES cities(id),
-            to_city_id INTEGER REFERENCES cities(id),
-            truck_type VARCHAR(50) NOT NULL,
-            capacity_kg FLOAT NOT NULL,
-            available_from TIMESTAMP WITH TIME ZONE NOT NULL,
-            available_to TIMESTAMP WITH TIME ZONE,
-            price FLOAT,
-            price_usd FLOAT,
-            status VARCHAR(20) NOT NULL DEFAULT 'active',
-            urgent BOOLEAN NOT NULL DEFAULT FALSE,
-            notes TEXT,
-            views INTEGER NOT NULL DEFAULT 0,
-            is_demo BOOLEAN NOT NULL DEFAULT FALSE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE,
-            last_confirmed_at TIMESTAMP WITH TIME ZONE,
-            from_location JSON,
-            to_location JSON
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_transport_offers_user_id ON transport_offers(user_id)",
-        "CREATE INDEX IF NOT EXISTS ix_transport_offers_status ON transport_offers(status)",
-        """CREATE TABLE IF NOT EXISTS transport_requests (
-            id SERIAL PRIMARY KEY,
-            transport_offer_id INTEGER NOT NULL REFERENCES transport_offers(id) ON DELETE CASCADE,
-            user_id INTEGER NOT NULL REFERENCES users(id),
-            cargo_description TEXT,
-            weight_kg FLOAT,
-            price FLOAT,
-            message TEXT,
-            status VARCHAR(20) NOT NULL DEFAULT 'pending',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_transport_requests_offer_id ON transport_requests(transport_offer_id)",
-        "CREATE INDEX IF NOT EXISTS ix_transport_requests_user_id ON transport_requests(user_id)",
-        "CREATE INDEX IF NOT EXISTS ix_transport_requests_status ON transport_requests(status)",
-        """CREATE TABLE IF NOT EXISTS transport_subscriptions (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            from_city VARCHAR(100) NOT NULL,
-            to_city VARCHAR(100) NOT NULL,
-            notify_tg BOOLEAN NOT NULL DEFAULT TRUE,
-            notify_email BOOLEAN NOT NULL DEFAULT FALSE,
-            truck_type VARCHAR(50),
-            max_weight_t INTEGER,
-            is_active BOOLEAN NOT NULL DEFAULT TRUE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            last_notified_at TIMESTAMP WITH TIME ZONE
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_transport_sub_user ON transport_subscriptions(user_id)",
-        "CREATE INDEX IF NOT EXISTS ix_transport_sub_active ON transport_subscriptions(is_active)",
-        "CREATE INDEX IF NOT EXISTS ix_transport_sub_route ON transport_subscriptions(from_city, to_city, is_active)",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS transport_offer_id INTEGER REFERENCES transport_offers(id)",
-        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS transport_request_id INTEGER REFERENCES transport_requests(id)",
-        # payments table (2026-07-01)
-        """CREATE TABLE IF NOT EXISTS payments (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL REFERENCES users(id),
-            type VARCHAR(50) NOT NULL,
-            payload JSONB NOT NULL DEFAULT '{}',
-            amount_gel NUMERIC(10,2) NOT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'pending',
-            provider VARCHAR(30) NOT NULL DEFAULT 'manual',
-            provider_tx_id VARCHAR(200),
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            paid_at TIMESTAMP WITH TIME ZONE
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_payments_user_id ON payments(user_id)",
-        "CREATE INDEX IF NOT EXISTS ix_payments_status ON payments(status)",
-        """CREATE TABLE IF NOT EXISTS ads (
-            id SERIAL PRIMARY KEY,
-            advertiser VARCHAR(200) NOT NULL,
-            image_url VARCHAR(500),
-            link_url VARCHAR(500) NOT NULL,
-            title VARCHAR(200),
-            description TEXT,
-            cta_text VARCHAR(100),
-            placement VARCHAR(50) NOT NULL,
-            clicks INTEGER DEFAULT 0,
-            impressions INTEGER DEFAULT 0,
-            active BOOLEAN DEFAULT TRUE,
-            start_date TIMESTAMP WITH TIME ZONE,
-            end_date TIMESTAMP WITH TIME ZONE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )""",
-        "CREATE INDEX IF NOT EXISTS ix_ads_placement_active ON ads(placement, active)",
-        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS title_ge VARCHAR(200)",
-        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS description_ge TEXT",
-        "ALTER TABLE ads ADD COLUMN IF NOT EXISTS cta_text_ge VARCHAR(100)",
-    ]
-    async with engine.begin() as conn:
-        for sql in _emergency_migrations:
-            try:
-                await conn.execute(text(sql))
-            except Exception as e:
-                print(f"[MIGRATE] ⚠️ {sql[:50]}: {e}", flush=True)
-    print("[MIGRATE] ✅ Emergency migrations applied", flush=True)
+    # The existing optional city dictionary seed never creates clients or loads.
+    from app.services.cities_seed import seed_cities
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        seeded = await seed_cities(db)
+    if seeded:
+        print(f"[SEED] Cities seeded: {seeded}", flush=True)
 
-    # Проверка соединения с БД
-    try:
-        async with engine.connect() as conn:
-            result = await conn.execute(text("SELECT COUNT(*) FROM loads"))
-            count = result.scalar()
-            print(f"[STARTUP] ✅ DB OK — loads: {count}", flush=True)
-    except Exception as e:
-        print(f"[STARTUP] ⚠️ DB check failed: {e}", flush=True)
+    checks = await _run_smoke_tests()
+    if any(value.startswith('FAIL') for value in checks.values()):
+        raise SchemaNotReady('Startup database checks failed')
+    _smoke_cache['checks'] = checks
+    _smoke_cache['last_run'] = _time.monotonic()
+    app.state.schema_ready = True
+    print('[STARTUP] Required application schema verified', flush=True)
 
-    # Сидинг городов (ADR-007) — только если таблица пустая
-    try:
-        from app.services.cities_seed import seed_cities
-        from app.database import AsyncSessionLocal
-        async with AsyncSessionLocal() as db:
-            n = await seed_cities(db)
-            if n:
-                print(f"[SEED] ✅ Cities seeded: {n} records", flush=True)
-    except Exception as e:
-        print(f"[SEED] ⚠️ Cities seed failed: {e}", flush=True)
-
-    # Запускаем фоновый цикл smoke-тестов
-    _asyncio.create_task(_smoke_loop())
-    _asyncio.create_task(_idempotency_cleanup_loop())
-    from app.services.notification_delivery import worker_loop
-    import os
-    from contextlib import suppress
-    notification_task = None
+    tasks = [_asyncio.create_task(_smoke_loop()),
+             _asyncio.create_task(_idempotency_cleanup_loop())]
     if os.getenv("NOTIFICATIONS_WORKER_ENABLED", "1") == "1":
-        notification_task = _asyncio.create_task(worker_loop())
+        from app.services.notification_delivery import worker_loop
+        tasks.append(_asyncio.create_task(worker_loop()))
     try:
         yield
     finally:
-        if notification_task is not None:
-            notification_task.cancel()
-            with suppress(_asyncio.CancelledError):
-                await notification_task
+        app.state.schema_ready = False
+        for task in tasks:
+            task.cancel()
+        await _asyncio.gather(*tasks, return_exceptions=True)
 
 # ── Background smoke-test cache (ADR-011 + Q-018 fix) ─────────────────────────
 import asyncio as _asyncio
@@ -376,19 +182,21 @@ async def health():
     кешированный результат — никаких "skip" из-за таймаутов при синхронном запросе.
     Railway использует этот эндпоинт для auto-rollback при деградации.
     """
-    from sqlalchemy import text as sa_text
     from app.database import engine as db_engine
     from fastapi.responses import JSONResponse
+    from app.services.schema_readiness import verify_application_schema, SchemaNotReady
 
     checks: dict = {}
 
-    # 1. БД — всегда проверяем синхронно (быстро, надёжно)
-    try:
-        async with db_engine.connect() as conn:
-            await conn.execute(sa_text("SELECT 1"))
-        checks["db"] = "ok"
-    except Exception as e:
-        checks["db"] = f"FAIL: {e}"
+    # A connection alone is insufficient: every ORM query needs its columns.
+    if not getattr(app.state, 'schema_ready', False):
+        checks['schema'] = 'FAIL: startup schema not ready'
+    else:
+        try:
+            await verify_application_schema(db_engine)
+            checks['db'] = checks['schema'] = 'ok'
+        except SchemaNotReady:
+            checks['schema'] = 'FAIL: required schema unavailable'
 
     # 2–4. Smoke-тесты — из кеша (обновляется фоновой задачей каждые 60 сек)
     cached = _smoke_cache.get("checks", {})
@@ -398,9 +206,9 @@ async def health():
         checks["_smoke_age_sec"] = round(age, 1)
     else:
         # Кеш ещё не прогрелся (первые ~10 сек после старта)
-        checks["loads"] = "warming_up"
-        checks["geocoder"] = "warming_up"
-        checks["dicts"] = "warming_up"
+        checks["loads"] = "FAIL: startup checks not ready"
+        checks["geocoder"] = "FAIL: startup checks not ready"
+        checks["dicts"] = "FAIL: startup checks not ready"
 
     failed = [k for k, v in checks.items()
               if isinstance(v, str) and v.startswith("FAIL")]
@@ -416,18 +224,8 @@ async def health():
 
 @app.get("/health_legacy")
 async def health_legacy():
-    """Старый healthcheck — только SELECT 1. Оставлен для совместимости."""
-    from sqlalchemy import text as sa_text
-    from app.database import engine as db_engine
-    try:
-        async with db_engine.connect() as conn:
-            await conn.execute(sa_text("SELECT 1"))
-        return {"status": "healthy", "db": "ok"}
-    except Exception as e:
-        from fastapi.responses import JSONResponse
-        return JSONResponse(
-            status_code=503,
-            content={"status": "unhealthy", "db": "error", "detail": str(e)}
-        )
+    """Legacy response shape, with the same readiness requirements."""
+    result = await health()
+    return {**result, 'db': 'ok'} if isinstance(result, dict) else result
 
 

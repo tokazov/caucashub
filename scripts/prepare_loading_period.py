@@ -220,11 +220,14 @@ def prepare_password_recovery(connection):
 
 
 
-async def prepare_schema(engine):
+async def prepare_schema(engine, *, verify_application=False, bootstrap_empty=False):
     async with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
             await connection.execute(text("SET LOCAL lock_timeout = '10s'"))
             await connection.execute(text("SET LOCAL statement_timeout = '60s'"))
+        if bootstrap_empty:
+            from app.services.schema_readiness import bootstrap_empty_database
+            await connection.run_sync(bootstrap_empty_database)
         await connection.run_sync(migrate_connection)
         # A no-op/failed migration must not allow the new application to start.
         await connection.execute(text("SELECT load_date, load_date_end FROM loads LIMIT 0"))
@@ -241,6 +244,9 @@ async def prepare_schema(engine):
             "SELECT key, user_id, scope, request_hash, response_status, "
             "response_body, created_at, expires_at FROM idempotency_keys LIMIT 0"
         ))
+        if verify_application:
+            from app.services.schema_readiness import verify_connection
+            await connection.run_sync(verify_connection)
 
 
 def prepare_transport_confirmation(connection):
@@ -284,19 +290,24 @@ def prepare_route_locations(connection):
         connection.execute(text("SELECT from_location, to_location FROM " + table + " LIMIT 0"))
 
 
-async def run():
+async def run(*, bootstrap_empty=False):
     # Use the same URL/driver normalization as the application; never print it.
     from app.database import engine
 
     try:
-        await prepare_schema(engine)
+        await prepare_schema(engine, verify_application=True, bootstrap_empty=bootstrap_empty)
     finally:
         await engine.dispose()
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Guarded additive schema preparation')
+    parser.add_argument('--bootstrap-empty', action='store_true',
+                        help='Create application tables only in a completely empty database')
+    args = parser.parse_args()
     try:
-        asyncio.run(run())
+        asyncio.run(run(bootstrap_empty=args.bootstrap_empty))
     except Exception as error:
         print(f"Loading-period pre-deploy failed ({type(error).__name__}); deployment stopped.", file=sys.stderr)
         return 1

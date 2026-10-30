@@ -1,31 +1,79 @@
-name: Deploy to Cloudflare Pages
+name: Publish verified frontend
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - 'frontend/**'
+  # Deliberately manual: Railway waits for push CI. A publisher that waits for
+  # Railway in that same check suite would make the two releases deadlock.
+  # Dispatch only AFTER the matching Railway release is already healthy.
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full master commit SHA whose push regression passed
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-frontend
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_RELEASE_SHA: ${{ inputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      # Gate code comes from the trusted dispatch ref, not the supplied SHA.
+      - name: Checkout trusted publication gate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Require all regression jobs for this exact master commit
+        run: python scripts/verify_frontend_publish.py --commit "$EXPECTED_RELEASE_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Checkout only the verified commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - name: Verify checked out source
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_RELEASE_SHA"
 
       - name: Wait for matching healthy API before publishing frontend
-        env:
-          EXPECTED_RELEASE_SHA: ${{ github.sha }}
         run: python scripts/wait_for_api_release.py --commit "$EXPECTED_RELEASE_SHA" --timeout 600
 
-      - name: Deploy to Cloudflare Pages
-        # --commit-message с ASCII-only текстом — Cloudflare Pages API не принимает кириллицу
+      - name: Read-only public listing consistency
+        run: python -m scripts.check_public_visibility
+
+      - name: Recheck regression and master immediately before publication
+        run: python scripts/verify_frontend_publish.py --commit "$EXPECTED_RELEASE_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Recheck the same API release
+        run: python scripts/wait_for_api_release.py --commit "$EXPECTED_RELEASE_SHA" --timeout 1
+
+      - name: Publish verified frontend to Cloudflare Pages
+        # The ASCII-only commit message is accepted by the Pages API.
         run: |
           npx wrangler@4.80.0 pages deploy frontend/ \
             --project-name caucashub \
             --branch master \
             --commit-message "deploy: $(git rev-parse --short HEAD)" \
-            --commit-hash "${{ github.sha }}"
+            --commit-hash "$EXPECTED_RELEASE_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

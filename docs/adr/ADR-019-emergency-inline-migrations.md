@@ -2,7 +2,65 @@
 
 ## Status
 
-ACCEPTED — 2026-05-13
+HISTORICAL — accepted 2026-05-13; superseded by the database-safety implementation
+prepared 2026-10-30. Publication of that implementation is a separate release step.
+
+## Replacement: guarded predeploy and read-only startup
+
+The application no longer runs the inline DDL described below. Railway's actual
+predeploy command must run the guarded preparation step before starting the new
+application:
+
+```sh
+python -m scripts.prepare_loading_period
+```
+
+The command runs the selected additive release migrations in a transaction, checks
+their constraints, then reads every mapped application column with `SELECT ... LIMIT 0`
+and checks required labels of existing native PostgreSQL enums before committing.
+Existing nonnative storage is accepted without conversion. PostgreSQL lock and statement timeouts remain bounded. A failure
+returns a nonzero process status; a new application must not be promoted after it.
+This command does not stamp or replay unrelated Alembic history. The existing split
+Alembic heads require a separate audited reconciliation, not a blind `upgrade head`.
+
+Startup performs the same read-only application-schema check. It does not create or
+alter tables, enum types, or existing column types. Missing tables/columns stop
+startup before traffic and background workers are enabled. The initial smoke checks
+finish before readiness is reported; `/health` and `/health_legacy` do not announce a
+healthy service while startup/schema checks are incomplete. The existing empty-city
+dictionary seed remains, and never creates customers, loads, offers, or deals.
+
+### A genuinely new empty database
+
+Normal preparation intentionally refuses an empty or incomplete application schema.
+This prevents a changed connection from silently presenting an empty marketplace as
+a successful update. For a deliberately provisioned, reviewed empty database only:
+
+```sh
+python -m scripts.prepare_loading_period --bootstrap-empty
+```
+
+The explicit option creates the mapped tables only if the connected schema contains
+no existing tables. It refuses a populated or partially initialized schema rather
+than dropping, replacing, or coercing anything. It must not be used to repair an
+existing database. Verify the target environment before invoking it; never log the
+connection secret.
+
+### Data preservation and rollback
+
+Readiness checks verify availability without narrowing/widening historical columns
+or rewriting stored values. Migration or validation failure on PostgreSQL rolls back
+the preparation transaction. Existing rows must survive both repeated preparation
+and an injected partial failure; tests use disposable schemas to prove this.
+
+Rollback normally means restoring the previous application release while retaining
+compatible additive schema changes. Do not run destructive historical Alembic
+downgrades or reset/recreate business tables as an application rollback. Restore a
+backup only through a separately verified recovery procedure. Backup scheduling and
+restoration are operational protections; these schema checks are not a replacement
+for them.
+
+## Historical decision (retained for context)
 
 ## Context
 
