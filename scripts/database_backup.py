@@ -225,7 +225,7 @@ async def run_tool(tool: str, arguments: list[str], env: dict[str, str], timeout
 async def structural_metadata(conn: asyncpg.Connection) -> dict[str, Any]:
     # Hash definitions/defaults instead of publishing possible literals in them.
     relations = await conn.fetch("""
-        SELECT n.nspname AS schema, c.relname AS name, c.relkind AS kind,
+        SELECT n.nspname AS schema, c.relname AS name, c.relkind::text AS kind,
                CASE WHEN c.relkind IN ('v','m') THEN md5(pg_get_viewdef(c.oid,true)) ELSE NULL END AS definition_hash
         FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
@@ -240,7 +240,7 @@ async def structural_metadata(conn: asyncpg.Connection) -> dict[str, Any]:
         ORDER BY table_schema,table_name,ordinal_position
     """)
     constraints = await conn.fetch("""
-        SELECT n.nspname AS schema,c.relname AS table_name,k.conname AS name,k.contype AS type,
+        SELECT n.nspname AS schema,c.relname AS table_name,k.conname AS name,k.contype::text AS type,
                k.convalidated AS validated,md5(pg_get_constraintdef(k.oid,true)) AS definition_hash
         FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
