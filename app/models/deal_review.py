@@ -1,5 +1,5 @@
 """One attributable review per participant and deal; no legacy backfill."""
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, Integer, Text, DateTime, Boolean, ForeignKey, UniqueConstraint, CheckConstraint, false
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -18,4 +18,5 @@ class DealReview(Base):
     recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     score = Column(Integer, nullable=False)
     comment = Column(Text, nullable=True)
+    public_comment = Column(Boolean, nullable=False, default=False, server_default=false())
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

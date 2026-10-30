@@ -98,6 +98,10 @@ jobs:
         run: npm install --prefix tests/frontend --no-package-lock --ignore-scripts
       - name: Backend and PostgreSQL migration regressions
         run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_presentation.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py tests/test_ci_publish_gate.py tests/test_startup_schema_safety.py -q
+      - name: Public profiles and review visibility regressions
+        run: python -m pytest tests/test_public_profiles.py tests/test_public_profile_schema.py -q
+      - name: Georgian document names and migration regressions
+        run: python -m pytest tests/test_document_requisites.py tests/test_document_requisites_schema.py -q
       - name: JavaScript syntax
         run: |
           node --check api.js
@@ -106,6 +110,7 @@ jobs:
           node --check frontend/main.js
           node --check frontend/locations.js
           node --check frontend/location-presentation.js
+          node --check frontend/public-profile.js
       - name: Frontend regression (UTC)
         run: node --test tests/frontend/tests/*.test.js
         env:
@@ -336,6 +341,66 @@ jobs:
           path: artifacts/address-journey/
           if-no-files-found: warn
 
+  public-profile-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated browser dependencies
+        run: |
+          python -m pip install -r requirements.txt aiosqlite
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Verify public profiles and author-only review text visibility
+        run: node tests/browser/public_profile_journey.cjs --spawn-server
+      - name: Upload profile screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-profile-browser
+          path: artifacts/public-profile-journey/
+          if-no-files-found: warn
+
+  document-requisites-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install isolated browser dependencies
+        run: |
+          python -m pip install -r requirements.txt aiosqlite pypdf
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+      - name: Verify Georgian legal names and protected document downloads
+        run: node tests/browser/document_requisites_journey.cjs --spawn-server
+      - name: Upload document screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-requisites-browser
+          path: artifacts/document-requisites/
+          if-no-files-found: warn
+
 
   # One stable check, with no production dependency, for Railway Wait for CI.
   # Explicitly reject skipped/cancelled prerequisites as well as test failures.
@@ -349,6 +414,8 @@ jobs:
       - notification-browser
       - auth-recovery-browser
       - address-browser
+      - public-profile-browser
+      - document-requisites-browser
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -362,5 +429,5 @@ jobs:
           failed = [name for name, job in results.items() if job["result"] != "success"]
           if failed:
               raise SystemExit("Regression did not pass: " + ", ".join(sorted(failed)))
-          print("All seven offline/browser jobs passed; backend CI gate is clear.")
+          print("All offline/browser jobs passed; backend CI gate is clear.")
           PY

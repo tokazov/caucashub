@@ -112,6 +112,81 @@ async def test_missing_user_column_blocks_startup_and_never_reports_healthy(safe
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('table,column', [
+    ('users', 'legal_name_ka'),
+    ('users', 'legal_name_ka_confirmed_at'),
+    ('deal_reviews', 'public_comment'),
+])
+async def test_missing_profile_document_field_blocks_startup_without_repairing_schema(
+        safety_database, application_hooks, table, column):
+    engine = safety_database
+    await provision(engine)
+    before = await sentinels(engine)
+    async with engine.begin() as connection:
+        # Both identifiers come exclusively from the fixed parameter list above.
+        await connection.execute(text(f'ALTER TABLE {table} DROP COLUMN {column}'))
+    await engine.dispose()  # The new release starts with fresh prepared statements.
+    statements = []
+    event.listen(engine.sync_engine, 'before_cursor_execute',
+                 lambda conn, cursor, statement, *args: statements.append(statement))
+    application_hooks(engine)
+    with pytest.raises(readiness.SchemaNotReady, match=table):
+        async with application.lifespan(application.app):
+            pytest.fail('A release missing its privacy/document fields must not serve traffic')
+    result = await application.health()
+    assert result.status_code == 503 and application.app.state.schema_ready is False
+    assert await sentinels(engine) == before
+    assert statements and all(statement.lstrip().upper().startswith('SELECT') for statement in statements)
+    async with engine.connect() as connection:
+        columns = await connection.run_sync(
+            lambda sync: {item['name'] for item in inspect(sync).get_columns(table)})
+    assert column not in columns, 'Startup/health must never recreate the missing column'
+
+
+@pytest.mark.asyncio
+async def test_combined_profile_document_gate_is_atomic_and_preserves_old_records(safety_database, monkeypatch):
+    engine = safety_database
+    await provision(engine)
+    before = await sentinels(engine)
+    async with engine.begin() as connection:
+        await connection.execute(text('ALTER TABLE users DROP COLUMN legal_name_ka'))
+        await connection.execute(text('ALTER TABLE users DROP COLUMN legal_name_ka_confirmed_at'))
+        await connection.execute(text('ALTER TABLE deal_reviews DROP COLUMN public_comment'))
+    await engine.dispose()
+    original_verification = readiness.verify_connection
+
+    def reject_after_additive_steps(connection):
+        # The final production verification runs after both actual migrations.
+        original_verification(connection)
+        assert connection.execute(text(
+            'SELECT legal_name_ka,legal_name_ka_confirmed_at FROM users WHERE id=1')).one() == (None, None)
+        connection.execute(text("UPDATE users SET company_name='MUST ROLLBACK' WHERE id=1"))
+        raise readiness.SchemaNotReady('Injected final verification failure')
+
+    monkeypatch.setattr(readiness, 'verify_connection', reject_after_additive_steps)
+    with pytest.raises(readiness.SchemaNotReady, match='Injected final verification failure'):
+        await release.prepare_schema(engine, verify_application=True)
+    assert await sentinels(engine) == before
+    if engine.dialect.name == 'postgresql':
+        async with engine.connect() as connection:
+            for table, expected in (
+                ('users', {'legal_name_ka', 'legal_name_ka_confirmed_at'}),
+                ('deal_reviews', {'public_comment'}),
+            ):
+                actual = await connection.run_sync(
+                    lambda sync: {item['name'] for item in inspect(sync).get_columns(table)})
+                assert expected.isdisjoint(actual), 'Late failure must roll back both migrations in PostgreSQL'
+
+    monkeypatch.setattr(readiness, 'verify_connection', original_verification)
+    await release.prepare_schema(engine, verify_application=True)
+    await release.prepare_schema(engine, verify_application=True)
+    assert await sentinels(engine) == before
+    async with engine.connect() as connection:
+        assert (await connection.execute(text(
+            'SELECT legal_name_ka,legal_name_ka_confirmed_at FROM users WHERE id=1'))).one() == (None, None)
+
+
+@pytest.mark.asyncio
 async def test_runtime_missing_column_fails_health_even_after_successful_start(safety_database,application_hooks):
     engine=safety_database
     await provision(engine);application_hooks(engine)

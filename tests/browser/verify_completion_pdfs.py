@@ -26,6 +26,18 @@ for item in manifest:
     for field in ("deal_number", "from", "to", "description", "shipper", "carrier"):
         expected = item[field]
         assert expected and compact(expected) in normalized, f"{item['file']}: missing {field} {expected!r}"
+    signature_label = "მხარეთა ხელმოწერები" if item["language"] == "ge" else "ПОДПИСИ СТОРОН"
+    assert compact(signature_label) in normalized, "Missing signature section"
+    signatures = normalized.split(compact(signature_label), 1)[1]
+    for role in ("shipper", "carrier"):
+        name = item[role]
+        assert any("\u10a0" <= char <= "\u10ff" or "\u1c90" <= char <= "\u1cbf" for char in name), "Expected explicitly configured Georgian legal name"
+        assert not re.search(r"[a-zA-Z\u0400-\u04ff]", name), "Legal name must not fall back to a registration name"
+        assert normalized.count(compact(name)) >= 2, f"{item['file']}: legal name missing from body or signatures"
+        assert compact(name) in signatures, f"{item['file']}: {role} name missing from signature section"
+        display = item.get("registration_" + role)
+        if display and display != name:
+            assert compact(display) not in normalized, "Registration name leaked into official participant fields"
     if item["language"] == "ge":
         assert any("\u10a0" <= char <= "\u10ff" for char in text), "Georgian act must contain Georgian labels"
     else:

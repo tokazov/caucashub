@@ -154,6 +154,22 @@ class TestDealActPdfLayout(unittest.TestCase):
     def test_bundled_unicode_alphabets(self):
         self.check_languages(check_bundled_font_contains_real_alphabet_glyphs)
 
+    def test_mtavruli_legal_names_preserve_case_in_parties_and_signatures(self):
+        for lang in ("ru", "ge"):
+            with self.subTest(lang=lang), recording() as drawing:
+                data = sample(lang)
+                data["shipper_name"] = "ᲒᲘᲝᲠᲒᲘ ᲙᲐᲞᲐᲜᲐᲫᲔ"
+                data["carrier_name"] = 'შპს „ᲙᲐᲕᲙᲐᲡᲘᲐ 2026“'
+                pdf_utils.generate_act_pdf(data)
+                for name in (data["shipper_name"], data["carrier_name"]):
+                    copies = [op for op in drawing if op["text"] == name]
+                    assert len(copies) == 2, "Legal name must be complete in both party and signature blocks"
+                    assert {op["font"] for op in copies} == {"GeorgianFont", "GeorgianFont-Bold"}
+                    for op in copies:
+                        glyphs = pdfmetrics.getFont(op["font"]).face.charToGlyph
+                        assert all(ord(char) in glyphs for char in name)
+                assert_inside_page(drawing)
+
 
     def test_very_long_saved_company_names_are_complete_on_continued_pages(self):
         # Settings currently accepts longer names than registration's 200-char bound.

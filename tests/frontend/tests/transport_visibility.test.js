@@ -20,6 +20,7 @@ function render(path, offers, language='ru') {
     getToken:()=>null,esc:value=>String(value),getTypeLabel:()=> 'Тент'
   };
   vm.createContext(context);
+  vm.runInContext(code.slice(code.indexOf('function esc(s) {'),code.indexOf('// ── SAFE LOCALSTORAGE')),context);
   vm.runInContext(code.slice(start,end)+'\nrenderTransportOffers();',context);
   return {html:nodes.transportList.innerHTML,count:nodes.transportCount.textContent};
 }

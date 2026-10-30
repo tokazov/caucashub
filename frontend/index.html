@@ -188,7 +188,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <title data-i18n-title-ru="CaucasHub.ge — Биржа грузов Кавказа" data-i18n-title-ge="CaucasHub.ge — კავკასიის სატვირთო ბირჟა">CaucasHub.ge — Биржа грузов Кавказа</title>
 
 
-<link rel="stylesheet" href="styles.css?v=20261030-address-language">
+<link rel="stylesheet" href="styles.css?v=20261030-document-names">
 </head>
 <body>
 
@@ -1247,6 +1247,7 @@ window.loadYmapsLazy = function(cb, onError) {
       <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer" onclick="openPostLoad();closeModal('profileOverlay')">📦 <span data-i18n="btn_post">Разместить груз</span></button>
       <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openSettings()"><span data-i18n="None"><span data-i18n="cab_settings">⚙️ Настройки аккаунта</span></span></button>
       <button style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openAnalytics()"><span data-i18n="None"><span data-i18n="cab_analytics">📊 Моя аналитика</span></span></button>
+      <button type="button" style="text-align:left;background:#f8f9fa;border:none;padding:12px 16px;border-radius:8px;font-size:14px;cursor:pointer;width:100%" onclick="openMyPublicProfile(this)">👤 <span id="publicProfileSelfLabel">Мой публичный профиль</span></button>
       <!-- pricing button hidden until enabled -->
     </div>
     <button class="btn-secondary" onclick="doLogout()"><span data-i18n="None"><span data-i18n="cab_logout">🚪 Выйти</span></span></button>
@@ -1365,6 +1366,13 @@ window.loadYmapsLazy = function(cb, onError) {
     <!-- Реквизиты — для всех -->
     <div class="divider"></div>
     <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px"><span data-i18n="None"><span data-i18n="company_requisites">📋 Реквизиты компании</span></span></div>
+    <div class="form-group document-name-field">
+      <label for="sLegalNameKa" id="sLegalNameKaLabel">Имя и фамилия / название для документов на грузинском</label>
+      <input class="form-input" id="sLegalNameKa" lang="ka" maxlength="255" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="გიორგი ბერიძე / შპს „კავკასჰაბი“" aria-describedby="sLegalNameKaHint sLegalNameKaError">
+      <p id="sLegalNameKaHint" class="document-name-hint">Перепишите точно из удостоверения личности или выписки реестра. Это отдельное поле, независимое от имени на сайте.</p>
+      <label class="document-name-confirm"><input type="checkbox" id="sLegalNameKaConfirmed"><span id="sLegalNameKaConfirmLabel">Проверил написание по документу</span></label>
+      <div id="sLegalNameKaError" class="document-name-error" role="alert" hidden></div>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label><span data-i18n="reg_inn_ge"><span data-i18n="lbl_inn_ge">ИНН / ID код Грузия</span></span></label>
@@ -1628,7 +1636,8 @@ window.loadYmapsLazy = function(cb, onError) {
 <script src="api.js?v=20261029-exact-locations"></script>
 <script src="route-distance.js?v=20261030-road-distance"></script>
 <script src="location-presentation.js?v=20261030-address-language"></script>
-<script src="main.js?v=20261030-address-language"></script>
+<script src="public-profile.js?v=20261030-public-profile"></script>
+<script src="main.js?v=20261030-document-names"></script>
 <script src="locations.js?v=20261030-address-language"></script>
 <script src="ai-dispatcher.js?v=20261029-mari-avatar"></script>
 
@@ -2051,5 +2060,16 @@ window.loadYmapsLazy = function(cb, onError) {
   <footer class="location-picker-footer"><label for="locationPickerLabel" id="locationPickerLabelCaption">Название места</label><input id="locationPickerLabel" maxlength="100" autocomplete="off"><div id="locationPickerAddress" class="location-picker-address" aria-live="polite"></div><div id="locationPickerCoordinates" class="location-picker-coordinates"></div><small class="location-catalog-attribution">Каталог КПП: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a></small><div id="locationPickerError" class="location-picker-error" role="alert" hidden></div><button type="button" id="locationPickerConfirm">Выбрать эту точку</button></footer>
  </section>
 </div>
+<div id="publicProfileOverlay" class="public-profile-overlay" hidden>
+ <section id="publicProfileDialog" class="public-profile-dialog" role="dialog" aria-modal="true" aria-labelledby="publicProfileTitle" tabindex="-1">
+  <header class="public-profile-header"><h2 id="publicProfileTitle">Публичный профиль</h2><button type="button" id="publicProfileClose" aria-label="Закрыть профиль">✕</button></header>
+  <div id="publicProfileBody" class="public-profile-body" aria-live="polite"></div>
+ </section>
+</div>
+<aside id="documentRequisitesNotice" class="document-requisites-notice" role="alert" hidden>
+ <button type="button" id="documentRequisitesClose" class="document-requisites-close" onclick="hideDocumentRequisitesNotice()" aria-label="Закрыть сообщение">✕</button>
+ <p id="documentRequisitesMessage"></p><p id="documentRequisitesCounterparty" hidden></p>
+ <button type="button" id="documentRequisitesOwn" onclick="openOwnDocumentRequisites()"><span id="documentRequisitesOwnLabel">Заполнить мои реквизиты</span></button>
+</aside>
 </body>
 </html>

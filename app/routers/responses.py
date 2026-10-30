@@ -203,6 +203,7 @@ async def my_responses(
         result.append({
             "id": r.id,
             "load_id": r.load_id,
+            "shipper_id": load.user_id if load else None,
             "from": load.from_city if load else "—",
             "to": load.to_city if load else "—",
             "price": float(r.price_gel) if r.price_gel else (float(r.price_usd) if r.price_usd else None),

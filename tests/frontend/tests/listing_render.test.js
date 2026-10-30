@@ -19,6 +19,8 @@ for (const file of ['main.js', 'frontend/main.js']) {
       esc: value => String(value),
     };
     vm.createContext(context);
+    const escapeStart=source.indexOf('function esc(s) {'),escapeEnd=source.indexOf('// ── SAFE LOCALSTORAGE',escapeStart);
+    if(escapeStart>=0&&escapeEnd>escapeStart)vm.runInContext(source.slice(escapeStart,escapeEnd),context);
     vm.runInContext(source.slice(start, end), context);
     vm.runInContext('renderTransportOffers()', context);
     assert.equal(elements.transportCount.textContent, '1 ტრანსპორტის შეთავაზება');

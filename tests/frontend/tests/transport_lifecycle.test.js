@@ -17,6 +17,7 @@ function harness(path){
  fetch:(url,opts)=>{const d=deferred();requests.push({...d,url,signal:opts?.signal});return d.promise;}};
  context.window=context;vm.createContext(context);
  const src=readFileSync(new URL('../../../'+path,import.meta.url),'utf8'),a=src.indexOf('var _transportOffers = []');
+ vm.runInContext(src.slice(src.indexOf('function esc(s) {'),src.indexOf('// ── SAFE LOCALSTORAGE')),context);
  vm.runInContext(src.slice(a,src.indexOf('// Открыть модалку отклика',a)),context);
  return {context,nodes,requests,timers,frames,history,setActive:v=>active=v,get commits(){return commits},
  flush:()=>{const callbacks=[...frames.values()];frames.clear();callbacks.forEach(fn=>fn());}};
