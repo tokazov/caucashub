@@ -5,11 +5,12 @@ import {createRequire} from 'node:module';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),{JSDOM}=require('jsdom');
 const source=readFileSync(new URL('../../../frontend/locations.js',import.meta.url),'utf8');
+const presentationSource=readFileSync(new URL('../../../frontend/location-presentation.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const catalog=[{kind:'border_checkpoint',key:'ge:checkpoint:dariali',label:'КПП Дарьял',name_ru:'КПП Дарьял',name_ge:'დარიალის გამშვები პუნქტი',name_en:'Dariali checkpoint',lat:42.735,lon:44.624,country_iso:'GE',address:'Грузия, КПП Дарьял',aliases:['Дарьял','Дариали','Dariali','დარიალი']},
 {kind:'border_checkpoint',key:'ru:checkpoint:upper-lars',label:'КПП Верхний Ларс',name_ru:'КПП Верхний Ларс',name_ge:'ზემო ლარსის პუნქტი',name_en:'Upper Lars checkpoint',lat:42.763,lon:44.628,country_iso:'RU',address:'Россия, Верхний Ларс',aliases:['Верхний Ларс','Upper Lars']},
 {kind:'settlement',key:'ge:tbilisi',settlement_key:'ge:tbilisi',settlement_id:1,label:'Тбилиси',name_ru:'Тбилиси',name_ge:'თბილისი',name_en:'Tbilisi',lat:41.6941,lon:44.8337,country_iso:'GE',aliases:['Tbilisi','თბილისი','Тбилиси']}];
-function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null,reverseAddress='С-3',reverseResponder=null}={}){
+function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null,reverseAddress='С-3',reverseResponder=null,presentation=false}={}){
  const html='<button data-location-field="pFrom">Map</button>'+['pFrom','pTo','ptFrom','ptTo'].map(field=>{const input=field.startsWith('pF')||field==='pTo'?field+'Addr':field;const suffix={pFrom:'PFrom',pTo:'PTo',ptFrom:'PtFrom',ptTo:'PtTo'}[field];return '<input id="'+input+'"><div id="drop'+suffix+'"></div><div id="coords'+suffix+'"></div>';}).join('')+
  '<div id="locationPickerOverlay" hidden><div><h2 id="locationPickerTitle"></h2><button id="locationPickerCancel">Cancel</button><p id="locationPickerInstruction"></p><div id="locationPickerMap"></div><div id="locationPickerPin" hidden></div><label id="locationPickerLabelCaption"></label><input id="locationPickerLabel"><div id="locationPickerAddress"></div><div id="locationPickerCoordinates"></div><div id="locationPickerError" hidden></div><button id="locationPickerConfirm"></button></div></div>';
  const dom=new JSDOM(html,{url:'http://localhost/',runScripts:'outside-only'}),w=dom.window;
@@ -37,6 +38,7 @@ function harness(t,{mobile=false,locale='ru',provider=true,resolveError=null,rev
   if(resolveError)return{ok:false,json:async()=>({detail:resolveError})};
   const body=JSON.parse(options.body);return{ok:true,json:async()=>({location:{...body,country_iso:'GE',resolution_token:'signed-fixture-token'}})};
  };
+ if(presentation)w.eval(presentationSource);
  w.eval(source);w.document.dispatchEvent(new w.Event('DOMContentLoaded'));return{w,calls,api:w.CaucasLocations,reverseResult,node:id=>w.document.getElementById(id)};
 }
 for(const text of ['Дарьял','Дариали','Dariali','დარიალი'])test('own checkpoint suggestion works without map provider: '+text,async t=>{
@@ -225,7 +227,7 @@ test('native balloons without finite geometry do not apply a name or fabricate a
 
 test('late reverse geocoding of C-3 cannot replace a selected native POI name or coordinates',async t=>{
  const pending=[],h=harness(t,{reverseResponder:(coords,result)=>new Promise(resolve=>pending.push(()=>resolve(result(coords,'С-3'))))});await h.api.open('pFrom');await until(()=>pending.length===1);
- const place=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});pending[0]();await tick();await new Promise(resolve=>setTimeout(resolve,330));
+ const place=nativePlaces[0];h.calls.maps[0].openNativePoi({coords:place.coords,properties:{name:place.name,description:place.description}});pending[0]();await tick();await until(()=>pending.length===2);pending[1]();await new Promise(resolve=>setTimeout(resolve,330));
  assert.equal(h.node('locationPickerLabel').value,place.name);assert.equal(h.node('locationPickerAddress').textContent,place.description);h.node('locationPickerConfirm').click();await tick();const location=h.api.read('pFrom',place.name).location;assert.equal(location.lat,place.coords[0]);assert.equal(location.lon,place.coords[1]);assert.equal(location.address,place.description);
 });
 
@@ -294,4 +296,52 @@ test('manual editing in a legacy picker before moving opts into preserving the n
  const h=harness(t,{mobile:true,reverseAddress:resolvedRu}),place=nativePlaces[0];h.api.restore('pFrom',{kind:'point',label:place.name,address:place.description,lat:place.coords[0],lon:place.coords[1],country_iso:'GE'});
  await h.api.open('pFrom');h.node('locationPickerLabel').value='Мои ворота у монастыря';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));h.calls.maps[0].setCenter([41.904737,44.600335]);await until(()=>h.node('locationPickerAddress').textContent===resolvedRu);
  h.node('locationPickerConfirm').click();await tick();const saved=h.api.read('pFrom','Мои ворота у монастыря').location;assert.equal(saved.label_mode,'custom');assert.equal(saved.lat,41.904737);assert.equal(saved.lon,44.600335);
+});
+
+const bilingualPoint={kind:'point',label:'Продукты',label_mode:'auto',address:'Грузия, Тбилиси, улица Складская, 7',lat:41.708123,lon:44.812345,country_iso:'GE',localized:{ru:{label:'Продукты',address:'Грузия, Тбилиси, улица Складская, 7'},ka:{label:'სასურსათო მაღაზია',address:'საქართველო, თბილისი, საწყობის ქუჩა, 7'}},context:{relation:'within',names:{ru:'Тбилиси',ka:'თბილისი'},source:'yandex',country_iso:'GE'}};
+for(const field of ['pFrom','pTo','ptFrom','ptTo'])test('language refresh changes only display and carries metadata in '+field,async t=>{
+ const h=harness(t,{presentation:true}),input={pFrom:'pFromAddr',pTo:'pToAddr',ptFrom:'ptFrom',ptTo:'ptTo'}[field];
+ h.api.restore(field,JSON.parse(JSON.stringify(bilingualPoint)));assert.equal(h.node(input).value,'Продукты');const before=h.calls.requests.length;
+ h.w.lang='ge';h.api.refreshLanguage();assert.equal(h.node(input).value,'სასურსათო მაღაზია');const location=h.api.read(field,h.node(input).value).location;
+ assert.equal(location.label,'Продукты');assert.equal(location.address,bilingualPoint.address);assert.equal(location.localized.ka.address,bilingualPoint.localized.ka.address);assert.equal(location.context.names.ka,'თბილისი');assert.equal(location.lat,bilingualPoint.lat);assert.equal(location.lon,bilingualPoint.lon);
+ h.w.lang='ru';h.api.refreshLanguage();assert.equal(h.node(input).value,'Продукты');assert.equal(h.calls.requests.length,before);assert.equal(h.calls.sdk,0);
+});
+test('an unselected manually typed query is not overwritten on language refresh',t=>{const h=harness(t,{presentation:true});h.api.restore('pFrom',bilingualPoint);h.node('pFromAddr').value='Набираю новый адрес';h.w.lang='ge';h.api.refreshLanguage();assert.equal(h.node('pFromAddr').value,'Набираю новый адрес');assert.equal(h.api.read('pFrom',h.node('pFromAddr').value),null);assert.equal(h.calls.requests.length,0);});
+test('custom names keep canonical raw text while addresses and context change language',async t=>{
+ const h=harness(t,{presentation:true});h.api.restore('pFrom',{...bilingualPoint,label:'Мои ворота №2',label_mode:'custom'});h.w.lang='ka';h.api.refreshLanguage();assert.equal(h.node('pFromAddr').value,'Мои ворота №2');assert.match(h.node('coordsPFrom').textContent,/თბილისი/);await h.api.open('pFrom');assert.equal(h.node('locationPickerLabel').value,'Мои ворота №2');assert.equal(h.node('locationPickerAddress').textContent,bilingualPoint.localized.ka.address);assert.equal(h.node('locationPickerContext').textContent,'თბილისი');h.api.close();
+});
+test('confirming an automatic Georgian display never persists the displayed translation as raw label',async t=>{
+ const h=harness(t,{presentation:true,locale:'ge'});h.api.restore('pFrom',bilingualPoint);await h.api.open('pFrom');assert.equal(h.node('locationPickerLabel').value,'სასურსათო მაღაზია');h.node('locationPickerConfirm').click();await tick();assert.equal(h.node('pFromAddr').value,'სასურსათო მაღაზია');const saved=h.api.read('pFrom','სასურსათო მაღაზია').location;assert.equal(saved.label,'Продукты');assert.equal(saved.label_mode,'auto');assert.equal(saved.localized.ka.label,'სასურსათო მაღაზია');assert.equal(h.calls.requests.find(row=>row.url.includes('/resolve')).body.label,'Продукты');
+});
+test('language flip during pending verification keeps display and metadata for the unchanged raw point',async t=>{
+ const h=harness(t,{presentation:true}),originalFetch=h.w.fetch;let finish;h.w.fetch=(url,options)=>url.includes('/resolve')?new Promise(resolve=>{finish=()=>originalFetch(url,options).then(resolve);}):originalFetch(url,options);
+ h.api.restore('pFrom',bilingualPoint);await h.api.open('pFrom');h.node('locationPickerConfirm').click();await until(()=>!!finish);const before=h.calls.requests.length;h.w.lang='ge';h.api.refreshLanguage();assert.equal(h.node('locationPickerLabel').value,'სასურსათო მაღაზია');finish();await tick();assert.equal(h.node('pFromAddr').value,'სასურსათო მაღაზია');assert.equal(h.api.read('pFrom','სასურსათო მაღაზია').location.label,'Продукты');assert.equal(h.calls.requests.length,before+1);
+});
+function localityResult(coords,{name='Тбилиси',country='GE',kind='house',precision='exact',region='край Мцхета-Мтианети',village=false}={}){
+ const metadata={kind,precision,Address:{country_code:country,Components:[{kind:'country',name:'Грузия'},...(name?[{kind:village?'village':'locality',name}]:[]),{kind:'province',name:region}]}};
+ const object={geometry:{getCoordinates:()=>[coords[0]+.02,coords[1]+.02]},getLocalities:()=>name?[name]:[],getAddressLine:()=>country+', '+(name||region)+', С-3',properties:{get:key=>key==='metaDataProperty.GeocoderMetaData'?metadata:key==='name'?'С-3':null}};
+ return{geoObjects:{get:()=>object,each:callback=>callback(object)}};
+}
+test('generic native POI waits for actual locality context without changing name or exact coordinates',async t=>{
+ let finish;const h=harness(t,{presentation:true,reverseResponder:coords=>new Promise(resolve=>{finish=()=>resolve(localityResult(coords));})});await h.api.preload();await h.api.open('pFrom');
+ const coords=[41.708123,44.812345];h.calls.maps[0].openNativePoi({coords,properties:{name:'Продукты',address:'Региональный адрес магазина'}});h.node('locationPickerConfirm').click();await until(()=>!!finish);assert.equal(h.node('locationPickerOverlay').hidden,false);finish();await until(()=>h.node('locationPickerOverlay').hidden);
+ const location=h.api.read('pFrom','Продукты').location;assert.equal(location.label,'Продукты');assert.equal(location.address,'Региональный адрес магазина');assert.equal(location.context.relation,'within');assert.equal(location.context.names.ru,'Тбилиси');assert.equal(location.context.names.ka,'თბილისი');assert.equal(location.lat,coords[0]);assert.equal(location.lon,coords[1]);assert.equal(location.settlement_key,undefined,'Display context never invents routing identity');
+ h.w.lang='ge';h.api.refreshLanguage();assert.equal(h.node('pFromAddr').value,'სასურსათო მაღაზია');assert.equal(h.api.read('pFrom','სასურსათო მაღაზია').location.label,'Продукты');
+});
+test('context matches catalogue aliases only in the same reported country',async t=>{
+ const h=harness(t);await h.api.preload();for(const country of ['GE','RU']){const location=h.api.objectLocation(localityResult([41.7,44.8],{country}).geoObjects.get(0));assert.equal(location.context.country_iso,country);assert.equal(location.context.names.ka,country==='GE'?'თბილისი':undefined);assert.equal(location.settlement_key,country==='GE'?'ge:tbilisi':null);}
+});
+test('nearest settlement is marked nearby and region-only metadata never invents a village',async t=>{
+ const h=harness(t);await h.api.preload();const nearby=h.api.objectLocation(localityResult([42.7,44.6],{name:'Степанцминда',kind:'locality',precision:'other'}).geoObjects.get(0));assert.equal(nearby.context.relation,'nearby');assert.equal(nearby.context.names.ru,'Степанцминда');assert.equal(nearby.context.names.ka,undefined);
+ const region=h.api.objectLocation(localityResult([42.7,44.6],{name:'',kind:'province'}).geoObjects.get(0));assert.equal(region.context.relation,'region');assert.equal(region.context.names.ru,'край Мцхета-Мтианети');assert.equal(region.city,'');
+});
+test('moving a native POI discards old localized/context metadata and ignores its late reply',async t=>{
+ const pending=[],h=harness(t,{mobile:true,presentation:true,reverseResponder:coords=>new Promise(resolve=>pending.push({coords,finish:()=>resolve(localityResult(coords))}))});await h.api.preload();await h.api.open('pFrom');h.calls.maps[0].openNativePoi({coords:[41.708123,44.812345],properties:{name:'Продукты',address:'Старый магазин'}});await until(()=>pending.length===1);
+ h.calls.maps[0].setCenter([41.904737,44.600335]);assert.equal(h.node('locationPickerContext').textContent,'');pending[0].finish();await tick();assert.equal(h.node('locationPickerContext').textContent,'');h.node('locationPickerLabel').value='Новая точка';h.node('locationPickerLabel').dispatchEvent(new h.w.Event('input',{bubbles:true}));h.node('locationPickerConfirm').click();await tick();const moved=h.api.read('pFrom','Новая точка').location;assert.equal(moved.context,undefined);assert.equal(moved.localized,undefined);assert.equal(moved.lat,41.904737);assert.equal(moved.lon,44.600335);
+});
+test('provider context failure still permits a native exact point',async t=>{
+ const h=harness(t,{reverseResponder:()=>Promise.reject(Error('Unavailable'))});await h.api.open('pFrom');h.calls.maps[0].openNativePoi({coords:[41.708123,44.812345],properties:{name:'Продукты',address:'Исходный адрес'}});h.node('locationPickerConfirm').click();await until(()=>h.node('locationPickerOverlay').hidden);const saved=h.api.read('pFrom','Продукты').location;assert.equal(saved.label,'Продукты');assert.equal(saved.lat,41.708123);assert.equal(saved.lon,44.812345);assert.equal(saved.context,undefined);
+});
+test('a Georgian picker clearly marks a legacy address retained in source language',async t=>{
+ const h=harness(t,{presentation:true,locale:'ge'});h.api.restore('pFrom',{kind:'point',label:'Склад Мари',address:'Россия, неизвестная улица, 7',lat:41.7,lon:44.8,country_iso:'GE',label_mode:'custom'});await h.api.open('pFrom');assert.equal(h.node('locationPickerAddress').dataset.addressOriginal,'true');assert.equal(h.node('locationPickerOriginal').hidden,false);assert.match(h.node('locationPickerOriginal').textContent,/წყაროს/);h.api.close();
 });

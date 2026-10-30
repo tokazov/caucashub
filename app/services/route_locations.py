@@ -18,6 +18,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import settings
+from app.services.location_presentation import (
+    LocalizedPresentation, PlaceContext, canonical_presentation,
+    enrich_presentation, presentation_fields,
+)
 
 
 class RouteLocationInput(BaseModel):
@@ -26,6 +30,8 @@ class RouteLocationInput(BaseModel):
     key: str | None = Field(None, max_length=150)
     label: str = Field(min_length=1, max_length=200)
     label_mode: Literal['auto', 'custom'] | None = None
+    localized: LocalizedPresentation | None = None
+    context: PlaceContext | None = None
     country_iso: str | None = Field(None, pattern=r'^[A-Za-z]{2}$')
     lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
@@ -81,12 +87,14 @@ def _catalog_row(row, lang='ru'):
     en = row.get('name_en') or row.get('label_en') or names.get('en') or ru
     country = row['country_iso'].upper()
     aliases = list(dict.fromkeys([ru, ge, en, *row.get('aliases', [])]))
-    return {'kind': row.get('kind', 'border_checkpoint'), 'key': row['key'],
+    result = {'kind': row.get('kind', 'border_checkpoint'), 'key': row['key'],
             'label': ge if lang in ('ge', 'ka') else en if lang == 'en' else ru,
             'name_ru': ru, 'name_ge': ge, 'name_en': en,
             'country_iso': country, 'lat': float(row['lat']), 'lon': float(row['lon']),
             'address': row.get('address') or ru, 'settlement_id': None,
             'settlement_key': None, 'aliases': aliases, 'source': 'catalog'}
+    result.update(canonical_presentation(result))
+    return result
 
 
 def catalogue_identity(key):
@@ -107,11 +115,13 @@ def catalogue_key_for_alias(value):
 
 def _canonical_city_location(city, lang='ru'):
     label = city.name_ge or city.name_ru if lang in ('ge', 'ka') else city.name_en if lang == 'en' else city.name_ru
-    return {'kind': 'settlement', 'key': city.key, 'label': label,
+    result = {'kind': 'settlement', 'key': city.key, 'label': label,
             'name_ru': city.name_ru, 'name_ge': city.name_ge, 'name_en': city.name_en,
             'country_iso': city.country_iso, 'lat': city.lat, 'lon': city.lon,
             'address': label, 'settlement_id': city.id, 'settlement_key': city.key,
             'aliases': city.public_aliases(), 'source': 'city_catalog'}
+    result.update(canonical_presentation(result))
+    return result
 
 
 def suggest_locations(registry, query='', lang='ru', scope=None, limit=250):
@@ -182,7 +192,9 @@ def declared_settlement(data, registry, country):
 
 
 async def resolve_map_location(data, registry=None):
-    data = RouteLocationInput.model_validate({'kind': 'point', 'label': 'Точка на карте', **_payload(data)})
+    raw = _payload(data)
+    requested = raw.pop('include_presentation', False) is True
+    data = RouteLocationInput.model_validate({'kind': 'point', 'label': 'Точка на карте', **raw})
     country = await resolve_country(data.lat, data.lon)
     if isinstance(country, dict):
         country = country.get('country_iso')
@@ -192,13 +204,21 @@ async def resolve_map_location(data, registry=None):
     if data.country_iso and data.country_iso.upper() != country:
         raise ValueError('Страна точки не совпадает с координатами / ქვეყანა არ ემთხვევა კოორდინატებს')
     city = declared_settlement(data, registry, country)
-    return {'kind': 'point', 'key': None, 'label': data.label,
+    out = {'kind': 'point', 'key': None, 'label': data.label,
             **_label_metadata(data),
             'lat': data.lat, 'lon': data.lon, 'country_iso': country,
             'address': data.address or data.label, 'settlement_id': city.id if city else None,
             'settlement_key': city.key if city else None,
             'aliases': list(dict.fromkeys([data.label, *(city.public_aliases() if city else [])])),
             'resolution_token': resolution_token(data.lat, data.lon, country)}
+    out.update(presentation_fields(data, country=country))
+    extra = await enrich_presentation(data.lat, data.lon, country, label=data.label,
+                                     label_mode=data.label_mode, requested=requested)
+    if extra:
+        # Validate/sanitize provider output through the same bounded contract.
+        enriched = RouteLocationInput.model_validate({**out, **extra})
+        out.update(presentation_fields(enriched, out, country=country))
+    return out
 
 
 def _same_saved_point(data, existing):
@@ -225,6 +245,7 @@ async def normalize_location(db, registry, raw, existing=None):
         label = data.label if data.label_mode == 'custom' else name
         out.update(label=label, settlement_id=city_id, address=data.address or name,
                    **_label_metadata(data))
+        out.update(presentation_fields(data, existing, country=city.country_iso))
         return out
     if data.kind == 'border_checkpoint' or (data.key and catalogue_identity(data.key)):
         out = catalogue_identity(data.key)
@@ -236,6 +257,7 @@ async def normalize_location(db, registry, raw, existing=None):
             raise ValueError('Выбранная точка и координаты КПП не совпадают')
         out.update(label=data.label, address=data.address or out['address'],
                    **_label_metadata(data))
+        out.update(presentation_fields(data, existing, country=out['country_iso']))
         out['aliases'] = list(dict.fromkeys([data.label, *out['aliases']]))
         return out
     if _same_saved_point(data, existing):
@@ -246,11 +268,13 @@ async def normalize_location(db, registry, raw, existing=None):
     city_id = None
     if city:
         _, city_id = await resolve_publication_city(db, registry, city.name_ru, city_key=city.key)
-    return {'kind': 'point', 'key': None, 'label': data.label, 'lat': data.lat,
+    out = {'kind': 'point', 'key': None, 'label': data.label, 'lat': data.lat,
             **_label_metadata(data),
             'lon': data.lon, 'country_iso': country, 'address': data.address or data.label,
             'settlement_id': city_id, 'settlement_key': city.key if city else None,
             'aliases': list(dict.fromkeys([data.label, *(city.public_aliases() if city else [])]))}
+    out.update(presentation_fields(data, existing, country=country))
+    return out
 
 
 async def apply_route_locations(db, data, existing=None):

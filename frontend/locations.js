@@ -5,7 +5,8 @@
  const state={},selections={},inflight=new Map(),recentRemote=new Map();
  let catalog=[],catalogPromise=null,mapsPromise=null,active=null,map=null,marker=null,reverseTimer=null,pickerSequence=0,returnFocus=null;
  const node=id=>document.getElementById(id);
- const ge=()=>typeof lang!=='undefined'&&lang==='ge';
+ const ge=()=>typeof lang!=='undefined'&&['ge','ka'].includes(lang);
+ const locale=()=>ge()?'ka':'ru';
  const tr=(ru,ka)=>ge()?ka:ru;
  const base=()=>typeof API_BASE!=='undefined'?API_BASE:'';
  const currentScope=()=>typeof scope!=='undefined'?scope:'local';
@@ -19,7 +20,27 @@
   try{const response=await fetch(base()+path,{...options,signal:controller.signal});const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:tr('Не удалось определить место. Уточните точку.','ადგილი ვერ განისაზღვრა. დააზუსტეთ წერტილი.'));return data;}
   finally{clearTimeout(timer);}
  }
- function labelOf(location){return (ge()?location.name_ge:location.name_ru)||location.label||location.name_en||'';}
+ function labelOf(location){return window.CaucasAddressPresentation?.label(location,locale())||(location.label_mode==='custom'?location.label:location.localized?.[locale()]?.label||(ge()?location.name_ge:location.name_ru)||location.label||location.name_en)||'';}
+ function addressOf(location){return window.CaucasAddressPresentation?.address(location,locale())||location.localized?.[locale()]?.address||location.address||'';}
+ function contextOf(location){return window.CaucasAddressPresentation?.contextLabel(location,locale())||location.context?.names?.[locale()]||location.context?.names?.ru||location.context?.names?.ka||'';}
+ function rawLabel(location){return location.label||location.name_ru||location.name_ge||location.name_en||'';}
+ function localizedText(label,address){const out={};for(const [field,value]of Object.entries({label,address})){if(!value)continue;const language=/[\u10a0-\u10ff]/.test(value)?'ka':'ru';(out[language]??={})[field]=value;}return out;}
+ function mergePresentation(target,extra){
+  if(extra.localized){target.localized=copy(target.localized)||{};for(const language of ['ru','ka'])if(extra.localized[language])target.localized[language]={...target.localized[language],...copy(extra.localized[language])};}
+  if(extra.context&&(!extra.context.country_iso||!target.country_iso||extra.context.country_iso===target.country_iso))target.context={...copy(target.context),...copy(extra.context),names:{...target.context?.names,...extra.context.names}};
+  return target;
+ }
+ function paintPicker(){
+  if(!active)return;
+  node('locationPickerLabel').value=labelOf(active.location);
+  node('locationPickerAddress').textContent=addressOf(active.location)||'';
+  let context=node('locationPickerContext');if(!context){context=document.createElement('div');context.id='locationPickerContext';context.className='location-picker-context';node('locationPickerAddress').after(context);}
+  context.textContent=contextOf(active.location);context.hidden=!context.textContent;
+  const original=window.CaucasAddressPresentation?.isOriginal(active.location,'address',locale())||false;
+  node('locationPickerAddress').dataset.addressOriginal=String(original);
+  let notice=node('locationPickerOriginal');if(!notice){notice=document.createElement('small');notice.id='locationPickerOriginal';notice.className='address-original';context.after(notice);}
+  notice.hidden=!original;notice.textContent=original?tr('Адрес показан на языке источника','მისამართი ნაჩვენებია წყაროს ენაზე'):'';
+ }
  function fallbackCatalog(){return (typeof CITIES!=='undefined'?CITIES:[]).filter(c=>!String(c.name).startsWith('край ')).map(c=>({kind:'settlement',label:c.name,name_ru:c.name,name_ge:c.nameGe,lat:c.lat,lon:c.lng,city:c.name,aliases:[c.name,c.nameGe].filter(Boolean),legacy:true}));}
  function preload(){
   if(catalogPromise)return catalogPromise;
@@ -44,33 +65,46 @@
    const names=[row.key,row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].filter(Boolean).map(normalize);
    const exact=names.some(name=>name===q),prefix=names.some(name=>name.startsWith(q));
    return{row,score:exact?0:prefix?1:names.some(name=>name.includes(q))?2:10};
-  }).filter(item=>item.score<10).sort((a,b)=>a.score-b.score||(a.row.kind==='border_checkpoint'?-1:1)).slice(0,7).map(item=>({...item.row,label:labelOf(item.row),label_mode:'auto'}));
+  }).filter(item=>item.score<10).sort((a,b)=>a.score-b.score||(a.row.kind==='border_checkpoint'?-1:1)).slice(0,7).map(item=>({...item.row,label:rawLabel(item.row),label_mode:'auto'}));
  }
  function exactLocal(query){const q=normalize(query);return localMatches(query).some(row=>[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].filter(Boolean).some(name=>normalize(name)===q));}
  function countryFromObject(object){
   const meta=object.properties?.get?.('metaDataProperty.GeocoderMetaData')||{};
   return String(meta.Address?.country_code||meta.AddressDetails?.Country?.CountryNameCode||object.address?.country_code||'').toUpperCase();
  }
+ function localityFromObject(object){
+  const metadata=object.properties?.get?.('metaDataProperty.GeocoderMetaData')||{},components=Array.isArray(metadata.Address?.Components)?metadata.Address.Components:[];
+  const address=object.address||{},country=countryFromObject(object),localities=object.getLocalities?.()||[];
+  const locality=String(address.city||address.town||address.village||components.find(part=>['locality','village'].includes(part.kind))?.name||localities[0]||'').trim();
+  const region=String(components.find(part=>part.kind==='area')?.name||components.find(part=>part.kind==='province')?.name||address.state||address.region||'').trim();
+  const name=locality||region;if(!name)return null;
+  const known=country&&catalog.find(row=>row.kind==='settlement'&&row.country_iso===country&&[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].some(alias=>alias&&normalize(alias)===normalize(name)));
+  const names=known?{ru:known.name_ru||known.label,...(known.name_ge?{ka:known.name_ge}:{})}:{[/[\u10a0-\u10ff]/.test(name)?'ka':'ru']:name};
+  const within=locality&&['house','street','district'].includes(metadata.kind)&&metadata.precision!=='other';
+  return{relation:locality?(within?'within':'nearby'):'region',names,source:'yandex',...(country?{country_iso:country}:{}),...(known?.key?{key:known.key}:{})};
+ }
  function objectLocation(object){
   const coords=object.geometry?.getCoordinates?.();if(!coords)return null;
   const metadata=typeof geocodedPublicationAddress==='function'?geocodedPublicationAddress(object):{};
   const address=object.getAddressLine?.()||metadata.addr||'';
   const name=object.properties?.get?.('name')||address;
-  const settlement=metadata.city&&catalog.find(row=>row.kind==='settlement'&&[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].some(alias=>normalize(alias)===normalize(metadata.city)));
-  return{kind:'point',key:null,label:String(metadata.city?address:name||address||tr('Точка на карте','წერტილი რუკაზე')).slice(0,100),label_mode:'auto',address,city:metadata.city||'',settlement_key:settlement?.settlement_key||settlement?.key||null,settlement_id:settlement?.settlement_id||null,lat:Number(coords[0]),lon:Number(coords[1]),country_iso:countryFromObject(object)||undefined,source:'yandex'};
+  const country=countryFromObject(object),context=localityFromObject(object),city=metadata.city||object.getLocalities?.()?.[0]||'';
+  const settlement=country&&city&&catalog.find(row=>row.kind==='settlement'&&row.country_iso===country&&[row.label,row.name_ru,row.name_ge,row.name_en,...(row.aliases||[])].some(alias=>alias&&normalize(alias)===normalize(city)));
+  const label=String(city?address:name||address||tr('Точка на карте','წერტილი რუკაზე')).slice(0,100).trim();
+  return{kind:'point',key:null,label,label_mode:'auto',address,localized:localizedText(label,address),...(context?{context}:{}),city:settlement?.name_ru||city,settlement_key:settlement?.settlement_key||settlement?.key||null,settlement_id:settlement?.settlement_id||null,lat:Number(coords[0]),lon:Number(coords[1]),country_iso:country||undefined,source:'yandex'};
  }
  function searchRemote(query,whichScope){
-  const key=(ge()?'ge':'ru')+'|'+whichScope+'|'+normalize(query);
+  const key='ru|'+whichScope+'|'+normalize(query);
   const cached=recentRemote.get(key);if(cached&&Date.now()-cached.at<300000)return Promise.resolve(copy(cached.rows));
   if(inflight.has(key))return inflight.get(key);
-  const operation=timeout(mapsReady().then(api=>api.geocode(whichScope==='intl'?query:query+', Грузия',{results:6,lang:ge()?'ka_GE':'ru_RU'})),3500,'Address search timed out').then(result=>{
+  const operation=timeout(mapsReady().then(api=>api.geocode(whichScope==='intl'?query:query+', Грузия',{results:6,lang:'ru_RU'})),3500,'Address search timed out').then(result=>{
    const rows=[];result.geoObjects.each(object=>{const row=objectLocation(object);if(row)rows.push(row);});recentRemote.set(key,{at:Date.now(),rows});if(recentRemote.size>30)recentRemote.delete(recentRemote.keys().next().value);return rows;
   }).finally(()=>inflight.delete(key));inflight.set(key,operation);return operation;
  }
  function render(field,rows,pending){
   const config=fields[field],drop=node(config.drop);if(!drop)return;
-  const entry=state[field];entry.rows=rows;
-  drop.innerHTML=rows.map((row,index)=>'<button type="button" class="addr-item location-option" data-location-index="'+index+'" data-location-key="'+escape(row.key||'')+'"><span class="addr-main">'+escape(row.label)+'</span><span class="addr-sub">'+escape(row.address||[row.city,row.country_iso].filter(Boolean).join(', '))+'</span></button>').join('')+
+  const entry=state[field];entry.rows=rows;entry.pending=pending;
+  drop.innerHTML=rows.map((row,index)=>'<button type="button" class="addr-item location-option" data-location-index="'+index+'" data-location-key="'+escape(row.key||'')+'"><span class="addr-main">'+escape(labelOf(row))+'</span><span class="addr-sub">'+escape(addressOf(row)||[row.city,row.country_iso].filter(Boolean).join(', '))+'</span></button>').join('')+
    (pending?'<div class="addr-loading">'+tr('Ищем другие адреса…','სხვა მისამართების ძიება…')+'</div>':'')+
    (!rows.length&&!pending?'<div class="addr-loading">'+tr('Адрес не найден. Укажите точку на карте.','მისამართი ვერ მოიძებნა. მონიშნეთ წერტილი რუკაზე.')+'</div>':'')+
    '<button type="button" class="addr-item location-map-option" data-open-location-map="'+field+'">🗺️ '+tr('Выбрать на карте','არჩევა რუკაზე')+'</button>';
@@ -101,19 +135,19 @@
  function apply(field,location){
   const config=fields[field],input=node(config.input);if(!input)return;
   if(state[field]){clearTimeout(state[field].timer);state[field].sequence++;}
-  const selected=copy(location);selected.label=selected.label||labelOf(selected);input.value=selected.label;
+  const selected=copy(location);selected.label=selected.label||rawLabel(selected);input.value=labelOf(selected);
   selections[field]={input:input.value,location:selected};
   if(selected.key)input.dataset.locationKey=selected.key;else delete input.dataset.locationKey;
   node(config.drop)?.classList.remove('open');
-  const note=node(config.note);if(note){note.textContent=selected.address||tr('Точная точка выбрана на карте','ზუსტი წერტილი მონიშნულია რუკაზე');note.style.display='block';}
+  const note=node(config.note);if(note){note.textContent=[addressOf(selected),contextOf(selected)].filter(Boolean).filter((text,index,array)=>!index||!normalize(array[0]).includes(normalize(text))).join(' · ')||tr('Точная точка выбрана на карте','ზუსტი წერტილი მონიშნულია რუკაზე');if(window.CaucasAddressPresentation?.isOriginal(selected,'address',locale()))note.textContent+=' · '+tr('Адрес на языке источника','მისამართი წყაროს ენაზე');note.style.display='block';}
   input.setAttribute('aria-busy','false');
  }
  async function resolve(location){
   if(location.key||location.legacy)return copy(location);
-  const {lat,lon,label,label_mode,address,settlement_id,settlement_key}=location;
-  const result=await request('/api/locations/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'point',lat,lon,label,label_mode,address:address||label,settlement_id,settlement_key})});
+  const {lat,lon,label,label_mode,address,settlement_id,settlement_key,localized,context}=location;
+  const result=await request('/api/locations/resolve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'point',lat,lon,label,label_mode,address:address||label,settlement_id,settlement_key,localized,context,include_presentation:true})});
   if(!finitePoint(result.location)||!result.location.resolution_token)throw Error(tr('Не удалось подтвердить точку. Повторите выбор.','წერტილი ვერ დადასტურდა. სცადეთ ხელახლა.'));
-  return {...result.location,city:location.city||'',label,address:result.location.address||address};
+  return {...location,...result.location,city:location.city||'',label,address:result.location.address||address};
  }
  async function choose(field,location){
   if(!location)return;
@@ -129,7 +163,7 @@
   const city=location.city||String(location.kind==='settlement'?location.name_ru||location.label:location.label).slice(0,100);
   const endpoint={city,lat:location.lat,lng:location.lon,address:location.address||location.label};
   if(location.kind==='settlement'){if(location.settlement_id)endpoint.city_id=location.settlement_id;if(location.settlement_key||location.key)endpoint.canonical_key=location.settlement_key||location.key;}
-  if(!location.legacy){endpoint.location={};for(const key of ['kind','key','label','label_mode','lat','lon','address','country_iso','settlement_id','settlement_key','resolution_token'])if(location[key]!=null)endpoint.location[key]=location[key];}
+  if(!location.legacy){endpoint.location={};for(const key of ['kind','key','label','label_mode','lat','lon','address','country_iso','settlement_id','settlement_key','resolution_token','localized','context'])if(location[key]!=null)endpoint.location[key]=location[key];}
   return endpoint;
  }
  function restore(field,location){if(location&&finitePoint(location))apply(field,location);else delete selections[field];}
@@ -175,7 +209,7 @@
   const location=nearbyCheckpoints().find(row=>row.key===key);if(!location){renderNearby();return;}
   const input=node('locationPickerLabel'),custom=active.location.label_mode==='custom'?input.value.trim():'';
   active.labelEdited=!!custom;
-  active.location={...copy(location),label:custom||labelOf(location),label_mode:custom?'custom':'auto'};input.value=active.location.label;
+  active.location={...copy(location),label:custom||rawLabel(location),label_mode:custom?'custom':'auto'};input.value=labelOf(active.location);
   errorText('');
   const coordinates=[Number(location.lat),Number(location.lon)];setCoordinates(coordinates);map?.setCenter(coordinates);
  }
@@ -185,6 +219,7 @@
   const lat=Number(coords[0]),lon=Number(coords[1]);if(!finitePoint({lat,lon}))return;
   if(active.selectionError){active.selectionError=false;node('locationPickerConfirm').disabled=false;errorText('');}
   const moved=Math.abs(lat-active.location.lat)>0.000001||Math.abs(lon-active.location.lon)>0.000001;
+  if(!moved&&!place&&active.place)return;
   if(moved){
    active.place=null;
    // Only explicit manual provenance survives moving. Legacy POI names may
@@ -197,31 +232,40 @@
   if(place){
    active.labelEdited=active.location.label_mode==='custom';
    const label=active.labelEdited?node('locationPickerLabel').value.trim():place.label;
-   active.place=place;active.location={kind:'point',key:null,lat,lon,label:label||place.label,label_mode:active.labelEdited?'custom':'auto',address:place.address||place.label};
-   node('locationPickerLabel').value=active.location.label;
+   active.place=place;active.location={kind:'point',key:null,lat,lon,label:label||place.label,label_mode:active.labelEdited?'custom':'auto',address:place.address||place.label,localized:localizedText(place.label,place.address||place.label)};
+   node('locationPickerLabel').value=labelOf(active.location);
   }
   marker?.geometry.setCoordinates([lat,lon]);
   node('locationPickerCoordinates').textContent=lat.toFixed(6)+', '+lon.toFixed(6);
   clearTimeout(reverseTimer);const ticket=++pickerSequence;
   renderNearby();
   if(active.location.kind==='border_checkpoint'&&active.location.key){
-   node('locationPickerAddress').textContent=active.location.address||active.location.label;return;
+   paintPicker();return;
   }
-  if(active.place){node('locationPickerAddress').textContent=active.location.address||active.location.label;return;}
-  node('locationPickerAddress').textContent=tr('Уточняем адрес…','მისამართის დაზუსტება…');
-  reverseTimer=setTimeout(async()=>{
-   try{const result=await timeout(mapsReady().then(api=>api.geocode([lat,lon],{results:1})),3500,'Reverse search timed out');
+  if(active.place||!moved&&addressOf(active.location))paintPicker();else{node('locationPickerAddress').textContent=tr('Уточняем адрес…','მისამართის დაზუსტება…');const context=node('locationPickerContext');if(context){context.textContent=contextOf(active.location);context.hidden=!context.textContent;}}
+  const owner=active;
+  const reverse=async()=>{
+   try{const result=await timeout(mapsReady().then(api=>api.geocode([lat,lon],{results:1,lang:'ru_RU'})),3500,'Reverse search timed out');
     if(!active||pickerSequence!==ticket)return;
     const object=result.geoObjects.get(0),found=object&&objectLocation(object);
     if(found){
-     active.location.address=found.address;node('locationPickerAddress').textContent=found.address||tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
-     if(!active.labelEdited&&found.address.trim()){
-      active.location.label=found.address.trim().slice(0,100);active.location.label_mode='auto';node('locationPickerLabel').value=active.location.label;
+     if(found.context)mergePresentation(active.location,{context:found.context});
+     // Reverse results only enrich a native POI's locality. Its object name,
+     // address and exact geometry belong to the selected native map feature.
+     if(!active.place){
+      active.location.address=found.address;
+      mergePresentation(active.location,{localized:localizedText('',found.address)});
+      if(!active.labelEdited&&found.address.trim()){
+       active.location.label=found.address.trim().slice(0,100).trim();active.location.label_mode='auto';mergePresentation(active.location,{localized:localizedText(active.location.label,'')});
+      }
      }
+     paintPicker();if(!addressOf(active.location))node('locationPickerAddress').textContent=tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
     }
     else node('locationPickerAddress').textContent=tr('Точка без почтового адреса','წერტილი საფოსტო მისამართის გარეშე');
-   }catch{if(active&&pickerSequence===ticket)node('locationPickerAddress').textContent=tr('Название можно указать вручную. Точка сохранится по координатам.','სახელი მიუთითეთ ხელით. წერტილი კოორდინატებით შეინახება.');}
-  },300);
+   }catch{if(active&&pickerSequence===ticket&&!active.place)node('locationPickerAddress').textContent=tr('Название можно указать вручную. Точка сохранится по координатам.','სახელი მიუთითეთ ხელით. წერტილი კოორდინატებით შეინახება.');}
+  };
+  owner.contextReady=owner.place?reverse():null;
+  if(!owner.place)reverseTimer=setTimeout(reverse,300);
  }
  function selectNativePlace(selectionMap){
   if(!active||map!==selectionMap)return;
@@ -258,8 +302,7 @@
   node('locationPickerInstruction').textContent=tr('Передвиньте карту или метку и подтвердите точку.','გადაადგილეთ რუკა ან ნიშნული და დაადასტურეთ წერტილი.');
   node('locationPickerConfirm').textContent=tr('Выбрать эту точку','ამ წერტილის არჩევა');node('locationPickerConfirm').disabled=true;
   node('locationPickerCancel').textContent=tr('Отмена','გაუქმება');
-  node('locationPickerLabel').value=location.label||raw;
-  node('locationPickerAddress').textContent=location.address||tr('Загружаем карту…','რუკის ჩატვირთვა…');errorText('');
+  paintPicker();if(!addressOf(location))node('locationPickerAddress').textContent=tr('Загружаем карту…','რუკის ჩატვირთვა…');errorText('');
   node('locationPickerMap').innerHTML='';node('locationPickerCancel').focus();
   const ticket=++pickerSequence;
   try{const api=await mapsReady();if(!active||ticket!==pickerSequence)return;
@@ -283,7 +326,9 @@
   if(!active)return;const owner=active,button=node('locationPickerConfirm');if(button.disabled)return;
   const label=node('locationPickerLabel').value.trim();if(!label){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));node('locationPickerLabel').focus();return;}
   button.disabled=true;errorText('');
-  try{const location={...owner.location,label};const selected=await resolve(location);if(active!==owner)return;
+  const syncLabel=()=>{const value=node('locationPickerLabel').value.trim();if(value!==String(labelOf(owner.location)).trim()){owner.location.label=value;owner.location.label_mode='custom';owner.labelEdited=true;}else if(owner.location.label_mode==='custom')owner.location.label=value;};
+  syncLabel();
+  try{const location=copy(owner.location);const [selected]=await Promise.all([resolve(location),owner.contextReady]);if(active!==owner)return;
    if(owner.selectionError)return;
    if(owner.location.lat!==location.lat||owner.location.lon!==location.lon||owner.location.kind!==location.kind||owner.location.key!==location.key){
     errorText(tr('Точка изменилась. Подтвердите её ещё раз.','წერტილი შეიცვალა. დაადასტურეთ ხელახლა.'));button.disabled=false;return;
@@ -292,8 +337,9 @@
    // manual name if it changed while this same point was being verified.
    const latestLabel=node('locationPickerLabel').value.trim();
    if(!latestLabel){errorText(tr('Укажите название места','მიუთითეთ ადგილის სახელი'));button.disabled=false;node('locationPickerLabel').focus();return;}
-   selected.label=latestLabel;selected.address=owner.location.address||selected.address;
+   syncLabel();selected.label=owner.location.label;selected.address=owner.location.address||selected.address;
    if(owner.location.label_mode)selected.label_mode=owner.location.label_mode;
+   mergePresentation(selected,owner.location);
    apply(owner.field,selected);close();}
   catch(error){if(active===owner){errorText(error.message);button.disabled=false;}}
  }
@@ -303,7 +349,7 @@
    input.addEventListener('focus',warm);input.addEventListener('keydown',event=>{if(event.key==='Escape')node(config.drop)?.classList.remove('open');});
   }
   document.querySelectorAll('[data-location-field]').forEach(button=>{button.title=tr('Выбрать на карте','არჩევა რუკაზე');button.setAttribute('aria-label',tr('Выбрать место на карте','ადგილის არჩევა რუკაზე'));button.addEventListener('click',()=>open(button.dataset.locationField));});
-  node('locationPickerLabel')?.addEventListener('input',()=>{if(active){active.labelEdited=true;active.location.label_mode='custom';}});
+  node('locationPickerLabel')?.addEventListener('input',()=>{if(active){active.labelEdited=true;active.location.label_mode='custom';active.location.label=node('locationPickerLabel').value.trim();}});
   node('locationPickerConfirm')?.addEventListener('click',confirm);node('locationPickerCancel')?.addEventListener('click',()=>close());
   node('locationPickerOverlay')?.addEventListener('click',event=>{if(event.target===node('locationPickerOverlay'))close();});
   document.addEventListener('keydown',event=>{
@@ -315,6 +361,12 @@
    }
   },true);
  }
- window.CaucasLocations={search,warm,read,restore,open,close,choose,preload,objectLocation,normalize,hide:field=>node(fields[field]?.drop)?.classList.remove('open')};
+ function refreshLanguage(){
+  for(const [field,selected]of Object.entries(selections))if(node(fields[field]?.input)?.value===selected.input)apply(field,selected.location);
+  for(const [field,entry]of Object.entries(state))if(node(fields[field]?.drop)?.classList.contains('open'))render(field,entry.rows,entry.pending);
+  if(active){paintPicker();const config=fields[active.field];node('locationPickerTitle').textContent=config.side==='from'?tr('Место отправления','გაგზავნის ადგილი'):tr('Место доставки','მიწოდების ადგილი');node('locationPickerLabelCaption').textContent=tr('Название места','ადგილის სახელი');node('locationPickerInstruction').textContent=tr('Передвиньте карту или метку и подтвердите точку.','გადაადგილეთ რუკა ან ნიშნული და დაადასტურეთ წერტილი.');node('locationPickerConfirm').textContent=tr('Выбрать эту точку','ამ წერტილის არჩევა');node('locationPickerCancel').textContent=tr('Отмена','გაუქმება');renderNearby();}
+  document.querySelectorAll('[data-location-field]').forEach(button=>{button.title=tr('Выбрать на карте','არჩევა რუკაზე');button.setAttribute('aria-label',tr('Выбрать место на карте','ადგილის არჩევა რუკაზე'));});
+ }
+ window.CaucasLocations={search,warm,read,restore,open,close,choose,preload,objectLocation,normalize,refreshLanguage,hide:field=>node(fields[field]?.drop)?.classList.remove('open')};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 })();

@@ -431,3 +431,82 @@ async def test_invalid_label_provenance_is_rejected(context,mode):
     client,_=context
     resolved=await client.post('/api/locations/resolve',json={'lat':41.7,'lon':44.8,'label_mode':mode})
     assert resolved.status_code==422,resolved.text
+
+
+PRESENTATION = {
+    'localized': {'ru': {'label':'Продукты','address':'Дзвели Канда, Грузия'},
+                  'ka': {'label':'სურსათი','address':'ძველი ქანდა, საქართველო'}},
+    'context': {'relation':'nearby','names':{'ru':'Дзвели Канда','ka':'ძველი ქანდა'},
+                'source':'fixture','country_iso':'GE'},
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('endpoint',['resolve','presentation'])
+@pytest.mark.parametrize('requested',[False,True])
+async def test_presentation_endpoint_is_read_only_and_keeps_raw_label_and_coordinates(context,endpoint,requested):
+    client,sessions=context
+    with (patch.dict('os.environ',{'LOCATION_PRESENTATION_ENABLED':'false'}),
+          patch('app.services.location_presentation._reverse_snapshots',new=AsyncMock(side_effect=AssertionError('No provider calls allowed'))) as provider):
+        response=await client.post('/api/locations/'+endpoint,json={
+            'lat':41.904737,'lon':44.600335,'label':'My warehouse gate','label_mode':'custom',
+            'include_presentation':requested,**PRESENTATION})
+    assert response.status_code==200,response.text
+    location=response.json()['location']
+    assert location['label']=='My warehouse gate' and location['label_mode']=='custom'
+    assert location['lat']==41.904737 and location['lon']==44.600335
+    assert location['localized']==PRESENTATION['localized'] and location['context']==PRESENTATION['context']
+    assert location['settlement_id'] is None and location['settlement_key'] is None
+    assert verified_token(location['resolution_token'],41.904737,44.600335)=='GE'
+    provider.assert_not_called()
+    async with sessions() as db:
+        assert not (await db.execute(select(Load))).scalars().all()
+        assert not (await db.execute(select(TransportOffer))).scalars().all()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('source',['loads','transport'])
+async def test_bilingual_context_persists_and_same_point_omissions_merge_but_move_drops_old(context,source):
+    client,_=context
+    location=await point(client,label='Продукты',label_mode='auto',**PRESENTATION)
+    response=await client.post('/api/'+source+'/',json=load_data(location) if source=='loads' else offer_data(location))
+    assert response.status_code in(200,201),response.text
+    row=response.json() if source=='loads' else response.json()['offer']
+    saved=row['from_location']
+    assert saved['localized']==PRESENTATION['localized'] and saved['context']==PRESENTATION['context']
+    url='/api/'+source+'/'+str(row['id'])
+    omitted={key:value for key,value in saved.items() if key not in ('localized','context')}
+    omitted.update(label='My loading gate',label_mode='custom')
+    update=await(client.put(url,json={'from_location':omitted}) if source=='loads'
+                 else client.patch(url,json={'from_location':omitted}))
+    assert update.status_code==200,update.text
+    changed=update.json() if source=='loads' else update.json()['offer']
+    assert changed['from_location']['localized']==saved['localized']
+    assert changed['from_location']['context']==saved['context']
+    assert changed['from_location']['label']=='My loading gate'
+    collection='loads' if source=='loads' else 'offers'
+    public=await client.get('/api/'+source+'/',params={'scope':'local'})
+    mine=await client.get('/api/loads/my/loads' if source=='loads' else '/api/transport/my')
+    assert public.json()[collection][0]['from_location']==changed['from_location']
+    assert mine.json()[collection][0]['from_location']==changed['from_location']
+    # Even a caller copying an old display snapshot onto newly signed coords
+    # cannot retain those unchanged old presentation fields after moving.
+    moved={**await point(client,lat=41.91,label='New street',label_mode='auto'),**PRESENTATION}
+    update=await(client.put(url,json={'from_location':moved}) if source=='loads'
+                 else client.patch(url,json={'from_location':moved}))
+    assert update.status_code==200,update.text
+    changed=update.json() if source=='loads' else update.json()['offer']
+    assert changed['from_location']['lat']==41.91
+    assert 'localized' not in changed['from_location'] and 'context' not in changed['from_location']
+
+
+@pytest.mark.asyncio
+async def test_context_is_display_only_and_cannot_create_fake_country_or_settlement(context):
+    client,_=context
+    location=await point(client,context={'relation':'within','country_iso':'RU','key':'ru:moscow',
+                                       'settlement_key':'ru:moscow','names':{'ru':'Москва'}})
+    assert location['country_iso']=='GE' and location['settlement_key'] is None
+    assert 'context' not in location
+    response=await client.post('/api/loads/',json=load_data(location))
+    assert response.status_code==200,response.text
+    assert response.json()['route_scope']=='local' and response.json()['from_city_id'] is None

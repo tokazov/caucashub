@@ -2,10 +2,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator
 from app.database import get_db
 from app.services.city_identity import city_registry
 from app.services.route_locations import suggest_locations, resolve_map_location
+from app.services.location_presentation import LocalizedPresentation, PlaceContext
 
 router = APIRouter(prefix='/api/locations', tags=['locations'])
 
@@ -14,6 +15,9 @@ class MapPointRequest(BaseModel):
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
     label: str = Field(default='Точка на карте', min_length=1, max_length=200)
     label_mode: Literal['auto', 'custom'] | None = None
+    localized: LocalizedPresentation | None = None
+    context: PlaceContext | None = None
+    include_presentation: StrictBool = False
     address: str | None = Field(None, max_length=500)
     country_iso: str | None = Field(None, pattern=r'^[A-Za-z]{2}$')
     settlement_id: int | None = Field(None, ge=1, strict=True)
@@ -35,6 +39,7 @@ async def suggestions(q: str = Query('', max_length=200), lang: str = Query('ru'
     return {'results': rows, 'query': q, 'source': 'own_catalog', 'total': len(rows)}
 
 @router.post('/resolve')
+@router.post('/presentation')
 async def resolve(data: MapPointRequest, db: AsyncSession = Depends(get_db)):
     try:
         location = await resolve_map_location(data.model_dump(), await city_registry(db))

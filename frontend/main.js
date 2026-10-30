@@ -516,6 +516,10 @@ function translatePay(pay) {
 function _capitalize(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 function translateCity(name, location) {
+  if(location&&window.CaucasAddressPresentation){
+    const shown=window.CaucasAddressPresentation.routeLabel(location,lang);
+    if(shown)return shown;
+  }
   if(location?.kind==='border_checkpoint'){
     const canonical=[location.name_ru,location.name_ge,location.name_en].filter(Boolean);
     if(location.label&&!canonical.includes(location.label))return location.label;
@@ -968,13 +972,37 @@ function _insertAdSlot(container, placement) {
 
 function cargoEndpointLabel(load,side){
   const location=load[side+'_location'];
+  if(window.CaucasAddressPresentation)return window.CaucasAddressPresentation.routeLabel(location||{label:load[side]||load[side+'_city']||load[side+'2']||'',address:load[side+'2']||''},lang)||load[side]||load[side+'_city']||'';
   if(location?.label&&(location.kind==='point'||location.label_mode==='custom'))return location.label;
   return translateCity(load[side]||load[side+'2']||'',location);
 }
+function cargoSamePlace(first,second){
+  const normalized=value=>String(value||'').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g,' ');
+  const a=normalized(first),b=normalized(second);if(!a||!b)return false;if(a===b)return true;
+  const cities=typeof CITIES!=='undefined'&&Array.isArray(CITIES)?CITIES:[];
+  return cities.some(city=>{const names=[city.name,city.name_ru,city.name_ge,city.nameGe,city.name_en,city.nameEn,...(Array.isArray(city.aliases)?city.aliases:[])].filter(Boolean).map(normalized);return names.includes(a)&&names.includes(b);});
+}
 function cargoEndpointDetails(load,side){
-  const label=cargoEndpointLabel(load,side),address=load[side+'_location']?.address||load[side+'2']||'';
+  const location=load[side+'_location'],presentation=window.CaucasAddressPresentation;
+  const displayLocation=location||{label:load[side]||load[side+'_city']||load[side+'2']||'',address:load[side+'2']||''};
+  const label=presentation?presentation.label(displayLocation,lang):cargoEndpointLabel(load,side);
+  const address=presentation?presentation.address(displayLocation,lang):location?.address||load[side+'2']||'';
+  const context=location&&presentation?presentation.contextLabel(location,lang):'';
+  const showAddress=address&&String(address).trim()!==String(label).trim()&&!(!location&&cargoSamePlace(displayLocation.label,address));
+  const originalAddress=showAddress&&presentation?.isOriginal(displayLocation,'address',lang);
+  const originalLabel=presentation?.isOriginal(displayLocation,'label',lang);
   return '<div data-cargo-endpoint-label style="font-size:14px;font-weight:700">'+esc(label)+'</div>'+
-    (address&&String(address).trim()!==String(label).trim()?'<div style="font-size:11px;color:#777;margin-top:3px">'+esc(address)+'</div>':'');
+    (context&&!String(label).includes(context)?'<div data-cargo-endpoint-context class="address-context">'+esc(context)+'</div>':'')+
+    (showAddress?'<div data-cargo-endpoint-address style="font-size:11px;color:#777;margin-top:3px">'+esc(address)+'</div>':'')+
+    (originalAddress||originalLabel?'<div data-address-original class="address-original">'+(originalAddress?(lang==='ge'?'მისამართი საწყის ენაზე':'Адрес на исходном языке'):(lang==='ge'?'სახელი საწყის ენაზე':'Название на исходном языке'))+'</div>':'');
+}
+function refreshOpenCargoAddresses(){
+  const overlay=document.getElementById('cargoOverlay'),load=window.currentCargoData;
+  if(!overlay?.classList.contains('on')||!load)return;
+  document.getElementById('mTitle').textContent=cargoEndpointLabel(load,'from')+' → '+cargoEndpointLabel(load,'to');
+  const grid=document.getElementById('mGrid'),T=TRANSLATIONS[lang]||TRANSLATIONS.ru;
+  ['from','to'].forEach((side,index)=>{if(grid?.children[index])grid.children[index].innerHTML='<div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">'+esc(T[side==='from'?'modal_from':'modal_to']||(side==='from'?'Откуда':'Куда'))+'</div>'+cargoEndpointDetails(load,side);});
+  const km=document.getElementById('mKm');if(km)bindCargoRoadDistance(load,[km]);
 }
 let _cargoRoadObserver=null,_cargoRoadSequence=0;
 const _cargoRoadWaiting=new Map();
@@ -1160,7 +1188,7 @@ function renderTrucks(){
     window._truckCache[_tKey] = {co: t.co, plate: t.plate||'—', phone: phone};
     row.innerHTML=`
       <div>
-        <div class="route">${esc(typeof translateCity==="function"?translateCity(t.from):t.from)} <span class="arrow">→</span> ${esc(typeof translateCity==="function"?translateCity(t.to):t.to)}</div>
+        <div class="route">${esc(typeof translateCity==="function"?translateCity(t.from,t.from_location):t.from)} <span class="arrow">→</span> ${esc(typeof translateCity==="function"?translateCity(t.to,t.to_location):t.to)}</div>
         <div class="sub">${esc(t.plate||'—')}</div>
       </div>
       <div>
@@ -3311,7 +3339,7 @@ function renderCabLoads(){
  }
  return '<div class="cab-load-card ' + borderCls + '">'
  + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
- + '<div style="flex:1"><div class="cab-load-route">' + esc(typeof translateCity==="function"?translateCity(l.from):l.from) + ' → ' + esc(typeof translateCity==="function"?translateCity(l.to):l.to) + '</div>'
+ + '<div style="flex:1"><div class="cab-load-route">' + esc(typeof translateCity==="function"?translateCity(l.from,l.from_location):l.from) + ' → ' + esc(typeof translateCity==="function"?translateCity(l.to,l.to_location):l.to) + '</div>'
  + '<div class="cab-load-meta"><span>' + (l.kg||0).toLocaleString() + ' ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).unit_kg||'кг') + '</span><span>' + (typeof getTypeLabel==='function'?getTypeLabel(l.type||'tent'):(l.typeLabel||'')) + '</span><span>' + (l.cur||'₾') + (l.price||0) + '</span>' + (l.date ? '<span>' + l.date + '</span>' : '') + '</div></div>'
  + '<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
  + '<button onclick="editMyLoad(' + l.id + ')" class="cab-btn edit">✏️ ' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).btn_edit_short||'Изменить') + '</button>'
@@ -4939,6 +4967,8 @@ function setLang(l, btn) {
   if (btn) btn.classList.add('active');
   console.log('[T] setLang start:', l);
   applyLang(l);
+  window.CaucasLocations?.refreshLanguage?.();
+  refreshOpenCargoAddresses();
   console.log('[T] applyLang done:', (performance.now()-_t0).toFixed(0)+'ms');
   // Перерендерим динамические блоки — откладываем через setTimeout
   // чтобы applyLang завершился до следующего рендера (fix: race condition STATUS_BREAKPOINT)
