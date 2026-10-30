@@ -2,26 +2,14 @@ name: Loading period regression
 on:
   push:
     branches: [master]
-    paths:
-      - "app/routers/transport.py"
-      - ".github/workflows/loading-period.yml"
   pull_request:
-    paths:
-      - "app/**"
-      - "api.js"
-      - "main.js"
-      - "frontend/**"
-      - "tests/**"
-      - "scripts/**"
-      - "alembic/**"
-      - ".github/workflows/loading-period.yml"
 
 permissions:
   contents: read
 
 jobs:
   regression:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     services:
       postgres:
@@ -43,7 +31,9 @@ jobs:
       BREVO_API_KEY: test
       TG_BOT_TOKEN: test:test
       NOTIFICATIONS_WORKER_ENABLED: "0"
-      TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/caucashub_ci
+      TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      PG_BIN: /usr/lib/postgresql/18/bin
+      POSTGRES_BIN: /usr/lib/postgresql/18/bin
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,12 +44,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Require PostgreSQL 18 archive and restore clients
+        shell: bash
+        run: |
+          if [ ! -x "$PG_BIN/pg_dump" ] || [ ! -x "$PG_BIN/pg_restore" ] || [ ! -x "$PG_BIN/psql" ]; then
+            sudo apt-get update
+            if ! apt-cache show postgresql-client-18 >/dev/null 2>&1; then
+              # Official signed PGDG repository; never install a database server.
+              # https://www.postgresql.org/download/linux/ubuntu/
+              sudo apt-get install -y curl ca-certificates
+              sudo install -d /usr/share/postgresql-common/pgdg
+              sudo curl --fail --show-error --location --retry 3 --max-time 60 \
+                https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+                -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+              . /etc/os-release
+              printf '%s\n' 'Types: deb' 'URIs: https://apt.postgresql.org/pub/repos/apt' \
+                "Suites: ${VERSION_CODENAME}-pgdg" 'Components: main' \
+                'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \
+                | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null
+              sudo apt-get update
+            fi
+            sudo apt-get install -y postgresql-client-18
+          fi
+          for tool in pg_dump pg_restore psql; do
+            test -x "$PG_BIN/$tool"
+            "$PG_BIN/$tool" --version | grep -Eq 'PostgreSQL\) 18([. ]|$)'
+          done
       - name: Install test dependencies
         run: python -m pip install -r requirements.txt pytest pytest-asyncio aiosqlite pypdf
       - name: Install frontend test dependencies
         run: npm install --prefix tests/frontend --no-package-lock --ignore-scripts
       - name: Backend and PostgreSQL migration regressions
-        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_presentation.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py -q
+        run: python -m pytest tests/test_listing_freshness.py tests/test_loading_period.py tests/test_release_schema.py tests/test_publication_journeys.py tests/test_carrier_profile.py tests/test_deal_completion_http.py tests/test_deal_act_pdf_layout.py tests/test_deal_review_schema.py tests/test_deal_completion_concurrency.py tests/test_notification_events.py tests/test_notification_inbox.py tests/test_notification_delivery.py tests/test_notification_schema.py tests/test_password_access.py tests/test_password_recovery_schema.py tests/test_admin_credentials_http.py tests/test_access_ownership.py tests/test_mari_dispatcher.py tests/test_mari_role.py tests/test_pilot_city_scope.py tests/test_pilot_listing_quality.py tests/test_route_locations.py tests/test_location_presentation.py tests/test_location_country.py tests/test_route_locations_postgres.py tests/test_release_order.py tests/test_ci_publish_gate.py tests/test_startup_schema_safety.py tests/test_database_backup.py -q
       - name: JavaScript syntax
         run: |
           node --check api.js
@@ -76,60 +92,6 @@ jobs:
         run: node --test tests/frontend/tests/loading_dates.test.js
         env:
           TZ: Pacific/Kiritimati
-  public-visibility:
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
-      - name: Read-only carrier visibility check
-        env:
-          WAIT_FOR_RELEASE: ${{ github.event_name == 'push' && '1' || '0' }}
-        run: |
-          python - <<'PY'
-          import json, os, time
-          from urllib.request import Request, urlopen
-          base = "https://api-production-f3ea.up.railway.app"
-          wait = os.environ.get("WAIT_FOR_RELEASE") == "1"
-          deadline = time.monotonic() + (600 if wait else 30)
-          def get(path):
-              request = Request(base + path, headers={"Accept": "application/json"})
-              with urlopen(request, timeout=15) as response:
-                  return json.load(response)
-          while True:
-              try:
-                  counters = get("/api/stats/counters")
-                  directory = get("/api/transport/?limit=200")
-                  available = get("/api/transport/?limit=200&available_only=true")
-                  trucks = get("/api/trucks/?limit=200")
-                  rows = directory.get("offers", [])
-                  ready = bool(rows) and all("dates_expired" in row for row in rows)
-                  if not wait or ready:
-                      # Public aggregates only: never log carrier names or contacts.
-                      summary = {
-                          "total_users": counters.get("total_users"),
-                          "companies": counters.get("companies"),
-                          "transport_total": directory.get("total"),
-                          "current_transport_total": available.get("total"),
-                          "expired_dates_visible": sum(row.get("dates_expired") is True for row in rows),
-                          "truck_total": trucks.get("total"),
-                          "release_schema_seen": ready,
-                      }
-                      print(json.dumps(summary, sort_keys=True))
-                      if wait:
-                          assert directory["total"] >= available["total"]
-                          assert directory["total"] > 0
-                          assert counters["total_users"] > 0
-                      break
-              except Exception as error:
-                  if not wait:
-                      raise
-                  if time.monotonic() >= deadline:
-                      raise
-                  print("Public API not ready:", type(error).__name__)
-              if time.monotonic() >= deadline:
-                  raise TimeoutError("Carrier directory release did not become visible")
-              time.sleep(10)
-          PY
-
   carrier-profile-browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -345,3 +307,32 @@ jobs:
           name: address-browser
           path: artifacts/address-journey/
           if-no-files-found: warn
+
+
+  # One stable check, with no production dependency, for Railway Wait for CI.
+  # Explicitly reject skipped/cancelled prerequisites as well as test failures.
+  validation:
+    if: ${{ always() }}
+    needs:
+      - regression
+      - carrier-profile-browser
+      - publication-browser
+      - deal-completion-browser
+      - notification-browser
+      - auth-recovery-browser
+      - address-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every offline and browser regression
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["JOB_RESULTS"])
+          failed = [name for name, job in results.items() if job["result"] != "success"]
+          if failed:
+              raise SystemExit("Regression did not pass: " + ", ".join(sorted(failed)))
+          print("All seven offline/browser jobs passed; backend CI gate is clear.")
+          PY
