@@ -7,9 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from fastapi.responses import Response as FastAPIResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import load_only
 from app.database import get_db
 from app.models.deal import Deal, DealStatus
 from app.models.deal_review import DealReview
+from app.models.deal_act_archive import DealActArchive
 from app.models.load import Load, LoadStatus
 from app.models.transport_offer import TransportOffer
 from app.models.transport_request import TransportRequest
@@ -22,6 +24,10 @@ from sqlalchemy.exc import IntegrityError
 from app.pdf_utils import generate_act_pdf
 from app.services.notifications import enqueue_event
 from app.services.document_names import document_readiness, require_document_names, raise_missing_names
+from app.services.deal_act_archive import (
+    create_bundle, metadata as archive_metadata, validate_bundle, validate_payload,
+    unavailable as archive_unavailable,
+)
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 from typing import Optional
 from datetime import datetime, timedelta, timezone
@@ -107,6 +113,23 @@ async def _deal_reviews(db: AsyncSession, deal_id: int) -> list[DealReview]:
     result = await db.execute(select(DealReview).where(DealReview.deal_id == deal_id)
                               .order_by(DealReview.id))
     return list(result.scalars().all())
+
+
+async def _act_archives(db: AsyncSession, ids: list[int], *, payload=False):
+    if not ids:
+        return {}
+    fields = [DealActArchive.deal_id, DealActArchive.schema_version, DealActArchive.issued_at]
+    if payload:
+        fields.extend([DealActArchive.payload, DealActArchive.payload_sha256])
+    result = await db.execute(select(DealActArchive).where(DealActArchive.deal_id.in_(ids))
+                              .options(load_only(*fields)))
+    return {item.deal_id: item for item in result.scalars().all()}
+
+
+def _document_state(archive, shipper, carrier, viewer_id):
+    info = archive_metadata(archive)
+    readiness = {'ready': True, 'missing_parties': []} if info['issued'] else document_readiness(shipper, carrier, viewer_id)
+    return {'document_archive': info, 'document_readiness': readiness}
 
 
 async def _locked_deal(db: AsyncSession, deal_id: int, user_id: int) -> Deal:
@@ -365,6 +388,7 @@ async def get_my_deals(
         ).order_by(Deal.created_at.desc()).limit(limit).offset(offset)
     )
     deals = result.scalars().all()
+    archives = await _act_archives(db, [d.id for d in deals])
     grouped_reviews = {}
     if deals:
         review_result = await db.execute(select(DealReview).where(DealReview.deal_id.in_([d.id for d in deals])))
@@ -382,7 +406,7 @@ async def get_my_deals(
         sh = sh_r.scalar_one_or_none()
         ca_r = await db.execute(select(User).where(User.id == d.carrier_id))
         ca = ca_r.scalar_one_or_none()
-        base['document_readiness'] = document_readiness(sh, ca, user_id)
+        base.update(_document_state(archives.get(d.id), sh, ca, user_id))
         base["deal_number"] = d.act_number or _act_number(d.id)
         offer = await db.get(TransportOffer, d.transport_offer_id) if not load and d.transport_offer_id else None
         transport_request = await db.get(TransportRequest, d.transport_request_id) if offer and d.transport_request_id else None
@@ -450,6 +474,51 @@ def _act_truck_label(value, language: str) -> str:
     return labels.get(code, code or "—")
 
 
+def _act_payload(deal, shipper, carrier, load, offer, request, names, issued_at):
+    """Capture every rendered/accounting value once; do not archive email."""
+    from app.services.user_display import display_phone
+    route = load or offer
+    document = {
+        'act_number': deal.act_number or _act_number(deal.id), 'deal_id': deal.id,
+        'created_at': deal.created_at, 'completed_at': deal.completed_at, 'shipper_name': names['shipper'],
+        'shipper_inn': shipper.inn or '—', 'shipper_phone': display_phone(shipper) or '—',
+        'carrier_name': names['carrier'], 'carrier_inn': carrier.inn or '—',
+        'carrier_phone': display_phone(carrier) or '—',
+        'from_city': route.from_city if route else '—', 'to_city': route.to_city if route else '—',
+        'cargo_desc': load.cargo_desc if load else (request.cargo_description if request else '—'),
+        'weight_kg': load.weight_kg if load else (request.weight_kg if request and request.weight_kg is not None else '—'),
+        'agreed_price': deal.agreed_price if deal.agreed_price is not None else 0,
+        'currency': deal.currency or 'GEL', 'loading_at': deal.loading_at,
+        'delivered_at': deal.delivered_at, 'generated_at': issued_at,
+    }
+    def date(value):
+        return value.strftime('%d.%m.%Y') if value else ''
+    accounting = {
+        'act_number': document['act_number'], 'date': date(deal.completed_at or deal.created_at),
+        'shipper': names['shipper'], 'shipper_inn': document['shipper_inn'],
+        'carrier': names['carrier'], 'carrier_inn': document['carrier_inn'],
+        'from_city': document['from_city'], 'to_city': document['to_city'],
+        'cargo_desc': document['cargo_desc'], 'weight_kg': document['weight_kg'],
+        'amount': document['agreed_price'], 'currency': document['currency'],
+        'payment_type': (load.payment_type or '') if load else '', 'deal_id': deal.id,
+        'deal_source': deal.deal_source, 'load_id': deal.load_id,
+        'transport_offer_id': deal.transport_offer_id,
+        'loading_date': date(deal.loading_at), 'delivery_date': date(deal.delivered_at),
+    }
+    return {'document': document, 'accounting': accounting,
+            'truck_labels': {language: _act_truck_label(route.truck_type if route else None, language)
+                             for language in ('ru', 'ge')}}
+
+
+async def _rollback_act(db):
+    """Best-effort cleanup never exposes a failed private INSERT's parameters."""
+    try:
+        await db.rollback()
+        return True
+    except Exception:
+        return False
+
+
 @router.get("/{deal_id}/act.pdf")
 async def download_act(
     deal_id: int,
@@ -457,58 +526,66 @@ async def download_act(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(_act_current_user),
 ):
-    result = await db.execute(select(Deal).where(Deal.id == deal_id))
-    deal = result.scalar_one_or_none()
-    if deal is None:
-        raise HTTPException(404, "Сделка не найдена")
-    if current_user.id not in (deal.shipper_id, deal.carrier_id):
-        raise HTTPException(403, "Нет доступа")
-    if _status_value(deal) not in ("completed", "rated"):
-        raise HTTPException(400, "Акт доступен после подтверждения доставки обеими сторонами")
-
-    load = await db.get(Load, deal.load_id) if deal.load_id else None
-    offer = await db.get(TransportOffer, deal.transport_offer_id) if deal.transport_offer_id else None
-    request = await db.get(TransportRequest, deal.transport_request_id) if deal.transport_request_id else None
-    shipper = await db.get(User, deal.shipper_id)
-    carrier = await db.get(User, deal.carrier_id)
-    names = require_document_names(shipper, carrier, current_user.id)
-    route = load or offer
-    language = lang if lang in ("ru", "ge") else "ru"
-    from app.services.user_display import display_phone, display_email
-
-    deal_data = {
-        "act_number": deal.act_number or _act_number(deal.id),
-        "deal_id": deal.id,
-        "completed_at": deal.completed_at,
-        "shipper_name": names['shipper'],
-        "shipper_inn": shipper.inn if shipper and not shipper.is_deleted and shipper.inn else "—",
-        "shipper_phone": (display_phone(shipper) or "—") if shipper else "—",
-        "shipper_email": (display_email(shipper) or "—") if shipper else "—",
-        "carrier_name": names['carrier'],
-        "carrier_inn": carrier.inn if carrier and not carrier.is_deleted and carrier.inn else "—",
-        "carrier_phone": (display_phone(carrier) or "—") if carrier else "—",
-        "carrier_email": (display_email(carrier) or "—") if carrier else "—",
-        "from_city": route.from_city if route else "—",
-        "to_city": route.to_city if route else "—",
-        "cargo_desc": load.cargo_desc if load else (request.cargo_description if request else "—"),
-        "weight_kg": load.weight_kg if load else (request.weight_kg if request and request.weight_kg is not None else "—"),
-        "truck_type": _act_truck_label(route.truck_type if route else None, language),
-        "agreed_price": deal.agreed_price if deal.agreed_price is not None else 0,
-        "currency": deal.currency or "GEL",
-        "loading_at": deal.loading_at,
-        "delivered_at": deal.delivered_at,
-        "lang": language,
-    }
-    try:
-        pdf_bytes = generate_act_pdf(deal_data)
-    except Exception as error:
-        raise HTTPException(500, "Не удалось сформировать PDF акт") from error
-    filename = f"act_{deal.act_number or deal.id}.pdf"
+    viewer_id = current_user.id
+    # A deal lock serializes the first issue on PostgreSQL. The archive primary
+    # key also prevents two SQLite requests from overwriting each other's bundle.
+    deal = await _locked_deal(db, deal_id, viewer_id)
+    archive = await db.get(DealActArchive, deal_id)
+    if archive is None:
+        if (_status_value(deal) not in ('completed', 'rated')
+                or not deal.shipper_confirmed or not deal.carrier_confirmed):
+            raise HTTPException(400, "Акт доступен после подтверждения доставки обеими сторонами")
+        try:
+            participants = {user.id: user for user in await _locked_users(db, [deal.shipper_id, deal.carrier_id])}
+            shipper, carrier = participants.get(deal.shipper_id), participants.get(deal.carrier_id)
+            viewer = participants.get(viewer_id)
+            if viewer is None or viewer.is_deleted or not viewer.is_active:
+                raise HTTPException(403, 'Нет доступа')
+            names = require_document_names(shipper, carrier, viewer_id)
+            load = await db.get(Load, deal.load_id, populate_existing=True) if deal.load_id else None
+            offer = await db.get(TransportOffer, deal.transport_offer_id, populate_existing=True) if deal.transport_offer_id else None
+            request = await db.get(TransportRequest, deal.transport_request_id, populate_existing=True) if deal.transport_request_id else None
+            issued_at = datetime.now(timezone.utc)
+            payload = _act_payload(deal, shipper, carrier, load, offer, request, names, issued_at)
+            archive = create_bundle(deal_id, payload, issued_at, generate_act_pdf)
+            db.add(archive)
+            await db.commit()
+        except IntegrityError:
+            if not await _rollback_act(db):
+                raise archive_unavailable() from None
+            # Never rewrite a winner, even when its contents are corrupt.
+            try:
+                await _locked_deal(db, deal_id, viewer_id)
+                archive = await db.get(DealActArchive, deal_id)
+            except HTTPException as error:
+                raise error from None
+            except Exception:
+                raise archive_unavailable() from None
+            if archive is None:
+                raise archive_unavailable() from None
+        except HTTPException as error:
+            await _rollback_act(db)
+            raise error from None
+        except Exception:
+            # DBAPI errors can carry SQL bind parameters including the private
+            # payload and PDFs. Never let them escape into an ASGI traceback.
+            await _rollback_act(db)
+            raise archive_unavailable() from None
+        except BaseException as error:
+            await _rollback_act(db)
+            raise error from None
+    payload = validate_bundle(archive, deal_id)
+    language = lang if lang in ('ru', 'ge') else 'ru'
+    pdf_bytes = getattr(archive, language + '_pdf')
+    import re
+    act_number = str(payload['document']['act_number'])
+    safe_number = act_number if re.fullmatch(r'[A-Za-z0-9_.-]+', act_number) else str(deal_id)
     return FastAPIResponse(
         content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"',
-                 "Cache-Control": "private, no-store", "Pragma": "no-cache"},
+        media_type='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="act_{safe_number}.pdf"',
+                 'Cache-Control': 'private, no-store', 'Pragma': 'no-cache',
+                 'X-Act-Issued-At': archive_metadata(archive)['issued_at']},
     )
 
 
@@ -542,17 +619,28 @@ async def export_deals(
         except ValueError:
             pass
 
+    archives = await _act_archives(db, [d.id for d in all_deals], payload=format != 'json')
+    archived_payloads = {identity: validate_payload(archive, identity)
+                         for identity, archive in archives.items()} if format != 'json' else {}
+
+    def period_stamp(deal):
+        frozen = archived_payloads.get(deal.id)
+        if frozen:
+            value = frozen['document']['completed_at'] or frozen['document']['created_at']
+            return _export_timestamp(datetime.fromisoformat(value)) if value else None
+        return _export_timestamp(deal.completed_at or deal.created_at)
+
     # 12.2.4: Фильтрация по периоду дат
     if date_from:
         try:
             df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            all_deals = [d for d in all_deals if (stamp := _export_timestamp(d.completed_at or d.created_at)) is not None and stamp >= df]
+            all_deals = [d for d in all_deals if (stamp := period_stamp(d)) is not None and stamp >= df]
         except ValueError:
             pass
     if date_to:
         try:
             dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
-            all_deals = [d for d in all_deals if (stamp := _export_timestamp(d.completed_at or d.created_at)) is not None and stamp < dt]
+            all_deals = [d for d in all_deals if (stamp := period_stamp(d)) is not None and stamp < dt]
         except (ValueError, OverflowError):
             pass
 
@@ -573,6 +661,12 @@ async def export_deals(
         for o in or_.scalars().all():
             offer_map[o.id] = o
 
+    request_ids = [d.transport_request_id for d in all_deals if d.transport_offer_id and d.transport_request_id]
+    request_map = {}
+    if request_ids:
+        requested = await db.execute(select(TransportRequest).where(TransportRequest.id.in_(request_ids)))
+        request_map = {item.id: item for item in requested.scalars().all()}
+
     # Загружаем данные пользователей
     uids = list({d.shipper_id for d in all_deals} | {d.carrier_id for d in all_deals})
     user_map = {}
@@ -584,6 +678,8 @@ async def export_deals(
     if format != 'json':
         missing = []
         for deal in all_deals:
+            if deal.id in archived_payloads:
+                continue
             for item in document_readiness(user_map.get(deal.shipper_id), user_map.get(deal.carrier_id), user_id)['missing_parties']:
                 if item not in missing:
                     missing.append(item)
@@ -608,21 +704,22 @@ async def export_deals(
         # ADR-016.7: route берётся из Load (cargo-путь) или TransportOffer (transport-путь)
         load  = load_map.get(d.load_id) if d.load_id else None
         offer = offer_map.get(d.transport_offer_id) if d.transport_offer_id else None
+        accepted_request = request_map.get(d.transport_request_id)
         source = offer if offer else load   # transport_offer_id приоритетнее
         price = d.agreed_price or 0
         cur = d.currency or "GEL"
-        readiness = document_readiness(user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id)
-        names = require_document_names(user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id) if format != 'json' else None
+        document_state = _document_state(archives.get(d.id), user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id)
+        names = require_document_names(user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id) if format != 'json' and d.id not in archived_payloads else None
         row = {
             "act_number":    d.act_number or _act_number(d.id),
             "date":          _fmt(d.completed_at or d.created_at),
             "shipper":       names['shipper'] if names else _company(d.shipper_id),
             "carrier":       names['carrier'] if names else _company(d.carrier_id),
-            "document_readiness": readiness,
+            **document_state,
             "from_city":     source.from_city if source else "—",
             "to_city":       source.to_city   if source else "—",
-            "cargo_desc":    (load.cargo_desc or "") if load else (offer.notes or "") if offer else "",
-            "weight_kg":     load.weight_kg if load else (offer.capacity_kg if offer else 0),
+            "cargo_desc":    (load.cargo_desc or "") if load else (accepted_request.cargo_description if accepted_request else "—"),
+            "weight_kg":     load.weight_kg if load else (accepted_request.weight_kg if accepted_request and accepted_request.weight_kg is not None else "—"),
             "amount":        price,
             "currency":      cur,
             "payment_type":  (load.payment_type or "") if load else "",
@@ -636,6 +733,9 @@ async def export_deals(
             "loading_date":  _fmt(d.loading_at),
             "delivery_date": _fmt(d.delivered_at),
         }
+        if d.id in archived_payloads:
+            row.update(archived_payloads[d.id]['accounting'])
+        price, cur = _D(str(row['amount'])), row['currency']
         rows.append(row)
         if cur == "GEL":
             total_gel += price

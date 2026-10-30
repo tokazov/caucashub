@@ -140,7 +140,9 @@ async def test_both_confirmed_names_are_used_for_pdf_and_signatures_in_every_ui_
     rows=list(csv.DictReader(io.StringIO(csv_result.content.decode('utf-8-sig')),delimiter=';'))
     assert rows[0]['shipper']==NAMES['shipper'] and rows[0]['carrier']==NAMES['carrier']
     assert (await save(documents,'carrier',legal_name_ka_confirmed=False)).status_code==200
-    assert (await client.get('/api/deals/export?format=csv',headers=headers)).status_code==409
+    frozen=await client.get('/api/deals/export?format=csv',headers=headers)
+    assert frozen.status_code==200
+    assert NAMES['carrier'] in frozen.content.decode('utf-8-sig')
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 """Railpack gate for loading periods and retry-safe load publication.
 
 Apply the selected release migrations directly using idempotent additive DDL,
-including the private-review and owner-confirmed document fields in 027/028.
+including the private-review, owner-confirmed names and act archive in 027-029.
 All steps and the final application check share one transaction. The production
 database has a history of startup fallback migrations, so this release must
 not stamp or replay unrelated Alembic revisions without a schema audit.
@@ -239,6 +239,9 @@ async def prepare_schema(engine, *, verify_application=False, bootstrap_empty=Fa
         await connection.run_sync(prepare_deal_reviews)
         await connection.run_sync(prepare_public_review_visibility)
         await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at, public_comment FROM deal_reviews LIMIT 0"))
+        await connection.run_sync(prepare_deal_act_archives)
+        await connection.execute(text('SELECT deal_id,schema_version,issued_at,payload,payload_sha256,'
+                                      'ru_pdf,ge_pdf,ru_sha256,ge_sha256 FROM deal_act_archives LIMIT 0'))
         await connection.run_sync(prepare_notifications)
         await connection.run_sync(prepare_password_recovery)
         await connection.run_sync(prepare_idempotency)
@@ -251,6 +254,72 @@ async def prepare_schema(engine, *, verify_application=False, bootstrap_empty=Fa
         if verify_application:
             from app.services.schema_readiness import verify_connection
             await connection.run_sync(verify_connection)
+
+
+def prepare_deal_act_archives(connection):
+    """Create only an absent archive; never repair or rewrite an existing one."""
+    from sqlalchemy import JSON, LargeBinary
+    import re
+    path = Path(__file__).resolve().parents[1] / 'alembic/versions/029_deal_act_archives.py'
+    spec = importlib.util.spec_from_file_location('deal_act_archives_release_migration', path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    inspector = inspect(connection)
+    columns = {item['name']: item for item in inspector.get_columns('deal_act_archives')}
+    expected = {
+        'deal_id': Integer, 'schema_version': Integer, 'issued_at': DateTime,
+        'payload': JSON, 'payload_sha256': String, 'ru_pdf': LargeBinary,
+        'ge_pdf': LargeBinary, 'ru_sha256': String, 'ge_sha256': String,
+    }
+    for name, kind in expected.items():
+        column = columns.get(name)
+        if column is None or column['nullable'] or not isinstance(column['type'], kind):
+            raise RuntimeError('Act archive schema is incompatible: ' + name)
+        if kind is String and column['type'].length != 64:
+            raise RuntimeError('Act archive schema requires SHA-256 width: ' + name)
+        if (kind is DateTime and connection.dialect.name == 'postgresql'
+                and not column['type'].timezone):
+            raise RuntimeError('Act archive schema requires timezone: ' + name)
+        if name not in ('schema_version', 'issued_at') and column.get('default') is not None:
+            raise RuntimeError('Act archive schema has an unsafe default: ' + name)
+    version_default = re.sub(r"[\s'\"()]", '', str(columns['schema_version'].get('default') or ''))
+    version_default = version_default.removesuffix('::integer')
+    issue_default = re.sub(r'[\s()]', '', str(columns['issued_at'].get('default') or '')).lower()
+    if version_default != '1' or issue_default not in ('now', 'current_timestamp'):
+        raise RuntimeError('Act archive schema is missing version/issue defaults')
+    if inspector.get_pk_constraint('deal_act_archives').get('constrained_columns') != ['deal_id']:
+        raise RuntimeError('Act archive schema is missing per-deal uniqueness')
+    references = inspector.get_foreign_keys('deal_act_archives')
+    if len(references) != 1 or not any(item['constrained_columns'] == ['deal_id'] and item['referred_table'] == 'deals'
+               and item['referred_columns'] == ['id']
+                   and item.get('referred_schema') in (None, inspector.default_schema_name)
+               and str(item.get('options', {}).get('ondelete', 'NO ACTION')).upper() in ('NO ACTION', 'RESTRICT')
+               and str(item.get('options', {}).get('onupdate', 'NO ACTION')).upper() in ('NO ACTION', 'RESTRICT')
+               for item in references):
+        raise RuntimeError('Act archive schema is missing a non-destructive deal foreign key')
+    def normalize(value):
+        normalized = re.sub(r'[\s()]', '', value.lower())
+        # PostgreSQL resolves length(varchar) as length(varchar::text). Only
+        # these already-validated varchar(64) columns have this binary cast.
+        for name in ('ru_sha256', 'ge_sha256', 'payload_sha256'):
+            normalized = normalized.replace('length' + name + '::text', 'length' + name)
+        return normalized
+    checks = {item['name']: normalize(item['sqltext'])
+              for item in inspector.get_check_constraints('deal_act_archives')}
+    required = {
+        'ck_deal_act_archive_version': 'schema_version=1',
+        'ck_deal_act_archive_ru_pdf': 'lengthru_pdf>0',
+        'ck_deal_act_archive_ge_pdf': 'lengthge_pdf>0',
+        'ck_deal_act_archive_ru_sha': 'lengthru_sha256=64',
+        'ck_deal_act_archive_ge_sha': 'lengthge_sha256=64',
+        'ck_deal_act_archive_payload_sha': 'lengthpayload_sha256=64',
+    }
+    if any(checks.get(name) != value for name, value in required.items()):
+        raise RuntimeError('Act archive schema is missing archive validation constraints')
+    connection.execute(text('SELECT deal_id,schema_version,issued_at,payload,payload_sha256,'
+                            'ru_pdf,ge_pdf,ru_sha256,ge_sha256 FROM deal_act_archives LIMIT 0'))
 
 
 def prepare_document_names(connection):

@@ -144,6 +144,62 @@ async def test_missing_profile_document_field_blocks_startup_without_repairing_s
 
 
 @pytest.mark.asyncio
+async def test_missing_act_archive_blocks_startup_read_only_and_keeps_customer_records(
+        safety_database, application_hooks):
+    engine = safety_database
+    await provision(engine)
+    before = await sentinels(engine)
+    async with engine.begin() as connection:
+        await connection.execute(text('DROP TABLE deal_act_archives'))
+    await engine.dispose()
+    statements = []
+    event.listen(engine.sync_engine, 'before_cursor_execute',
+                 lambda conn, cursor, statement, *args: statements.append(statement))
+    application_hooks(engine)
+    with pytest.raises(readiness.SchemaNotReady, match='deal_act_archives'):
+        async with application.lifespan(application.app):
+            pytest.fail('Missing issued-document storage must block startup')
+    result = await application.health()
+    assert result.status_code == 503 and application.app.state.schema_ready is False
+    assert await sentinels(engine) == before
+    assert statements and all(statement.lstrip().upper().startswith('SELECT') for statement in statements)
+    async with engine.connect() as connection:
+        assert not await connection.run_sync(lambda sync: inspect(sync).has_table('deal_act_archives'))
+
+
+@pytest.mark.asyncio
+async def test_act_archive_predeploy_rolls_back_new_table_on_late_failure_and_never_backfills(
+        safety_database, monkeypatch):
+    engine = safety_database
+    await provision(engine)
+    before = await sentinels(engine)
+    async with engine.begin() as connection:
+        await connection.execute(text('DROP TABLE deal_act_archives'))
+    await engine.dispose()
+    original_verification = readiness.verify_connection
+
+    def reject_after_archive_creation(connection):
+        original_verification(connection)
+        assert connection.execute(text('SELECT COUNT(*) FROM deal_act_archives')).scalar_one() == 0
+        connection.execute(text("UPDATE users SET company_name='MUST ROLLBACK' WHERE id=1"))
+        raise readiness.SchemaNotReady('Injected archive verification failure')
+
+    monkeypatch.setattr(readiness, 'verify_connection', reject_after_archive_creation)
+    with pytest.raises(readiness.SchemaNotReady, match='Injected archive verification failure'):
+        await release.prepare_schema(engine, verify_application=True)
+    assert await sentinels(engine) == before
+    if engine.dialect.name == 'postgresql':
+        async with engine.connect() as connection:
+            assert not await connection.run_sync(lambda sync: inspect(sync).has_table('deal_act_archives'))
+    monkeypatch.setattr(readiness, 'verify_connection', original_verification)
+    await release.prepare_schema(engine, verify_application=True)
+    await release.prepare_schema(engine, verify_application=True)
+    assert await sentinels(engine) == before
+    async with engine.connect() as connection:
+        assert (await connection.execute(text('SELECT COUNT(*) FROM deal_act_archives'))).scalar_one() == 0
+
+
+@pytest.mark.asyncio
 async def test_combined_profile_document_gate_is_atomic_and_preserves_old_records(safety_database, monkeypatch):
     engine = safety_database
     await provision(engine)

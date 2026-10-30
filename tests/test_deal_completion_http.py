@@ -332,7 +332,9 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
         assert result.headers["content-type"].startswith("application/pdf")
         assert result.headers["content-disposition"].startswith("attachment;")
         assert result.content.startswith(b"%PDF-") and len(result.content) > 1000
-        data = captured[-1]
+        # Both languages are rendered once at first issue, then served verbatim.
+        assert len(captured) == 2
+        data = next(item for item in captured if item['lang'] == lang)
         assert data["lang"] == lang
         assert data["from_city"] == "Тбилиси" and data["to_city"] == "Батуми"
         assert data["cargo_desc"] == DESCRIPTION
@@ -347,6 +349,7 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
     await review(journey, "shipper", deal_id)
     after_review = await client.get(f"/api/deals/{deal_id}/act.pdf", headers=roles["carrier"])
     assert after_review.status_code == 200 and after_review.content.startswith(b"%PDF-")
+    assert len(captured) == 2
 
 
 @SOURCES

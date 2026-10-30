@@ -2631,6 +2631,7 @@ function renderDealCard(d){
       <span style="background:${st.border}22;color:${st.color};padding:4px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap">${st.label}</span>
     </div>
     ${actions ? `<div style="margin-top:8px">${actions}</div>` : ''}
+    ${renderDealDocumentState(d)}
   </div>`;
 }
 
@@ -3415,6 +3416,22 @@ function dealViewerRole(deal){
   if(viewerId===carrierId&&viewerId!==shipperId) return 'carrier';
   return '';
 }
+function renderDealDocumentState(deal){
+  if(!dealViewerRole(deal)||!['completed','rated'].includes(deal.status))return '';
+  const archived=deal.document_archive?.issued===true;
+  let date='';
+  if(archived&&typeof deal.document_archive.issued_at==='string'){
+    const stamp=new Date(deal.document_archive.issued_at);
+    if(Number.isFinite(stamp.getTime())){
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Tbilisi'}).formatToParts(stamp).map(part=>[part.type,part.value]));
+      date=parts.day+'.'+parts.month+'.'+parts.year+' '+parts.hour+':'+parts.minute;
+    }
+  }
+  const text=archived
+    ?(lang==='ge'?'აქტი შენახულია':'Архивный акт сохранён')+(date?' · '+date:'')
+    :(lang==='ge'?'პირველი ჩამოტვირთვისას აქტი მიმდინარე რეკვიზიტებით შეინახება.':'При первом скачивании акт сохранится с текущими реквизитами.');
+  return '<div data-deal-document-state="'+(archived?'archived':'unissued')+'" style="font-size:11px;color:#777;margin-top:6px">'+esc(text)+'</div>';
+}
 function dealCanRate(deal){
   if(!dealViewerRole(deal)||!['completed','rated'].includes(deal.status)) return false;
   if(Object.prototype.hasOwnProperty.call(deal,'viewer_can_rate')) return deal.viewer_can_rate===true;
@@ -3539,6 +3556,7 @@ function renderCabDeals(){
  : '')
  + ((d.viewer_has_rated || (d.status === 'rated' && !dealCanRate(d))) ? '<span style="font-size:12px;color:#2ecc71;font-weight:700;margin-left:6px">⭐ ' + (_tr.deal_rated||'Оценено') + '</span>' : '')
  + '</div>'
+ + renderDealDocumentState(d)
  + '</div>';
  }).join('');
 }
@@ -3916,7 +3934,9 @@ const TRANSLATIONS = {
     rules_p4_4: 'Немедленно уведомлять грузовладельца о форс-мажоре',
     rules_p5: 'Запрещено размещать: наркотики, оружие, взрывчатые вещества, незадекларированные товары, а также любые грузы, перевозка которых нарушает законодательство Грузии или страны назначения.',
     rules_p6: 'Споры между пользователями решаются самостоятельно путём переговоров. При невозможности урегулирования — в суде по законодательству Грузии. CaucasHub вправе заблокировать пользователя при нарушении правил без предупреждения.',
-    rules_p7: 'Данные пользователей не передаются третьим лицам. Контакты участников видны только в рамках активной сделки. Платформа использует данные исключительно для обеспечения работы сервиса.',
+    rules_p7: 'Публичный профиль не содержит контактов и реквизитов для актов. Выданные акты с реквизитами доступны только участникам соответствующей сделки и сохраняются после изменения или удаления профиля.',
+    delete_retention_hint: 'Удаление необратимо. Активные грузы будут отменены. Профиль будет обезличен; выданные акты с реквизитами сохранятся у участников сделок.',
+    delete_retention_history: 'Профиль будет обезличен. Выданные акты с реквизитами останутся в истории у участников сделок',
     rules_p8: 'CaucasHub оставляет за собой право изменять правила. Продолжение использования платформы после изменений означает согласие с новой редакцией.',
     rules_contact: 'По вопросам: caucashub.ge · @caucashub_bot',
     footer_slogan: 'Биржа грузов и транспорта',
@@ -4558,7 +4578,9 @@ const TRANSLATIONS = {
     rules_p4_4: 'ტვირთის მფლობელის დაუყოვნებელი შეტყობინება ფორს-მაჟორის შემთხვევაში',
     rules_p5: 'აკრძალულია განთავსება: ნარკოტიკები, იარაღი, ფეთქებადი ნივთიერებები, გაუფორმებელი საქონელი, ასევე ნებისმიერი ტვირთი, რომლის გადაზიდვა არღვევს საქართველოს ან დანიშნულების ქვეყნის კანონმდებლობას.',
     rules_p6: 'მომხმარებლებს შორის დავები წყდება დამოუკიდებლად მოლაპარაკების გზით. მოგვარების შეუძლებლობის შემთხვევაში — საქართველოს კანონმდებლობის შესაბამის სასამართლოში. CaucasHub უფლებამოსილია წინასწარ გაფრთხილების გარეშე დაბლოკოს მომხმარებელი წესების დარღვევის შემთხვევაში.',
-    rules_p7: 'მომხმარებლის მონაცემები არ გადაეცემა მესამე პირებს. მონაწილეთა კონტაქტები ხილულია მხოლოდ აქტიური გარიგების ფარგლებში. პლატფორმა იყენებს მონაცემებს მხოლოდ სერვისის ფუნქციონირების უზრუნველსაყოფად.',
+    rules_p7: 'საჯარო პროფილში არ ჩანს კონტაქტები ან აქტისთვის საჭირო რეკვიზიტები. გაცემული აქტები რეკვიზიტებით ხელმისაწვდომია მხოლოდ შესაბამისი გარიგების მონაწილეებისთვის და პროფილის შეცვლის ან წაშლის შემდეგაც ინახება.',
+    delete_retention_hint: 'წაშლა შეუქცევადია. აქტიური ტვირთები გაუქმდება. პროფილი ანონიმური გახდება; გაცემული აქტები რეკვიზიტებით გარიგების მონაწილეებს შეუნარჩუნდებათ.',
+    delete_retention_history: 'პროფილი ანონიმური გახდება. უკვე გაცემული აქტები რეკვიზიტებით გარიგების მონაწილეების ისტორიაში დარჩება',
     rules_p8: 'CaucasHub იტოვებს წესების შეცვლის უფლებას. პლატფორმის გამოყენების გაგრძელება ცვლილებების შემდეგ ნიშნავს ახალ რედაქციაზე თანხმობას.',
     rules_contact: 'კითხვებისთვის: caucashub.ge · @caucashub_bot',
     footer_slogan: 'ტვირთებისა და ტრანსპორტის ბირჟა',
@@ -6509,7 +6531,7 @@ function renderDeals(){
       +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).label_sum||'Сумма')+': </span><strong>'+(deal.currency||"₾")+((deal.price||0)).toLocaleString()+'</strong></div>'
       +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sig_shipper||'Отправитель')+': </span>'+publicUserName(deal.shipper&&deal.shipper.name||'—',deal.shipper_id??deal.shipper?.id)+'</div>'
       +'<div><span style="color:#aaa">'+((TRANSLATIONS[lang]||TRANSLATIONS['ru']).sig_carrier||'Перевозчик')+': </span>'+publicUserName(deal.carrier&&deal.carrier.name||'—',deal.carrier_id??deal.carrier?.id)+'</div></div>'
-      +'<div id="deal-btns-'+deal.id+'" style="display:flex;gap:8px;flex-wrap:wrap"></div>';
+      +'<div id="deal-btns-'+deal.id+'" style="display:flex;gap:8px;flex-wrap:wrap"></div>'+renderDealDocumentState(deal);
     el.appendChild(card);
     const btns=document.getElementById('deal-btns-'+deal.id);
     if(next && deal.status !== 'in_transit'){const b=document.createElement('button');b.textContent='→ '+(DEAL_STATUS_MAP[next]&&DEAL_STATUS_MAP[next].label||next);b.style.cssText='background:#1a1a2e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,next);};btns.appendChild(b);} if(deal.status==='in_transit'){const isCa=currentUserId&&deal.carrier&&deal.carrier.id==currentUserId;if(isCa){const b=document.createElement('button');b.textContent='🏁 Груз доставлен';b.style.cssText='background:#f7b731;color:#1a1a2e;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer';b.onclick=function(){updateDealStatus(deal.id,'delivered');};btns.appendChild(b);}}
@@ -6548,6 +6570,7 @@ async function _downloadDealDocument(path,filename,mime,trigger){
     if(!response.ok){
       const data=await response.json().catch(()=>null);if(!current())return false;
       if(response.status===409&&data?.detail?.code==='document_requisites_required'){showDocumentRequisitesRequired(data.detail);return false;}
+      if(data?.detail?.code==='document_archive_unavailable'){showToastWarn(lang==='ge'?'შენახული აქტი მიუწვდომელია. დაუკავშირდით მხარდაჭერას.':'Сохранённый акт недоступен. Обратитесь в поддержку.');return false;}
       showToastWarn(response.status===401?(lang==='ge'?'სესია დასრულდა. ხელახლა შედით ანგარიშში':'Сессия истекла. Войдите повторно'):response.status===403?(lang==='ge'?'ამ დოკუმენტზე წვდომა არ გაქვთ':'Нет доступа к этому документу'):(lang==='ge'?'დოკუმენტი ვერ ჩამოიტვირთა. სცადეთ ხელახლა':'Не удалось скачать документ. Попробуйте ещё раз'));return false;
     }
     if(!(response.headers.get('Content-Type')||'').toLowerCase().includes(mime)){showToastWarn(lang==='ge'?'სერვერმა დოკუმენტი ვერ დააბრუნა. სცადეთ ხელახლა':'Сервер не вернул документ. Попробуйте ещё раз');return false;}
@@ -6563,7 +6586,26 @@ function downloadDealAct(id,num,trigger){
   if(!((typeof id==='number'&&Number.isSafeInteger(id)&&id>0)||(typeof id==='string'&&/^[1-9]\d*$/.test(id)&&Number.isSafeInteger(Number(id)))))return Promise.resolve(false);
   const deal=(typeof _deals!=='undefined'&&_deals.find(d=>Number(d.id)===Number(id)))||(typeof dealsData!=='undefined'&&dealsData.find(d=>Number(d.id)===Number(id)));
   const filename='act_'+_documentFilename(num||deal?.deal_number,Number(id))+'.pdf';
-  return _downloadDealDocument('/api/deals/'+Number(id)+'/act.pdf?lang='+(lang==='ge'?'ge':'ru'),filename,'application/pdf',trigger);
+  const owner=user,token=getToken();
+  return _downloadDealDocument('/api/deals/'+Number(id)+'/act.pdf?lang='+(lang==='ge'?'ge':'ru'),filename,'application/pdf',trigger).then(async saved=>{
+    if(saved&&user===owner&&getToken()===token&&deal){
+      deal.document_archive={issued:true,issued_at:deal.document_archive?.issued_at||null};
+      if(typeof renderCabDeals==='function')renderCabDeals();
+      try{
+        const response=await fetch(API_BASE+'/api/deals/my',{method:'GET',headers:{Authorization:'Bearer '+token},credentials:'omit',redirect:'error',signal:AbortSignal.timeout(5000)});
+        if(!response.ok||user!==owner||getToken()!==token)return saved;
+        const data=await response.json();if(user!==owner||getToken()!==token)return saved;
+        const archive=(Array.isArray(data.deals)?data.deals:[]).find(item=>Number(item.id)===Number(id))?.document_archive;
+        if(archive?.issued===true&&typeof archive.issued_at==='string'&&Number.isFinite(new Date(archive.issued_at).getTime())){
+          for(const list of[typeof _deals!=='undefined'?_deals:[],typeof dealsData!=='undefined'?dealsData:[]]){
+            const item=list.find(item=>Number(item.id)===Number(id));if(item)item.document_archive={issued:true,issued_at:archive.issued_at};
+          }
+          if(typeof renderCabDeals==='function')renderCabDeals();
+        }
+      }catch(error){/* The saved PDF remains available; a later refresh retrieves its issue date. */}
+    }
+    return saved;
+  });
 }
 function downloadPDF(id,num,trigger){return downloadDealAct(id,num,trigger);}
 window.downloadDealAct=downloadDealAct;window.downloadPDF=downloadPDF;
