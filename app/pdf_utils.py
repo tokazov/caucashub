@@ -188,7 +188,10 @@ def generate_act_pdf(deal_data: dict) -> bytes:
         c.setFillColor(colors.HexColor("#f0f2f5"))
         c.rect(0, 0, w, 35, fill=1, stroke=0)
         c.setFillColor(colors.HexColor("#888888"))
-        text = f"{t['footer']}  |  {datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC"
+        stamp = deal_data.get('generated_at')
+        stamp = datetime.fromisoformat(stamp) if isinstance(stamp, str) else stamp
+        stamp = stamp or datetime.utcnow()
+        text = f"{t['footer']}  |  {stamp.strftime('%d.%m.%Y %H:%M')} UTC"
         for index, line in enumerate(_wrapped_lines(text, font_name, 7, w - 80)):
             draw_text(40, 23 - index * 9, line, size=7)
 

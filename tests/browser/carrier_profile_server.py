@@ -127,7 +127,9 @@ if ADDRESS_ENABLED:
     if DOCUMENTS_ENABLED:
         application_paths += ['app/models/user.py', 'app/routers/users.py',
             'app/routers/deals.py', 'app/services/document_names.py', 'app/pdf_utils.py',
-            'alembic/versions/028_document_names.py', 'scripts/prepare_loading_period.py']
+            'alembic/versions/028_document_names.py', 'scripts/prepare_loading_period.py',
+            'app/models/deal_act_archive.py', 'app/services/deal_act_archive.py',
+            'alembic/versions/029_deal_act_archives.py']
         application_paths += [item.relative_to(REPOSITORY).as_posix()
                               for item in (REPOSITORY / 'app/fonts').glob('*') if item.is_file()]
     APPLICATION_DIGESTS = {name: sha256((REPOSITORY / name).read_bytes()).hexdigest()

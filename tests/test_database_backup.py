@@ -358,6 +358,11 @@ async def test_real_custom_archive_restores_full_rows_ids_sequences_foreign_keys
             CREATE TABLE public.transport(id bigserial PRIMARY KEY,user_id bigint REFERENCES users(id),capacity numeric);
             CREATE TABLE public.responses(id bigserial PRIMARY KEY,load_id bigint REFERENCES loads(id),user_id bigint REFERENCES users(id));
             CREATE TABLE public.deals(id bigserial PRIMARY KEY,load_id bigint REFERENCES loads(id),state deal_state);
+            CREATE TABLE public.deal_act_archives(
+                deal_id bigint PRIMARY KEY REFERENCES deals(id),
+                payload jsonb NOT NULL, ru_pdf bytea NOT NULL, ge_pdf bytea NOT NULL,
+                ru_sha256 varchar(64) NOT NULL, ge_sha256 varchar(64) NOT NULL
+            );
             CREATE TABLE public.reviews(id bigserial PRIMARY KEY,deal_id bigint REFERENCES deals(id),comment text,public_comment boolean DEFAULT false);
             CREATE TABLE public.notifications(id bigserial PRIMARY KEY,user_id bigint REFERENCES users(id),payload jsonb);
             CREATE TABLE public.notification_deliveries(
@@ -381,6 +386,16 @@ async def test_real_custom_archive_restores_full_rows_ids_sequences_foreign_keys
             INSERT INTO alembic_version VALUES('028_document_names');
             SELECT lo_from_bytea(0,convert_to('TEST synthetic large object','UTF8'));
         """)
+        # Exercise BYTEA's zero/high-bit bytes as well as the private JSON
+        # snapshot. Fingerprints and the real pg_restore must preserve both.
+        ru_pdf = b"%PDF-1.7\r\nTEST synthetic archived act RU\x00\xff\n%%EOF"
+        ge_pdf = b"%PDF-1.7\r\nTEST synthetic archived act GE\x00\xfe\n%%EOF"
+        act_payload = {"shipper_name": "TEST PRIVATE ARCHIVE NAME", "amount": "500.00"}
+        await conn.execute(
+            "INSERT INTO deal_act_archives VALUES(1,$1::jsonb,$2,$3,$4,$5)",
+            json.dumps(act_payload), ru_pdf, ge_pdf,
+            hashlib.sha256(ru_pdf).hexdigest(), hashlib.sha256(ge_pdf).hexdigest(),
+        )
         async with conn.transaction(isolation="repeatable_read", readonly=True):
             before = await fingerprint_database(conn)
         original_tool = database_backup.run_tool
@@ -408,11 +423,11 @@ async def test_real_custom_archive_restores_full_rows_ids_sequences_foreign_keys
         assert archive.read_bytes()[:5] == b"PGDMP"
         assert metadata["database"] == before
         rendered = manifest_path.read_text(encoding="utf-8")
-        for secret in ("backup-fixture-only@example.test", "TEST private comment", "TEST synthetic large object", "TEST synthetic Cyrillic"):
+        for secret in ("backup-fixture-only@example.test", "TEST private comment", "TEST synthetic large object", "TEST synthetic Cyrillic", "TEST PRIVATE ARCHIVE NAME", "TEST synthetic archived act"):
             assert secret not in rendered
-        assert len(metadata["database"]["tables"]) == 9
+        assert len(metadata["database"]["tables"]) == 10
         assert metadata["database"]["large_objects"]["count"] == 1
-        assert metadata["database"]["foreign_keys"] == 8
+        assert metadata["database"]["foreign_keys"] == 9
         source_checks = {row["name"]: row["definition_hash"] for row in before["structure"]["constraints"]
                          if row["table_name"] == "notification_deliveries" and row["type"] == "c"}
         assert source_checks == {"ck_notification_deliveries_" + name: check_digest(check_sql(name, distributed=False))
@@ -431,10 +446,15 @@ async def test_real_custom_archive_restores_full_rows_ids_sequences_foreign_keys
         assert report["table_counts_data_and_ids_match"] is True
         assert report["sequence_configuration_match"] is True and report["large_objects_match"] is True
         assert report["owned_sequence_next_values_safe"] is True
-        assert report["validated_foreign_keys"] == 8
+        assert report["validated_foreign_keys"] == 9
         restored = await admin_info.connect(database=target)
         try:
             assert await restored.fetchval("SELECT count(*) FROM users") == 2
+            archived = await restored.fetchrow("SELECT * FROM deal_act_archives WHERE deal_id=1")
+            assert json.loads(archived["payload"]) == act_payload
+            assert archived["ru_pdf"] == ru_pdf and archived["ge_pdf"] == ge_pdf
+            assert archived["ru_sha256"] == hashlib.sha256(ru_pdf).hexdigest()
+            assert archived["ge_sha256"] == hashlib.sha256(ge_pdf).hexdigest()
             # Reject a broken relationship in the restored schema, not just count FK names.
             with pytest.raises(Exception) as error:
                 await restored.execute("INSERT INTO responses(load_id,user_id) VALUES(99999,1)")

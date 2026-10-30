@@ -1428,7 +1428,7 @@ window.loadYmapsLazy = function(cb, onError) {
     <button onclick="this.style.display='none';document.getElementById('dangerZone').style.display='block'" style="background:none;border:none;color:#e74c3c;font-size:13px;cursor:pointer;padding:0;text-decoration:underline" data-i18n="btn_delete_account">⚠️ Удалить аккаунт</button>
     <div id="dangerZone" style="display:none;padding:16px;border:1.5px solid #e74c3c;border-radius:12px;background:#fff5f5;margin-top:8px">
       <h4 style="color:#e74c3c;margin:0 0 8px;font-size:15px">⚠️ Опасная зона</h4>
-      <p style="font-size:13px;color:#666;margin:0 0 14px;line-height:1.5">Удаление необратимо. Активные грузы будут отменены. История сделок сохранится анонимно.</p>
+      <p style="font-size:13px;color:#666;margin:0 0 14px;line-height:1.5" data-i18n="delete_retention_hint">Удаление необратимо. Активные грузы будут отменены. Профиль будет обезличен; выданные акты с реквизитами сохранятся у участников сделок.</p>
       <button onclick="openDeleteAccountModal()" style="background:#e74c3c;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">🗑️ Удалить аккаунт</button>
     </div>
   </div>
@@ -1443,7 +1443,7 @@ window.loadYmapsLazy = function(cb, onError) {
       <b>Это действие необратимо.</b> После удаления:
       <ul style="margin:8px 0 0;padding-left:20px">
         <li>Активные грузы будут отменены</li>
-        <li>История сделок сохранится анонимно</li>
+        <li data-i18n="delete_retention_history">Профиль будет обезличен. Выданные акты с реквизитами останутся в истории у участников сделок</li>
         <li>Войти с этим аккаунтом будет невозможно</li>
       </ul>
     </div>
@@ -1587,7 +1587,7 @@ window.loadYmapsLazy = function(cb, onError) {
       <p data-i18n="rules_p6">Споры между пользователями решаются самостоятельно путём переговоров. При невозможности урегулирования — в суде по законодательству Грузии. CaucasHub вправе заблокировать пользователя при нарушении правил без предупреждения.</p>
 
       <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h7">7. Конфиденциальность</h4>
-      <p data-i18n="rules_p7">Данные пользователей не передаются третьим лицам. Контакты участников видны только в рамках активной сделки. Платформа использует данные исключительно для обеспечения работы сервиса.</p>
+      <p data-i18n="rules_p7">Публичный профиль не содержит контактов и реквизитов для актов. Выданные акты с реквизитами доступны только участникам соответствующей сделки и сохраняются после изменения или удаления профиля.</p>
 
       <h4 style="color:#1a1a2e;margin:16px 0 6px" data-i18n="rules_h8">8. Изменение правил</h4>
       <p data-i18n="rules_p8">CaucasHub оставляет за собой право изменять правила. Продолжение использования платформы после изменений означает согласие с новой редакцией.</p>
@@ -1637,7 +1637,7 @@ window.loadYmapsLazy = function(cb, onError) {
 <script src="route-distance.js?v=20261030-road-distance"></script>
 <script src="location-presentation.js?v=20261030-address-language"></script>
 <script src="public-profile.js?v=20261030-public-profile"></script>
-<script src="main.js?v=20261030-document-names"></script>
+<script src="main.js?v=20261031-act-archive"></script>
 <script src="locations.js?v=20261030-address-language"></script>
 <script src="ai-dispatcher.js?v=20261029-mari-avatar"></script>
 

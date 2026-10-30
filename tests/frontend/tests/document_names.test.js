@@ -7,14 +7,14 @@ const main=readFileSync(new URL('../../../frontend/main.js',import.meta.url),'ut
 const tick=async()=>{for(let i=0;i<15;i++)await Promise.resolve();};
 const reply=(data,status=200,type='application/json')=>({status,ok:status===200,json:async()=>data,headers:{get:()=>type},blob:async()=>({fixture:true})});
 const legal='შპს „ქართული ტვირთი“';
-function setup(t,{profile={},handler,language='ru'}={}){
+function setup(t,{profile={},handler,metadataHandler,language='ru'}={}){
  const dom=new JSDOM(html,{url:'http://app.test/',runScripts:'outside-only'}),w=dom.window;t.after(()=>w.close());
  const calls={requests:[],warnings:[],closed:[],saved:[],download:[],objects:[],revoked:[],timers:[]};
  w.lang=language;w.API_BASE='https://api.test';w.AbortController=AbortController;w.AbortSignal=AbortSignal;w.token='private-session-token';w.getToken=()=>w.token;w.currentUserId=7;w.user={userId:7,name:'Регистрационное имя',role:'carrier',truckType:'tent',tonnage:10};w._deals=[{id:31,deal_number:'CH-2026-0031'}];w.dealsData=[];w.exportDateFrom='';w.exportDateTo='';
  w.TRANSLATIONS={ru:{},ge:{}};w._setupCityAutocomplete=()=>{};w._initTgStatus=()=>{};w.trapFocus=()=>{};w.showToastWarn=value=>calls.warnings.push(value);w.pushNotif=()=>{};w._lsSet=(_key,value)=>calls.saved.push(JSON.parse(value));w.closeModal=id=>{calls.closed.push(id);w.document.getElementById(id)?.classList.remove('on');};
  w.setTimeout=(fn,ms)=>{calls.timers.push({fn,ms});return calls.timers.length;};w.clearTimeout=()=>{};w.URL.createObjectURL=blob=>{calls.objects.push(blob);return'blob:private-document';};w.URL.revokeObjectURL=url=>calls.revoked.push(url);w.HTMLAnchorElement.prototype.click=function(){calls.download.push({url:this.href,name:this.download});};
  const initial={id:7,legal_name_ka:null,legal_name_ka_confirmed:false,...profile};
- w.fetch=async(url,options={})=>{calls.requests.push({url,options,body:options.body?JSON.parse(options.body):undefined});if(handler)return handler(url,options,calls.requests.length);return reply(options.method==='PUT'?{...initial,ok:true,company_name:'Регистрационное имя',truck_type:'tent',tonnage:10,...JSON.parse(options.body)}:initial);};
+ w.fetch=async(url,options={})=>{calls.requests.push({url,options,body:options.body?JSON.parse(options.body):undefined});if(url.endsWith('/api/deals/my'))return metadataHandler?metadataHandler(url,options):reply({deals:[{id:31,document_archive:{issued:true,issued_at:'2026-10-31T08:09:10Z'}}]});if(handler)return handler(url,options,calls.requests.length);return reply(options.method==='PUT'?{...initial,ok:true,company_name:'Регистрационное имя',truck_type:'tent',tonnage:10,...JSON.parse(options.body)}:initial);};
  w.eval(api.slice(api.indexOf('function carrierTonnageValue('),api.indexOf('// ── AUTH')));
  w.eval(main.slice(main.indexOf('function applyCarrierProfileDefaults('),main.indexOf('async function doLogin()')));
  w.eval(main.slice(main.indexOf('// ── PRIVATE GEORGIAN DOCUMENT REQUISITES'),main.indexOf('function _refreshAnalytics()')));
@@ -42,4 +42,32 @@ test('stale session cannot show 409, start a file, or expose prior document afte
 test('duplicate PDF requests deduplicate and failed requests permit retry',async t=>{let finish;const h=setup(t,{handler:()=>new Promise(resolve=>{finish=resolve;})});const first=h.w.downloadDealAct(31);assert.equal(await h.w.downloadDealAct(31),false);assert.equal(h.calls.requests.length,1);finish(reply({},200,'application/pdf'));await first;assert.equal(h.calls.download.length,1);});
 for(const id of [0,-1,'31/secret','1e3',Infinity])test('invalid deal id cannot create a request: '+id,async t=>{const h=setup(t);assert.equal(await h.w.downloadDealAct(id),false);assert.equal(h.calls.requests.length,0);});
 test('wrong successful MIME never masquerades as PDF and network error restores button',async t=>{for(const network of [false,true]){const h=setup(t,{handler:()=>network?Promise.reject(Error('Offline')):reply({},200,'text/html')});const button=h.w.document.createElement('button');assert.equal(await h.w.downloadDealAct(31,null,button),false);assert.equal(button.disabled,false);assert.equal(h.calls.download.length,0);assert.equal(h.calls.warnings.length,1);}});
-test('all production frontend PDF entrypoints delegate without token anchors; fields remain outside registration',()=>{assert.ok(!main.includes('act.pdf?token='));assert.equal((main.match(/downloadDealAct\(/g)||[]).length>=3,true);assert.match(main,/downloadPDF\(deal\.id,deal\.deal_number\|\|'deal',this\)/);assert.ok(html.indexOf('id="sLegalNameKa"')>html.indexOf('id="settingsOverlay"'));assert.match(html,/main\.js\?v=20261030-document-names/);assert.match(html,/styles\.css\?v=20261030-document-names/);assert.ok(html.indexOf('id="documentRequisitesNotice"')<html.indexOf('</body>'));});
+
+test('only a valid downloaded PDF retrieves the canonical server issue time without inventing client time',async t=>{
+ for(const valid of[false,true]){const h=setup(t,{handler:()=>reply({},valid?200:500,valid?'application/pdf':'application/json')});
+  const deal=h.w._deals[0];const result=await h.w.downloadDealAct(31);
+  assert.equal(result,valid);assert.equal(deal.document_archive?.issued===true,valid);
+  if(valid){assert.equal(deal.document_archive.issued_at,'2026-10-31T08:09:10Z');assert.equal(h.calls.requests.at(-1).url,'https://api.test/api/deals/my');}
+ }
+});
+
+test('late archive metadata cannot repopulate a later login or overwrite its deal fields',async t=>{
+ let finish;const h=setup(t,{handler:()=>reply({},200,'application/pdf'),metadataHandler:()=>new Promise(resolve=>{finish=resolve;})});
+ const pending=h.w.downloadDealAct(31);await tick();assert.ok(finish);h.w.token='new-session';h.w.user={userId:99};h.w._deals=[{id:31,route:'new account'}];
+ finish(reply({deals:[{id:31,route:'stale route',document_archive:{issued:true,issued_at:'2026-10-31T08:09:10Z'}}]}));await pending;assert.equal(h.w._deals[0].document_archive,undefined);assert.equal(h.w._deals[0].route,'new account');
+});
+
+test('existing server issue time survives another successful archived PDF download',async t=>{
+ const h=setup(t,{handler:()=>reply({},200,'application/pdf')}),stamp='2026-10-31T08:09:10Z';
+ h.w._deals[0].document_archive={issued:true,issued_at:stamp};await h.w.downloadDealAct(31);
+ assert.equal(h.w._deals[0].document_archive.issued_at,stamp);
+});
+
+test('damaged archived file prompts support instead of issuing a replacement or exposing payload',async t=>{
+ for(const language of['ru','ge']){const h=setup(t,{language,handler:()=>reply({detail:{code:'document_archive_unavailable',secret_payload:'never show'}},500)});
+  assert.equal(await h.w.downloadDealAct(31),false);assert.equal(h.calls.download.length,0);
+  assert.equal(h.calls.requests.length,1);assert.match(h.calls.warnings[0],language==='ge'?/მხარდაჭერას/:/поддержку/);
+  assert.ok(!h.calls.warnings[0].includes('never show'));
+ }
+});
+test('all production frontend PDF entrypoints delegate without token anchors; fields remain outside registration',()=>{assert.ok(!main.includes('act.pdf?token='));assert.equal((main.match(/downloadDealAct\(/g)||[]).length>=3,true);assert.match(main,/downloadPDF\(deal\.id,deal\.deal_number\|\|'deal',this\)/);assert.ok(html.indexOf('id="sLegalNameKa"')>html.indexOf('id="settingsOverlay"'));assert.match(html,/main\.js\?v=20261031-act-archive/);assert.match(html,/styles\.css\?v=20261030-document-names/);assert.ok(html.indexOf('id="documentRequisitesNotice"')<html.indexOf('</body>'));});

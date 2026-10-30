@@ -8,7 +8,8 @@ from pypdf import PdfReader
 
 root = Path(sys.argv[1]).resolve()
 items = json.loads((root / 'pdf-manifest.json').read_text(encoding='utf-8'))
-assert len(items) == 4
+assert len(items) >= 4
+assert {(item['source'], item['language']) for item in items if item.get('stage', 'original') == 'original'} == {(source, language) for source in ('cargo', 'transport') for language in ('ru', 'ge')}
 assert {(item['source'], item['language']) for item in items} == {(source, language) for source in ('cargo', 'transport') for language in ('ru', 'ge')}
 def compact(value):
     return re.sub(r'\s+', '', unicodedata.normalize('NFKC', value))
@@ -31,7 +32,11 @@ for item in items:
     assert compact(item['deal_number']) in normalized
     assert 'TEST' in text
     fonts = [str(font.get_object().get('/BaseFont', '')) for page in reader.pages for font in page.get('/Resources').get_object().get('/Font', {}).get_object().values()]
-    assert any('NotoSansGeorgian' in font for font in fonts), 'Bundled Georgian/Mtavruli font missing'
-    report.append({'file': item['file'], 'pages': len(reader.pages), 'both_names_in_body_and_signatures': True, 'mtavruli_font_embedded': True})
+    needs_mtavruli = any('\u1c90' <= char <= '\u1cbf' for role in ('shipper', 'carrier') for char in item[role])
+    if needs_mtavruli:
+        assert any('NotoSansGeorgian' in font for font in fonts), 'Bundled Mtavruli font missing'
+    else:
+        assert any('DejaVuSans' in font or 'NotoSansGeorgian' in font for font in fonts), 'Bundled Georgian font missing'
+    report.append({'file': item['file'], 'pages': len(reader.pages), 'both_names_in_body_and_signatures': True, 'mtavruli_required': needs_mtavruli, 'georgian_font_embedded': True})
 (root / 'pdf-checks.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-print('4 actual downloaded PDFs passed Georgian names, signatures, registration-name exclusion and embedded-font checks')
+print(f'{len(items)} actual downloaded PDFs passed Georgian names, signatures, registration-name exclusion and embedded-font checks')

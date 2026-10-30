@@ -515,9 +515,9 @@ async def _send_deletion_email(email: str, user_id: int, deleted_at: datetime):
             <p>Ваш аккаунт на CaucasHub.ge был удалён <b>{deleted_at.strftime('%d.%m.%Y в %H:%M UTC')}</b>.</p>
             <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0">
               <p style="margin:0;font-size:14px;color:#555">
-                📋 Историческая информация о завершённых сделках сохраняется в обезличенном виде
-                в соответствии с требованиями налогового законодательства Грузии (6 лет).
-                Ваши личные данные (email, телефон, имя) удалены.
+                📋 Данные профиля (email, телефон, имя) удалены из профиля.
+                Уже выданные акты с зафиксированными реквизитами сохраняются
+                в истории сделок и доступны их участникам.
               </p>
             </div>
             <p>Если это было сделано по ошибке — свяжитесь с нами: <a href="mailto:support@caucashub.ge">support@caucashub.ge</a></p>

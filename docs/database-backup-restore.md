@@ -14,8 +14,9 @@ constraints, sequence values and PostgreSQL large objects. A read-only
 repeatable-read transaction exports one snapshot, shared by metadata queries
 and `pg_dump`. Concurrent table changes therefore do not mix different moments.
 
-The archive includes database-private data, password hashes and private document
-names. Treat it as confidential. It is not encrypted by pg_dump. Use a protected
+The archive includes database-private data, password hashes, private document
+names, and issued-act JSON/PDF bytes stored in the database. Treat it as
+confidential. It is not encrypted by pg_dump. Use a protected
 encrypted disk and an encrypted independent/offsite copy; a copy on the same
 computer is insufficient disaster recovery. This tool restricts a newly written
 directory to its owner (and SYSTEM on Windows), refuses output inside the source

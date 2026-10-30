@@ -61,6 +61,28 @@ function environment(path,{viewer={userId:7},record=sample,language='ru'}={}){
  };
 }
 for(const path of ['main.js','frontend/main.js']){
+ if(path==='frontend/main.js'){
+  test('issued acts show the server issue date while first issue explains frozen requisites in RU/GE',()=>{
+   for(const language of['ru','ge']){
+    const fresh=environment(path,{record:completed,language}).render();assert.match(fresh,/data-deal-document-state="unissued"/);
+    assert.match(fresh,language==='ge'?/პირველი ჩამოტვირთვისას/:/При первом скачивании/);
+    const saved=environment(path,{record:{...completed,document_archive:{issued:true,issued_at:'2026-10-31T08:09:10Z'}},language}).render();
+    assert.match(saved,/data-deal-document-state="archived"/);assert.match(saved,/31\.10\.2026 12:09/);
+    assert.match(saved,language==='ge'?/აქტი შენახულია/:/Архивный акт сохранён/);
+   }
+  });
+  test('archive issue date uses the Georgian calendar day across UTC midnight without AM/PM fallback',()=>{
+   for(const language of['ru','ge']){
+    const saved=environment(path,{record:{...completed,document_archive:{issued:true,issued_at:'2026-10-30T21:09:10Z'}},language}).render();
+    assert.match(saved,/31\.10\.2026 01:09/);assert.ok(!/\bAM\b|\bPM\b/.test(saved));
+   }
+  });
+  test('archive notice is private to completed-deal participants and never renders untrusted timestamps',()=>{
+   for(const viewer of[null,{userId:99}])assert.ok(!environment(path,{viewer,record:{...completed,document_archive:{issued:true,issued_at:'2026-10-31T08:09:10Z'}}}).render().includes('data-deal-document-state'));
+   for(const status of['confirmed','loading','delivered','canceled','disputed'])assert.ok(!environment(path,{record:{...completed,status}}).render().includes('data-deal-document-state'));
+   const html=environment(path,{record:{...completed,document_archive:{issued:true,issued_at:'<img src=x onerror=alert(1)>'}}}).render();assert.ok(!html.includes('<img'));
+  });
+ }
  test(path+': current userId and both legacy identity fallbacks hide only own confirmed button',()=>{
   for(const[viewer,currentId,role]of[[{userId:7,id:8},8,'shipper'],[{id:8},7,'carrier'],[{},8,'carrier']]){
    const h=environment(path,{viewer,record:{...sample,status:'delivered',shipper_confirmed:role==='shipper',carrier_confirmed:role==='carrier'}});
