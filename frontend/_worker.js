@@ -21,7 +21,7 @@ const HREFLANG = [
   '<link rel="alternate" hreflang="x-default" href="'+BASE+'/" />',
 ].join('\n');
 const LEGACY_LOCALE_ASSETS = new Set([
-  'styles.css','api.js','main.js','translations.js','ai-dispatcher.js','locations.js','route-distance.js',
+  'styles.css','api.js','main.js','translations.js','ai-dispatcher.js','locations.js','route-distance.js','location-presentation.js',
   'sw.js','manifest.json','dispatcher.jpg','mari-avatar-v2.webp',
   'icon-192.png','icon-512.png','og-image.jpg','robots.txt','sitemap.xml',
 ]);

@@ -8,6 +8,7 @@ import atexit
 from contextlib import asynccontextmanager
 from hashlib import sha256
 import os
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -33,6 +34,9 @@ AUTH_ENABLED = os.environ.get("CARRIER_BROWSER_AUTH") == "1"
 NOTIFICATIONS_ENABLED = os.environ.get("CARRIER_BROWSER_NOTIFICATIONS") == "1"
 PILOT_ENABLED = os.environ.get("CARRIER_BROWSER_PILOT") == "1"
 ADDRESS_ENABLED = os.environ.get("CARRIER_BROWSER_ADDRESS") == "1"
+MOCK_MAPS_ENABLED = os.environ.get("CARRIER_BROWSER_MOCK_MAPS") == "1"
+if MOCK_MAPS_ENABLED and not ADDRESS_ENABLED:
+    raise RuntimeError("Mock maps require the isolated address fixture")
 if ADDRESS_ENABLED and not PILOT_ENABLED:
     raise RuntimeError("Address browser tests require the real pilot routes")
 if PILOT_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
@@ -52,6 +56,8 @@ os.environ["RESEND_API_KEY"] = ""
 os.environ["BREVO_API_KEY"] = ""
 os.environ["CAUCASHUB_TG_BOT_TOKEN"] = ""
 os.environ["NOTIFICATIONS_WORKER_ENABLED"] = "0"
+os.environ["LOCATION_PRESENTATION_ENABLED"] = "0"
+os.environ["LOCATIONIQ_KEY"] = ""
 if NOTIFICATIONS_ENABLED:
     # These are intentionally unusable provider credentials, intercepted below.
     os.environ["CAUCASHUB_TG_BOT_TOKEN"] = "123456:isolated-browser-test"
@@ -69,6 +75,22 @@ for asset in SITE.rglob("*"):
         if PRODUCTION_API_ORIGIN in contents:
             # This covers API_BASE AND hardcoded settings/hydration origins.
             asset.write_text(contents.replace(PRODUCTION_API_ORIGIN, ORIGIN), encoding="utf-8")
+if MOCK_MAPS_ENABLED:
+    # Persistent review runs cannot use Playwright request interception. Supply
+    # the same clearly labelled SDK boundary locally and block external hosts.
+    index = SITE / "index.html"
+    contents = index.read_text(encoding="utf-8")
+    contents, changed = re.subn(r"_s\.src = 'https://api-maps\.yandex\.ru/2\.1/\?[^\n]+",
+                                "_s.src = 'map-sdk.mock.js';", contents, count=1)
+    if changed != 1:
+        raise RuntimeError("Expected exactly one Yandex loader in review copy")
+    index.write_text(contents.replace("<title>", "<title>ТЕСТ • ", 1), encoding="utf-8")
+    sdk = (REPOSITORY / "tests/browser/address_map_sdk.js").read_text(encoding="utf-8")
+    for marker, value in {"__REVERSE_FAILS__": "false", "__MAP_SCALE__": "0.005",
+                          "__REVERSE_ADDRESS__": "null", "__ROAD_METERS__": "167170.752",
+                          "__ROAD_FAILS__": "true", "__REVERSE_PROFILES__": "[]"}.items():
+        sdk = sdk.replace(marker, value)
+    (SITE / "map-sdk.mock.js").write_text(sdk, encoding="utf-8")
 if PILOT_ENABLED:
     print("Pilot fixture: copied isolated frontend", flush=True)
 SOURCE_DIGESTS = {name: sha256((SITE / name).read_bytes()).hexdigest()
@@ -76,7 +98,7 @@ SOURCE_DIGESTS = {name: sha256((SITE / name).read_bytes()).hexdigest()
                                      if item.is_file() and item.suffix in {".html", ".js", ".css"})}
 
 ORIGINAL_SOURCE_DIGESTS = {name: sha256((frontend / name).read_bytes()).hexdigest()
-                           for name in SOURCE_DIGESTS}
+                           for name in SOURCE_DIGESTS if (frontend / name).is_file()}
 
 APPLICATION_DIGESTS = {}
 if ADDRESS_ENABLED:
@@ -85,6 +107,7 @@ if ADDRESS_ENABLED:
         'app/models/load.py', 'app/models/transport_offer.py',
         'app/services/route_locations.py', 'app/services/city_identity.py',
         'app/services/location_country.py', 'app/services/location_catalog.json',
+        'app/services/location_presentation.py',
     ]
     application_paths += [item.relative_to(REPOSITORY).as_posix()
                           for item in (REPOSITORY / 'app/data').glob('*') if item.is_file()]
@@ -149,6 +172,10 @@ async def local_fixture_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Carrier-Test-Only"] = "1"
     response.headers["Cache-Control"] = "no-store"
+    if MOCK_MAPS_ENABLED:
+        response.headers["Content-Security-Policy"] = ("default-src 'self' data: blob:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'")
     return response
 
 
@@ -312,6 +339,7 @@ async def ready():
         "actual_city_stats_routers": PILOT_ENABLED,
         "address_test": ADDRESS_ENABLED,
         "actual_location_routers": ADDRESS_ENABLED,
+        "mock_maps": MOCK_MAPS_ENABLED,
         "source_sha256": SOURCE_DIGESTS,
         "original_source_sha256": ORIGINAL_SOURCE_DIGESTS,
         "backend_sha256": APPLICATION_DIGESTS,
