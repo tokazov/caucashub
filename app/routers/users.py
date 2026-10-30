@@ -2,26 +2,29 @@ from app.services.admin_auth import admin_secret_matches
 import os
 import asyncio
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.models.user import User, UserPlan
 from app.routers.loads import require_user         # возвращает int (user_id)
 from app.routers.auth import require_user as require_user_obj  # возвращает User object
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator
 from typing import Optional
 import re as _re
 
 from app.carrier_profile import CarrierProfileFields
 from app.services.transport_capacity import validate_transport_capacity
 from app.services.public_ratings import public_ratings, public_rating_fields
+from app.services.document_names import apply_name_update, normalize_legal_name, private_name_fields
 
 router = APIRouter()
 
 
 class UpdateProfileRequest(CarrierProfileFields):
     company_name: Optional[str] = None
+    legal_name_ka: Optional[str] = Field(None, max_length=255)
+    legal_name_ka_confirmed: StrictBool = False
     # phone убран из прямого обновления — используй /me/request-phone-change (Фикс 3)
     inn:          Optional[str] = None
     org_type:     Optional[str] = None
@@ -29,6 +32,11 @@ class UpdateProfileRequest(CarrierProfileFields):
     lang:         Optional[str] = None
     # Compatibility input only; linking/unlinking uses the verified Telegram flow.
     telegram_id:  Optional[str] = None
+
+    @field_validator('legal_name_ka', mode='before')
+    @classmethod
+    def validate_legal_name_ka(cls, value):
+        return normalize_legal_name(value)
 
     @field_validator("inn")
     @classmethod
@@ -80,6 +88,7 @@ async def get_me(
         "id":                    user.id,
         "email":                 user.email,
         "company_name":          user.company_name,
+        **private_name_fields(user),
         "phone":                 user.phone,
         "role":                  user.role,
         "plan":                  plan_val,
@@ -126,6 +135,11 @@ async def update_me(
     if data.telegram_id is not None and data.telegram_id != user.telegram_id:
         raise HTTPException(403, "Telegram подключается только через подтверждённую ссылку; используйте раздел Telegram")
 
+    try:
+        apply_name_update(user, data)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
     if data.company_name is not None:
         user.company_name = data.company_name
     if data.inn is not None:
@@ -150,6 +164,7 @@ async def update_me(
         "ok": True,
         "id":           user.id,
         "company_name": user.company_name,
+        **private_name_fields(user),
         "phone":        user.phone,
         "inn":          user.inn,
         "org_type":     user.org_type,
@@ -422,6 +437,8 @@ async def delete_account(
     current_user.phone         = None
     current_user.company_name  = f"Удалённый пользователь #{user_id}"
     current_user.full_name     = None
+    current_user.legal_name_ka = None
+    current_user.legal_name_ka_confirmed_at = None
     current_user.telegram_id   = None
     current_user.hashed_password = "<deleted>"
     current_user.password_changed_at = now  # Фикс 3: инвалидируем все активные токены
@@ -582,23 +599,16 @@ async def admin_unblock_user(
         raise HTTPException(400, str(e))
 
 
+@router.get("/{user_id}/profile")
+async def get_public_profile(user_id: int, limit: int = Query(10, ge=1, le=50),
+                             offset: int = Query(0, ge=0), db: AsyncSession = Depends(get_db)):
+    from app.services.public_profiles import public_profile
+    return await public_profile(db, user_id, limit=limit, offset=offset)
+
+
 @router.get("/{user_id}")
 async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        return {"error": "Not found"}
-    ratings = public_rating_fields((await public_ratings(db, [user.id])).get(user.id))
-    # 5.2.5: Публичный профиль — минимум. ИНН, email, phone НЕ раскрываются.
-    return {
-        "id":                    user.id,
-        "company_name":          user.company_name,
-        "role":                  user.role,
-        **ratings,
-        "trips_count":           user.trips_count or 0,
-        "completed_deals_count": getattr(user, 'completed_deals_count', 0) or 0,   # 3.1
-        "ratings_received_count": ratings["review_count"],
-        "is_verified":           user.is_verified,
-        "org_type":              user.org_type,
-        "city":                  user.city,
-    }
+    from app.services.public_profiles import public_profile
+    profile = (await public_profile(db, user_id, limit=1))['profile']
+    return {**profile, 'trips_count': profile['completed_deals_count'],
+            'ratings_received_count': profile['review_count']}

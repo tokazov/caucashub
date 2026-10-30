@@ -7,7 +7,9 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {spawn}=require('node:child_process');
-const BASE=new URL('http://127.0.0.1:8765');
+const PORT=process.env.CARRIER_BROWSER_PORT||'8765';
+if(!/^\d+$/.test(PORT)||Number(PORT)<1024||Number(PORT)>65535)throw Error('Local fixture port must be between1024 and65535');
+const BASE=new URL('http://127.0.0.1:'+Number(PORT));
 const ROOT=path.resolve(process.env.CARRIER_PROFILE_REPO_ROOT||path.join(__dirname,'../..'));
 const {chromium}=require(require.resolve('playwright',{paths:[ROOT,__dirname]}));
 const ARTIFACTS=path.resolve(process.env.CARRIER_PUBLICATION_ARTIFACTS||path.join(ROOT,'artifacts/publication-journey'));
@@ -277,7 +279,7 @@ async function run(configuration,index){
  try{
   if(process.argv.includes('--spawn-server')){
    const log=fs.createWriteStream(path.join(ARTIFACTS,'server.log'));
-   server=spawn(process.env.PYTHON||'python',[path.join(ROOT,'tests/browser/carrier_profile_server.py')],{cwd:ROOT,env:{...process.env,PYTHONUNBUFFERED:'1',CARRIER_BROWSER_PUBLICATION:'1'},stdio:['ignore','pipe','pipe']});
+   server=spawn(process.env.PYTHON||'python',[path.join(ROOT,'tests/browser/carrier_profile_server.py')],{cwd:ROOT,env:{...process.env,PYTHONUNBUFFERED:'1',CARRIER_BROWSER_PORT:String(Number(PORT)),CARRIER_BROWSER_PUBLICATION:'1'},stdio:['ignore','pipe','pipe']});
    server.stdout.pipe(log,{end:false});server.stderr.pipe(log,{end:false});
    server.once('error',error=>{serverError=error;});server.once('close',()=>log.end());
   }

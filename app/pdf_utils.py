@@ -109,6 +109,14 @@ def _get_canvas():
     if not registered:
         font_name = "Helvetica"
 
+    # DejaVu predates Unicode Mtavruli. Keep the original document typography,
+    # but embed a Georgian face for legal names containing newer letters.
+    for suffix, filename in (("", "NotoSansGeorgian-Regular.ttf"),
+                             ("-Bold", "NotoSansGeorgian-Bold.ttf")):
+        path = os.path.join(_here, "fonts", filename)
+        if os.path.exists(path):
+            pdfmetrics.registerFont(TTFont("GeorgianFont" + suffix, path))
+
     return rl_canvas, A4, colors, font_name
 
 
@@ -155,8 +163,20 @@ def generate_act_pdf(deal_data: dict) -> bytes:
     bottom_margin = 65
     y = h - 155
 
-    def draw_text(x, baseline, text, size=10, bold=False):
-        c.setFont(bold_font if bold else font_name, size)
+    def party_font(value, bold=False):
+        default = bold_font if bold else font_name
+        chars = str(value or "—")
+        face = pdfmetrics.getFont(default).face
+        if all(ord(char) in getattr(face, "charToGlyph", {}) for char in chars):
+            return default
+        selected = "GeorgianFont-Bold" if bold else "GeorgianFont"
+        georgian = pdfmetrics.getFont(selected).face
+        if not all(ord(char) in georgian.charToGlyph for char in chars):
+            raise ValueError("The document font cannot render the complete legal name")
+        return selected
+
+    def draw_text(x, baseline, text, size=10, bold=False, font=None):
+        c.setFont(font or (bold_font if bold else font_name), size)
         c.drawString(x, baseline, str(text))
 
     def draw_line(baseline):
@@ -206,10 +226,14 @@ def generate_act_pdf(deal_data: dict) -> bytes:
     column_width = (w - 90) / 2 - 25
     party_content = []
     for role in ("shipper", "carrier"):
-        content = [(line, 10, True, 13) for line in _wrapped_lines(deal_data.get(role + "_name"), bold_font, 10, column_width)]
+        name = deal_data.get(role + "_name")
+        name_font = party_font(name, bold=True)
+        content = [(line, 10, True, 13, name_font)
+                   for line in _wrapped_lines(name, name_font, 10, column_width)]
         for key, label in (("inn", t["inn"]), ("phone", t["phone"])):
             value = f"{label} {deal_data.get(role + '_' + key, '—')}"
-            content.extend((line, 9, False, 12) for line in _wrapped_lines(value, font_name, 9, column_width))
+            content.extend((line, 9, False, 12, font_name)
+                           for line in _wrapped_lines(value, font_name, 9, column_width))
         party_content.append(content)
     cursors = [0, 0]
     while any(cursors[i] < len(party_content[i]) for i in (0, 1)):
@@ -240,8 +264,8 @@ def generate_act_pdf(deal_data: dict) -> bytes:
             c.setFillColor(colors.black)
             draw_text(x + 10, top - 14, t[role], size=8, bold=True)
             baseline = top - 29
-            for text, size, bold, line_height in chunks[index]:
-                draw_text(x + 10, baseline, text, size=size, bold=bold)
+            for text, size, bold, line_height, selected_font in chunks[index]:
+                draw_text(x + 10, baseline, text, size=size, bold=bold, font=selected_font)
                 baseline -= line_height
         y = top - party_height - 20
         if any(cursors[i] < len(party_content[i]) for i in (0, 1)):
@@ -304,10 +328,10 @@ def generate_act_pdf(deal_data: dict) -> bytes:
     draw_line(y)
 
     half = (w - 80) / 2
-    signature_names = [
-        _wrapped_lines(deal_data.get("shipper_name"), font_name, 9, half - 20),
-        _wrapped_lines(deal_data.get("carrier_name"), font_name, 9, half - 20),
-    ]
+    signature_fonts = [party_font(deal_data.get(role + "_name"))
+                       for role in ("shipper", "carrier")]
+    signature_names = [_wrapped_lines(deal_data.get(role + "_name"), signature_fonts[index], 9, half - 20)
+                       for index, role in enumerate(("shipper", "carrier"))]
     name_index = 0
     name_count = max(map(len, signature_names))
     while name_index < name_count:
@@ -326,7 +350,7 @@ def generate_act_pdf(deal_data: dict) -> bytes:
             draw_text(x, y, t[role] + ":", size=9, bold=True)
             chunk = signature_names[index][name_index:name_index + chunk_count]
             for line_index, line in enumerate(chunk):
-                draw_text(x, y - 15 - line_index * 12, line, size=9)
+                draw_text(x, y - 15 - line_index * 12, line, size=9, font=signature_fonts[index])
             if name_index + chunk_count == name_count:
                 line_y = y - 30 - chunk_count * 12
                 c.setStrokeColor(colors.black)

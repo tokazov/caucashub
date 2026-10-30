@@ -1,6 +1,8 @@
 """Railpack gate for loading periods and retry-safe load publication.
 
-Apply revisions 020, 021 and 022 directly using their idempotent additive DDL. The production
+Apply the selected release migrations directly using idempotent additive DDL,
+including the private-review and owner-confirmed document fields in 027/028.
+All steps and the final application check share one transaction. The production
 database has a history of startup fallback migrations, so this release must
 not stamp or replay unrelated Alembic revisions without a schema audit.
 """
@@ -232,9 +234,11 @@ async def prepare_schema(engine, *, verify_application=False, bootstrap_empty=Fa
         # A no-op/failed migration must not allow the new application to start.
         await connection.execute(text("SELECT load_date, load_date_end FROM loads LIMIT 0"))
         await connection.run_sync(prepare_carrier_defaults)
-        await connection.execute(text("SELECT truck_type, tonnage FROM users LIMIT 0"))
+        await connection.run_sync(prepare_document_names)
+        await connection.execute(text("SELECT truck_type, tonnage, legal_name_ka, legal_name_ka_confirmed_at FROM users LIMIT 0"))
         await connection.run_sync(prepare_deal_reviews)
-        await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at FROM deal_reviews LIMIT 0"))
+        await connection.run_sync(prepare_public_review_visibility)
+        await connection.execute(text("SELECT id, deal_id, rater_id, recipient_id, score, comment, created_at, public_comment FROM deal_reviews LIMIT 0"))
         await connection.run_sync(prepare_notifications)
         await connection.run_sync(prepare_password_recovery)
         await connection.run_sync(prepare_idempotency)
@@ -247,6 +251,46 @@ async def prepare_schema(engine, *, verify_application=False, bootstrap_empty=Fa
         if verify_application:
             from app.services.schema_readiness import verify_connection
             await connection.run_sync(verify_connection)
+
+
+def prepare_document_names(connection):
+    """Require additive nullable owner fields; never derive historic names."""
+    path = Path(__file__).resolve().parents[1] / 'alembic/versions/028_document_names.py'
+    spec = importlib.util.spec_from_file_location('document_names_release_migration', path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    columns = {item['name']: item for item in inspect(connection).get_columns('users')}
+    name, confirmed = columns.get('legal_name_ka'), columns.get('legal_name_ka_confirmed_at')
+    if (name is None or not isinstance(name['type'], String) or name['type'].length != 255
+            or not name['nullable'] or name.get('default') is not None):
+        raise RuntimeError('Document names schema is incompatible: legal_name_ka')
+    if (confirmed is None or not isinstance(confirmed['type'], DateTime) or not confirmed['nullable']
+            or confirmed.get('default') is not None
+            or (connection.dialect.name == 'postgresql' and not confirmed['type'].timezone)):
+        raise RuntimeError('Document names schema is incompatible: legal_name_ka_confirmed_at')
+    connection.execute(text('SELECT legal_name_ka, legal_name_ka_confirmed_at FROM users LIMIT 0'))
+
+
+def prepare_public_review_visibility(connection):
+    """Add consent=false for old texts; fail closed on schema/default drift."""
+    from sqlalchemy import Boolean
+    import re
+    path = Path(__file__).resolve().parents[1] / 'alembic/versions/027_review_comment_visibility.py'
+    spec = importlib.util.spec_from_file_location('review_visibility_release_migration', path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    migration.op = Operations(MigrationContext.configure(connection))
+    migration.upgrade()
+    column = next((item for item in inspect(connection).get_columns('deal_reviews')
+                   if item['name'] == 'public_comment'), None)
+    default = re.sub(r"[\s'\"()]", '', str(column.get('default') or '')).lower() if column else ''
+    default = default.removesuffix('::boolean')
+    if (column is None or not isinstance(column['type'], Boolean) or column['nullable']
+            or default not in ('false', '0')):
+        raise RuntimeError('Review visibility schema is incompatible: public_comment')
+    connection.execute(text('SELECT public_comment FROM deal_reviews LIMIT 0'))
 
 
 def prepare_transport_confirmation(connection):

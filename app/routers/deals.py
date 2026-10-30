@@ -21,9 +21,10 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.exc import IntegrityError
 from app.pdf_utils import generate_act_pdf
 from app.services.notifications import enqueue_event
-from pydantic import BaseModel, Field, field_validator
+from app.services.document_names import document_readiness, require_document_names, raise_missing_names
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter()
 
@@ -40,6 +41,12 @@ def _iso_utc(value) -> str | None:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).isoformat()
+
+
+def _export_timestamp(value):
+    if value is None:
+        return None
+    return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
 
 
 def deal_to_dict(d: Deal) -> dict:
@@ -76,6 +83,7 @@ def _review_to_dict(review: DealReview | None) -> dict | None:
     if created is not None and created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
     return {"score": review.score, "comment": review.comment,
+            "public_comment": bool(review.public_comment),
             "created_at": created.isoformat() if created is not None else None}
 
 
@@ -374,6 +382,7 @@ async def get_my_deals(
         sh = sh_r.scalar_one_or_none()
         ca_r = await db.execute(select(User).where(User.id == d.carrier_id))
         ca = ca_r.scalar_one_or_none()
+        base['document_readiness'] = document_readiness(sh, ca, user_id)
         base["deal_number"] = d.act_number or _act_number(d.id)
         offer = await db.get(TransportOffer, d.transport_offer_id) if not load and d.transport_offer_id else None
         transport_request = await db.get(TransportRequest, d.transport_request_id) if offer and d.transport_request_id else None
@@ -462,19 +471,20 @@ async def download_act(
     request = await db.get(TransportRequest, deal.transport_request_id) if deal.transport_request_id else None
     shipper = await db.get(User, deal.shipper_id)
     carrier = await db.get(User, deal.carrier_id)
+    names = require_document_names(shipper, carrier, current_user.id)
     route = load or offer
     language = lang if lang in ("ru", "ge") else "ru"
-    from app.services.user_display import display_name, display_phone, display_email
+    from app.services.user_display import display_phone, display_email
 
     deal_data = {
         "act_number": deal.act_number or _act_number(deal.id),
         "deal_id": deal.id,
         "completed_at": deal.completed_at,
-        "shipper_name": display_name(shipper) if shipper else "—",
+        "shipper_name": names['shipper'],
         "shipper_inn": shipper.inn if shipper and not shipper.is_deleted and shipper.inn else "—",
         "shipper_phone": (display_phone(shipper) or "—") if shipper else "—",
         "shipper_email": (display_email(shipper) or "—") if shipper else "—",
-        "carrier_name": display_name(carrier) if carrier else "—",
+        "carrier_name": names['carrier'],
         "carrier_inn": carrier.inn if carrier and not carrier.is_deleted and carrier.inn else "—",
         "carrier_phone": (display_phone(carrier) or "—") if carrier else "—",
         "carrier_email": (display_email(carrier) or "—") if carrier else "—",
@@ -535,17 +545,15 @@ async def export_deals(
     # 12.2.4: Фильтрация по периоду дат
     if date_from:
         try:
-            from datetime import date as _date
             df = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            all_deals = [d for d in all_deals if (d.completed_at or d.created_at) and (d.completed_at or d.created_at) >= df]
+            all_deals = [d for d in all_deals if (stamp := _export_timestamp(d.completed_at or d.created_at)) is not None and stamp >= df]
         except ValueError:
             pass
     if date_to:
         try:
-            from datetime import date as _date
-            dt = datetime.strptime(date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            all_deals = [d for d in all_deals if (d.completed_at or d.created_at) and (d.completed_at or d.created_at) <= dt]
-        except ValueError:
+            dt = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            all_deals = [d for d in all_deals if (stamp := _export_timestamp(d.completed_at or d.created_at)) is not None and stamp < dt]
+        except (ValueError, OverflowError):
             pass
 
     # Загружаем данные о грузах батчем
@@ -573,6 +581,15 @@ async def export_deals(
         for u in ur.scalars().all():
             user_map[u.id] = u
 
+    if format != 'json':
+        missing = []
+        for deal in all_deals:
+            for item in document_readiness(user_map.get(deal.shipper_id), user_map.get(deal.carrier_id), user_id)['missing_parties']:
+                if item not in missing:
+                    missing.append(item)
+        if missing:
+            raise_missing_names(missing)
+
     def _fmt(dt):
         if not dt:
             return ""
@@ -594,11 +611,14 @@ async def export_deals(
         source = offer if offer else load   # transport_offer_id приоритетнее
         price = d.agreed_price or 0
         cur = d.currency or "GEL"
+        readiness = document_readiness(user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id)
+        names = require_document_names(user_map.get(d.shipper_id), user_map.get(d.carrier_id), user_id) if format != 'json' else None
         row = {
             "act_number":    d.act_number or _act_number(d.id),
             "date":          _fmt(d.completed_at or d.created_at),
-            "shipper":       _company(d.shipper_id),
-            "carrier":       _company(d.carrier_id),
+            "shipper":       names['shipper'] if names else _company(d.shipper_id),
+            "carrier":       names['carrier'] if names else _company(d.carrier_id),
+            "document_readiness": readiness,
             "from_city":     source.from_city if source else "—",
             "to_city":       source.to_city   if source else "—",
             "cargo_desc":    (load.cargo_desc or "") if load else (offer.notes or "") if offer else "",
@@ -624,7 +644,6 @@ async def export_deals(
 
     # ── JSON ──
     if format == "json":
-        from datetime import datetime
         return {
             "company":      _company(user_id),
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -663,6 +682,7 @@ async def export_deals(
 class RatingRequest(BaseModel):
     score: int = Field(..., ge=1, le=5)
     comment: Optional[str] = Field(default=None, max_length=2000)
+    public_comment: StrictBool = False
 
     @field_validator("score", mode="before")
     @classmethod
@@ -706,7 +726,7 @@ async def rate_deal(
         raise HTTPException(404, "Участник сделки не найден")
     recipient = people[0]
     review = DealReview(deal_id=deal.id, rater_id=user_id, recipient_id=recipient_id,
-                        score=data.score, comment=data.comment)
+                        score=data.score, comment=data.comment, public_comment=data.public_comment)
     db.add(review)
     try:
         # The DB unique key is a final guard, including on SQLite without row locks.
@@ -737,3 +757,26 @@ async def rate_deal(
         await db.rollback()
         raise HTTPException(409, "Вы уже оценили эту сделку") from error
     return payload
+
+
+class ReviewVisibilityRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    public_comment: StrictBool
+
+
+@router.patch("/{deal_id}/review-visibility")
+async def change_review_visibility(deal_id: int, data: ReviewVisibilityRequest,
+                                   db: AsyncSession = Depends(get_db),
+                                   current_user: User = Depends(require_user)):
+    deal = await _locked_deal(db, deal_id, current_user.id)
+    review = (await db.execute(select(DealReview).where(
+        DealReview.deal_id == deal.id, DealReview.rater_id == current_user.id).with_for_update()
+        .execution_options(populate_existing=True))).scalar_one_or_none()
+    if review is None:
+        raise HTTPException(404, "Ваш отзыв по этой сделке не найден")
+    expected_recipient = deal.carrier_id if current_user.id == deal.shipper_id else deal.shipper_id
+    if review.recipient_id != expected_recipient:
+        raise HTTPException(409, "Автор и получатель отзыва не согласованы со сделкой")
+    review.public_comment = data.public_comment
+    await db.commit()
+    return {"ok": True, "my_review": _review_to_dict(review)}

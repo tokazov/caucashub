@@ -2,7 +2,9 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const ORIGIN='http://127.0.0.1:8765';
+const PORT=process.env.CARRIER_BROWSER_PORT||'8765';
+if(!/^\d+$/.test(PORT)||Number(PORT)<1024||Number(PORT)>65535)throw Error('Local fixture port must be between1024 and65535');
+const ORIGIN='http://127.0.0.1:'+Number(PORT);
 
 async function fixture(page,endpoint,method='GET'){
  assert.equal(new URL(page.url()).origin,ORIGIN);

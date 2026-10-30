@@ -316,6 +316,12 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
     monkeypatch.setattr(deals, "generate_act_pdf", capture_and_generate)
     deal_id, _ = await complete(journey, source)
     client, roles = journey["client"], journey["headers"]
+    from app.routers import users
+    client._transport.app.include_router(users.router, prefix='/api/users')
+    for role, name in (('shipper', 'შპს სატესტო ტვირთი'), ('carrier', 'შპს სატესტო ტრანსპორტი')):
+        saved=await client.put('/api/users/me',headers=roles[role],json={
+            'legal_name_ka':name,'legal_name_ka_confirmed':True})
+        assert saved.status_code==200,saved.text
     for lang, role, auth_kind in [("ru", "shipper", "header"), ("ge", "carrier", "query")]:
         params = {"lang": lang}
         headers = roles[role] if auth_kind == "header" else {}
@@ -337,7 +343,7 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
         }
         assert data["truck_type"] == expected_truck_labels[lang][source]
         assert float(data["agreed_price"]) == 500
-        assert data["shipper_name"] == "Test shipper" and data["carrier_name"] == "Test carrier"
+        assert data["shipper_name"] == "შპს სატესტო ტვირთი" and data["carrier_name"] == "შპს სატესტო ტრანსპორტი"
     await review(journey, "shipper", deal_id)
     after_review = await client.get(f"/api/deals/{deal_id}/act.pdf", headers=roles["carrier"])
     assert after_review.status_code == 200 and after_review.content.startswith(b"%PDF-")

@@ -6,7 +6,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {spawn} = require('node:child_process');
-const BASE = new URL('http://127.0.0.1:8765');
+const PORT = process.env.CARRIER_BROWSER_PORT || '8765';
+if (!/^\d+$/.test(PORT) || Number(PORT) < 1024 || Number(PORT) > 65535) {
+  throw new Error('Local fixture port must be between1024 and65535');
+}
+const BASE = new URL('http://127.0.0.1:' + Number(PORT));
 const ROOT = path.resolve(process.env.CARRIER_PROFILE_REPO_ROOT || path.join(__dirname, '../..'));
 const {chromium} = require(require.resolve('playwright', {paths: [ROOT, __dirname]}));
 const ARTIFACTS = path.resolve(process.env.CARRIER_AUTH_ARTIFACTS || path.join(ROOT, 'artifacts/auth-recovery'));
@@ -53,7 +57,7 @@ async function ready() {
       await delay(250);
     }
   }
-  throw Error('No verified isolated auth fixture on 127.0.0.1:8765');
+  throw Error('No verified isolated auth fixture on ' + BASE.host);
 }
 
 async function clickResponse(page, selector, endpoint, status) {
@@ -402,7 +406,7 @@ async function run(configuration, index) {
       const log = fs.createWriteStream(path.join(ARTIFACTS, 'server.log'));
       server = spawn(process.env.PYTHON || 'python', [path.join(ROOT, 'tests/browser/carrier_profile_server.py')], {
         cwd: ROOT, windowsHide: true,
-        env: {...process.env, PYTHONUNBUFFERED: '1', CARRIER_BROWSER_AUTH: '1',
+        env: {...process.env, PYTHONUNBUFFERED: '1', CARRIER_BROWSER_PORT: String(Number(PORT)), CARRIER_BROWSER_AUTH: '1',
           CARRIER_BROWSER_PUBLICATION: '1', CARRIER_BROWSER_NOTIFICATIONS: '0'},
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -412,8 +416,11 @@ async function run(configuration, index) {
       server.once('close', () => log.end());
     }
     await ready();
+    const executablePath = process.env.CARRIER_BROWSER_CHROMIUM_EXECUTABLE_PATH || undefined;
+    if (executablePath) assert.ok(path.isAbsolute(executablePath) && fs.existsSync(executablePath), 'Browser override must be an existing absolute executable path');
     browser = await chromium.launch({
       headless: true,
+      executablePath,
       args: ['--disable-background-networking', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'],
     });
     const configurations = [

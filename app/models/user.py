@@ -24,6 +24,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     company_name  = Column(String, nullable=True)
     full_name     = Column(String, nullable=True)
+    legal_name_ka = Column(String(255), nullable=True)
+    legal_name_ka_confirmed_at = Column(DateTime(timezone=True), nullable=True)
     role          = Column(Enum(UserRole), default=UserRole.carrier)
     plan          = Column(Enum(UserPlan), default=UserPlan.free)
     is_verified   = Column(Boolean, default=False)

@@ -8,7 +8,7 @@ function form(path,reply){
  fields[id]={value:id==='sInnAll'?'12345':'draft',getClientRects:()=>id==='sInn'?[]:[{}],classList:{add:()=>c.highlight=id,remove:()=>{}},addEventListener:()=>{},focus:()=>c.focus=id};
  }
  fields.settingsOverlay={classList:{contains:()=>true}};
- const ctx={openSettings:()=>{},lang:'ru',user:{name:'Before'},getToken:()=>ctx.token,token:'token',
+ const ctx={openSettings:()=>{},lang:'ru',API_BASE:'https://api.test',user:{name:'Before'},getToken:()=>ctx.token,token:'token',
  document:{getElementById:id=>fields[id],createElement:()=>({style:{},remove(){}}),body:{appendChild(){}}},
  fetch:async()=>{c.requests++;return typeof reply==='function'?await reply():reply;},
  showToastWarn:m=>c.warnings.push(m),closeModal:id=>c.closed.push(id),_lsSet:(k,v)=>c.saved.push(v),pushNotif:(...x)=>c.notifs.push(x),setTimeout:()=>{}};

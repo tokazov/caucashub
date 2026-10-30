@@ -24,13 +24,24 @@ async def public_ratings(db, user_ids):
         select(DealReview.recipient_id, func.avg(DealReview.score), func.count(DealReview.id))
         .join(Deal, Deal.id == DealReview.deal_id)
         .where(DealReview.recipient_id.in_(ids),
-               Deal.status.in_([DealStatus.completed, DealStatus.rated]),
-               Deal.shipper_confirmed.is_(True), Deal.carrier_confirmed.is_(True),
-               or_(and_(DealReview.rater_id == Deal.shipper_id,
-                        DealReview.recipient_id == Deal.carrier_id),
-                   and_(DealReview.rater_id == Deal.carrier_id,
-                        DealReview.recipient_id == Deal.shipper_id)))
+               eligible_public_review())
         .group_by(DealReview.recipient_id)
     )
     return {recipient: {"rating": round(float(mean), 1), "review_count": count}
             for recipient, mean, count in result.all()}
+
+
+def confirmed_completed_deal():
+    """One real completed deal confirmed by both distinct participants."""
+    return and_(Deal.status.in_([DealStatus.completed, DealStatus.rated]),
+                Deal.shipper_confirmed.is_(True), Deal.carrier_confirmed.is_(True),
+                Deal.shipper_id != Deal.carrier_id)
+
+
+def eligible_public_review():
+    """Shared by public aggregates and public review lists; no legacy counters."""
+    return and_(confirmed_completed_deal(),
+                or_(and_(DealReview.rater_id == Deal.shipper_id,
+                         DealReview.recipient_id == Deal.carrier_id),
+                    and_(DealReview.rater_id == Deal.carrier_id,
+                         DealReview.recipient_id == Deal.shipper_id)))

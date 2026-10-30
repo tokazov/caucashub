@@ -34,6 +34,12 @@ AUTH_ENABLED = os.environ.get("CARRIER_BROWSER_AUTH") == "1"
 NOTIFICATIONS_ENABLED = os.environ.get("CARRIER_BROWSER_NOTIFICATIONS") == "1"
 PILOT_ENABLED = os.environ.get("CARRIER_BROWSER_PILOT") == "1"
 ADDRESS_ENABLED = os.environ.get("CARRIER_BROWSER_ADDRESS") == "1"
+PUBLIC_PROFILES_ENABLED = os.environ.get("CARRIER_BROWSER_PUBLIC_PROFILES") == "1"
+DOCUMENTS_ENABLED = os.environ.get("CARRIER_BROWSER_DOCUMENTS") == "1"
+if DOCUMENTS_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
+    raise RuntimeError("Document tests require actual trade routes")
+if PUBLIC_PROFILES_ENABLED and os.environ.get("CARRIER_BROWSER_PUBLICATION") != "1":
+    raise RuntimeError("Public profile tests require actual trade routes")
 MOCK_MAPS_ENABLED = os.environ.get("CARRIER_BROWSER_MOCK_MAPS") == "1"
 if MOCK_MAPS_ENABLED and not ADDRESS_ENABLED:
     raise RuntimeError("Mock maps require the isolated address fixture")
@@ -111,6 +117,19 @@ if ADDRESS_ENABLED:
     ]
     application_paths += [item.relative_to(REPOSITORY).as_posix()
                           for item in (REPOSITORY / 'app/data').glob('*') if item.is_file()]
+    if PUBLIC_PROFILES_ENABLED:
+        application_paths += [
+            'app/services/public_profiles.py', 'app/services/public_ratings.py',
+            'app/models/deal_review.py', 'app/routers/users.py', 'app/routers/deals.py',
+            'app/routers/responses.py', 'scripts/prepare_loading_period.py',
+            'alembic/versions/027_review_comment_visibility.py',
+        ]
+    if DOCUMENTS_ENABLED:
+        application_paths += ['app/models/user.py', 'app/routers/users.py',
+            'app/routers/deals.py', 'app/services/document_names.py', 'app/pdf_utils.py',
+            'alembic/versions/028_document_names.py', 'scripts/prepare_loading_period.py']
+        application_paths += [item.relative_to(REPOSITORY).as_posix()
+                              for item in (REPOSITORY / 'app/fonts').glob('*') if item.is_file()]
     APPLICATION_DIGESTS = {name: sha256((REPOSITORY / name).read_bytes()).hexdigest()
                            for name in application_paths if (REPOSITORY / name).is_file()}
 
@@ -134,6 +153,8 @@ telegram_notify.notify_owner_new_user = no_owner_notification
 auth._login_attempts.clear()
 if not hasattr(User, "truck_type") or not hasattr(User, "tonnage"):
     raise RuntimeError("The real carrier profile backend must be present for this browser test")
+if DOCUMENTS_ENABLED and not all(hasattr(User, field) for field in ('legal_name_ka', 'legal_name_ka_confirmed_at')):
+    raise RuntimeError("The real private document-name schema is required")
 
 
 @asynccontextmanager
@@ -225,6 +246,35 @@ if os.environ.get("CARRIER_BROWSER_PUBLICATION") == "1":
         (dictionaries.router, "/api/dictionaries"),
     ]:
         app.include_router(router, prefix=prefix)
+
+if PUBLIC_PROFILES_ENABLED:
+    # Negative account-state fixtures only. Business actions (deal, review and
+    # consent changes) must still use the actual application routers above.
+    from pydantic import BaseModel, ConfigDict, StrictBool
+    from app.database import AsyncSessionLocal
+    from app.models.deal_review import DealReview
+
+    if not hasattr(DealReview, "public_comment"):
+        raise RuntimeError("Real review visibility schema is required")
+
+    class PublicProfileFixtureState(BaseModel):
+        model_config = ConfigDict(extra='forbid')
+        is_active: StrictBool | None = None
+        is_deleted: StrictBool | None = None
+
+    @app.patch("/__test__/public-profiles/users/{user_id}/state")
+    async def public_profile_fixture_state(user_id: int, data: PublicProfileFixtureState):
+        async with AsyncSessionLocal() as session:
+            user = await session.get(User, user_id)
+            if user is None or not user.email.endswith("@example.test"):
+                raise HTTPException(404, "Disposable fixture user required")
+            for field in data.model_fields_set:
+                value = getattr(data, field)
+                if value is not None:
+                    setattr(user, field, value)
+            await session.commit()
+            return {"test_only": True, "user_id": user_id,
+                    "is_active": user.is_active, "is_deleted": user.is_deleted}
 
 
 
@@ -339,6 +389,8 @@ async def ready():
         "actual_city_stats_routers": PILOT_ENABLED,
         "address_test": ADDRESS_ENABLED,
         "actual_location_routers": ADDRESS_ENABLED,
+        "public_profile_test": PUBLIC_PROFILES_ENABLED,
+        "document_test": DOCUMENTS_ENABLED,
         "mock_maps": MOCK_MAPS_ENABLED,
         "source_sha256": SOURCE_DIGESTS,
         "original_source_sha256": ORIGINAL_SOURCE_DIGESTS,

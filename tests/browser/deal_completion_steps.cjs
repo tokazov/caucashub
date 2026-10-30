@@ -9,7 +9,16 @@ module.exports=async function completeDeal(options){
  const second=first==='shipper'?'carrier':'shipper';
  const label=configuration.name+'-'+source;
  const manifest=[];
- const participantNames={shipper:accounts.shipper.company_name,carrier:accounts.carrier.company_name};
+ const participantNames={shipper:'შპს სატესტო ტვირთმფლობელი',carrier:'ᲨᲞᲡ ᲡᲐᲢᲔᲡᲢᲝ ᲒᲐᲓᲐᲛᲖᲘᲓᲐᲕᲘ'};
+ async function confirmLegalNames(){
+  for(const role of['shipper','carrier']){
+   assert.ok(accounts[role].email.endsWith('@example.test'),'Only disposable test owners may receive fixture requisites');
+   const page=pages[role],origin=new URL(page.url()).origin;assert.ok(['127.0.0.1','localhost'].includes(new URL(origin).hostname));
+   const saved=await page.evaluate(async({origin,name})=>{const r=await fetch(origin+'/api/users/me',{method:'PUT',headers:{Authorization:'Bearer '+localStorage.getItem('ch_token'),'Content-Type':'application/json'},body:JSON.stringify({legal_name_ka:name,legal_name_ka_confirmed:true})});return{status:r.status,marker:r.headers.get('x-carrier-test-only'),data:await r.json()};},{origin,name:participantNames[role]});
+   assert.equal(saved.status,200);assert.equal(saved.marker,'1');assert.equal(saved.data.legal_name_ka,participantNames[role]);assert.equal(saved.data.legal_name_ka_confirmed,true);
+   await page.reload({waitUntil:'domcontentloaded'});await page.locator('#userAvatar').waitFor({state:'visible'});
+  }
+ }
  async function show(role){
   const page=pages[role];
   await cabinetTab(page,configuration,'deals');
@@ -50,16 +59,16 @@ module.exports=async function completeDeal(options){
   await page.getByRole('button',{name:language==='ge'?'GE':'RU',exact:true}).click();
   const view=await show(role);
   assert.ok(['completed','rated'].includes(view.deal.status));
-  const link=view.card.locator('a.cab-btn.pdf');
+  const link=view.card.locator('.cab-btn.pdf');
   await link.waitFor({state:'visible'});
-  const href=await link.getAttribute('href');
-  assert.equal(new URL(href).origin,'http://127.0.0.1:8765');
-  assert.equal(new URL(href).searchParams.get('lang'),language);
+  const responsePending=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/deals/'+dealId+'/act.pdf'&&response.request().method()==='GET');
   const pending=page.waitForEvent('download',{timeout:15000});
   await link.click();
+  const response=await responsePending,requestUrl=new URL(response.url());assert.equal(response.status(),200);assert.equal(response.headers()['x-carrier-test-only'],'1');assert.equal(requestUrl.origin,new URL(page.url()).origin);assert.equal(requestUrl.searchParams.get('lang'),language);assert.equal(requestUrl.searchParams.has('token'),false);assert.ok(response.request().headers().authorization?.startsWith('Bearer '),'PDF request must use an authorization header');
   const download=await pending;
   assert.equal(await download.failure(),null);
   assert.match(download.suggestedFilename(),/^act_.+\.pdf$/);
+  assert.ok(!/[\\/]/.test(download.suggestedFilename()),'PDF filename must be safe');
   const filename=label+'-'+role+'-'+language+'.pdf';
   await download.saveAs(path.join(artifacts,filename));
   const bytes=fs.readFileSync(path.join(artifacts,filename));
@@ -67,7 +76,7 @@ module.exports=async function completeDeal(options){
   assert.ok(bytes.length>1000,'PDF must contain a real act, not an empty response');
   manifest.push({file:filename,language,source,deal_number:view.deal.deal_number,
    from:view.deal.load_from,to:view.deal.load_to,description:view.deal.load_desc,weight:view.deal.load_kg,
-   shipper:participantNames.shipper,carrier:participantNames.carrier,price:Number(view.deal.price)});
+   shipper:participantNames.shipper,carrier:participantNames.carrier,registration_shipper:accounts.shipper.company_name,registration_carrier:accounts.carrier.company_name,price:Number(view.deal.price)});
   if(language!=='ru')await page.getByRole('button',{name:'RU',exact:true}).click();
  }
  async function rate(role,score,comment){
@@ -91,7 +100,7 @@ module.exports=async function completeDeal(options){
  }
  for(const role of['shipper','carrier']){
   const view=await state(role,'confirmed');
-  assert.equal(await view.card.locator('a.cab-btn.pdf').count(),0,'Final act is unavailable before delivery completion');
+  assert.equal(await view.card.locator('.cab-btn.pdf').count(),0,'Final act is unavailable before delivery completion');
  }
  const firstResult=await confirm(first,'delivered');
  assert.equal(firstResult[second+'_confirmed'],false);
@@ -99,13 +108,14 @@ module.exports=async function completeDeal(options){
  const waiting=await refresh(first);
  assert.equal(waiting.deal.status,'delivered');
  assert.equal(await waiting.card.locator('button[onclick="confirmDelivery('+dealId+')"]').count(),0,'A confirmed participant must wait, not confirm twice');
- assert.equal(await waiting.card.locator('a.cab-btn.pdf').count(),0);
+ assert.equal(await waiting.card.locator('.cab-btn.pdf').count(),0);
  const remaining=await state(second,'delivered');
  await remaining.card.locator('button[onclick="confirmDelivery('+dealId+')"]').waitFor({state:'visible'});
  const completed=await confirm(second,'completed');
  assert.equal(completed.shipper_confirmed,true);assert.equal(completed.carrier_confirmed,true);
  assert.ok(completed.completed_at);
  for(const role of['shipper','carrier'])await state(role,'completed');
+ await confirmLegalNames();
 
  await downloadAct('shipper','ru');
  await downloadAct('carrier','ge');

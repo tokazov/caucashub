@@ -18,6 +18,7 @@ function transportHarness(){
   setTimeout,clearTimeout,requestAnimationFrame:fn=>{fn();return null;},cancelAnimationFrame:()=>{},
   fetch:async url=>{requests.push(new URL(url));return {ok:true,status:200,json:async()=>({offers:[],total:0})};}};
  context.window=context;vm.createContext(context);
+ vm.runInContext(slice(main,'function esc(s) {','// ── SAFE LOCALSTORAGE'),context);
  vm.runInContext(slice(main,'var _transportOffers = []','// Открыть модалку отклика'),context);
  return {context,nodes,requests};
 }

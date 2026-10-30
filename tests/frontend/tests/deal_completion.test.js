@@ -118,7 +118,9 @@ for(const path of ['main.js','frontend/main.js']){
   h.context.respond=async()=>response({...completed,viewer_can_rate:true});
   await h.context.confirmDelivery(31);
   const html=h.elements.myDealsList.innerHTML;
-  assert.ok(html.includes('/api/deals/31/act.pdf?token=session-one'));assert.ok(html.includes('onclick="rateDealPrompt(31'));
+  if(path==='frontend/main.js'){assert.ok(html.includes('downloadDealAct(31,null,this)'));assert.ok(!html.includes('session-one'));assert.ok(!html.includes('act.pdf?token='));}
+  else assert.ok(html.includes('/api/deals/31/act.pdf?token=session-one'));
+  assert.ok(html.includes('onclick="rateDealPrompt(31'));
   assert.ok(!html.includes('onclick="confirmDelivery('));assert.equal(h.context._deals[0].status,'completed');
  });
  test(path+': failed confirmation restores the action without changing the deal',async()=>{
@@ -182,7 +184,7 @@ for(const path of ['main.js','frontend/main.js']){
    viewer_has_rated:true,viewer_can_rate:false,my_review:review}):response({deals:[rated]});
   const pending=h.context.rateDealPrompt(31,'QA');h.elements.rateVal.value='4';h.elements.rateComment.value='  Good delivery  ';
   h.click('rateSubmit');await pending;
-  assert.deepEqual(JSON.parse(h.calls.fetch[0].options.body),{score:4,comment:'Good delivery'});
+  assert.deepEqual(JSON.parse(h.calls.fetch[0].options.body),{score:4,comment:'Good delivery',...(path==='frontend/main.js'?{public_comment:false}:{})});
   assert.equal(h.calls.fetch[0].options.headers.Authorization,'Bearer session-one');assert.equal(h.calls.fetch[0].options.method,'POST');
   assert.match(h.calls.fetch[0].url,/\/api\/deals\/31\/rate$/);assert.match(h.calls.fetch[1].url,/\/api\/deals\/my$/);
   assert.ok(h.elements.myDealsList.innerHTML.includes('Ваша оценка: 4/5 · Good delivery'));

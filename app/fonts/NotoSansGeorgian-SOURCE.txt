@@ -1,0 +1,8 @@
+Noto Sans Georgian, Regular and Bold (full static TTF)
+Copyright 2022 The Noto Project Authors (https://github.com/notofonts/georgian)
+License: SIL Open Font License 1.1, included in NotoSansGeorgian-OFL.txt.
+Downloaded on 2026-10-30 from the official Noto project builds:
+https://notofonts.github.io/georgian/fonts/NotoSansGeorgian/full/ttf/NotoSansGeorgian-Regular.ttf
+https://notofonts.github.io/georgian/fonts/NotoSansGeorgian/full/ttf/NotoSansGeorgian-Bold.ttf
+Unmodified font files. Used for complete Georgian legal-name glyph coverage,
+including Unicode Mtavruli capitals, without changing the stored spelling.

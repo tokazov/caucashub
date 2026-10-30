@@ -15,7 +15,8 @@ WORKFLOW = ".github/workflows/loading-period.yml"
 REQUIRED_JOBS = frozenset({
     "regression", "carrier-profile-browser", "publication-browser",
     "deal-completion-browser", "notification-browser", "auth-recovery-browser",
-    "address-browser", "validation",
+    "address-browser", "public-profile-browser", "document-requisites-browser",
+    "validation",
 })
 
 

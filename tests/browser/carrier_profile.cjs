@@ -6,7 +6,11 @@ const { spawn } = require('node:child_process');
 const { chromium } = require('playwright');
 
 const REPOSITORY = path.resolve(process.env.CARRIER_PROFILE_REPO_ROOT || path.join(__dirname, '../..'));
-const BASE = new URL('http://127.0.0.1:8765');
+const PORT = process.env.CARRIER_BROWSER_PORT || '8765';
+if (!/^\d+$/.test(PORT) || Number(PORT) < 1024 || Number(PORT) > 65535) {
+  throw new Error('Local fixture port must be between1024 and65535');
+}
+const BASE = new URL('http://127.0.0.1:' + Number(PORT));
 const ARTIFACTS = path.resolve(process.env.CARRIER_PROFILE_ARTIFACTS || path.join(REPOSITORY, 'artifacts/carrier-profile'));
 fs.mkdirSync(ARTIFACTS, { recursive: true });
 let server;
@@ -37,7 +41,7 @@ async function waitForFixture() {
       await sleep(250);
     }
   }
-  throw new Error('No verified isolated carrier-profile fixture on 127.0.0.1:8765');
+  throw new Error('No verified isolated carrier-profile fixture on ' + BASE.host);
 }
 
 function assertProfile(profile, type, tonnes) {
@@ -263,7 +267,7 @@ async function journey(configuration, index) {
       const log = fs.createWriteStream(path.join(ARTIFACTS, 'server.log'));
       server = spawn(process.env.PYTHON || 'python', [path.join(REPOSITORY, 'tests/browser/carrier_profile_server.py')], {
         cwd: REPOSITORY,
-        env: { ...process.env, PYTHONUNBUFFERED: '1' },
+        env: { ...process.env, PYTHONUNBUFFERED: '1', CARRIER_BROWSER_PORT: String(Number(PORT)) },
         stdio: ['ignore', 'pipe', 'pipe']
       });
       server.stdout.pipe(log, { end: false });
@@ -272,8 +276,11 @@ async function journey(configuration, index) {
       server.once('close', () => log.end());
     }
     await waitForFixture();
+    const executablePath = process.env.CARRIER_BROWSER_CHROMIUM_EXECUTABLE_PATH || undefined;
+    if (executablePath) assert.ok(path.isAbsolute(executablePath) && fs.existsSync(executablePath), 'Browser override must be an existing absolute executable path');
     browser = await chromium.launch({
       headless: true,
+      executablePath,
       args: ['--disable-background-networking', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1']
     });
     const configurations = [
