@@ -2199,6 +2199,7 @@ async function doLogin(){
         user.name=d.company_name||user.name;
         applyCarrierProfileDefaults(d,user);
         _lsSet('ch_user',JSON.stringify(user));
+        showUserState();
       }
     }).catch(()=>{});
   },400);
@@ -3281,6 +3282,8 @@ function loadCabinetData(){
   var tk = getToken ? getToken() : localStorage.getItem('ch_token');
   const owner=user,current=()=>user===owner&&getToken()===tk;
   if(!owner||!tk)return;
+  const dealsRevision=(loadCabinetData.dealsRevision||0)+1;
+  loadCabinetData.dealsRevision=dealsRevision;
   // Мои грузы
   fetch('https://api-production-f3ea.up.railway.app/api/loads/my/loads',{headers:{'Authorization':'Bearer '+tk}})
     .then(r=>r.ok?r.json():null).then(data=>{
@@ -3311,12 +3314,14 @@ function loadCabinetData(){
       if(_currentCabTab==='responses') renderCabResponses();
     }).catch(()=>{});
   // Сделки
-  fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}})
+  return fetch('https://api-production-f3ea.up.railway.app/api/deals/my',{headers:{'Authorization':'Bearer '+tk}})
     .then(r=>r.ok?r.json():null).then(d=>{
-      if(!current()||!d) return;
-      _deals = d.deals||[];
-      if(_currentCabTab==='deals') renderCabDeals();
-    }).catch(()=>{});
+      if(!current()||loadCabinetData.dealsRevision!==dealsRevision||!Array.isArray(d?.deals)) return false;
+      _deals = d.deals;
+      // Keep the existing tab and its counters ready before it is opened.
+      renderCabDeals();
+      return true;
+    }).catch(()=>false);
 }
 
 function renderCabLoads(){
@@ -3495,15 +3500,15 @@ function renderDealCounterpartyContacts(deal){
 function renderCabDeals(){
  var el = document.getElementById('myDealsList');
  if(!el) return;
+ var cabDeals = document.getElementById('cabStatDeals');
+ if(cabDeals) cabDeals.textContent = (_deals||[]).length;
+ var total = (_deals||[]).reduce(function(s,d){ return s + (d.price||d.agreed_price||0); }, 0);
+ var cabRev = document.getElementById('cabStatRevenue');
+ if(cabRev) cabRev.textContent = '₾' + total.toLocaleString();
  if(!_deals || !_deals.length){
  el.innerHTML = '<div class="cab-empty"><div class="cab-empty-icon">🤝</div><div class="cab-empty-title">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals||'Нет сделок') + '</div><div class="cab-empty-sub">' + ((TRANSLATIONS[lang]||TRANSLATIONS['ru']).empty_deals_sub||'Примите отклик на груз чтобы создать сделку') + '</div></div>';
  return;
  }
- var cabDeals = document.getElementById('cabStatDeals');
- if(cabDeals) cabDeals.textContent = _deals.length;
- var total = _deals.reduce(function(s,d){ return s + (d.price||d.agreed_price||0); }, 0);
- var cabRev = document.getElementById('cabStatRevenue');
- if(cabRev) cabRev.textContent = '₾' + total.toLocaleString();
  var _tr = TRANSLATIONS[lang]||TRANSLATIONS['ru'];
  var ST = {
  confirmed:{l:'✅ ' + (_tr.deal_confirmed||'Подтверждена'),cls:'accepted'},
@@ -7942,12 +7947,17 @@ function renderIncomingTransportRequests(requests) {
 
 window.acceptTransportReq = async function(reqId) {
   var tk = typeof getToken === 'function' ? getToken() : null;
-  if(!tk) return;
+  const owner=user,current=()=>user===owner&&getToken()===tk;
+  if(!owner||!tk) return;
   try {
     var r = await fetch(API_BASE + '/api/transport-requests/' + reqId + '/accept', {method:'POST', headers:{'Authorization':'Bearer '+tk}});
     var d = await r.json();
+    if(!current()) return;
     if(r.ok) {
       await loadIncomingTransportRequests();
+      if(!current()) return;
+      await loadCabinetData();
+      if(!current()) return;
       showToastWarn(lang==='ge'?'გარიგება შეიქმნა. გახსენით «გარიგებები».':'✅ Сделка создана. Откройте «Сделки».');
       if(typeof refreshNotifications==='function')refreshNotifications();
     }
