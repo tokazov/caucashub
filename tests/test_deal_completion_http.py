@@ -336,7 +336,8 @@ async def test_actual_pdf_uses_accepted_source_and_normal_header_or_legacy_query
         assert len(captured) == 2
         data = next(item for item in captured if item['lang'] == lang)
         assert data["lang"] == lang
-        assert data["from_city"] == "Тбилиси" and data["to_city"] == "Батуми"
+        expected_route = ("თბილისი", "ბათუმი") if lang == "ge" else ("Тбилиси", "Батуми")
+        assert (data["from_city"], data["to_city"]) == expected_route
         assert data["cargo_desc"] == DESCRIPTION
         assert float(data["weight_kg"]) == 3000  # request weight, not offer capacity 10000
         expected_truck_labels = {

@@ -547,7 +547,10 @@ async def download_act(
             request = await db.get(TransportRequest, deal.transport_request_id, populate_existing=True) if deal.transport_request_id else None
             issued_at = datetime.now(timezone.utc)
             payload = _act_payload(deal, shipper, carrier, load, offer, request, names, issued_at)
-            archive = create_bundle(deal_id, payload, issued_at, generate_act_pdf)
+            from app.services.city_identity import city_registry
+            from app.services.document_routes import act_route_renderer
+            render = act_route_renderer(load or offer, await city_registry(db), generate_act_pdf)
+            archive = create_bundle(deal_id, payload, issued_at, render)
             db.add(archive)
             await db.commit()
         except IntegrityError:

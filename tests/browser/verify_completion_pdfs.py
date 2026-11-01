@@ -13,8 +13,11 @@ root = Path(sys.argv[1]).resolve()
 manifest_path = root / "pdf-manifest.json"
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 assert len(manifest) == 8, f"Expected both source paths, roles and languages at two viewports, got {len(manifest)}"
+fixture_routes = {"ru": ("Тбилиси", "Батуми"), "ge": ("თბილისი", "ბათუმი")}
 report = []
 for item in manifest:
+    assert item["language"] in fixture_routes, "Explicit PDF fixture language required"
+    assert (item["from"], item["to"]) == fixture_routes[item["language"]], "Manifest route must match the known fixture and PDF language"
     pdf = (root / item["file"]).resolve()
     assert pdf.parent == root and pdf.suffix == ".pdf", "Unsafe PDF artifact path"
     assert pdf.read_bytes().startswith(b"%PDF-")

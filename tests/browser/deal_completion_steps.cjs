@@ -74,8 +74,12 @@ module.exports=async function completeDeal(options){
   const bytes=fs.readFileSync(path.join(artifacts,filename));
   assert.equal(bytes.subarray(0,5).toString(),'%PDF-');
   assert.ok(bytes.length>1000,'PDF must contain a real act, not an empty response');
+  // Both publication fixtures have this exact route; PDF labels follow its locale.
+  assert.equal(view.deal.load_from,'Тбилиси');assert.equal(view.deal.load_to,'Батуми');
+  const expectedRoute={ru:{from:'Тбилиси',to:'Батуми'},ge:{from:'თბილისი',to:'ბათუმი'}}[language];
+  assert.ok(expectedRoute,'Explicit PDF fixture language required');
   manifest.push({file:filename,language,source,deal_number:view.deal.deal_number,
-   from:view.deal.load_from,to:view.deal.load_to,description:view.deal.load_desc,weight:view.deal.load_kg,
+   from:expectedRoute.from,to:expectedRoute.to,description:view.deal.load_desc,weight:view.deal.load_kg,
    shipper:participantNames.shipper,carrier:participantNames.carrier,registration_shipper:accounts.shipper.company_name,registration_carrier:accounts.carrier.company_name,price:Number(view.deal.price)});
   if(language!=='ru')await page.getByRole('button',{name:'RU',exact:true}).click();
  }
