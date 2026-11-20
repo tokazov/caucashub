@@ -51,7 +51,8 @@ test('availability distinguishes legacy, stale and expired offers and shows a re
 test('empty public lists offer the appropriate own posting and assistance without sample listings',()=>{
  const {context:c}=transportHarness();
  assert.match(c.publicListingEmpty('transport'),/onclick="openPostLoad\(\)"/);
- assert.match(c.publicListingEmpty('loads'),/onclick="openPostTransportOffer\(\)"/);
+ assert.match(c.publicListingEmpty('loads'),/onclick="openPostLoad\(\)"/);
+ assert.match(c.publicListingEmpty('loads'),/\+ Разместить груз/);
  for(const kind of ['loads','transport'])assert.match(c.publicListingEmpty(kind),/onclick="toggleAI\(\)"/);
  assert.match(main,/const TRUCKS = \[\];/);
  const rates=slice(html,'id="sec-rates"','id="sec-cabinet"');
