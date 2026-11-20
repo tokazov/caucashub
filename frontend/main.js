@@ -3646,7 +3646,7 @@ const TRANSLATIONS = {
   ru: {
     public_new_carrier: "Новый перевозчик",
     public_reviews: "отзывов",
-    load_empty_help: "По выбранным фильтрам пока нет грузов. Предложите свой транспорт или запросите помощь.",
+    load_empty_help: "По выбранным фильтрам пока нет грузов. Разместите груз или запросите помощь.",
     empty_post_request: "Оставить заявку на перевозку",
     empty_ask_help: "Помощь Мари",
     transport_expired: "Срок доступности истёк",
@@ -4282,7 +4282,7 @@ const TRANSLATIONS = {
   ge: {
     public_new_carrier: "ახალი გადამზიდველი",
     public_reviews: "შეფასება",
-    load_empty_help: "არჩეული ფილტრებით ტვირთები ჯერ არ არის. განათავსეთ თქვენი ტრანსპორტი ან ითხოვეთ დახმარება.",
+    load_empty_help: "არჩეული ფილტრებით ტვირთები ჯერ არ არის. განათავსეთ ტვირთი ან ითხოვეთ დახმარება.",
     empty_post_request: "გადაზიდვის განაცხადის დატოვება",
     empty_ask_help: "მარის დახმარება",
     transport_expired: "ხელმისაწვდომობის ვადა ამოიწურა",
@@ -7600,9 +7600,9 @@ function publicListingEmpty(kind) {
   var transport=kind==='transport';
   var title=transport?(T.transport_empty_title||'Нет предложений'):(T.load_search_empty||'Грузов не найдено');
   var text=transport?(T.transport_empty_sub||'По выбранному маршруту пока нет транспорта. Оставьте заявку на перевозку или запросите помощь.')
-    :(T.load_empty_help||'По выбранным фильтрам пока нет грузов. Предложите свой транспорт или запросите помощь.');
-  var action=transport?'openPostLoad()':'openPostTransportOffer()';
-  var label=transport?(T.empty_post_request||'Оставить заявку на перевозку'):(T.btn_offer_transport||'+ Предложить транспорт');
+    :(T.load_empty_help||'По выбранным фильтрам пока нет грузов. Разместите груз или запросите помощь.');
+  var action='openPostLoad()';
+  var label=transport?(T.empty_post_request||'Оставить заявку на перевозку'):(T.btn_post_load||'+ Разместить груз');
   return '<div class="cab-empty listing-empty"><div class="cab-empty-icon">'+(transport?'🚛':'📦')+'</div>'+
     '<div class="cab-empty-title">'+esc(title)+'</div><div class="cab-empty-sub">'+esc(text)+'</div>'+
     '<div class="listing-empty-actions"><button type="button" class="listing-empty-action" onclick="'+action+'">'+esc(label)+'</button>'+
